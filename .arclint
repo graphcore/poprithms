@@ -1,0 +1,26 @@
+{
+    "linters": {
+        "clang-format": {
+            "type": "clang-format",
+            "include": "(\\.(c|cpp|C|cc|c\\+\\+|cxx|h|hpp)$)"
+        },
+        "yapf": {
+            "type": "yapf",
+            "include": "(\\.py$)"
+        },
+        "text-rst": {
+            "type": "text",
+            "include": "(\\.(rst)$)",
+            "severity": {
+                "1": "autofix",
+                "2": "warning",
+                "3": "warning",
+                "4": "autofix",
+                "5": "disabled",
+                "6": "warning",
+                "7": "warning",
+                "8": "autofix"
+            }
+        }
+    }
+}

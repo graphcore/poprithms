@@ -4,6 +4,7 @@
 #include <numeric>
 #include <testutil/schedule/anneal/commandlineoptions.hpp>
 #include <tuple>
+#include <vector>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <poprithms/schedule/anneal/opalloc.hpp>

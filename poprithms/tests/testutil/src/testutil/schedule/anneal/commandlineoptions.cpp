@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <sstream>
 #include <string>
