@@ -1,0 +1,16 @@
+#include <poprithms/schedule/anneal/annealusings.hpp>
+
+namespace poprithms {
+namespace schedule {
+namespace anneal {
+
+class OpAlloc {
+public:
+  OpAlloc(OpAddress o, AllocAddress a) : op(o), alloc(a) {}
+  OpAddress op;
+  AllocAddress alloc;
+};
+
+} // namespace anneal
+} // namespace schedule
+} // namespace poprithms
