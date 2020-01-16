@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
   } else if (recomputeType == "log") {
     pattern = getLogNSeries(nFwd);
   } else {
-    throw poprithms::error(
+    throw poprithms::schedule::anneal::error(
         "Invalid type, log and sqrt are the current options");
   }
   auto g = getRecomputeGraph(pattern);

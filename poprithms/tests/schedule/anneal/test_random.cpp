@@ -118,8 +118,8 @@ int main() {
     g.initialize();
 
     std::vector<AllocWeight> lBefore;
-    AllocWeight totalBefore = 0;
-    AllocWeight maxBefore   = 0;
+    auto totalBefore = AllocWeight::zero();
+    auto maxBefore   = AllocWeight::zero();
     for (ScheduleIndex i = 0; i < nOps; ++i) {
       auto x = g.scheduleToLiveness(i);
       totalBefore += x;
@@ -129,8 +129,8 @@ int main() {
     g.minSumLivenessAnneal(MinSumLivenessAlgo::RIPPLE, true);
 
     std::vector<AllocWeight> lAfter;
-    AllocWeight maxAfter   = 0;
-    AllocWeight totalAfter = 0;
+    AllocWeight maxAfter   = AllocWeight::zero();
+    AllocWeight totalAfter = AllocWeight::zero();
     for (ScheduleIndex i = 0; i < nOps; ++i) {
       auto x = g.scheduleToLiveness(i);
       totalAfter += x;

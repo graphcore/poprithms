@@ -1,4 +1,8 @@
+#ifndef POPRITHMS_SCHEDULE_ANNEAL_ALLOC_HPP
+#define POPRITHMS_SCHEDULE_ANNEAL_ALLOC_HPP
+
 #include <vector>
+#include <poprithms/schedule/anneal/allocweight.hpp>
 #include <poprithms/schedule/anneal/annealusings.hpp>
 
 namespace poprithms {
@@ -19,6 +23,10 @@ public:
   size_t nOps() const { return getOps().size(); }
   int nOps_i32() const { return static_cast<int>(nOps()); }
 
+  bool operator==(const Alloc &rhs) const {
+    return address == rhs.address && weight == rhs.weight && ops == rhs.ops;
+  }
+
 private:
   const AllocAddress address;
 
@@ -30,3 +38,5 @@ private:
 } // namespace anneal
 } // namespace schedule
 } // namespace poprithms
+
+#endif

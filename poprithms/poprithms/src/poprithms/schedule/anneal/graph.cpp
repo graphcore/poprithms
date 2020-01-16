@@ -35,18 +35,45 @@ custom_lower_bound(ForwardIt first, ForwardIt last, const T &value) {
 }
 } // namespace
 
-OpAddress Graph::insertOp(const std::vector<OpAddress> &ins,
-                          const std::vector<AllocAddress> &allocs,
-                          const std::string &dbs) {
+OpAddress Graph::insertOp(const std::string &dbs) {
   OpAddress op = nOps();
-  allOps.push_back({op, ins, allocs, dbs});
-  for (auto address : ins) {
-    allOps[address].insertOut(op);
-  }
-  for (auto address : allocs) {
-    allAllocs[address].insertOp(op);
-  }
+  allOps.push_back({op, dbs});
   return op;
+}
+
+void Graph::insertOpAlloc(OpAddress oa, AllocAddress aa) {
+  allAllocs[aa].insertOp(oa);
+  allOps[oa].insertAlloc(aa);
+}
+
+void Graph::insertBinConstraints(
+    const std::vector<std::vector<OpAddress>> &bins,
+    const std::string &prefix) {
+  for (uint64_t i = 1; i < bins.size(); ++i) {
+    // a "bottleneck" Op, which partitions Ops into different bins.
+    auto op = insertOp(prefix + std::to_string(i));
+    for (auto b : bins[i - 1]) {
+      insertConstraint(b, op);
+    }
+    for (auto a : bins[i]) {
+      insertConstraint(op, a);
+    }
+  }
+}
+
+void Graph::insertAttractions(
+    const std::vector<std::array<OpAddress, 2>> &knots,
+    AllocWeight w) {
+  for (const auto &knot : knots) {
+    auto allocAddress = insertAlloc(w);
+    insertOpAlloc(std::get<0>(knot), allocAddress);
+    insertOpAlloc(std::get<1>(knot), allocAddress);
+  }
+}
+
+void Graph::insertConstraint(OpAddress before, OpAddress after) {
+  allOps[before].insertOut(after);
+  allOps[after].insertIn(before);
 }
 
 void Graph::append(std::ostream &ost) const {
@@ -83,7 +110,7 @@ AllocWeight Graph::getShiftCost(ScheduleIndex start0,
     nToShift  = old0 - old1;
   }
 
-  AllocWeight fwdShiftCost;
+  AllocWeight fwdShiftCost = AllocWeight::negativeOne();
 
   // example:
   //
@@ -143,12 +170,12 @@ AllocWeight Graph::getShiftCost(ScheduleIndex start0,
 
   //  ..         ,,          .,
   if (a1 < x0 || o1 <= a0 || (a0 < x0 && o1 <= a1)) {
-    fwdShiftCost = 0;
+    fwdShiftCost = AllocWeight(0);
   }
 
   //        xx                       oo
   else if ((x0 <= a0 && a1 < o0) || (o0 <= a0 && a1 < o1)) {
-    fwdShiftCost = 0;
+    fwdShiftCost = AllocWeight(0);
   }
 
   // .x
@@ -340,6 +367,16 @@ std::vector<AllocAddress> Graph::getAllocAddresses(ScheduleIndex start,
   return addresses;
 }
 
+std::vector<OpAddress> Graph::getInputOps() const {
+  std::vector<OpAddress> inputs;
+  for (const auto &op : allOps) {
+    if (op.nIns() == 0) {
+      inputs.push_back(op.getAddress());
+    }
+  }
+  return inputs;
+}
+
 std::string Graph::getLivenessString() const {
 
   std::vector<std::string> sIndex{"Index", "====="};
@@ -385,7 +422,7 @@ std::string Graph::getLivenessString() const {
     poprithms::util::append(ossAllocs, schToAllocs[i]);
 
     sIndex.push_back(std::to_string(i));
-    sLiveness.push_back(std::to_string(schToLiveness[i]));
+    sLiveness.push_back(toString(schToLiveness[i]));
     sIns.push_back(ossIns.str());
     sOuts.push_back(ossOuts.str());
     sAllocsIn.push_back(ossAllocsIn.str());
@@ -416,8 +453,8 @@ std::string Graph::getLivenessString() const {
         << '\n';
   }
 
-  AllocWeight total =
-      std::accumulate(schToLiveness.cbegin(), schToLiveness.cend(), 0);
+  AllocWeight total = std::accumulate(
+      schToLiveness.cbegin(), schToLiveness.cend(), AllocWeight(0));
   oss << "Total : " << total << '\n';
 
   return oss.str();
@@ -526,7 +563,7 @@ void Graph::applyChange(const ScheduleChange &scheduleChange) {
   updateNCanBwds(nToShift, x0, o1, consumersTouched);
 }
 
-// TODO(jn) : there's a faster way to do this when n2s = 1, will be useful
+// TODO(T14827) : there's a faster way to do this when n2s = 1, will be useful
 // when multi-threading as fast updating will become important
 void Graph::updateNCanFwds(int n2s,
                            int x0,
@@ -553,7 +590,7 @@ void Graph::updateNCanFwds(int n2s,
   }
 }
 
-// TODO(jn) : there's a faster way to do this when n2s = 1.
+// TODO(T14827) : there's a faster way to do this when n2s = 1.
 void Graph::updateNCanBwds(int n2s,
                            int x0,
                            int o1,
@@ -580,6 +617,40 @@ void Graph::setSchToLiveness() {
   for (uint64_t i = 0; i < nOps(); ++i) {
     schToLiveness.push_back(schToLiveness.back() + deltaLiveness[i + 1]);
   }
+}
+
+bool Graph::isSchedulable() const {
+
+  if (!isFinalized) {
+    throw error(
+        "Graph not finalized, should call finalize() before isSchedulable()");
+  }
+
+  std::vector<OpAddress> outstanding;
+  outstanding.reserve(nOps());
+  std::vector<OpAddress> ready;
+  for (OpAddress i = 0; i < allOps.size(); ++i) {
+    outstanding.push_back(getOp(i).nIns());
+    if (outstanding[i] == 0) {
+      ready.push_back(i);
+    }
+  }
+
+  int nScheduled{0};
+
+  while (!ready.empty()) {
+    OpAddress address = ready.back();
+    ++nScheduled;
+    ready.pop_back();
+    for (auto cAddress : allOps[address].getOuts()) {
+      --outstanding[cAddress];
+      if (outstanding[cAddress] == 0) {
+        ready.push_back(cAddress);
+      }
+    }
+  }
+
+  return nScheduled == nOps_i32();
 }
 
 void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
@@ -614,31 +685,35 @@ void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
     }
   }
 
+  // TODO(T14828) : KhanTieBreaker::FIFO, as used in isSchedulable(). This is
+  // essentially RANDOM without the shuffle. Experiment with the performance
+  // (speed to local minimum) with this, as compared to GREEDY and RANDOM.
+
   // GREEDY
   else {
+
+    std::vector<int> nOutstandingForAlloc(nAllocs());
+    std::vector<bool> allocLive(nAllocs(), false);
+    for (const auto &alloc : getAllocs()) {
+      nOutstandingForAlloc[alloc.getAddress()] = alloc.nOps_i32();
+    }
+
+    auto deltaLive = [&nOutstandingForAlloc, &allocLive, this](OpAddress a) {
+      AllocWeight delta{0};
+      for (auto allocAddress : getOp(a).getAllocs()) {
+        const auto allocWeight = getAlloc(allocAddress).getWeight();
+        if (nOutstandingForAlloc[allocAddress] == 1) {
+          delta -= allocWeight;
+        }
+        if (!allocLive[allocAddress]) {
+          delta += allocWeight;
+        }
+      }
+      return delta;
+    };
+
     while (!ready.empty()) {
       std::shuffle(ready.begin(), ready.end(), g);
-
-      std::vector<int> nOutstandingForAlloc(nAllocs());
-      std::vector<bool> allocLive(nAllocs(), false);
-      for (const auto &alloc : getAllocs()) {
-        nOutstandingForAlloc[alloc.getAddress()] = alloc.nOps_i32();
-      }
-
-      auto deltaLive =
-          [&nOutstandingForAlloc, &allocLive, this](OpAddress a) {
-            AllocWeight delta{0};
-            for (auto allocAddress : getOp(a).getAllocs()) {
-              const auto allocWeight = getAlloc(allocAddress).getWeight();
-              if (nOutstandingForAlloc[allocAddress] == 1) {
-                delta -= allocWeight;
-              }
-              if (!allocLive[allocAddress]) {
-                delta += allocWeight;
-              }
-            }
-            return delta;
-          };
 
       auto bestIter         = ready.cbegin();
       AllocWeight bestDelta = deltaLive(*bestIter);
@@ -675,12 +750,34 @@ void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
     std::ostringstream oss;
     oss << "Failed to schedule Ops in Graph::initializeSchedule, "
         << " only managed to schedule " << schToOp.size() << " of "
-        << allOps.size() << ".";
+        << allOps.size() << ". Failed to schedule:\n";
+
+    for (const auto &op : allOps) {
+      if (std::find(schToOp.cbegin(), schToOp.cend(), op.getAddress()) ==
+          schToOp.cend()) {
+        oss << "     " << op.getAddress() << " <- { ";
+        for (auto x : op.getIns()) {
+          oss << x << ' ';
+        }
+        oss << "}   [  " << op << "  ] \n";
+      }
+    }
     throw error(oss.str());
   }
 }
 
+void Graph::finalize() {
+  for (auto &op : allOps) {
+    op.sortAndMakeUnique();
+  }
+  isFinalized = true;
+}
+
 void Graph::initialize(KhanTieBreaker khanTie, uint32_t khanSeed) {
+
+  if (!isFinalized) {
+    finalize();
+  }
 
   //
   // schToOp. Vanilla run of Khan's O(E) algorithm, random tie-breaks
@@ -770,7 +867,9 @@ void Graph::initialize(KhanTieBreaker khanTie, uint32_t khanSeed) {
   // nFwd, nBwd
   setCanCan(1);
 
-  rippleScratch.resize(nAllocs(), {-1, -1, -1, false});
+  rippleScratch.resize(
+      nAllocs(),
+      {-1, AllocWeight::negativeOne(), AllocWeight::negativeOne(), false});
 }
 
 void Graph::setCanCan(int nToShift) {
@@ -835,7 +934,7 @@ void Graph::updateCanCan(int oldNToShift, int n2s) {
 }
 
 std::vector<AllocWeight> Graph::getDeltaLiveness() const {
-  std::vector<AllocWeight> deltaLiveness(nOps() + 1, 0);
+  std::vector<AllocWeight> deltaLiveness(nOps() + 1, AllocWeight::zero());
   for (AllocAddress allocAddress = 0; allocAddress < nAllocs();
        ++allocAddress) {
     if (getAlloc(allocAddress).nOps() > 0) {
@@ -900,8 +999,6 @@ void Graph::assertCorrectness() const {
       }
     }
   }
-
-  // TODO(jn) complete this
 }
 
 ShiftAndCost Graph::getBestShiftSimpleAlgo(const ScheduleIndex start0,
@@ -1029,26 +1126,32 @@ void Graph::confirmShiftAndCost(ScheduleIndex start0,
 
 void Graph::minSumLivenessAnneal(
     const std::map<std::string, std::string> &m) {
-  bool debug             = defaultDebug();
-  uint32_t seed          = defaultSeed();
-  double pStayPut        = defaultPStayPut();
-  double pHigherFallRate = defaultPHigherFallRate();
-  double pClimb          = defaultPClimb();
-  bool logging           = defaultLogging();
+  bool debug               = defaultDebug();
+  uint32_t seed            = defaultSeed();
+  Fraction pStayPut        = defaultPStayPut();
+  Fraction pHigherFallRate = defaultPHigherFallRate();
+  Fraction pClimb          = defaultPClimb();
+  bool logging             = defaultLogging();
+  double timeLimitSeconds  = defaultTimeLimitSeconds();
+  int64_t swapLimitCount   = defaultSwapLimitCount();
 
   for (auto &[k, v] : m) {
     if (k == "debug") {
       debug = static_cast<bool>(std::stoi(v));
     } else if (k == "seed") {
-      seed = static_cast<uint32_t>(std::stoi(v));
+      seed = static_cast<uint32_t>(std::stoll(v));
     } else if (k == "pHigherFallRate") {
-      pHigherFallRate = static_cast<double>(std::stof(v));
+      pHigherFallRate = static_cast<Fraction>(std::stof(v));
     } else if (k == "pStayPut") {
-      pStayPut = static_cast<double>(std::stof(v));
+      pStayPut = static_cast<Fraction>(std::stof(v));
     } else if (k == "pClimb") {
-      pClimb = static_cast<double>(std::stof(v));
+      pClimb = static_cast<Fraction>(std::stof(v));
     } else if (k == "logging") {
       logging = static_cast<bool>(std::stoi(v));
+    } else if (k == "timeLimitSeconds") {
+      timeLimitSeconds = static_cast<double>(std::stof(v));
+    } else if (k == "swapLimitCount") {
+      swapLimitCount = static_cast<int64_t>(std::stoll(v));
     } else {
       throw error("invalid option in minSumLivenessAnneal, " + k);
     }
@@ -1059,25 +1162,31 @@ void Graph::minSumLivenessAnneal(
                        pStayPut,
                        pHigherFallRate,
                        pClimb,
-                       logging);
+                       logging,
+                       timeLimitSeconds,
+                       swapLimitCount);
 }
 
 void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
                                  bool debug,
                                  uint32_t seed,
-                                 double pStayPut,
-                                 double pHigherFallRate,
-                                 double pClimb,
-                                 bool logging) {
+                                 Fraction pStayPut,
+                                 Fraction pHigherFallRate,
+                                 Fraction pClimb,
+                                 bool logging,
+                                 double timeLimitSeconds,
+                                 int64_t swapLimitCount) {
 
   if (logging) {
     std::cout << "debug=" << debug << " seed=" << seed
               << " pStayPuy=" << pStayPut
               << " pHigherFallRate=" << pHigherFallRate
-              << " pClimb=" << pClimb << std::endl;
+              << " pClimb=" << pClimb
+              << " timeLimitSeconds=" << timeLimitSeconds
+              << " swapLimitCount=" << swapLimitCount << std::endl;
   }
 
-  std::vector<double> fallRates;
+  std::vector<FallRate> fallRates;
   std::mt19937 g(seed);
 
   if (pStayPut < 0.0) {
@@ -1102,12 +1211,14 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
 
   // look for moves of this shift length
   int nToShift{1};
-  bool continueAnnealing{true};
+  bool continueAnnealing =
+      (timeLimitSeconds <= 0 || swapLimitCount <= 0) ? false : true;
+
   int nChangesAtCurrentShift{0};
 
   // at a given shift, there may be multiple rounds
   int nChangesInCurrentRound{0};
-  int deltaWeightCurrentRound{0};
+  AllocWeight deltaWeightCurrentRound{0};
 
   // there have been no-recorded improvements since last at nToShift = 1
   bool noChangeSinceStart{true};
@@ -1115,6 +1226,9 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
   // one "shift" phase can consist of multple "rounds"
   double timeSpentAtCurrentShift{0.0};
   double timeSpentInCurrentRound{0.0};
+  double timeSpentInTotal{0.0};
+
+  int64_t nChangesInTotal{0};
 
   uint64_t nIndices = nOps() - static_cast<uint64_t>(nToShift) + 1;
   auto indices      = std::vector<ScheduleIndex>(nIndices);
@@ -1123,8 +1237,8 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
   auto startCurrentShift = std::chrono::high_resolution_clock::now();
 
   // used in a check for the correctness of all computed improvements
-  AllocWeight initSumLiveness = getSumLiveness();
-  AllocWeight initMaxLiveness = getMaxLiveness();
+  const AllocWeight initSumLiveness = getSumLiveness();
+  const AllocWeight initMaxLiveness = getMaxLiveness();
   AllocWeight totalDeltaSumLiveness{0};
 
   while (continueAnnealing) {
@@ -1137,9 +1251,9 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     // commenting
     std::shuffle(indices.begin(), indices.end(), g);
     nChangesInCurrentRound  = 0;
-    deltaWeightCurrentRound = 0;
+    deltaWeightCurrentRound = AllocWeight::zero();
     for (auto start0 : indices) {
-      ShiftAndCost shiftAndCost{-1, -1};
+      ShiftAndCost shiftAndCost{-1, AllocWeight::negativeOne()};
       if (algo == MinSumLivenessAlgo::RIPPLE) {
         shiftAndCost = getBestShiftRippleAlgo(start0, nToShift);
       } else {
@@ -1148,7 +1262,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
       if (debug) {
         confirmShiftAndCost(start0, nToShift, shiftAndCost, algo);
       }
-      if (shiftAndCost.getCost() < 0) {
+      if (shiftAndCost.getCost() < AllocWeight(0)) {
         auto start1 = start0 + shiftAndCost.getShift();
         ScheduleChange scheduleChange{start0, start1, nToShift};
         applyChange(scheduleChange);
@@ -1162,6 +1276,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     }
 
     nChangesAtCurrentShift += nChangesInCurrentRound;
+    nChangesInTotal += nChangesInCurrentRound;
     noChangeSinceStart = noChangeSinceStart && nChangesInCurrentRound == 0;
 
     auto finishCurrentRound = std::chrono::high_resolution_clock::now();
@@ -1169,15 +1284,22 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     std::chrono::duration<double> elapsedCurrentRound =
         finishCurrentRound - startCurrentRound;
     timeSpentInCurrentRound = elapsedCurrentRound.count();
+    timeSpentInTotal += timeSpentInCurrentRound;
+    if (timeSpentInTotal > timeLimitSeconds) {
+      continueAnnealing = false;
+    }
+    if (nChangesInTotal >= swapLimitCount) {
+      continueAnnealing = false;
+    }
 
     auto fallRatesMinSize = static_cast<uint64_t>(nToShift + 1);
     if (fallRates.size() < fallRatesMinSize) {
-      fallRates.resize(fallRatesMinSize);
+      fallRates.resize(fallRatesMinSize, AllocWeight::zero());
     }
 
-    uint64_t nToShift_u64   = static_cast<uint64_t>(nToShift);
-    fallRates[nToShift_u64] = static_cast<double>(deltaWeightCurrentRound) /
-                              timeSpentInCurrentRound;
+    uint64_t nToShift_u64 = static_cast<uint64_t>(nToShift);
+    fallRates[nToShift_u64] =
+        deltaWeightCurrentRound / timeSpentInCurrentRound;
 
     auto oldNToShift     = nToShift;
     auto oldNToShift_u64 = nToShift_u64;
@@ -1204,8 +1326,8 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
         auto bestFallRate = std::accumulate(
             fallRates.cbegin(),
             std::next(fallRates.cbegin(), oldNToShift),
-            0.0,
-            [](double a, double b) { return std::min(a, b); });
+            FallRate(0.0),
+            [](FallRate a, FallRate b) { return std::min(a, b); });
         oss << "fal rate at " << oldNToShift_u64 << " is "
             << fallRates[oldNToShift_u64] << " best fall rate in [1, "
             << oldNToShift_u64 << ") is " << bestFallRate << ": ";
@@ -1261,19 +1383,20 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
   auto finalMaxLiveness = getMaxLiveness();
   auto finalSumLiveness = getSumLiveness();
 
-  auto absErr = static_cast<double>(finalSumLiveness - initSumLiveness -
-                                    totalDeltaSumLiveness);
-  auto relErr =
-      absErr / (1.0 + std::abs(static_cast<double>(totalDeltaSumLiveness)));
-  if (relErr > 1e-5) {
-    // if (finalSumLiveness - initSumLiveness != totalDeltaSumLiveness) {
-    std::ostringstream oss2;
-    oss2 << "An error might have occurred in minSumLivenessAnneal. "
-         << "The running accumulation of calculated improvements is "
-         << totalDeltaSumLiveness << '.' << ' '
-         << "The difference between initial and final liveness sums is "
-         << finalSumLiveness - initSumLiveness << '.';
-    throw error(oss2.str());
+  auto absErr =
+      absolute(finalSumLiveness - initSumLiveness - totalDeltaSumLiveness);
+  auto relErr = absErr / (1.0 + absolute(totalDeltaSumLiveness));
+  for (auto x : relErr.get()) {
+    if (x > 1e-5) {
+      // if (finalSumLiveness - initSumLiveness != totalDeltaSumLiveness) {
+      std::ostringstream oss2;
+      oss2 << "An error might have occurred in minSumLivenessAnneal. "
+           << "The running accumulation of calculated improvements is "
+           << totalDeltaSumLiveness << '.' << ' '
+           << "The difference between initial and final liveness sums is "
+           << finalSumLiveness - initSumLiveness << '.';
+      throw error(oss2.str());
+    }
   }
 
   if (logging) {
@@ -1362,7 +1485,7 @@ std::vector<AllocWeight> Graph::getRippleCosts(ScheduleIndex start0,
     const auto wAlloc = getAlloc(allocAddress).getWeight();
     AllocWeight wIncr = sign * (isPre - isPost) * wAlloc;
     liveAllocAddresses.push_back(allocAddress);
-    rippleScratch[allocAddress] = {start0, 0, wIncr, true};
+    rippleScratch[allocAddress] = {start0, AllocWeight::zero(), wIncr, true};
     toIncrement += wIncr;
   }
 
@@ -1396,9 +1519,11 @@ std::vector<AllocWeight> Graph::getRippleCosts(ScheduleIndex start0,
         extremum = schedInds.back();
       }
 
-      // only in a special case will incrWeight be non-zero (TODO(jn) diagram
-      // explaining this)
-      AllocWeight newIncr = 0;
+      // only in a special case will incrWeight be non-zero:
+      // TODO(T14829) diagram explaining this special case. The diagram exists
+      // (jn) but is not publicly available. Sharepoint does not seem like a
+      // good place to keep it
+      auto newIncr = AllocWeight::zero();
       auto post0 =
           custom_lower_bound(schedInds.cbegin(), schedInds.cend(), start0);
       if (post0 != schedInds.cend() && *post0 - start0 < nToShift &&

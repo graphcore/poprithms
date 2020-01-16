@@ -5,6 +5,7 @@
 #include <random>
 #include <string>
 #include <testutil/schedule/anneal/commandlineoptions.hpp>
+#include <testutil/schedule/anneal/randomgraph.hpp>
 #include <tuple>
 #include <vector>
 #include <poprithms/schedule/anneal/error.hpp>
@@ -16,49 +17,6 @@
 // each Op creates 1 new alloc, used allocs of all producers
 // allocs have size in [10, 20)
 //
-
-poprithms::schedule::anneal::Graph
-getGraph(uint64_t N, uint64_t E, uint64_t D, int graphSeed) {
-
-  using namespace poprithms::schedule::anneal;
-
-  std::mt19937 gen(graphSeed);
-  std::uniform_int_distribution<> distSizeAlloc(10, 19);
-
-  std::vector<int> dBack(D);
-  // -D ... -1
-  std::iota(dBack.begin(), dBack.end(), -D);
-
-  Graph g;
-
-  for (int n = 0; n < N; ++n) {
-    auto allocId = g.insertAlloc(distSizeAlloc(gen));
-  }
-
-  for (int n = 0; n < N; ++n) {
-    auto n_u64 = static_cast<uint64_t>(n);
-    if (n < D) {
-      g.insertOp({}, {n_u64}, "op_" + std::to_string(n));
-    } else {
-      std::vector<int> samples;
-      samples.reserve(E);
-      std::sample(
-          dBack.begin(), dBack.end(), std::back_inserter(samples), E, gen);
-      for (auto &x : samples) {
-        x += n;
-      }
-      std::vector<OpAddress> prods;
-      std::vector<AllocAddress> allocs{n_u64};
-      for (auto x : samples) {
-        auto x_u64 = static_cast<uint64_t>(x);
-        prods.push_back(x_u64);
-        allocs.push_back(x_u64);
-      }
-      g.insertOp(prods, allocs, "op_" + std::to_string(n));
-    }
-  }
-  return g;
-}
 
 int main(int argc, char **argv) {
 
@@ -84,7 +42,7 @@ int main(int argc, char **argv) {
   auto D         = std::stoi(opts.at("D"));
   auto graphSeed = std::stoi(opts.at("graphSeed"));
 
-  auto g = getGraph(N, E, D, graphSeed);
+  auto g = getRandomGraph(N, E, D, graphSeed);
   g.initialize(KhanTieBreaker::RANDOM, 1015);
   g.minSumLivenessAnneal(
       CommandLineOptions::getAnnealCommandLineOptionsMap(opts));
@@ -101,8 +59,9 @@ int main(int argc, char **argv) {
   for (const auto &alloc : g.getAllocs()) {
     auto allocAddress = alloc.getAddress();
     if (!allocToSched[allocAddress].empty()) {
-      s += alloc.getWeight() * (allocToSched[allocAddress].back() -
-                                allocToSched[allocAddress][0] + 1);
+      auto cnt = (allocToSched[allocAddress].back() -
+                  allocToSched[allocAddress][0] + 1);
+      s += alloc.getWeight() * cnt;
     }
   }
 
@@ -110,7 +69,7 @@ int main(int argc, char **argv) {
 
   if (s != g.getSumLiveness()) {
     std::cout << s << " != " << g.getSumLiveness() << std::endl;
-    throw poprithms::error(
+    throw poprithms::schedule::anneal::error(
         "Computed sum of final liveness incorrect in random example test");
   }
   return 0;

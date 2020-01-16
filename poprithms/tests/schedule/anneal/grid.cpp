@@ -103,12 +103,12 @@ int main(int argc, char **argv) {
 
   std::cout << g.getLivenessString() << std::endl;
 
-  auto expect = 3 * 2 * N + (N - 2) * 1;
+  AllocWeight expect(3 * 2 * N + (N - 2) * 1, 0);
   if (g.getMaxLiveness() != expect) {
     std::ostringstream oss;
     oss << "getMaxLiveness() gives " << g.getMaxLiveness() << " but "
         << "expected final max liveness to be 2*2*N + (N-2)*1 = " << expect;
-    throw poprithms::error(oss.str());
+    throw poprithms::schedule::anneal::error(oss.str());
   }
 
   return 0;

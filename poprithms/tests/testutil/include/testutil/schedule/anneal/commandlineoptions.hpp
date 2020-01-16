@@ -1,3 +1,6 @@
+#ifndef TESTUTIL_SCHEDULE_ANNEAL_COMMANDLINEOPTIONS_HPP
+#define TESTUTIL_SCHEDULE_ANNEAL_COMMANDLINEOPTIONS_HPP
+
 #include <array>
 #include <map>
 #include <string>
@@ -29,3 +32,5 @@ public:
 } // namespace anneal
 } // namespace schedule
 } // namespace poprithms
+
+#endif

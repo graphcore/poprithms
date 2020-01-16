@@ -61,23 +61,24 @@ CommandLineOptions::StringMap CommandLineOptions::getCommandLineOptionsMap(
   }
   StringMap m;
   if (argc % 2 != 1) {
-    throw poprithms::error(
+    throw poprithms::schedule::anneal::error(
         "Invalid (modulo 2) number of command-line options. " +
         getInfoString(required, requiredInfos));
   }
   for (int i = 1; i < argc; i += 2) {
     if (m.find(argv[i]) != m.cend()) {
-      throw poprithms::error("Repeated command-line arguments not allowed. " +
-                             getInfoString(required, requiredInfos));
+      throw poprithms::schedule::anneal::error(
+          "Repeated command-line arguments not allowed. " +
+          getInfoString(required, requiredInfos));
     }
     m.emplace(argv[i], argv[i + 1]);
   }
 
   for (auto x : required) {
     if (m.find(x) == m.end()) {
-      throw poprithms::error("Required command-line option `" + x +
-                             "' is missing.  " +
-                             getInfoString(required, requiredInfos));
+      throw poprithms::schedule::anneal::error(
+          "Required command-line option `" + x + "' is missing.  " +
+          getInfoString(required, requiredInfos));
     }
   }
 
@@ -86,7 +87,8 @@ CommandLineOptions::StringMap CommandLineOptions::getCommandLineOptionsMap(
   for (const auto &[k, v] : m) {
     if (std::find(allowed.cbegin(), allowed.cend(), k) == allowed.cend() &&
         std::find(required.cbegin(), required.cend(), k) == required.cend()) {
-      throw poprithms::error("unrecognised command-line flag " + k);
+      throw poprithms::schedule::anneal::error(
+          "unrecognised command-line flag " + k);
     }
   }
   return m;

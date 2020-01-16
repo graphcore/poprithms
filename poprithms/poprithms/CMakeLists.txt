@@ -17,7 +17,10 @@ target_include_directories (poprithms SYSTEM PUBLIC
   )
 
 target_link_libraries(poprithms
-  # currently no requirements. Should these be algorithm specific? TODO(jn)
+  # These should preferably inserted of algorithm / 
+  # sub-project specific cmake files, so that 
+  # users can build a sub-collection of algorithms
+  #
   # ${Boost_LIBRARIES}
   )
 

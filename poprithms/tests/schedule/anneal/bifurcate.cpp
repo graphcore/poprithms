@@ -119,8 +119,9 @@ int main(int argc, char **argv) {
       CommandLineOptions::getAnnealCommandLineOptionsMap(opts));
 
   auto finalMaxLiveness = g.getMaxLiveness();
-  if (finalMaxLiveness != D + 2) {
-    throw poprithms::error("expected final max liveness to be D + 2");
+  if (finalMaxLiveness != AllocWeight(D + 2, 0)) {
+    throw poprithms::schedule::anneal::error(
+        "expected final max liveness to be D + 2");
   }
 
   return 0;

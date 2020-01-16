@@ -1,3 +1,6 @@
+#ifndef POPRITHMS_SCHEDULE_ANNEAL_SHIFTANDCOST_HPP
+#define POPRITHMS_SCHEDULE_ANNEAL_SHIFTANDCOST_HPP
+
 #include <poprithms/schedule/anneal/annealusings.hpp>
 
 namespace poprithms {
@@ -31,3 +34,5 @@ private:
 } // namespace anneal
 } // namespace schedule
 } // namespace poprithms
+
+#endif

@@ -1,6 +1,12 @@
+#ifndef POPRITHMS_SCHEDULE_ANNEAL_GRAPH
+#define POPRITHMS_SCHEDULE_ANNEAL_GRAPH
+
+#include <array>
 #include <map>
+#include <set>
 #include <vector>
 #include <poprithms/schedule/anneal/alloc.hpp>
+#include <poprithms/schedule/anneal/allocweight.hpp>
 #include <poprithms/schedule/anneal/annealusings.hpp>
 #include <poprithms/schedule/anneal/op.hpp>
 #include <poprithms/schedule/anneal/schedulechange.hpp>
@@ -19,7 +25,7 @@
 //   later iterations of the algorithm, so most time is spent searching for
 //   swaps
 
-// How to parallelize. TODO(jn)
+// TODO(T14827) Parallelize the search for energy reducing swaps. Suggestions:
 // What the best approach is depends on whether we require the algorithm to be
 // deterministic. Assuming that we do, this is what I propose (for the search)
 // a vector of indices to process, toProcess, and a nextIndex, initialized to
@@ -45,13 +51,40 @@ enum class KhanTieBreaker { RANDOM, GREEDY };
 
 class Graph {
 public:
-  // The Graph is grown incrementally with these 2 functions:
-  // 1)
-  OpAddress insertOp(const std::vector<OpAddress> &ins,
-                     const std::vector<AllocAddress> &,
-                     const std::string &_debugString_);
-  // 2)
-  AllocAddress insertAlloc(AllocWeight);
+  // The Graph is grown incrementally with these 4 functions:
+
+  // Create an Alloc
+  AllocAddress insertAlloc(AllocWeight w);
+  AllocAddress insertAlloc(double w) { return insertAlloc({w, 0}); }
+
+  // Create an Op:
+  OpAddress insertOp(const std::string &dbString);
+
+  // Register that "aa" must be live when "oa" executes
+  void insertOpAlloc(OpAddress oa, AllocAddress aa);
+
+  // Register that "before" must execute before "after"
+  void insertConstraint(OpAddress before, OpAddress after);
+
+  // The above 4 methods are combined in a convenience method:
+  template <typename A, typename B>
+  OpAddress insertOp(A &&befores, B &&allocs, const std::string &dbString) {
+    auto opId = insertOp(dbString);
+    for (auto &&x : befores) {
+      insertConstraint(x, opId);
+    }
+    for (auto &&x : allocs) {
+      insertOpAlloc(opId, x);
+    }
+    return opId;
+  }
+  OpAddress insertOp(std::initializer_list<OpAddress> befores,
+                     std::initializer_list<AllocAddress> allocs,
+                     const std::string &dbString) {
+    return insertOp(std::vector<OpAddress>(befores),
+                    std::vector<AllocAddress>(allocs),
+                    dbString);
+  }
 
   void append(std::ostream &ost) const;
 
@@ -72,6 +105,11 @@ public:
   void initialize(KhanTieBreaker    = KhanTieBreaker::GREEDY,
                   uint32_t khanSeed = 1011);
 
+  // Should be called once after the final call to a growing member. Sorts
+  // certain Op member ids to accelerate the annealing algorithm
+  void finalize();
+  bool isSchedulable() const;
+
   // verify that all graph connections are sensible
   void assertCorrectness() const;
 
@@ -81,6 +119,11 @@ public:
   static double defaultPHigherFallRate() { return 2.0; }
   static double defaultPClimb() { return 1.0; }
   static bool defaultLogging() { return true; }
+  static double defaultTimeLimitSeconds() { return 1e9; }
+  static int64_t defaultSwapLimitCount() { return static_cast<int64_t>(1e9); }
+
+  // All Ops which thus far do not have any input dependencies
+  std::vector<OpAddress> getInputOps() const;
 
   // definition of a "round":
   // one iteration through all Ops to search for,
@@ -124,7 +167,9 @@ public:
                        double pStayPut         = defaultPStayPut(),
                        double pHigherFallRate  = defaultPHigherFallRate(),
                        double pClimb           = defaultPClimb(),
-                       bool logging            = defaultLogging());
+                       bool logging            = defaultLogging(),
+                       double timeLimitSeconds = defaultTimeLimitSeconds(),
+                       int64_t swapLimitCount  = defaultSwapLimitCount());
 
   void minSumLivenessAnneal(const std::map<std::string, std::string> &);
 
@@ -166,13 +211,13 @@ public:
     return opToOutSch[a];
   }
 
-  // any allocations which are first used at a schedule index
+  // any Allocs which are first used at a schedule index
   const std::vector<AllocAddress> &
   scheduleToAllocFirsts(ScheduleIndex i) const {
     return schToAllocFirsts[i];
   }
 
-  // any allocations which are last used at a schedule index
+  // any Allocs which are last used at a schedule index
   const std::vector<AllocAddress> &
   scheduleToAllocFinals(ScheduleIndex i) const {
     return schToAllocFinals[i];
@@ -185,6 +230,22 @@ public:
   }
 
   const std::vector<OpAddress> &getScheduleToOp() const { return schToOp; }
+
+  // The following are convenience functions:
+
+  // Ops in "bins" must execute in increasing bin index. For example, if a \in
+  // bins[0] and b \in bins[1], then a must execute before b
+  void insertBinConstraints(const std::vector<std::vector<OpAddress>> &bins,
+                            const std::string &opPrefix);
+
+  // pairs a,b \in "pairs" should be executed as close to each other as
+  // possible, with "gravitational force" w
+  void insertAttractions(const std::vector<std::array<OpAddress, 2>> &pairs,
+                         AllocWeight w);
+
+  bool operator==(const Graph &rhs) const {
+    return allOps == rhs.allOps && allAllocs == rhs.allAllocs;
+  }
 
 private:
   void khan(KhanTieBreaker, uint32_t khanSeed);
@@ -274,8 +335,81 @@ private:
                       int o1,
                       const std::vector<OpAddress> &consumersTouched);
 
-  // TODO(jn) for multithreading, need one of these scratchpads per thread
+  // TODO(T14827) for multithreading, need one of these scratchpads per thread
   mutable std::vector<TrackEntry> rippleScratch;
+
+  bool isFinalized{false};
+
+public:
+  // insert a proxy Op, which is constrained to be scheduled very early, and
+  // 1 Alloc, which must be live for "proxy" and Op "a". This attracts "a"
+  // towards the beginning of the schedule. The Allocs' AllocWeights, which
+  // determines the force of attraction of "a" to the beginning of the
+  // schedule, determined by "relativeLexico" and "stepSize".
+  template <typename T>
+  void insertStartAttractors(const std::vector<OpAddress> &opAddresses,
+                             const std::vector<T> &priorities,
+                             int relativeLexico,
+                             double stepSize = 1.0) {
+
+    // For each Op "a" \in opAddresses, the size of the attracting Alloc is
+    // determined by the corresponding priority in "priorities"
+    assert(opAddresses.size() == priorities.size());
+
+    // All Ops which have no dependencies and can legally be executed first
+    auto inputs = getInputOps();
+
+    // sort and unique-ify the priorities
+    std::vector<T> unipris(priorities);
+    std::sort(unipris.begin(), unipris.end());
+    auto last = std::unique(unipris.begin(), unipris.end());
+    unipris.erase(last, unipris.cend());
+
+    // If all the priorities are the same, then return - giving all Ops the
+    // same level attraction to the start is equivalent to giving them all no
+    // attraction to the start.
+    if (unipris.size() <= 1) {
+      return;
+    }
+
+    // Give each unique T a corresponding AllocWeight:
+    std::map<T, AllocWeight> ws;
+    for (uint64_t i = 0; i < unipris.size(); ++i) {
+      ws.insert(
+          {unipris[i],
+           AllocWeight(stepSize * static_cast<double>(i), relativeLexico)});
+    }
+
+    std::vector<OpAddress> attractors;
+
+    for (uint64_t i = 0UL; i < opAddresses.size(); ++i) {
+      auto opAddress = opAddresses[i];
+      auto pri       = priorities[i];
+      auto w         = ws.at(pri);
+
+      if (w != AllocWeight(0)) {
+        auto allocAddress = insertAlloc(w);
+
+        std::string attractorStr{"priorityAttractor_" +
+                                 getOp(opAddress).getDebugString() + "_" +
+                                 toString(w)};
+
+        auto attractor = insertOp({}, {allocAddress}, attractorStr);
+
+        insertOpAlloc(opAddress, allocAddress);
+        attractors.push_back(attractor);
+      }
+    }
+
+    // force attractors to be in a fixed order at the start of the schedule
+    for (auto x = std::next(attractors.cbegin()); x != attractors.cend();
+         std::advance(x, 1)) {
+      insertConstraint(*std::prev(x), *x);
+    }
+    for (auto x : inputs) {
+      insertConstraint(*attractors.crbegin(), x);
+    }
+  }
 };
 
 std::ostream &operator<<(std::ostream &ost, const Graph &x) {
@@ -296,3 +430,5 @@ std::ostream &operator<<(std::ostream &ost, const ScheduleChange &x) {
 } // namespace anneal
 } // namespace schedule
 } // namespace poprithms
+
+#endif

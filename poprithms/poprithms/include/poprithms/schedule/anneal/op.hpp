@@ -1,3 +1,6 @@
+#ifndef POPRITHMS_SCHEDULE_ANNEAL_OP_HPP
+#define POPRITHMS_SCHEDULE_ANNEAL_OP_HPP
+
 #include <sstream>
 #include <vector>
 #include <poprithms/schedule/anneal/annealusings.hpp>
@@ -9,12 +12,11 @@ namespace anneal {
 class Op {
 
 public:
-  Op(OpAddress _address_,
-     const std::vector<OpAddress> &_ins_,
-     const std::vector<AllocAddress> &_allocs_,
-     const std::string &_debugString_);
+  Op(OpAddress _address_, const std::string &_debugString_);
 
   void insertOut(OpAddress out) { outs.push_back(out); }
+  void insertIn(OpAddress i) { ins.push_back(i); }
+  void insertAlloc(AllocAddress aa) { allocs.push_back(aa); }
 
   const std::vector<OpAddress> &getIns() const { return ins; }
   uint64_t nIns() const { return getIns().size(); }
@@ -30,11 +32,18 @@ public:
 
   const std::string &getDebugString() const { return debugString; }
 
+  void sortAndMakeUnique();
+
+  bool operator==(const Op &rhs) const {
+    return address == rhs.address && ins == rhs.ins && outs == rhs.outs &&
+           allocs == rhs.allocs && debugString == rhs.debugString;
+  }
+
 private:
   const OpAddress address;
-  const std::vector<OpAddress> ins;
+  std::vector<OpAddress> ins;
   std::vector<OpAddress> outs;
-  const std::vector<AllocAddress> allocs;
+  std::vector<AllocAddress> allocs;
   const std::string debugString;
 
 }; // namespace anneal
@@ -44,3 +53,5 @@ std::ostream &operator<<(std::ostream &ost, const Op &op);
 } // namespace anneal
 } // namespace schedule
 } // namespace poprithms
+
+#endif

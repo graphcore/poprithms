@@ -1,3 +1,6 @@
+#ifndef POPRITHMS_SCHEDULE_ANNEAL_TRACKENTRY_HPP
+#define POPRITHMS_SCHEDULE_ANNEAL_TRACKENTRY_HPP
+
 #include <poprithms/schedule/anneal/annealusings.hpp>
 
 namespace poprithms {
@@ -19,3 +22,5 @@ public:
 } // namespace anneal
 } // namespace schedule
 } // namespace poprithms
+
+#endif
