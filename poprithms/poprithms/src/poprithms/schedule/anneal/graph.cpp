@@ -1097,6 +1097,7 @@ std::string getMinSumLivenessAlgoString(MinSumLivenessAlgo algo) {
   case (MinSumLivenessAlgo::RIPPLE): {
     return "Ripple";
   }
+  default: { throw error("Unrecognised MinSumLivenessAlgo"); }
   }
 }
 } // namespace
@@ -1224,7 +1225,6 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
   bool noChangeSinceStart{true};
 
   // one "shift" phase can consist of multple "rounds"
-  double timeSpentAtCurrentShift{0.0};
   double timeSpentInCurrentRound{0.0};
   double timeSpentInTotal{0.0};
 
@@ -1359,8 +1359,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
       auto finishCurrentShift = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> elapsedCurrentShift =
           finishCurrentShift - startCurrentShift;
-      timeSpentAtCurrentShift = elapsedCurrentShift.count();
-      startCurrentShift       = finishCurrentShift;
+      startCurrentShift = finishCurrentShift;
     }
 
     if (noChangeSinceStart) {
