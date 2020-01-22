@@ -247,7 +247,27 @@ public:
     return allOps == rhs.allOps && allAllocs == rhs.allAllocs;
   }
 
+  // The first ScheduleIndex at which there are 2+ possible Ops
+  ScheduleIndex getFirstIndexWithNonUniqueSolution() const;
+
+  // The last ScheduleIndex at which there are 2+ possible Ops
+  ScheduleIndex getLastIndexWithNonUniqueSolution() const;
+
+  // As an example of the above 2 methods, for the Graph,
+  //
+  //    X        -- unique solution index
+  //  /   \
+  // X     X
+  //  \   /
+  //    X        -- unique solution index
+  //
+  // getFirstIndexWithNonUniqueSolution() is 1 and
+  // getLastIndexWithNonUniqueSolution() is 2.
+
 private:
+  template <typename T>
+  ScheduleIndex getExtremaIndexWithNonUniqueSolution() const;
+
   void khan(KhanTieBreaker, uint32_t khanSeed);
 
   void confirmShiftAndCost(ScheduleIndex start0,

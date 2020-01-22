@@ -7,4 +7,6 @@ add_poprithms_unit_test(schedule_anneal_attractions attractions.cpp)
 add_poprithms_unit_test(schedule_anneal_inputs inputs.cpp)
 add_poprithms_unit_test(schedule_anneal_is_schedulable schedulable.cpp)
 add_poprithms_unit_test(schedule_anneal_is_search_limits searchlimits.cpp)
+add_poprithms_unit_test(schedule_anneal_edge_unique_solution edgeunisoln.cpp)
+add_poprithms_unit_test(schedule_anneal_diamond diamond.cpp N 19)
 

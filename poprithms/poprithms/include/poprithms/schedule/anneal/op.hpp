@@ -20,9 +20,11 @@ public:
 
   const std::vector<OpAddress> &getIns() const { return ins; }
   uint64_t nIns() const { return getIns().size(); }
+  int nIns_i32() const { return static_cast<int>(nIns()); }
 
   const std::vector<OpAddress> &getOuts() const { return outs; }
   uint64_t nOuts() const { return getOuts().size(); }
+  int nOuts_i32() const { return static_cast<int>(nOuts()); }
 
   const std::vector<AllocAddress> &getAllocs() const { return allocs; }
   uint64_t nAllocs() const { return getAllocs().size(); }
