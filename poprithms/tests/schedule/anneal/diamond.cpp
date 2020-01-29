@@ -2,7 +2,7 @@
 #include <array>
 #include <iostream>
 #include <numeric>
-#include <testutil/schedule/anneal/commandlineoptions.hpp>
+#include <testutil/schedule/anneal/annealcommandlineoptions.hpp>
 #include <tuple>
 #include <vector>
 #include <poprithms/schedule/anneal/error.hpp>
@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
 
   using namespace poprithms::schedule::anneal;
   using namespace poprithms::schedule::anneal;
-  auto opts = CommandLineOptions::getCommandLineOptionsMap(
+  auto opts = AnnealCommandLineOptions().getCommandLineOptionsMap(
       argc, argv, {"N"}, {"The number of intermediate Ops in the diamond"});
   auto N = std::stoi(opts.at("N"));
 

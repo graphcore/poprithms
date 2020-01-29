@@ -1,14 +1,12 @@
-#ifndef TESTUTIL_SCHEDULE_ANNEAL_COMMANDLINEOPTIONS_HPP
-#define TESTUTIL_SCHEDULE_ANNEAL_COMMANDLINEOPTIONS_HPP
+#ifndef TESTUTIL_SCHEDULE_COMMANDLINEOPTIONS_HPP
+#define TESTUTIL_SCHEDULE_COMMANDLINEOPTIONS_HPP
 
-#include <array>
 #include <map>
 #include <string>
 #include <vector>
 
 namespace poprithms {
 namespace schedule {
-namespace anneal {
 
 class CommandLineOptions {
 
@@ -16,20 +14,24 @@ public:
   using StringMap = std::map<std::string, std::string>;
 
   // parse argv, and verify that all keys in required appear once
-  static StringMap
+  StringMap
   getCommandLineOptionsMap(int argc,
                            char **argv,
                            const std::vector<std::string> &required,
                            const std::vector<std::string> &requiredInfos);
 
-  // the keys specific to schedule annealing
-  static const std::array<std::string, 6> &getAnnealCommandLineOptions();
+  // the specific keys to the algorithm being tested
+  virtual const std::vector<std::string> &
+  getAlgoCommandLineOptions() const = 0;
 
-  // select all schedule annealing arguments from m
-  static StringMap getAnnealCommandLineOptionsMap(const StringMap &m);
+  std::string
+  getInfoString(const std::vector<std::string> &required,
+                const std::vector<std::string> &requiredInfos) const;
+
+  // select all algorithm specific arguments from m
+  StringMap getAlgoCommandLineOptionsMap(const StringMap &m) const;
 };
 
-} // namespace anneal
 } // namespace schedule
 } // namespace poprithms
 

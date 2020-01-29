@@ -2,7 +2,7 @@
 #include <array>
 #include <iostream>
 #include <numeric>
-#include <testutil/schedule/anneal/commandlineoptions.hpp>
+#include <testutil/schedule/anneal/annealcommandlineoptions.hpp>
 #include <tuple>
 #include <vector>
 #include <poprithms/schedule/anneal/error.hpp>
@@ -12,7 +12,8 @@
 int main(int argc, char **argv) {
 
   using namespace poprithms::schedule::anneal;
-  auto opts = CommandLineOptions::getCommandLineOptionsMap(
+  AnnealCommandLineOptions annopts;
+  auto opts = annopts.getCommandLineOptionsMap(
       argc,
       argv,
       {"N"},
@@ -98,8 +99,7 @@ int main(int argc, char **argv) {
   g.initialize();
   std::cout << g.getLivenessString() << std::endl;
 
-  g.minSumLivenessAnneal(
-      CommandLineOptions::getAnnealCommandLineOptionsMap(opts));
+  g.minSumLivenessAnneal(annopts.getAlgoCommandLineOptionsMap(opts));
 
   std::cout << g.getLivenessString() << std::endl;
 

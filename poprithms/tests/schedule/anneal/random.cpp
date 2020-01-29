@@ -4,7 +4,7 @@
 #include <numeric>
 #include <random>
 #include <string>
-#include <testutil/schedule/anneal/commandlineoptions.hpp>
+#include <testutil/schedule/anneal/annealcommandlineoptions.hpp>
 #include <testutil/schedule/anneal/randomgraph.hpp>
 #include <tuple>
 #include <vector>
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 
   using namespace poprithms::schedule::anneal;
 
-  auto opts = CommandLineOptions::getCommandLineOptionsMap(
+  auto opts = AnnealCommandLineOptions().getCommandLineOptionsMap(
       argc,
       argv,
       {"N", "E", "D", "graphSeed"},
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
   auto g = getRandomGraph(N, E, D, graphSeed);
   g.initialize(KhanTieBreaker::RANDOM, 1015);
   g.minSumLivenessAnneal(
-      CommandLineOptions::getAnnealCommandLineOptionsMap(opts));
+      AnnealCommandLineOptions().getAlgoCommandLineOptionsMap(opts));
 
   // nothing specific to test, we'll verify the sum liveness;
   std::vector<std::vector<ScheduleIndex>> allocToSched(g.nAllocs());
