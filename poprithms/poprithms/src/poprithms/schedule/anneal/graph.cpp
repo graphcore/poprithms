@@ -665,80 +665,6 @@ bool Graph::isSchedulable() const {
   return nScheduled == nOps_i32();
 }
 
-template <class A>
-ScheduleIndex Graph::getExtremaIndexWithNonUniqueSolution() const {
-
-  A a(*this);
-
-  if (!isFinalized) {
-    throw error("Graph not finalized, should call finalize() before "
-                "getExtremaIndexWithNonUniqueSolution()");
-  }
-
-  std::vector<int> outstanding;
-  outstanding.reserve(nOps());
-  std::vector<OpAddress> ready;
-  for (OpAddress i = 0; i < allOps.size(); ++i) {
-    outstanding.push_back(a.nTowardsStart(i));
-    if (outstanding[i] == 0) {
-      ready.push_back(i);
-    }
-  }
-
-  ScheduleIndex nScheduled{0};
-
-  while (ready.size() == 1) {
-    OpAddress address = ready.back();
-    ++nScheduled;
-    ready.pop_back();
-    for (auto cAddress : a.towardsEnd(address)) {
-      --outstanding[cAddress];
-      if (outstanding[cAddress] == 0) {
-        ready.push_back(cAddress);
-      }
-    }
-  }
-  return a.fromStart(nScheduled);
-}
-
-namespace {
-class ForwardWalker {
-public:
-  ForwardWalker(const Graph &_g_) : g(_g_) {}
-  int nTowardsStart(OpAddress a) { return g.getOp(a).nIns_i32(); }
-  const std::vector<OpAddress> &towardsEnd(OpAddress a) {
-    return g.getOp(a).getOuts();
-  }
-  ScheduleIndex fromStart(ScheduleIndex i) const { return i; }
-
-private:
-  const Graph &g;
-};
-
-class BackwardWalker {
-public:
-  BackwardWalker(const Graph &_g_) : g(_g_) {}
-  int nTowardsStart(OpAddress a) { return g.getOp(a).nOuts_i32(); }
-  const std::vector<OpAddress> &towardsEnd(OpAddress a) {
-    return g.getOp(a).getIns();
-  }
-  ScheduleIndex fromStart(ScheduleIndex i) const {
-    return g.nOps_i32() - i - 1;
-  }
-
-private:
-  const Graph &g;
-};
-
-} // namespace
-
-ScheduleIndex Graph::getFirstIndexWithNonUniqueSolution() const {
-  return getExtremaIndexWithNonUniqueSolution<ForwardWalker>();
-}
-
-ScheduleIndex Graph::getLastIndexWithNonUniqueSolution() const {
-  return getExtremaIndexWithNonUniqueSolution<BackwardWalker>();
-}
 void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
 
   schToOp.reserve(nOps());
@@ -1320,20 +1246,11 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
 
   std::vector<ScheduleIndex> indices;
 
-  auto firstIndexWithNonUniqueSolution = getFirstIndexWithNonUniqueSolution();
-  auto lastIndexWithNonUniqueSolution  = getLastIndexWithNonUniqueSolution();
-
-  auto updateIndices = [&indices,
-                        &nToShift,
-                        firstIndexWithNonUniqueSolution,
-                        lastIndexWithNonUniqueSolution]() {
-    int nIndices          = std::max(0,
-                            lastIndexWithNonUniqueSolution + 2 - nToShift -
-                                firstIndexWithNonUniqueSolution);
+  auto updateIndices = [&indices, &nToShift, this]() {
+    int nIndices          = nOps_i32() + 1 - nToShift;
     uint64_t nIndices_u64 = static_cast<uint64_t>(nIndices);
     indices               = std::vector<ScheduleIndex>(nIndices_u64);
-    std::iota(
-        indices.begin(), indices.end(), firstIndexWithNonUniqueSolution);
+    std::iota(indices.begin(), indices.end(), 0);
   };
 
   updateIndices();
