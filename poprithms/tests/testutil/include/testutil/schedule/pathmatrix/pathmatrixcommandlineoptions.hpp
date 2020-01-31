@@ -5,15 +5,15 @@
 
 namespace poprithms {
 namespace schedule {
-namespace edgemap {
+namespace pathmatrix {
 
-class EdgeMapCommandLineOptions : public CommandLineOptions {
+class PathMatrixCommandLineOptions : public CommandLineOptions {
 public:
   virtual const std::vector<std::string> &
   getAlgoCommandLineOptions() const final;
 };
 
-} // namespace edgemap
+} // namespace pathmatrix
 } // namespace schedule
 } // namespace poprithms
 
