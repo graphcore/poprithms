@@ -19,10 +19,12 @@ public:
   void insertAlloc(AllocAddress aa) { allocs.push_back(aa); }
 
   const std::vector<OpAddress> &getIns() const { return ins; }
+  OpAddress getIn(uint64_t i) const { return ins[i]; }
   uint64_t nIns() const { return getIns().size(); }
   int nIns_i32() const { return static_cast<int>(nIns()); }
 
   const std::vector<OpAddress> &getOuts() const { return outs; }
+  OpAddress getOut(uint64_t i) const { return outs[i]; }
   uint64_t nOuts() const { return getOuts().size(); }
   int nOuts_i32() const { return static_cast<int>(nOuts()); }
 

@@ -264,6 +264,14 @@ public:
   // getFirstIndexWithNonUniqueSolution() is 1 and
   // getLastIndexWithNonUniqueSolution() is 2.
 
+  // A pair of Ops (a,b) is defined to be a "tight pair" if
+  // 1) b is the only output of a,
+  // 2) a is the only input of b.
+  // Let C(a) be the set of all Ops c s.t. there is no implicit constraint
+  // between a and c. It is easy to see that (a,b) is tight implies C(a) =
+  // C(b), but C(a) = C(b) does not imply (a,b) is tight.
+  std::vector<std::array<OpAddress, 2>> getTightPairs() const;
+
 private:
   template <typename T>
   ScheduleIndex getExtremaIndexWithNonUniqueSolution() const;

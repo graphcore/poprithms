@@ -41,6 +41,18 @@ OpAddress Graph::insertOp(const std::string &dbs) {
   return op;
 }
 
+std::vector<std::array<OpAddress, 2>> Graph::getTightPairs() const {
+
+  std::vector<std::array<OpAddress, 2>> tightPairs;
+  for (const auto &op : getOps()) {
+    if (op.nOuts() == 1UL && getOp(op.getOut(0)).nIns() == 1UL) {
+      tightPairs.push_back(
+          {op.getAddress(), getOp(op.getOut(0)).getAddress()});
+    }
+  }
+  return tightPairs;
+}
+
 void Graph::insertOpAlloc(OpAddress oa, AllocAddress aa) {
   allAllocs[aa].insertOp(oa);
   allOps[oa].insertAlloc(aa);
