@@ -1,5 +1,6 @@
 #include <array>
 #include <bitset>
+#include <chrono>
 #include <iostream>
 #include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>
 #include <vector>

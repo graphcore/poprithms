@@ -1,3 +1,4 @@
+#include <chrono>
 #include <iostream>
 #include <random>
 #include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>
