@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <poprithms/schedule/pathmatrix/error.hpp>
