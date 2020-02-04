@@ -1,6 +1,9 @@
 add_poprithms_unit_test(schedule_pathmatrix_correctness_0 
                         correctness_0.cpp)
 
+add_poprithms_unit_test(relative_positions_0 
+                        relative_positions_0.cpp)
+
 add_poprithms_unit_test(schedule_pathmatrix_performance_0 
                         performance_0.cpp
                         N 600 

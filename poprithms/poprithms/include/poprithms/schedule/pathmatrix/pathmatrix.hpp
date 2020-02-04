@@ -3,6 +3,7 @@
 
 #include <array>
 #include <bitset>
+#include <tuple>
 #include <vector>
 
 namespace poprithms {
@@ -19,6 +20,9 @@ using BitSet  = std::bitset<BitSetSize>;
 using OpId    = uint64_t;
 using SchedId = uint64_t;
 using Edges   = std::vector<std::vector<OpId>>;
+
+enum class IsFirst { No = 0, Maybe, Yes };
+enum class IsFinal { No = 0, Maybe, Yes };
 
 // A class for compactly storing all dependencies between Nodes (Ops) in a
 // DAG. Queries for implicit topological constraints between any 2 Ops are
@@ -65,6 +69,13 @@ public:
     return nOps / BitSetSize + (nOps % BitSetSize != 0);
   }
 
+  // for each Op \in subOps, what can be said about its position in a schedule
+  // relative to each of the other Ops in subOps? For example, if Op a appears
+  // before all b \in subOps (where b != a) in all schedules, then "a" has
+  // IsFirst::Yes returned from this function
+  std::vector<std::tuple<IsFirst, IsFinal>>
+  getRelativePositions(const std::vector<OpId> &subOps) const;
+
 private:
   uint64_t nOps;
   uint64_t nBitSetsPerOp;
@@ -99,9 +110,8 @@ private:
   // In the diagram, BitSetSize is 4 and nOps is 8. Each * in the diagram s a
   // constraint between 2 Ops, and will either be on or off.
   //
-  // The heavy lifting of the algorithm is in doing bitwise addition of 2
-  // rows, and summation over columns. It is for this reason that std::bitset
-  // is used in the direction it is.
+  // The majority of time spent in the algorithm is in bitwise addition of 2
+  // rows, and summation over columns.
   //
   // Note that bwdEdgeSet is the transpose of fwdEdgeSet, and so is not
   // required to be stored. However, certain operations are significantly

@@ -116,6 +116,34 @@ PathMatrix::PathMatrix(const Edges &_fwd_)
   propagate(fwd, bwd, fwdEdgeSet, nFwdBefore, fwdRedundant);
   propagate(bwd, fwd, bwdEdgeSet, nBwdBefore, bwdRedundant);
 }
+
+std::vector<std::tuple<IsFirst, IsFinal>>
+PathMatrix::getRelativePositions(const std::vector<OpId> &ids) const {
+  std::vector<std::tuple<IsFirst, IsFinal>> rps;
+  rps.resize(ids.size(), {IsFirst::Yes, IsFinal::Yes});
+  for (uint64_t idIndex = 0; idIndex < ids.size(); ++idIndex) {
+    const auto id0 = ids[idIndex];
+    auto &isFirst  = std::get<0>(rps[idIndex]);
+    auto &isFinal  = std::get<1>(rps[idIndex]);
+    for (const auto &id1 : ids) {
+      if (id1 == id0) {
+      } else if (constrained(id0, id1)) {
+        isFinal = IsFinal::No;
+      } else if (constrained(id1, id0)) {
+        isFirst = IsFirst::No;
+      } else {
+        if (isFirst != IsFirst::No) {
+          isFirst = IsFirst::Maybe;
+        }
+        if (isFinal != IsFinal::No) {
+          isFinal = IsFinal::Maybe;
+        }
+      }
+    }
+  }
+  return rps;
+}
+
 } // namespace pathmatrix
 } // namespace schedule
 } // namespace poprithms
