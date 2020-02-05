@@ -41,6 +41,16 @@ OpAddress Graph::insertOp(const std::string &dbs) {
   return op;
 }
 
+std::vector<OpAddress>
+Graph::insertOps(const std::vector<std::string> &dbStrings) {
+  std::vector<OpAddress> opAdds;
+  opAdds.reserve(dbStrings.size());
+  for (const auto &dbs : dbStrings) {
+    opAdds.push_back(insertOp(dbs));
+  }
+  return opAdds;
+}
+
 std::vector<std::array<OpAddress, 2>> Graph::getTightPairs() const {
 
   std::vector<std::array<OpAddress, 2>> tightPairs;
@@ -56,6 +66,13 @@ std::vector<std::array<OpAddress, 2>> Graph::getTightPairs() const {
 void Graph::insertOpAlloc(OpAddress oa, AllocAddress aa) {
   allAllocs[aa].insertOp(oa);
   allOps[oa].insertAlloc(aa);
+}
+
+void Graph::insertOpAlloc(const std::vector<OpAddress> &oas,
+                          AllocAddress aa) {
+  for (auto oa : oas) {
+    insertOpAlloc(oa, aa);
+  }
 }
 
 void Graph::insertBinConstraints(
@@ -86,6 +103,44 @@ void Graph::insertAttractions(
 void Graph::insertConstraint(OpAddress before, OpAddress after) {
   allOps[before].insertOut(after);
   allOps[after].insertIn(before);
+}
+
+void Graph::insertLink(OpAddress before, OpAddress after) {
+  insertConstraint(before, after);
+
+  const auto &op0 = getOp(before);
+  const auto &op1 = getOp(after);
+
+  if (op0.hasForwardLink() && op0.getForwardLink() != after) {
+    std::ostringstream oss;
+    oss << "Ops can have at most one link forward. "
+        << "Op " << op0 << " already has " << getOp(op0.getForwardLink())
+        << " as a forward link, and so " << op1
+        << " cannot be added as a forward link.";
+    throw error(oss.str());
+  }
+
+  if (op1.hasBackwardLink() && op1.getBackwardLink() != before) {
+    std::ostringstream oss;
+    oss << "Ops can have at most one link backward. "
+        << "Op " << op1 << " already has " << getOp(op1.getBackwardLink())
+        << " as a backward link, and so " << op0
+        << " cannot be added as a backward link.";
+    throw error(oss.str());
+  }
+
+  if (!op0.hasForwardLink()) {
+    opsWithFwdLinks.push_back(before);
+  }
+  allOps[before].insertForwardLink(after);
+  allOps[after].insertBackwardLink(before);
+}
+
+void Graph::insertConstraints(
+    const std::vector<std::array<OpAddress, 2>> &cs) {
+  for (const auto &c : cs) {
+    insertConstraint(std::get<0>(c), std::get<1>(c));
+  }
 }
 
 void Graph::append(std::ostream &ost) const {
@@ -633,6 +688,12 @@ void Graph::setSchToLiveness() {
 
 bool Graph::isSchedulable() const {
 
+  if (hasAtLeastOneLink()) {
+    auto merged      = getLinkMerged();
+    auto &childGraph = std::get<0>(merged);
+    return childGraph.isSchedulable();
+  }
+
   if (!isFinalized) {
     throw error(
         "Graph not finalized, should call finalize() before isSchedulable()");
@@ -665,10 +726,119 @@ bool Graph::isSchedulable() const {
   return nScheduled == nOps_i32();
 }
 
+Graph::LinkMerged Graph::getLinkMerged() const {
+
+  Graph childGraph;
+
+  const auto chains = getLinkChains();
+
+  // The Allocs are the same in the child Graph as the parent Graph
+  for (const auto &parentAlloc : getAllocs()) {
+    childGraph.insertAlloc(parentAlloc.getWeight());
+  }
+
+  // Map an Op in the parent Graph to its unique Op in the child Graph
+  std::vector<OpAddress> parentToChild(nOps(), 0);
+
+  // We assign lowest addresses to child Ops which are generated from parent
+  // chains, then the remaining addresses are assigned to the unchained Ops
+  uint64_t childOpAddress{0};
+  while (childOpAddress < chains.size()) {
+    for (const auto opAddress : chains[childOpAddress]) {
+      parentToChild[opAddress] = childOpAddress;
+    }
+    ++childOpAddress;
+  }
+
+  // Map an Op in the child Graph to its parent(s) in the parent Graph
+  ParentGraphOps childToParents = std::move(chains);
+
+  for (uint64_t parentAddress = 0; parentAddress < nOps(); ++parentAddress) {
+    if (!getOp(parentAddress).hasLink()) {
+      parentToChild[parentAddress] = childOpAddress;
+      ++childOpAddress;
+      childToParents.push_back({parentAddress});
+    }
+  }
+
+  const auto nChildOps = childOpAddress;
+
+  for (uint64_t childAddress = 0; childAddress < nChildOps; ++childAddress) {
+    // The child Op's name is a concatenation of the names of the parent Ops
+    const auto &parentAddresses = childToParents[childAddress];
+    std::ostringstream ossChildName;
+    ossChildName << '(';
+    for (uint64_t i = 0; i < parentAddresses.size(); ++i) {
+      if (i != 0) {
+        ossChildName << ' ';
+      }
+      ossChildName << getOp(parentAddresses[i]).getDebugString();
+    }
+    ossChildName << ')';
+    auto name = ossChildName.str();
+    childGraph.insertOp(name);
+  }
+
+  for (uint64_t childAddress = 0; childAddress < nChildOps; ++childAddress) {
+
+    // child Op inherits constraints and Allocs from parent(s)
+    for (auto parentAddress : childToParents[childAddress]) {
+      const auto &parent = getOp(parentAddress);
+      for (auto allocAddress : parent.getAllocs()) {
+        childGraph.insertOpAlloc(childAddress, allocAddress);
+      }
+      for (auto outParentAddress : parent.getOuts()) {
+        auto outChildAddress = parentToChild[outParentAddress];
+        if (outChildAddress != childAddress) {
+          childGraph.insertConstraint(childAddress, outChildAddress);
+        }
+      }
+    }
+  }
+
+  childGraph.finalize();
+
+  return {childGraph, childToParents};
+}
+
+std::vector<std::vector<OpAddress>> Graph::getLinkChains() const {
+
+  std::vector<std::vector<OpAddress>> chains;
+
+  for (auto address : opsWithFwdLinks) {
+    // start of a chain
+    if (!getOp(address).hasBackwardLink()) {
+      chains.push_back({});
+      auto current = address;
+      while (getOp(current).hasForwardLink()) {
+        chains.back().push_back(current);
+        current = getOp(current).getForwardLink();
+      }
+      chains.back().push_back(current);
+    }
+  }
+
+  return chains;
+}
+
 void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
 
   schToOp.reserve(nOps());
   schToOp.clear();
+
+  if (hasAtLeastOneLink()) {
+    auto merged                = getLinkMerged();
+    auto &childGraph           = std::get<0>(merged);
+    const auto &childToParents = std::get<1>(merged);
+    childGraph.khan(khanTie, khanSeed);
+    for (ScheduleIndex i = 0; i < childGraph.nOps(); ++i) {
+      const auto childAddress = childGraph.scheduleToOp(i);
+      schToOp.insert(schToOp.end(),
+                     childToParents[childAddress].cbegin(),
+                     childToParents[childAddress].cend());
+    }
+    return;
+  }
 
   std::vector<OpAddress> outstanding;
   outstanding.reserve(nOps());
@@ -782,6 +952,9 @@ void Graph::finalize() {
   for (auto &op : allOps) {
     op.sortAndMakeUnique();
   }
+  for (auto &alloc : allAllocs) {
+    alloc.sortAndMakeUnique();
+  }
   isFinalized = true;
 }
 
@@ -882,6 +1055,8 @@ void Graph::initialize(KhanTieBreaker khanTie, uint32_t khanSeed) {
   rippleScratch.resize(
       nAllocs(),
       {-1, AllocWeight::negativeOne(), AllocWeight::negativeOne(), false});
+
+  isInitialized = true;
 }
 
 void Graph::setCanCan(int nToShift) {
@@ -963,6 +1138,11 @@ std::vector<AllocWeight> Graph::getDeltaLiveness() const {
 }
 
 void Graph::assertCorrectness() const {
+
+  if (!isInitialized) {
+    throw error(
+        "assertCorrectness() should only be called after initialize(.,.)");
+  }
 
   // 1
   // opToSch vs schToOp

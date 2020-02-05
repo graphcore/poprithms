@@ -27,6 +27,9 @@ public:
     return address == rhs.address && weight == rhs.weight && ops == rhs.ops;
   }
 
+  // Make "ops" have unique entries, in ascending order
+  void sortAndMakeUnique();
+
 private:
   const AllocAddress address;
 

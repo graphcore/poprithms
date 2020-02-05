@@ -1,6 +1,7 @@
 #ifndef POPRITHMS_SCHEDULE_ANNEAL_OP_HPP
 #define POPRITHMS_SCHEDULE_ANNEAL_OP_HPP
 
+#include <limits>
 #include <sstream>
 #include <vector>
 #include <poprithms/schedule/anneal/annealusings.hpp>
@@ -38,10 +39,20 @@ public:
 
   void sortAndMakeUnique();
 
+  bool hasForwardLink() const { return fwdLink != NoLinkVal; }
+  bool hasBackwardLink() const { return bwdLink != NoLinkVal; }
+  bool hasLink() const { return hasForwardLink() || hasBackwardLink(); }
+
+  OpAddress getForwardLink() const { return fwdLink; }
+  OpAddress getBackwardLink() const { return bwdLink; }
+
   bool operator==(const Op &rhs) const {
     return address == rhs.address && ins == rhs.ins && outs == rhs.outs &&
            allocs == rhs.allocs && debugString == rhs.debugString;
   }
+
+  void insertForwardLink(OpAddress after) { fwdLink = after; }
+  void insertBackwardLink(OpAddress before) { bwdLink = before; }
 
 private:
   const OpAddress address;
@@ -49,6 +60,9 @@ private:
   std::vector<OpAddress> outs;
   std::vector<AllocAddress> allocs;
   const std::string debugString;
+  static const OpAddress NoLinkVal = std::numeric_limits<OpAddress>::max();
+  OpAddress fwdLink{NoLinkVal};
+  OpAddress bwdLink{NoLinkVal};
 
 }; // namespace anneal
 

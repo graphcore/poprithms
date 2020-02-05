@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <poprithms/schedule/anneal/op.hpp>
 #include <poprithms/schedule/anneal/printiter.hpp>
+#include <poprithms/schedule/anneal/unisort.hpp>
 
 namespace poprithms {
 namespace schedule {
@@ -12,18 +13,6 @@ std::ostream &operator<<(std::ostream &ost, const Op &op) {
 }
 
 void Op::append(std::ostream &ost) const { ost << debugString; }
-
-namespace {
-
-template <typename T> std::vector<T> unisorted(const std::vector<T> &x) {
-  std::vector<T> y = x;
-  std::sort(y.begin(), y.end());
-  auto last = std::unique(y.begin(), y.end());
-  y.erase(last, y.cend());
-  return y;
-}
-
-} // namespace
 
 void Op::sortAndMakeUnique() {
   ins    = unisorted(ins);
