@@ -1590,6 +1590,21 @@ AllocWeight Graph::getSumLiveness() const {
                          [](AllocWeight a, AllocWeight b) { return a + b; });
 }
 
+std::ostream &operator<<(std::ostream &ost, const Graph &x) {
+  x.append(ost);
+  return ost;
+}
+
+std::ostream &operator<<(std::ostream &ost, const ShiftAndCost &x) {
+  x.append(ost);
+  return ost;
+}
+
+std::ostream &operator<<(std::ostream &ost, const ScheduleChange &x) {
+  x.append(ost);
+  return ost;
+}
+
 } // namespace anneal
 } // namespace schedule
 } // namespace poprithms

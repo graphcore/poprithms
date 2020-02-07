@@ -423,20 +423,11 @@ public:
   }
 };
 
-std::ostream &operator<<(std::ostream &ost, const Graph &x) {
-  x.append(ost);
-  return ost;
-}
+std::ostream &operator<<(std::ostream &ost, const Graph &x);
 
-std::ostream &operator<<(std::ostream &ost, const ShiftAndCost &x) {
-  x.append(ost);
-  return ost;
-}
+std::ostream &operator<<(std::ostream &ost, const ShiftAndCost &x);
 
-std::ostream &operator<<(std::ostream &ost, const ScheduleChange &x) {
-  x.append(ost);
-  return ost;
-}
+std::ostream &operator<<(std::ostream &ost, const ScheduleChange &x);
 
 } // namespace anneal
 } // namespace schedule
