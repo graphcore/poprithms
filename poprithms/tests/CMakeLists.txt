@@ -8,7 +8,7 @@ target_include_directories (poprithms-test-util
     SYSTEM PUBLIC
      "testutil/include"
       $<TARGET_PROPERTY:poprithms,INCLUDE_DIRECTORIES>)
-target_link_libraries(poprithms-test-util poprithms)
+target_link_libraries(poprithms-test-util poprithms-shared)
 
 function(add_test_executable name source)
   add_executable(${name} ${source})
@@ -17,7 +17,7 @@ function(add_test_executable name source)
       ${CMAKE_CURRENT_SOURCE_DIR}
       $<TARGET_PROPERTY:poprithms,INCLUDE_DIRECTORIES>
       $<TARGET_PROPERTY:poprithms-test-util,INCLUDE_DIRECTORIES>)
-  target_link_libraries(${name} poprithms poprithms-test-util)
+  target_link_libraries(${name} poprithms-shared poprithms-test-util)
 endfunction()
 
 function(add_poprithms_unit_test name source)
