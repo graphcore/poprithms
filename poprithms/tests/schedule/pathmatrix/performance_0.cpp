@@ -3,6 +3,7 @@
 #include <iostream>
 #include <random>
 #include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>
+#include <testutil/schedule/pathmatrix/randomedges.hpp>
 #include <poprithms/schedule/pathmatrix/error.hpp>
 #include <poprithms/schedule/pathmatrix/pathmatrix.hpp>
 
@@ -17,34 +18,10 @@ int main(int argc, char **argv) {
       {"Number of Ops",
        "Number of out edges per Op",
        "Maximum inter-index edge length"});
-  auto N = std::stoi(opts.at("N"));
-  auto E = std::stoi(opts.at("E"));
-  auto D = std::stoi(opts.at("D"));
-
-  std::vector<std::vector<OpId>> fwd(N);
-  std::mt19937 gen(1012);
-  std::vector<uint64_t> indices(N);
-  std::iota(indices.begin(), indices.end(), 0);
-
-  if (E > D) {
-    throw error("E cannot be larger than D");
-  }
-  if (D > N - 10) {
-    throw error("D cannot be larger than N - 10");
-  }
-
-  auto nRando = N - D - 1;
-  for (uint64_t i = 0; i < nRando; ++i) {
-    fwd[i].reserve(E);
-    std::sample(indices.begin() + i + 1,
-                indices.begin() + i + 1 + D,
-                std::back_inserter(fwd[i]),
-                E,
-                gen);
-  }
-  for (uint64_t i = nRando; i < N - 1; ++i) {
-    fwd[i].push_back(i + 1);
-  }
+  auto N   = std::stoi(opts.at("N"));
+  auto E   = std::stoi(opts.at("E"));
+  auto D   = std::stoi(opts.at("D"));
+  auto fwd = getRandomEdges(N, E, D, 10111);
 
   auto start = std::chrono::high_resolution_clock::now();
   PathMatrix fem(fwd);

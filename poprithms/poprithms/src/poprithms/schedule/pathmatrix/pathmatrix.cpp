@@ -1,9 +1,13 @@
+#include <sstream>
 #include <poprithms/schedule/pathmatrix/error.hpp>
 #include <poprithms/schedule/pathmatrix/pathmatrix.hpp>
 
 namespace poprithms {
 namespace schedule {
 namespace pathmatrix {
+
+std::ostream &operator<<(std::ostream &, IsFirst);
+std::ostream &operator<<(std::ostream &, IsFinal);
 
 namespace {
 void propagate(const Edges &fwd,
@@ -99,12 +103,88 @@ void propagate(const Edges &fwd,
     throw error("Forward Edges in PathMatrix are not schedulable");
   }
 }
+
+template <class T, class U> void removeFromMap(const T &pairs, U &fromToMap) {
+  for (const auto &r : pairs) {
+    auto from = std::get<0>(r);
+    auto to   = std::get<1>(r);
+    std::vector<OpId> old;
+    old.reserve(fromToMap[from].size() - 1);
+    std::swap(old, fromToMap[from]);
+    for (auto x : old) {
+      if (x != to) {
+        fromToMap[from].push_back(x);
+      }
+    }
+  }
+}
 } // namespace
+
+void PathMatrix::setChains() {
+  constexpr ChainId Undef = std::numeric_limits<ChainId>::max();
+  opToChainId             = std::vector<ChainId>(nOps, Undef);
+  // Guess that the number of Chains is about equal to the number of Ops.
+  chainToRootOpId = {};
+  chainToRootOpId.reserve(nOps);
+  ChainId currentChainId = 0;
+  for (OpId opId = 0; opId < nOps; ++opId) {
+    if (opToChainId[opId] == Undef) {
+      opToChainId[opId] = currentChainId;
+      auto tmpId        = opId;
+      while (bwd[tmpId].size() == 1 && fwd[bwd[tmpId][0]].size() == 1) {
+        tmpId              = bwd[tmpId][0];
+        opToChainId[tmpId] = currentChainId;
+      }
+      chainToRootOpId.push_back(tmpId);
+      tmpId = opId;
+      while (fwd[tmpId].size() == 1 && bwd[fwd[tmpId][0]].size() == 1) {
+        tmpId              = fwd[tmpId][0];
+        opToChainId[tmpId] = currentChainId;
+      }
+      ++currentChainId;
+    }
+  }
+}
+
+void PathMatrix::setChainToUnconstrained() {
+  chainIdToUnconstrained.resize(nChains());
+  for (ChainId chainId = 0; chainId < nChains(); ++chainId) {
+    // Optimization guess on how much to reserve
+    if (chainId > 0) {
+      chainIdToUnconstrained[chainId].reserve(
+          chainIdToUnconstrained[chainId - 1].size());
+    }
+    auto opId = chainToRootOpId[chainId];
+    for (uint64_t i = 0; i < nBitSetsPerOp; ++i) {
+      auto index     = opId * nBitSetsPerOp + i;
+      BitSet neither = fwdEdgeSet[index] | bwdEdgeSet[index];
+      neither.flip();
+      if (neither.any()) {
+        for (uint64_t shift = 0; shift < BitSetSize; ++shift) {
+          auto unconId = i * BitSetSize + shift;
+          if (neither[shift] && unconId < nOps && unconId != opId) {
+            chainIdToUnconstrained[chainId].push_back(unconId);
+          }
+        }
+      }
+    }
+  }
+}
 
 PathMatrix::PathMatrix(const Edges &_fwd_)
     : nOps(_fwd_.size()), nBitSetsPerOp(getNBitSetsPerOp(nOps)),
       nBitSets(nBitSetsPerOp * nOps), fwd(_fwd_), fwdEdgeSet(nBitSets),
       nFwdBefore(nOps), bwd(nOps), bwdEdgeSet(nBitSets), nBwdBefore(nOps) {
+
+  for (const auto &evs : fwd) {
+    for (auto e : evs) {
+      if (e >= nOps) {
+        std::ostringstream oss;
+        oss << "Invalid edge end, " << e << ", with only " << nOps << " Ops.";
+        throw error(oss.str());
+      }
+    }
+  }
 
   // setting bwd
   for (uint64_t i = 0; i < nOps; ++i) {
@@ -115,6 +195,12 @@ PathMatrix::PathMatrix(const Edges &_fwd_)
 
   propagate(fwd, bwd, fwdEdgeSet, nFwdBefore, fwdRedundant);
   propagate(bwd, fwd, bwdEdgeSet, nBwdBefore, bwdRedundant);
+
+  removeFromMap(fwdRedundant, fwd);
+  removeFromMap(bwdRedundant, bwd);
+
+  setChains();
+  setChainToUnconstrained();
 }
 
 std::vector<std::tuple<IsFirst, IsFinal>>
@@ -144,6 +230,43 @@ PathMatrix::getRelativePositions(const std::vector<OpId> &ids) const {
   return rps;
 }
 
+std::ostream &operator<<(std::ostream &os, IsFirst isFirst) {
+  switch (isFirst) {
+  case (IsFirst::No): {
+    os << "IsFirst::No";
+    break;
+  }
+  case (IsFirst::Maybe): {
+    os << "IsFirst::Maybe";
+    break;
+  }
+  case (IsFirst::Yes): {
+    os << "IsFirst::Yes";
+    break;
+  }
+  }
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, IsFinal isFinal) {
+  switch (isFinal) {
+  case (IsFinal::No): {
+    os << "IsFinal::No";
+    break;
+  }
+  case (IsFinal::Maybe): {
+    os << "IsFinal::Maybe";
+    break;
+  }
+  case (IsFinal::Yes): {
+    os << "IsFinal::Yes";
+    break;
+  }
+  }
+  return os;
+}
+
 } // namespace pathmatrix
 } // namespace schedule
+
 } // namespace poprithms

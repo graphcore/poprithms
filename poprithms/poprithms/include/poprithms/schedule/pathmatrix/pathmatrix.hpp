@@ -21,6 +21,14 @@ using OpId    = uint64_t;
 using SchedId = uint64_t;
 using Edges   = std::vector<std::vector<OpId>>;
 
+// TODO(jn) PathMatrix currently used Chains to store more compactly the
+// unconstrained sets. This is poor design - it should use Chains to store
+// everything or nothing more compactly. I think there should be 2 classes:
+// one which has no concept of Chains, and stores every field for every Op
+// separately, and another which has an instance of the first, and maps chains
+// to Ops
+using ChainId = uint32_t;
+
 enum class IsFirst { No = 0, Maybe, Yes };
 enum class IsFinal { No = 0, Maybe, Yes };
 
@@ -48,6 +56,10 @@ public:
     return !constrained(a, b) && !constrained(b, a);
   }
 
+  const std::vector<OpId> &getUnconstrained(OpId id) const {
+    return chainIdToUnconstrained[opToChainId[id]];
+  }
+
   // The lowest SchedId that "a" has over all schedules
   SchedId earliest(OpId a) const { return nFwdBefore[a]; }
 
@@ -69,12 +81,20 @@ public:
     return nOps / BitSetSize + (nOps % BitSetSize != 0);
   }
 
+  // Forward edges, with redundant ones removed
+  const Edges &getFwd() const { return fwd; }
+
+  // Backward edges, with redundant ones removed
+  const Edges &getBwd() const { return bwd; }
+
   // for each Op \in subOps, what can be said about its position in a schedule
   // relative to each of the other Ops in subOps? For example, if Op a appears
   // before all b \in subOps (where b != a) in all schedules, then "a" has
   // IsFirst::Yes returned from this function
   std::vector<std::tuple<IsFirst, IsFinal>>
   getRelativePositions(const std::vector<OpId> &subOps) const;
+
+  uint64_t nChains() const { return chainToRootOpId.size(); }
 
 private:
   uint64_t nOps;
@@ -91,6 +111,13 @@ private:
   std::vector<uint64_t> nBwdBefore;
   std::vector<std::array<OpId, 2>> bwdRedundant;
 
+  std::vector<ChainId> opToChainId;
+  std::vector<OpId> chainToRootOpId;
+  void setChains();
+
+  std::vector<std::vector<OpId>> chainIdToUnconstrained;
+  void setChainToUnconstrained();
+
   // Diagram:
   //          from
   //
@@ -103,19 +130,19 @@ private:
   //        **** ****
   //        **** ****
   //
-  // An PathMatrix is O(nOps^2) in memory. Each of fwdEdgeSet and bwdEdgeSet
-  // store nOps^2 + O(1) bits, recording forward and backard constraints,
-  // respectively.
+  // A PathMatrix is O(nOps^2) in memory. Each of fwdEdgeSet and
+  // bwdEdgeSet store nOps^2 + O(1) bits, and record forward and backard
+  // constraints respectively.
   //
-  // In the diagram, BitSetSize is 4 and nOps is 8. Each * in the diagram s a
-  // constraint between 2 Ops, and will either be on or off.
+  // In the diagram above, BitSetSize is 4 and nOps is 8. Each * in the
+  // diagram is a constraint between 2 Ops, and will either be on or off.
   //
-  // The majority of time spent in the algorithm is in bitwise addition of 2
-  // rows, and summation over columns.
+  // The majority of time spent in the construction is in bitwise addition of
+  // 2 rows, and summation over columns.
   //
   // Note that bwdEdgeSet is the transpose of fwdEdgeSet, and so is not
   // required to be stored. However, certain operations are significantly
-  // faster using the transposed layout, and so it is kept.
+  // faster using the transposed layout, and so it IS stored.
   //
   //
   // Example:
@@ -140,8 +167,12 @@ private:
   //
 };
 
+std::ostream &operator<<(std::ostream &, schedule::pathmatrix::IsFirst);
+std::ostream &operator<<(std::ostream &, schedule::pathmatrix::IsFinal);
+
 } // namespace pathmatrix
 } // namespace schedule
+
 } // namespace poprithms
 
 #endif
