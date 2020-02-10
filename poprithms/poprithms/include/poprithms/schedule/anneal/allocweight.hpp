@@ -50,11 +50,18 @@ public:
 
   static AllocWeight zero() { return AllocWeight(0.0, 0); }
   static AllocWeight negativeOne() { return AllocWeight(-1.0, 0); }
+  static AllocWeight numericMaxLimit() {
+    AllocWeight w(0.0);
+    std::fill(w.v.begin(), w.v.end(), std::numeric_limits<double>::max());
+    return w;
+  }
 
   bool operator==(const AllocWeight &rhs) const { return v == rhs.v; }
   bool operator!=(const AllocWeight &rhs) const { return v != rhs.v; }
   bool operator<(const AllocWeight &rhs) const { return v < rhs.v; }
+  bool operator<=(const AllocWeight &rhs) const { return !operator>(rhs); }
   bool operator>(const AllocWeight &rhs) const { return v > rhs.v; }
+  bool operator>=(const AllocWeight &rhs) const { return !operator<(rhs); }
 
   double get(uint64_t i) { return v[i]; }
 

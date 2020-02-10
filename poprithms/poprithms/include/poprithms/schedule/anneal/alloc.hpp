@@ -27,6 +27,8 @@ public:
     return address == rhs.address && weight == rhs.weight && ops == rhs.ops;
   }
 
+  void append(std::ostream &ost) const;
+
   // Make "ops" have unique entries, in ascending order
   void sortAndMakeUnique();
 
@@ -37,6 +39,8 @@ private:
   const AllocWeight weight;
   std::vector<OpAddress> ops;
 };
+
+std::ostream &operator<<(std::ostream &ost, const Alloc &alloc);
 
 } // namespace anneal
 } // namespace schedule
