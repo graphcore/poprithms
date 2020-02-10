@@ -1,14 +1,4 @@
-#
-# some common code used by tests, but which 
-# does not belong in the main library:
-#
-file(GLOB_RECURSE test-util-sources testutil/*cpp testutil/*hpp)
-add_library(poprithms-test-util SHARED ${test-util-sources})
-target_include_directories (poprithms-test-util 
-    SYSTEM PUBLIC
-     "testutil/include"
-      $<TARGET_PROPERTY:poprithms,INCLUDE_DIRECTORIES>)
-target_link_libraries(poprithms-test-util poprithms-shared)
+add_subdirectory(testutil)
 
 function(add_test_executable name source)
   add_executable(${name} ${source})
@@ -30,3 +20,5 @@ endfunction()
 
 add_subdirectory(schedule)
 
+#Test(s) where poprithms is linked statically
+add_subdirectory(staticlib)
