@@ -8,6 +8,7 @@ cc_library(
     name = "poprithms",
     srcs = glob(["src/**/*.cpp"]),
     hdrs = glob(["include/**/*.hpp"]),
+    copts = ["-std=c++17"],
     strip_include_prefix = "include",
 )
 
