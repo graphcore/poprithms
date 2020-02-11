@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
   auto graphSeed = std::stoi(opts.at("graphSeed"));
 
   auto g = getRandomGraph(N, E, D, graphSeed);
-  g.initialize(KhanTieBreaker::RANDOM, 1015);
+  g.initialize(KahnTieBreaker::RANDOM, 1015);
   g.minSumLivenessAnneal(
       AnnealCommandLineOptions().getAlgoCommandLineOptionsMap(opts));
 

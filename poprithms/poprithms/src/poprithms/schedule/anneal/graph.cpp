@@ -821,7 +821,7 @@ std::vector<std::vector<OpAddress>> Graph::getLinkChains() const {
   return chains;
 }
 
-void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
+void Graph::kahn(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
 
   schToOp.reserve(nOps());
   schToOp.clear();
@@ -830,7 +830,7 @@ void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
     auto merged                = getLinkMerged();
     auto &childGraph           = std::get<0>(merged);
     const auto &childToParents = std::get<1>(merged);
-    childGraph.khan(khanTie, khanSeed);
+    childGraph.kahn(kahnTie, kahnSeed);
     for (ScheduleIndex i = 0; i < childGraph.nOps(); ++i) {
       const auto childAddress = childGraph.scheduleToOp(i);
       schToOp.insert(schToOp.end(),
@@ -850,9 +850,9 @@ void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
     }
   }
 
-  std::mt19937 g(khanSeed);
+  std::mt19937 g(kahnSeed);
 
-  if (khanTie == KhanTieBreaker::RANDOM) {
+  if (kahnTie == KahnTieBreaker::RANDOM) {
     while (!ready.empty()) {
       std::shuffle(ready.begin(), ready.end(), g);
       OpAddress address = ready.back();
@@ -867,7 +867,7 @@ void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
     }
   }
 
-  else if (khanTie == KhanTieBreaker::FIFO) {
+  else if (kahnTie == KahnTieBreaker::FIFO) {
     while (!ready.empty()) {
       OpAddress address = ready.back();
       schToOp.push_back(address);
@@ -882,7 +882,7 @@ void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
   }
 
   // GREEDY
-  else if (khanTie == KhanTieBreaker::GREEDY) {
+  else if (kahnTie == KahnTieBreaker::GREEDY) {
 
     std::vector<int> nOutstandingForAlloc(nAllocs());
     std::vector<bool> allocLive(nAllocs(), false);
@@ -939,7 +939,7 @@ void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
   }
 
   else {
-    throw error("unrecognised KhanTieBreaker");
+    throw error("unrecognised KahnTieBreaker");
   }
 
   if (schToOp.size() != allOps.size()) {
@@ -972,15 +972,15 @@ void Graph::finalize() {
   isFinalized = true;
 }
 
-void Graph::initialize(KhanTieBreaker khanTie, uint32_t khanSeed) {
+void Graph::initialize(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
 
   if (!isFinalized) {
     finalize();
   }
 
   //
-  // schToOp. Vanilla run of Khan's O(E) algorithm, random tie-breaks
-  khan(khanTie, khanSeed);
+  // schToOp. Vanilla run of Kahn's O(E) algorithm, random tie-breaks
+  kahn(kahnTie, kahnSeed);
 
   //
   // opToSch

@@ -18,7 +18,7 @@ void test0() {
   g.insertLink(ops[0], ops[1]);
   g.insertConstraint(ops[1], ops[2]);
   g.insertOpAlloc(ops, alloc0);
-  g.initialize(KhanTieBreaker::RANDOM, 1011);
+  g.initialize(KahnTieBreaker::RANDOM, 1011);
   if (g.getScheduleToOp() != std::vector<OpAddress>{0, 1, 2}) {
     throw error("Expected schedule to be {0,1,2}");
   }
@@ -43,7 +43,7 @@ void test1() {
     g.insertConstraint(ops[0], ops[i]);
     g.insertConstraint(ops[i], ops[6]);
   }
-  g.initialize(KhanTieBreaker::RANDOM, 1011);
+  g.initialize(KahnTieBreaker::RANDOM, 1011);
   if (g.scheduleToOp(0) != 0 || g.scheduleToOp(1) != 4 ||
       g.scheduleToOp(5) != 2 || g.scheduleToOp(6) != 6) {
     throw error("Expected  4 tied to start and 2 to end");
@@ -100,13 +100,13 @@ void test4() {
   auto g0 = getRandomGraph(200, 4, 13, seed0);
   auto g1 = g0;
 
-  g0.initialize(KhanTieBreaker::RANDOM, seed1);
+  g0.initialize(KahnTieBreaker::RANDOM, seed1);
   const auto &sched0 = g0.getScheduleToOp();
 
   for (ScheduleIndex i = 1; i < sched0.size(); ++i) {
     g1.insertLink(sched0[i - 1], sched0[i]);
   }
-  g1.initialize(KhanTieBreaker::RANDOM, seed2);
+  g1.initialize(KahnTieBreaker::RANDOM, seed2);
   if (g1.getScheduleToOp() != sched0) {
     throw error("Expected that inserting links between all Ops in the "
                 "initial schedule would result in the same schedule");

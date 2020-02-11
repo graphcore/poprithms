@@ -44,11 +44,11 @@ namespace anneal {
 // Algorithms give exactly same results, RIPPLE is just much faster
 enum class MinSumLivenessAlgo { SIMPLE, RIPPLE };
 
-// The algorithm is initialized with a single run of Khan's algorithm, the
+// The algorithm is initialized with a single run of Kahn's algorithm, the
 // tie-breaker does not make much difference to overall performance of the
 // algorithm but GREEDY means slightly fewer shifts are required when
 // annealing starts
-enum class KhanTieBreaker { RANDOM, GREEDY, FIFO };
+enum class KahnTieBreaker { RANDOM, GREEDY, FIFO };
 
 class Graph {
 public:
@@ -123,8 +123,8 @@ public:
 
   // to be called once, when growing of Graph is complete
   // greedy 20 % faster than pure random in some experiments
-  void initialize(KhanTieBreaker    = KhanTieBreaker::GREEDY,
-                  uint32_t khanSeed = 1011);
+  void initialize(KahnTieBreaker    = KahnTieBreaker::GREEDY,
+                  uint32_t kahnSeed = 1011);
 
   // Should be called once after the final call to a growing member. Sorts
   // certain Op member ids to accelerate the annealing algorithm
@@ -280,7 +280,7 @@ private:
   template <typename T>
   ScheduleIndex getExtremaIndexWithNonUniqueSolution() const;
 
-  void khan(KhanTieBreaker, uint32_t khanSeed);
+  void kahn(KahnTieBreaker, uint32_t kahnSeed);
 
   void confirmShiftAndCost(ScheduleIndex start0,
                            int nToShift,

@@ -22,7 +22,7 @@ int main() {
 
     auto g = getRandomGraph(N, E, D, graphSeed);
 
-    g.initialize(KhanTieBreaker::RANDOM, 1015);
+    g.initialize(KahnTieBreaker::RANDOM, 1015);
 
     bool debug              = false;
     uint32_t seed           = 1012;

@@ -69,7 +69,7 @@ void test1() {
   if (chains[1] != std::vector<OpAddress>{2, 3, 4}) {
     throw error("Expected first chain to have addresses {2,3,4}");
   }
-  g.initialize(KhanTieBreaker::GREEDY, 1011);
+  g.initialize(KahnTieBreaker::GREEDY, 1011);
   if (g.getScheduleToOp() != std::vector<OpAddress>{2, 3, 4, 0, 1}) {
     throw error("Expected a different final schedule in test1");
   }

@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
     graph.insertConstraint(op, tail);
   }
 
-  graph.initialize(KhanTieBreaker::RANDOM);
+  graph.initialize(KahnTieBreaker::RANDOM);
 
   graph.minSumLivenessAnneal({});
   std::vector<OpAddress> expected;
