@@ -31,6 +31,9 @@ public:
 
   const std::vector<AllocAddress> &getAllocs() const { return allocs; }
   uint64_t nAllocs() const { return getAllocs().size(); }
+  bool hasAlloc(AllocAddress a) const {
+    return std::find(allocs.cbegin(), allocs.cend(), a) != allocs.cend();
+  }
 
   OpAddress getAddress() const { return address; }
   void append(std::ostream &ost) const;

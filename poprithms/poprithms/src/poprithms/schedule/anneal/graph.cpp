@@ -867,12 +867,22 @@ void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
     }
   }
 
-  // TODO(T14828) : KhanTieBreaker::FIFO, as used in isSchedulable(). This is
-  // essentially RANDOM without the shuffle. Experiment with the performance
-  // (speed to local minimum) with this, as compared to GREEDY and RANDOM.
+  else if (khanTie == KhanTieBreaker::FIFO) {
+    while (!ready.empty()) {
+      OpAddress address = ready.back();
+      schToOp.push_back(address);
+      ready.pop_back();
+      for (auto cAddress : allOps[address].getOuts()) {
+        --outstanding[cAddress];
+        if (outstanding[cAddress] == 0) {
+          ready.push_back(cAddress);
+        }
+      }
+    }
+  }
 
   // GREEDY
-  else {
+  else if (khanTie == KhanTieBreaker::GREEDY) {
 
     std::vector<int> nOutstandingForAlloc(nAllocs());
     std::vector<bool> allocLive(nAllocs(), false);
@@ -926,6 +936,10 @@ void Graph::khan(KhanTieBreaker khanTie, uint32_t khanSeed) {
         }
       }
     }
+  }
+
+  else {
+    throw error("unrecognised KhanTieBreaker");
   }
 
   if (schToOp.size() != allOps.size()) {

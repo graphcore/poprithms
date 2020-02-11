@@ -48,7 +48,7 @@ enum class MinSumLivenessAlgo { SIMPLE, RIPPLE };
 // tie-breaker does not make much difference to overall performance of the
 // algorithm but GREEDY means slightly fewer shifts are required when
 // annealing starts
-enum class KhanTieBreaker { RANDOM, GREEDY };
+enum class KhanTieBreaker { RANDOM, GREEDY, FIFO };
 
 class Graph {
 public:
