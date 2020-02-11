@@ -72,10 +72,14 @@ public:
   // The set of forward edges passed to the constructor which are redundant.
   // That is, all edges which if removed would not change the total number of
   // schedules
-  const auto &getFwdRedundant() const { return fwdRedundant; }
+  const std::vector<std::array<OpId, 2>> &getFwdRedundant() const {
+    return fwdRedundant;
+  }
 
   // The same edges as getFwdRedundant(), but reversed
-  const auto &getBwdRedundant() const { return bwdRedundant; }
+  const std::vector<std::array<OpId, 2>> &getBwdRedundant() const {
+    return bwdRedundant;
+  }
 
   static uint64_t getNBitSetsPerOp(uint64_t nOps) {
     return nOps / BitSetSize + (nOps % BitSetSize != 0);
