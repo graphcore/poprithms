@@ -43,5 +43,14 @@ int main() {
     throw error("Error with AllocWeight::getAbs()");
   }
 
+  auto w0 = AllocWeight(10.0, +1);
+  auto w1 = 0.5 * w0;
+  if (w1.get(+4) != 5.0) {
+    std::ostringstream oss;
+    oss << "Expected scaling 10.0 by 0.5 to give 5.0, at index +4, not "
+        << w1.get(+4);
+    throw error(oss.str());
+  }
+
   return 0;
 }

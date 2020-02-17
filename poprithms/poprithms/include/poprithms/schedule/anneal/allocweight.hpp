@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <limits>
 #include <sstream>
+#include <type_traits>
 
 namespace poprithms {
 namespace schedule {
@@ -146,9 +147,11 @@ private:
   std::array<double, NAW> v;
 };
 
-static AllocWeight operator*(int a, AllocWeight w) {
+template <typename T> static AllocWeight operator*(T a, AllocWeight w) {
+  static_assert(std::is_integral<T>::value ||
+                std::is_floating_point<T>::value);
   AllocWeight b(w);
-  b *= a;
+  b *= static_cast<double>(a);
   return b;
 }
 
