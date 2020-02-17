@@ -9,6 +9,13 @@ namespace anneal {
 
 void Alloc::sortAndMakeUnique() { ops = unisorted(ops); }
 
+std::ostream &operator<<(std::ostream &ost, const Alloc &alloc) {
+  ost << alloc.getAddress() << " ops=";
+  util::append(ost, alloc.getOps());
+  ost << " weight=" << alloc.getWeight();
+  return ost;
+}
+
 } // namespace anneal
 } // namespace schedule
 } // namespace poprithms

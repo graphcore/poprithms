@@ -24,6 +24,14 @@ public:
   uint64_t nIns() const { return getIns().size(); }
   int nIns_i32() const { return static_cast<int>(nIns()); }
 
+  bool hasIn(OpAddress a) const {
+    return std::find(ins.cbegin(), ins.cend(), a) != ins.cend();
+  }
+
+  bool hasOut(OpAddress a) const {
+    return std::find(outs.cbegin(), outs.cend(), a) != outs.cend();
+  }
+
   const std::vector<OpAddress> &getOuts() const { return outs; }
   OpAddress getOut(uint64_t i) const { return outs[i]; }
   uint64_t nOuts() const { return getOuts().size(); }
@@ -53,9 +61,18 @@ public:
     return address == rhs.address && ins == rhs.ins && outs == rhs.outs &&
            allocs == rhs.allocs && debugString == rhs.debugString;
   }
+  bool operator!=(const Op &rhs) const { return !operator==(rhs); }
 
   void insertForwardLink(OpAddress after) { fwdLink = after; }
   void insertBackwardLink(OpAddress before) { bwdLink = before; }
+
+  void removeIn(OpAddress i) {
+    ins.erase(std::find(ins.cbegin(), ins.cend(), i));
+  }
+
+  void removeOut(OpAddress out) {
+    outs.erase(std::find(outs.cbegin(), outs.cend(), out));
+  }
 
 private:
   const OpAddress address;
