@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <limits>
 #include <sstream>
 #include <poprithms/schedule/pathmatrix/error.hpp>
@@ -147,8 +148,23 @@ void PathMatrix::setChains() {
   }
 }
 
+std::vector<OpId> PathMatrix::getUnconstrainedPost(OpId unconstrainedWrtThis,
+                                                   OpId postThis) const {
+  std::vector<OpId> soln;
+  for (auto id : getUnconstrained(unconstrainedWrtThis)) {
+    if (constrained(postThis, id)) {
+      soln.push_back(id);
+    }
+  }
+
+  return soln;
+}
+
 void PathMatrix::setChainToUnconstrained() {
   chainIdToUnconstrained.resize(nChains());
+  chainIdToEarliestUnconstrained.resize(nChains(),
+                                        std::numeric_limits<uint64_t>::max());
+
   for (ChainId chainId = 0; chainId < nChains(); ++chainId) {
     // Optimization guess on how much to reserve
     if (chainId > 0) {
@@ -169,7 +185,16 @@ void PathMatrix::setChainToUnconstrained() {
         }
       }
     }
+
+    for (auto id : chainIdToUnconstrained[chainId]) {
+      chainIdToEarliestUnconstrained[chainId] =
+          std::min(chainIdToEarliestUnconstrained[chainId], earliest(id));
+    }
   }
+}
+
+bool PathMatrix::sameUnconstrained(OpId a, OpId b) const {
+  return getUnconstrained(a) == getUnconstrained(b);
 }
 
 PathMatrix::PathMatrix(const Edges &_fwd_)
@@ -229,6 +254,16 @@ PathMatrix::getRelativePositions(const std::vector<OpId> &ids) const {
     }
   }
   return rps;
+}
+
+uint64_t PathMatrix::nPostPost(OpId a, OpId b) const {
+  uint64_t nPP{0};
+  for (uint64_t i = 0; i < nBitSetsPerOp; ++i) {
+    auto uni = bwdEdgeSet[a * nBitSetsPerOp + i];
+    uni &= bwdEdgeSet[b * nBitSetsPerOp + i];
+    nPP += uni.count();
+  }
+  return nPP;
 }
 
 std::ostream &operator<<(std::ostream &os, IsFirst isFirst) {

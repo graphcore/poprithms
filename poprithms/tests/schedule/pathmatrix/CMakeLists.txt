@@ -8,8 +8,11 @@ add_poprithms_unit_test(schedule_pathmatrix_get_unconstrained_0
                         get_unconstrained_0.cpp)
 
 
-add_poprithms_unit_test(relative_positions_0 
+add_poprithms_unit_test(schedule_pathmatrix_relative_positions_0 
                         relative_positions_0.cpp)
+
+add_poprithms_unit_test(schedule_path_matrix_post_0 
+                        post_0.cpp)
 
 add_poprithms_unit_test(schedule_pathmatrix_performance_0 
                         performance_0.cpp

@@ -49,6 +49,9 @@ public:
     return fwdEdgeSet[index][shift];
   }
 
+  // The number of Ops which appear after both "a" and "b" in all schedules
+  uint64_t nPostPost(OpId a, OpId b) const;
+
   // Returns true iff there exists
   // at least 1 schedule with a before b, and
   // at least 1 schedule with b before a.
@@ -56,12 +59,29 @@ public:
     return !constrained(a, b) && !constrained(b, a);
   }
 
+  // All Ops which appear before "id" in at least 1 schedule and after "id" in
+  // at least one schedule
   const std::vector<OpId> &getUnconstrained(OpId id) const {
     return chainIdToUnconstrained[opToChainId[id]];
   }
 
+  // All Ops which are appear after "post" in all schedules, and before
+  // "unconstrained" in at least 1 schedule and after "unconstrained" in at
+  // least 1 schedule
+  std::vector<OpId> getUnconstrainedPost(OpId unconstrained, OpId post) const;
+
+  // Return true if the Ops "a" and "b" have the same sets return by
+  // getUnonstrained
+  bool sameUnconstrained(OpId a, OpId b) const;
+
   // The lowest SchedId that "a" has over all schedules
   SchedId earliest(OpId a) const { return nFwdBefore[a]; }
+
+  // Return true iff the earliest schedule index, over all schedules, that
+  // "id" appears at, is at least as low as any Op in its unconstrained set
+  bool asEarlyAsAllUnconstrained(OpId id) const {
+    return earliest(id) <= chainIdToEarliestUnconstrained[opToChainId[id]];
+  }
 
   // The highest SchedId that "a" has over all schedules
   SchedId latest(OpId a) const { return nOps_u64() - nBwdBefore[a] - 1; }
@@ -120,6 +140,7 @@ private:
   void setChains();
 
   std::vector<std::vector<OpId>> chainIdToUnconstrained;
+  std::vector<uint64_t> chainIdToEarliestUnconstrained;
   void setChainToUnconstrained();
 
   // Diagram:
