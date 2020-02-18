@@ -101,6 +101,12 @@ void Graph::insertAttractions(
 }
 
 void Graph::insertConstraint(OpAddress before, OpAddress after) {
+  if (before >= nOps() || after >= nOps()) {
+    std::ostringstream oss;
+    oss << "Cannot insert constraint " << before << " -> " << after
+        << ", as there are only " << nOps() << " Ops in the anneal::Graph";
+    throw error(oss.str());
+  }
   allOps[before].insertOut(after);
   allOps[after].insertIn(before);
 }
