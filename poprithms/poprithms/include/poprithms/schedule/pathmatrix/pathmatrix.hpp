@@ -21,12 +21,7 @@ using OpId    = uint64_t;
 using SchedId = uint64_t;
 using Edges   = std::vector<std::vector<OpId>>;
 
-// TODO(jn) PathMatrix currently used Chains to store more compactly the
-// unconstrained sets. This is poor design - it should use Chains to store
-// everything or nothing more compactly. I think there should be 2 classes:
-// one which has no concept of Chains, and stores every field for every Op
-// separately, and another which has an instance of the first, and maps chains
-// to Ops
+// TODO(T16486) clarify the use of Chains in PathMatrix
 using ChainId = uint32_t;
 
 enum class IsFirst { No = 0, Maybe, Yes };
