@@ -1082,7 +1082,8 @@ void Graph::initialize(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
 void Graph::setCanCan(int nToShift) {
 
   nCanFwd.clear();
-  auto numNCan = static_cast<uint64_t>(nOps_i32() - nToShift + 1);
+  auto numNCan =
+      static_cast<uint64_t>(std::max(0, nOps_i32() - nToShift + 1));
   nCanFwd.reserve(numNCan);
   nCanBwd.clear();
   nCanBwd.reserve(numNCan);
@@ -1104,8 +1105,10 @@ void Graph::updateCanCan(int oldNToShift, int n2s) {
 
     // with an increase of 1 of nToShift, the number of possible starts
     // decreases by 1
-    nCanFwd.pop_back();
-    nCanBwd.pop_back();
+    if (!nCanFwd.empty()) {
+      nCanFwd.pop_back();
+      nCanBwd.pop_back();
+    }
 
     for (ScheduleIndex i = 0; i < nOps_i32() - n2s + 1; ++i) {
       auto i_u64          = static_cast<uint64_t>(i);
@@ -1447,7 +1450,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
   std::vector<ScheduleIndex> indices;
 
   auto updateIndices = [&indices, &nToShift, this]() {
-    int nIndices          = nOps_i32() + 1 - nToShift;
+    int nIndices          = std::max(0, nOps_i32() + 1 - nToShift);
     uint64_t nIndices_u64 = static_cast<uint64_t>(nIndices);
     indices               = std::vector<ScheduleIndex>(nIndices_u64);
     std::iota(indices.begin(), indices.end(), 0);
@@ -1571,12 +1574,9 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     }
 
     if (oldNToShift != nToShift) {
-
       updateIndices();
-
-      nChangesAtCurrentShift = 0;
       updateCanCan(oldNToShift, nToShift);
-
+      nChangesAtCurrentShift  = 0;
       auto finishCurrentShift = std::chrono::high_resolution_clock::now();
       startCurrentShift       = finishCurrentShift;
     }
