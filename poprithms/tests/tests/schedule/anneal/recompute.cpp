@@ -5,12 +5,12 @@
 #include <numeric>
 #include <random>
 #include <string>
-#include <testutil/schedule/anneal/annealcommandlineoptions.hpp>
 #include <tuple>
 #include <vector>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <poprithms/schedule/anneal/opalloc.hpp>
+#include <testutil/schedule/anneal/annealcommandlineoptions.hpp>
 
 // recomputate graphs
 //

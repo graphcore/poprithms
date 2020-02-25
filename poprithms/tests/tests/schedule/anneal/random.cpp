@@ -4,13 +4,13 @@
 #include <numeric>
 #include <random>
 #include <string>
-#include <testutil/schedule/anneal/annealcommandlineoptions.hpp>
-#include <testutil/schedule/anneal/randomgraph.hpp>
 #include <tuple>
 #include <vector>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <poprithms/schedule/anneal/opalloc.hpp>
+#include <testutil/schedule/anneal/annealcommandlineoptions.hpp>
+#include <testutil/schedule/anneal/randomgraph.hpp>
 
 // N Ops,
 // [1....E] producers for each Op randomly from D most previous

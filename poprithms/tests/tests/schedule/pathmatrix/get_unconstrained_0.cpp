@@ -1,10 +1,10 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
-#include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>
-#include <testutil/schedule/pathmatrix/randomedges.hpp>
 #include <poprithms/schedule/pathmatrix/error.hpp>
 #include <poprithms/schedule/pathmatrix/pathmatrix.hpp>
+#include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>
+#include <testutil/schedule/pathmatrix/randomedges.hpp>
 
 namespace {
 

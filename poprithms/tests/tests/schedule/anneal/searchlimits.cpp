@@ -1,7 +1,7 @@
 #include <iostream>
-#include <testutil/schedule/anneal/randomgraph.hpp>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
+#include <testutil/schedule/anneal/randomgraph.hpp>
 
 // In this test, we check that allowing more swaps results in lower schedule
 // livenesses. We only test this swapLimitCount, a test for timeLimitSeconds

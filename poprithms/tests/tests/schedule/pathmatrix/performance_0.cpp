@@ -2,10 +2,10 @@
 #include <chrono>
 #include <iostream>
 #include <random>
-#include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>
-#include <testutil/schedule/pathmatrix/randomedges.hpp>
 #include <poprithms/schedule/pathmatrix/error.hpp>
 #include <poprithms/schedule/pathmatrix/pathmatrix.hpp>
+#include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>
+#include <testutil/schedule/pathmatrix/randomedges.hpp>
 
 using namespace poprithms::schedule::pathmatrix;
 

@@ -2,11 +2,11 @@
 #include <array>
 #include <iostream>
 #include <numeric>
-#include <testutil/schedule/anneal/annealcommandlineoptions.hpp>
 #include <tuple>
 #include <vector>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
+#include <testutil/schedule/anneal/annealcommandlineoptions.hpp>
 
 int main(int argc, char **argv) {
 

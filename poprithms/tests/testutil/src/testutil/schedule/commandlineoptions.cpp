@@ -3,8 +3,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <testutil/schedule/commandlineoptions.hpp>
 #include <vector>
+#include <testutil/schedule/commandlineoptions.hpp>
 
 namespace poprithms {
 namespace schedule {

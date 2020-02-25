@@ -2,8 +2,8 @@
 #include <random>
 #include <sstream>
 #include <string>
-#include <testutil/schedule/anneal/randomgraph.hpp>
 #include <vector>
+#include <testutil/schedule/anneal/randomgraph.hpp>
 
 namespace poprithms {
 namespace schedule {

@@ -63,6 +63,8 @@ IncludeBlocks:   Preserve
 IncludeCategories: 
   - Regex:           '<protea*'
     Priority:        100
+  - Regex:           '<testutil*'
+    Priority:        20
   - Regex:           '<popl*'
     Priority:        10
   - Regex:           '^(<|"(gtest|gmock|isl|json)/)'
