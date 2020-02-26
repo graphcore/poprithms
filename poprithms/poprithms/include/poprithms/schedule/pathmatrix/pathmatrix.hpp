@@ -60,14 +60,14 @@ public:
     return chainIdToUnconstrained[opToChainId[id]];
   }
 
+  // Return true if the Ops "a" and "b" have the same sets return by
+  // getUnconstrained
+  bool sameUnconstrained(OpId a, OpId b) const;
+
   // All Ops which are appear after "post" in all schedules, and before
   // "unconstrained" in at least 1 schedule and after "unconstrained" in at
   // least 1 schedule
   std::vector<OpId> getUnconstrainedPost(OpId unconstrained, OpId post) const;
-
-  // Return true if the Ops "a" and "b" have the same sets return by
-  // getUnonstrained
-  bool sameUnconstrained(OpId a, OpId b) const;
 
   // The lowest SchedId that "a" has over all schedules
   SchedId earliest(OpId a) const { return nFwdBefore[a]; }

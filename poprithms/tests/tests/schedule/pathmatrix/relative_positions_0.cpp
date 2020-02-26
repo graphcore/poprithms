@@ -46,6 +46,13 @@ int main() {
     }
   }
 
+  x0 = em.getRelativePositions({2, 1});
+  for (const auto &x : x0) {
+    if (x != std::tuple{IsFirst::Maybe, IsFinal::Maybe}) {
+      throw error("Expected {Maybe, Maybe} for all diamond edges");
+    }
+  }
+
   x0 = em.getRelativePositions({5, 1, 2, 3});
   for (uint64_t i = 1; i < 4; ++i) {
     if (x0[i] != std::tuple{IsFirst::Maybe, IsFinal::No}) {

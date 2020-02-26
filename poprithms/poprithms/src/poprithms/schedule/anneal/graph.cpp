@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
@@ -63,6 +64,46 @@ std::vector<std::array<OpAddress, 2>> Graph::getTightPairs() const {
   return tightPairs;
 }
 
+std::vector<OpAddress> Graph::tightChainFrom(OpAddress a) const {
+  std::vector<OpAddress> chain;
+  chain.push_back(a);
+  auto crr = a;
+  while (getOp(crr).nOuts() == 1 && getOp(getOp(crr).getOut(0)).nIns() == 1) {
+    chain.push_back(getOp(crr).getOut(0));
+    crr = getOp(crr).getOut(0);
+  }
+  return chain;
+}
+
+std::vector<std::vector<OpAddress>> Graph::getTightChains() const {
+  std::vector<std::vector<OpAddress>> tightChains;
+
+  constexpr OpAddress None{std::numeric_limits<OpAddress>::max()};
+
+  std::vector<OpAddress> tightNext(nOps(), None);
+  std::vector<OpAddress> tightPrev(nOps(), None);
+  for (const auto &op : getOps()) {
+    if (op.nOuts() == 1 && getOp(op.getOut(0)).nIns() == 1) {
+      tightNext[op.getAddress()] = op.getOut(0);
+      tightPrev[op.getOut(0)]    = op.getAddress();
+    }
+  }
+
+  for (OpAddress add = 0; add < nOps(); ++add) {
+    if (tightNext[add] != None && tightPrev[add] == None) {
+      auto chainElm = add;
+      tightChains.push_back({chainElm, tightNext[chainElm]});
+      chainElm = tightNext[chainElm];
+      while (tightNext[chainElm] != None) {
+        chainElm = tightNext[chainElm];
+        tightChains.back().push_back(chainElm);
+      }
+    }
+  }
+
+  return tightChains;
+}
+
 void Graph::insertOpAlloc(OpAddress oa, AllocAddress aa) {
   allAllocs[aa].insertOp(oa);
   allOps[oa].insertAlloc(aa);
@@ -100,6 +141,11 @@ void Graph::insertAttractions(
   }
 }
 
+void Graph::removeConstraint(OpAddress before, OpAddress after) {
+  allOps[before].removeOut(after);
+  allOps[after].removeIn(before);
+}
+
 void Graph::insertConstraint(OpAddress before, OpAddress after) {
   if (before >= nOps() || after >= nOps()) {
     std::ostringstream oss;
@@ -107,12 +153,16 @@ void Graph::insertConstraint(OpAddress before, OpAddress after) {
         << ", as there are only " << nOps() << " Ops in the anneal::Graph";
     throw error(oss.str());
   }
-  allOps[before].insertOut(after);
-  allOps[after].insertIn(before);
+  if (!allOps[before].hasOut(after)) {
+    allOps[before].insertOut(after);
+    allOps[after].insertIn(before);
+  }
 }
 
 void Graph::insertLink(OpAddress before, OpAddress after) {
-  insertConstraint(before, after);
+  if (!getOp(before).hasOut(after)) {
+    insertConstraint(before, after);
+  }
 
   const auto &op0 = getOp(before);
   const auto &op1 = getOp(after);
@@ -396,7 +446,10 @@ ShiftAndCost Graph::getBestShiftRippleAlgo(const ScheduleIndex start,
          ++proposedStart) {
       auto bwdCostIndex = static_cast<uint64_t>(start - 1 - proposedStart);
       auto cost         = bwdCosts[bwdCostIndex];
-      if (cost < bestCost) {
+      if (cost < bestCost && isLinkPreserving(proposedStart,
+                                              proposedStart + nToShift,
+                                              start - proposedStart)) {
+
         bestCost  = cost;
         bestShift = proposedStart - start;
       }
@@ -410,9 +463,10 @@ ShiftAndCost Graph::getBestShiftRippleAlgo(const ScheduleIndex start,
     auto fwdCosts = getFwdRippleCosts(start, nToShift, firstConsumer);
     for (uint64_t i = 0; i < fwdCosts.size(); ++i) {
       int shift = static_cast<int>(i) + 1;
-      if (fwdCosts[i] < bestCost) {
-        bestCost  = fwdCosts[i];
+      if (fwdCosts[i] < bestCost &&
+          isLinkPreserving(start, start + shift, nToShift)) {
         bestShift = shift;
+        bestCost  = fwdCosts[i];
       }
     }
   }
@@ -454,6 +508,7 @@ std::string Graph::getLivenessString() const {
 
   std::vector<std::string> sIndex{"Index", "====="};
   std::vector<std::string> sIns{"Ins", "==="};
+  std::vector<std::string> sLinkTo{"LinkTo", "======"};
   std::vector<std::string> sOuts{"Outs", "===="};
   std::vector<std::string> sAllocsIn{"+Allocs", "======="};
   std::vector<std::string> sAllocsOut{"-Allocs", "======="};
@@ -479,10 +534,13 @@ std::string Graph::getLivenessString() const {
 
   for (uint64_t i = 0; i < nOps(); ++i) {
 
-    auto address = schToOp[i];
+    auto address   = schToOp[i];
+    const auto &op = getOp(address);
 
     std::ostringstream ossIns;
     poprithms::util::append(ossIns, opToInSch[address]);
+    std::ostringstream ossLinkTo;
+    ossLinkTo << (op.hasForwardLink() ? '+' : ' ');
     std::ostringstream ossName;
     ossName << getOp(address).getDebugString();
     std::ostringstream ossOuts;
@@ -497,6 +555,7 @@ std::string Graph::getLivenessString() const {
     sIndex.push_back(std::to_string(i));
     sLiveness.push_back(toString(schToLiveness[i]));
     sIns.push_back(ossIns.str());
+    sLinkTo.push_back(ossLinkTo.str());
     sOuts.push_back(ossOuts.str());
     sAllocsIn.push_back(ossAllocsIn.str());
     sAllocsOut.push_back(ossAllocsOut.str());
@@ -507,6 +566,7 @@ std::string Graph::getLivenessString() const {
   uint64_t provIndex     = getProvision(sIndex);
   uint64_t provLiveness  = getProvision(sLiveness);
   uint64_t provIns       = getProvision(sIns);
+  uint64_t provLinkTo    = getProvision(sLinkTo);
   uint64_t provOuts      = getProvision(sOuts);
   uint64_t provAllocsIn  = getProvision(sAllocsIn);
   uint64_t provAllocsOut = getProvision(sAllocsOut);
@@ -518,6 +578,7 @@ std::string Graph::getLivenessString() const {
     oss << sIndex[i] << spaceString(provIndex, sIndex[i])             //
         << sName[i] << spaceString(provName, sName[i])                //
         << sIns[i] << spaceString(provIns, sIns[i])                   //
+        << sLinkTo[i] << spaceString(provLinkTo, sLinkTo[i])          //
         << sOuts[i] << spaceString(provOuts, sOuts[i])                //
         << sAllocsIn[i] << spaceString(provAllocsIn, sAllocsIn[i])    //
         << sAllocsOut[i] << spaceString(provAllocsOut, sAllocsOut[i]) //
@@ -732,19 +793,28 @@ bool Graph::isSchedulable() const {
   return nScheduled == nOps_i32();
 }
 
-Graph::LinkMerged Graph::getLinkMerged() const {
+Graph::OpMerged Graph::getLinkMerged() const {
+  return getMerged(getLinkChains());
+}
+
+Graph::OpMerged Graph::getTightMerged() const {
+  return getMerged(getTightChains());
+}
+
+Graph::OpMerged
+Graph::getMerged(std::vector<std::vector<OpAddress>> chains) const {
 
   Graph childGraph;
-
-  const auto chains = getLinkChains();
 
   // The Allocs are the same in the child Graph as the parent Graph
   for (const auto &parentAlloc : getAllocs()) {
     childGraph.insertAlloc(parentAlloc.getWeight());
   }
 
+  constexpr OpAddress None{std::numeric_limits<OpAddress>::max()};
+
   // Map an Op in the parent Graph to its unique Op in the child Graph
-  std::vector<OpAddress> parentToChild(nOps(), 0);
+  std::vector<OpAddress> parentToChild(nOps(), None);
 
   // We assign lowest addresses to child Ops which are generated from parent
   // chains, then the remaining addresses are assigned to the unchained Ops
@@ -760,7 +830,7 @@ Graph::LinkMerged Graph::getLinkMerged() const {
   ParentGraphOps childToParents = std::move(chains);
 
   for (uint64_t parentAddress = 0; parentAddress < nOps(); ++parentAddress) {
-    if (!getOp(parentAddress).hasLink()) {
+    if (parentToChild[parentAddress] == None) {
       parentToChild[parentAddress] = childOpAddress;
       ++childOpAddress;
       childToParents.push_back({parentAddress});
@@ -976,6 +1046,29 @@ void Graph::finalize() {
     alloc.sortAndMakeUnique();
   }
   isFinalized = true;
+}
+
+std::vector<std::vector<OpAddress>> Graph::getForwardEdges() const {
+  std::vector<std::vector<OpAddress>> fwdEdges(nOps());
+  for (const auto &op : getOps()) {
+    fwdEdges[op.getAddress()] = op.getOuts();
+  }
+  return fwdEdges;
+}
+
+std::vector<OpAddress> Graph::getIdenticalIns(OpAddress a) const {
+  std::vector<OpAddress> sameIns;
+  const auto &ins = getOp(a).getIns();
+  if (ins.empty()) {
+    return getInputOps();
+  }
+  auto in0 = ins[0];
+  for (auto out : getOp(in0).getOuts()) {
+    if (getOp(out).getIns() == ins) {
+      sameIns.push_back(out);
+    }
+  }
+  return sameIns;
 }
 
 void Graph::initialize(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
@@ -1214,6 +1307,16 @@ void Graph::assertCorrectness() const {
       }
     }
   }
+
+  // links:
+  for (const auto &op0 : getOps()) {
+    if (op0.hasForwardLink()) {
+      auto op1Address = op0.getForwardLink();
+      if (opToSchedule(op1Address) != opToSchedule(op0.getAddress()) + 1) {
+        throw error("Link is not satisfied, failure in assertCorrectness");
+      }
+    }
+  }
 }
 
 ShiftAndCost Graph::getBestShiftSimpleAlgo(const ScheduleIndex start0,
@@ -1293,13 +1396,40 @@ ShiftAndCost Graph::getBestShiftSimpleAlgo(const ScheduleIndex start0,
 
     auto newTotal = getTotal(newOpToSched);
 
+    auto isLinkPreservingSwitcher = [this, &start0, &start1, nToShift]() {
+      if (start0 < start1) {
+        return isLinkPreserving(start0, start1, nToShift);
+      } else {
+        return isLinkPreserving(start1, start1 + nToShift, start0 - start1);
+      }
+    };
+
     if (newTotal < bestTotal) {
-      bestTotal = newTotal;
-      bestShift = start1 - start0;
+      if (isLinkPreservingSwitcher()) {
+        bestTotal = newTotal;
+        bestShift = start1 - start0;
+      }
     }
   }
 
   return {bestShift, bestTotal - currentTotal};
+}
+
+bool Graph::isLinkPreserving(ScheduleIndex start0,
+                             ScheduleIndex start1,
+                             int nToShift) const {
+
+  const auto x0 = start0;
+  const auto o0 = start0 + nToShift;
+  const auto o1 = start1 + nToShift;
+
+  const auto &xStartOp = getOp(scheduleToOp(x0));
+  const auto &xEndOp   = getOp(scheduleToOp(o0 - 1));
+  const auto &oStartOp = getOp(scheduleToOp(o0));
+  const auto &oEndOp   = getOp(scheduleToOp(o1 - 1));
+
+  return !(xStartOp.hasBackwardLink() || xEndOp.hasForwardLink() ||
+           oStartOp.hasBackwardLink() || oEndOp.hasForwardLink());
 }
 
 namespace {
@@ -1448,12 +1578,18 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
   int64_t nChangesInTotal{0};
 
   std::vector<ScheduleIndex> indices;
+  indices.reserve(nOps());
 
   auto updateIndices = [&indices, &nToShift, this]() {
-    int nIndices          = std::max(0, nOps_i32() + 1 - nToShift);
-    uint64_t nIndices_u64 = static_cast<uint64_t>(nIndices);
-    indices               = std::vector<ScheduleIndex>(nIndices_u64);
-    std::iota(indices.begin(), indices.end(), 0);
+    int nIndices = std::max(0, nOps_i32() + 1 - nToShift);
+    indices.clear();
+    for (ScheduleIndex index = 0; index < nIndices; ++index) {
+      const auto &op0 = getOp(scheduleToOp(index));
+      const auto &op1 = getOp(scheduleToOp(index + nToShift - 1));
+      if (!op0.hasBackwardLink() && !op1.hasForwardLink()) {
+        indices.push_back(index);
+      }
+    }
   };
 
   updateIndices();
@@ -1477,7 +1613,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     nChangesInCurrentRound  = 0;
     deltaWeightCurrentRound = AllocWeight::zero();
     for (auto start0 : indices) {
-      ShiftAndCost shiftAndCost{-1, AllocWeight::negativeOne()};
+      ShiftAndCost shiftAndCost{-1, AllocWeight::numericMaxLimit()};
       if (algo == MinSumLivenessAlgo::RIPPLE) {
         shiftAndCost = getBestShiftRippleAlgo(start0, nToShift);
       } else {

@@ -54,5 +54,17 @@ int main() {
     throw error("Expected 2 tight edge in this tadpole");
   }
 
+  if (g.tightChainFrom(op0) != std::vector<OpAddress>{op0}) {
+    throw error("Expected singleton \"chain\" from Op 0");
+  }
+
+  if (g.tightChainFrom(op4) != std::vector<OpAddress>{op4, op5}) {
+    throw error("Expected {4,5} as tight chain from 4");
+  }
+
+  if (g.tightChainFrom(op5) != std::vector<OpAddress>{op5}) {
+    throw error("Expected singleton \"chain\" from Op 5");
+  }
+
   return 0;
 }
