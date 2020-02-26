@@ -10,9 +10,11 @@
 #include <poprithms/schedule/anneal/allocweight.hpp>
 #include <poprithms/schedule/anneal/annealusings.hpp>
 #include <poprithms/schedule/anneal/op.hpp>
+#include <poprithms/schedule/anneal/pathmatrixoptimizations.hpp>
 #include <poprithms/schedule/anneal/schedulechange.hpp>
 #include <poprithms/schedule/anneal/shiftandcost.hpp>
 #include <poprithms/schedule/anneal/trackentry.hpp>
+#include <poprithms/schedule/pathmatrix/pathmatrix.hpp>
 
 // Design of the schedule annealing algorithm
 // -------------------------------------------
@@ -140,8 +142,10 @@ public:
   std::string getLivenessString() const;
 
   // to be called once, when growing of Graph is complete
-  void initialize(KahnTieBreaker    = KahnTieBreaker::GREEDY,
-                  uint32_t kahnSeed = 1011);
+  void
+  initialize(KahnTieBreaker              = KahnTieBreaker::GREEDY,
+             uint32_t kahnSeed           = 1011,
+             PathMatrixOptimizations pmo = PathMatrixOptimizations::allOff());
 
   void initialize(const std::map<std::string, std::string> &);
 
@@ -483,6 +487,25 @@ public:
       insertConstraint(*attractors.crbegin(), x);
     }
   }
+
+private:
+  // Insert constraints and links which can be proven to satisfy at least one
+  // globally minimizing schedule. These constraints accelerate the annealing
+  // algorithm by reducing its search space.
+  void applyPathMatrixOptimizations(const PathMatrixOptimizations &);
+
+  pathmatrix::PathMatrix pathMatrix{{}};
+  // The lowest change in liveness across all schedules, for each Op
+  std::vector<AllocWeight> lowerBoundChange;
+  // The highest change in liveness across all schedules, for each Op
+  std::vector<AllocWeight> upperBoundChange;
+
+  void initializePathMatrix();
+  bool linkTightDrops();
+  bool linkCloseTightPairs();
+  bool constrainWeightSeparatedGroups();
+  bool constrainParallelChains();
+  bool slideLinks();
 };
 
 std::ostream &operator<<(std::ostream &ost, const Graph &x);

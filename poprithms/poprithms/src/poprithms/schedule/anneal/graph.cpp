@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <random>
 #include <poprithms/schedule/anneal/error.hpp>
@@ -1038,6 +1039,378 @@ std::vector<std::vector<OpAddress>> Graph::getForwardEdges() const {
   return fwdEdges;
 }
 
+namespace {
+void updateFromFirst(AllocWeight &lwr,
+                     AllocWeight &upp,
+                     const AllocWeight &w,
+                     pathmatrix::IsFirst isFirst) {
+  switch (isFirst) {
+  // If an Op is definitely not the first consumer of an allocation, the
+  // allocation definitely does not increase liveness
+  case (pathmatrix::IsFirst::No): {
+    break;
+  }
+  case (pathmatrix::IsFirst::Maybe): {
+    // If an Op might be the first consumer of an allocation, the allocation
+    // might increase liveness. The upper-bound on liveness is therefore
+    // increased
+    upp += w;
+    break;
+  }
+  case (pathmatrix::IsFirst::Yes): {
+    lwr += w;
+    upp += w;
+    break;
+  }
+  }
+}
+
+void updateFromFinal(AllocWeight &lwr,
+                     AllocWeight &upp,
+                     const AllocWeight &w,
+                     pathmatrix::IsFinal isFinal) {
+  switch (isFinal) {
+  case (pathmatrix::IsFinal::No): {
+    break;
+  }
+  case (pathmatrix::IsFinal::Maybe): {
+    lwr -= w;
+    break;
+  }
+  case (pathmatrix::IsFinal::Yes): {
+    lwr -= w;
+    upp -= w;
+    break;
+  }
+  }
+}
+
+void updateFromFirstFinal(
+    AllocWeight &lwr,
+    AllocWeight &upp,
+    const AllocWeight &w,
+    std::tuple<pathmatrix::IsFirst, pathmatrix::IsFinal> ff) {
+  updateFromFirst(lwr, upp, w, std::get<0>(ff));
+  updateFromFinal(lwr, upp, w, std::get<1>(ff));
+}
+
+} // namespace
+
+void Graph::initializePathMatrix() {
+
+  pathMatrix = pathmatrix::PathMatrix(getForwardEdges());
+
+  // removing redundant constraints
+  for (const auto &redundantConstraint : pathMatrix.getFwdRedundant()) {
+    auto fromId = std::get<0>(redundantConstraint);
+    auto toId   = std::get<1>(redundantConstraint);
+    removeConstraint(fromId, toId);
+  }
+
+  auto zero        = AllocWeight::zero();
+  lowerBoundChange = std::vector<AllocWeight>(nOps(), zero);
+  upperBoundChange = std::vector<AllocWeight>(nOps(), zero);
+
+  // initializing lowerBoundChange and upperBoundChange
+  for (const auto &alloc : getAllocs()) {
+    auto relativePositions = pathMatrix.getRelativePositions(alloc.getOps());
+    assert(relativePositions.size() == alloc.getOps().size());
+    for (uint64_t opIndex = 0; opIndex < alloc.nOps(); ++opIndex) {
+      auto opId = alloc.getOps()[opIndex];
+      updateFromFirstFinal(lowerBoundChange[opId],
+                           upperBoundChange[opId],
+                           alloc.getWeight(),
+                           relativePositions[opIndex]);
+    }
+  }
+}
+
+bool Graph::linkTightDrops() {
+  std::vector<std::array<OpAddress, 2>> newLinks;
+  for (const auto tightPair : getTightPairs()) {
+    OpAddress before = std::get<0>(tightPair);
+    OpAddress after  = std::get<1>(tightPair);
+    if (upperBoundChange[after] <= lowerBoundChange[before]) {
+      if (!getOp(before).hasForwardLink()) {
+        newLinks.push_back(tightPair);
+      }
+    }
+  }
+  for (auto link : newLinks) {
+    insertLink(std::get<0>(link), std::get<1>(link));
+  }
+  return !newLinks.empty();
+}
+
+bool Graph::linkCloseTightPairs() {
+  std::vector<std::array<OpAddress, 2>> newLinks;
+  for (const auto tightPair : getTightPairs()) {
+    auto before = std::get<0>(tightPair);
+    auto after  = std::get<1>(tightPair);
+    auto L      = std::min(lowerBoundChange[before], lowerBoundChange[after]);
+    auto U      = std::max(upperBoundChange[before], upperBoundChange[after]);
+    bool canTie{true};
+    for (auto op : pathMatrix.getUnconstrained(before)) {
+
+      // Is there any intersection between a and b below?
+      //
+      //      L     U
+      //  ....xxxxxxx..  -- a
+      //  ..xxxxx......  -- b
+      //    l   u
+      //
+      auto l = lowerBoundChange[op];
+      auto u = upperBoundChange[op];
+      if (u < L || l > U) {
+      } else {
+        canTie = false;
+        break;
+      }
+    }
+    if (canTie) {
+      if (!getOp(before).hasForwardLink()) {
+        newLinks.push_back(tightPair);
+      }
+    }
+  }
+  for (auto link : newLinks) {
+    insertLink(std::get<0>(link), std::get<1>(link));
+  }
+  return !newLinks.empty();
+}
+
+bool Graph::constrainWeightSeparatedGroups() {
+
+  std::vector<std::array<OpAddress, 2>> newConstraints;
+  for (OpAddress a = 0; a < nOps(); ++a) {
+    for (auto b : getIdenticalIns(a)) {
+      if (b != a) {
+
+        // unconstrained w.r.t. a, and post b
+        auto postB = pathMatrix.getUnconstrainedPost(a, b);
+        auto lb    = lowerBoundChange[b];
+        for (OpAddress add : postB) {
+          lb = std::min(lb, lowerBoundChange[add]);
+        }
+
+        // unconstrained w.r.t. b, and post a
+        auto postA = pathMatrix.getUnconstrainedPost(b, a);
+        auto ub    = upperBoundChange[a];
+        for (OpAddress add : postA) {
+          ub = std::max(ub, upperBoundChange[add]);
+        }
+
+        if (ub <= lb) {
+          auto nPostBoth = pathMatrix.nPostPost(a, b);
+          std::vector<OpAddress> samePostPostAsA{a};
+          for (auto x : postA) {
+            if (pathMatrix.nPostPost(x, b) == nPostBoth) {
+              samePostPostAsA.push_back(x);
+            }
+          }
+
+          bool allUpperSame =
+              std::all_of(samePostPostAsA.cbegin(),
+                          samePostPostAsA.cend(),
+                          [this, ub](OpAddress add) {
+                            return upperBoundChange[add] == ub;
+                          });
+
+          if ((ub < lb) ||                         //
+              (ub == lb && !allUpperSame) ||       //
+              (ub == lb && allUpperSame && a < b)) //
+          {
+            for (auto x : samePostPostAsA) {
+              newConstraints.push_back({x, b});
+            }
+          }
+        }
+      }
+    }
+  }
+  for (auto constraint : newConstraints) {
+    auto from = std::get<0>(constraint);
+    auto to   = std::get<1>(constraint);
+    insertConstraint(from, to);
+  }
+
+  finalize();
+
+  return !newConstraints.empty();
+}
+
+bool Graph::constrainParallelChains() {
+  std::vector<std::array<OpAddress, 2>> newConstraints;
+  for (OpAddress a = 0; a < nOps(); ++a) {
+    auto identicalIns = getIdenticalIns(a);
+    if (identicalIns.size() <= 1) {
+      continue;
+    }
+    auto aChain = tightChainFrom(a);
+    auto aEnd   = aChain.back();
+    for (auto b : identicalIns) {
+      if (b == a) {
+        continue;
+      }
+      auto bChain       = tightChainFrom(b);
+      auto bEnd         = bChain.back();
+      const auto &aOuts = getOp(aEnd).getOuts();
+      const auto &bOuts = getOp(bEnd).getOuts();
+      if (!(aOuts == bOuts && (aChain.size() >= bChain.size()))) {
+        continue;
+      }
+
+      auto chainLength = bChain.size();
+      bool canInsertConstraints{true};
+
+      auto runningUpp = AllocWeight::zero();
+      auto runningLow = AllocWeight::zero();
+
+      for (uint64_t i = 0; i < chainLength; ++i) {
+
+        auto uppA = upperBoundChange[aChain[i]];
+        auto lowB = lowerBoundChange[bChain[i]];
+
+        for (auto allocAddress : getOp(bChain[i]).getAllocs()) {
+
+          // Determine if a shared alloc can be removed:
+          bool canRemove = true;
+          for (uint64_t j = 0; j < chainLength; ++j) {
+            if (getOp(aChain[i]).hasAlloc(allocAddress) !=
+                getOp(bChain[i]).hasAlloc(allocAddress)) {
+              canRemove = false;
+            }
+          }
+          if (!canRemove) {
+            continue;
+          }
+
+          // Remove shared: alloc contribution
+          const auto &alloc = getAlloc(allocAddress);
+          const auto &all   = alloc.getOps();
+          auto relPoss      = pathMatrix.getRelativePositions(all);
+          auto negW         = -1 * alloc.getWeight();
+
+          AllocWeight dummy = AllocWeight::zero();
+          {
+            auto fnd = std::find(all.cbegin(), all.cend(), aChain[i]);
+            auto dst = std::distance(all.cbegin(), fnd);
+            auto idx = static_cast<uint64_t>(dst);
+            updateFromFirstFinal(dummy, uppA, negW, relPoss[idx]);
+          }
+
+          {
+            auto fnd = std::find(all.cbegin(), all.cend(), bChain[i]);
+            auto dst = std::distance(all.cbegin(), fnd);
+            auto idx = static_cast<uint64_t>(dst);
+            updateFromFirstFinal(lowB, dummy, negW, relPoss[idx]);
+          }
+        }
+
+        runningUpp += uppA;
+        runningLow += lowB;
+
+        if (runningUpp < runningLow ||
+            (runningUpp == runningLow && aChain[i] < bChain[i])) {
+        } else {
+          canInsertConstraints = false;
+          break;
+        }
+      }
+
+      if (canInsertConstraints) {
+        for (uint64_t i = 0; i < chainLength; ++i) {
+          if (!getOp(aChain[i]).hasOut(bChain[i])) {
+            newConstraints.push_back({aChain[i], bChain[i]});
+          }
+        }
+      }
+    }
+  }
+  for (auto constraint : newConstraints) {
+    auto from = std::get<0>(constraint);
+    auto to   = std::get<1>(constraint);
+    insertConstraint(from, to);
+  }
+
+  return !newConstraints.empty();
+}
+
+bool Graph::slideLinks() {
+  bool wasChange{false};
+  auto linkChains = getLinkChains();
+  for (const auto &chain : linkChains) {
+    for (uint64_t i = 0; i < chain.size(); ++i) {
+      auto id = chain[i];
+
+      if (i != chain.size() - 1) {
+        const auto outs = getOp(id).getOuts();
+        for (const auto outId : outs) {
+          if (getOp(id).getForwardLink() != outId) {
+            removeConstraint(id, outId);
+            insertConstraint(chain.back(), outId);
+            wasChange |= true;
+          }
+        }
+      }
+      if (i != 0) {
+        const auto ins = getOp(id).getIns();
+        for (const auto inId : ins) {
+          if (getOp(id).getBackwardLink() != inId) {
+            removeConstraint(inId, id);
+            insertConstraint(inId, chain[0]);
+            wasChange |= true;
+          }
+        }
+      }
+    }
+  }
+
+  return wasChange;
+}
+
+void Graph::applyPathMatrixOptimizations(const PathMatrixOptimizations &pmo) {
+
+  if (pmo.allOptimizationsOff()) {
+    return;
+  }
+
+  bool wasChange{true};
+  int iteration{0};
+
+  while (wasChange && iteration < pmo.maxIterations()) {
+
+    std::cout << "iteration = " << iteration << std::endl;
+
+    wasChange = false;
+
+    initializePathMatrix();
+
+    if (pmo.linkTightDrops()) {
+      wasChange |= linkTightDrops();
+    }
+
+    if (pmo.linkCloseTightPairs()) {
+      wasChange |= linkCloseTightPairs();
+    }
+
+    if (pmo.constrainWeightSeparatedGroups()) {
+      wasChange |= constrainWeightSeparatedGroups();
+    }
+
+    if (pmo.constrainParallelChains()) {
+      wasChange |= constrainParallelChains();
+    }
+
+    if (pmo.slideLinks()) {
+      wasChange |= slideLinks();
+    }
+    ++iteration;
+  }
+
+  finalize();
+}
+
 std::vector<OpAddress> Graph::getIdenticalIns(OpAddress a) const {
   std::vector<OpAddress> sameIns;
   const auto &ins = getOp(a).getIns();
@@ -1053,11 +1426,15 @@ std::vector<OpAddress> Graph::getIdenticalIns(OpAddress a) const {
   return sameIns;
 }
 
-void Graph::initialize(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
+void Graph::initialize(KahnTieBreaker kahnTie,
+                       uint32_t kahnSeed,
+                       PathMatrixOptimizations pmo) {
 
   if (!isFinalized) {
     finalize();
   }
+
+  applyPathMatrixOptimizations(pmo);
 
   //
   // schToOp. Vanilla run of Kahn's O(E) algorithm, random tie-breaks
