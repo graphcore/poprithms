@@ -510,8 +510,6 @@ std::string Graph::getLivenessString() const {
   std::vector<std::string> sIns{"Ins", "==="};
   std::vector<std::string> sLinkTo{"LinkTo", "======"};
   std::vector<std::string> sOuts{"Outs", "===="};
-  std::vector<std::string> sAllocsIn{"+Allocs", "======="};
-  std::vector<std::string> sAllocsOut{"-Allocs", "======="};
   std::vector<std::string> sAllocs{"Allocs", "======="};
   std::vector<std::string> sLiveness{"Liveness", "========"};
   std::vector<std::string> sName{"Name", "===="};
@@ -545,10 +543,6 @@ std::string Graph::getLivenessString() const {
     ossName << getOp(address).getDebugString();
     std::ostringstream ossOuts;
     poprithms::util::append(ossOuts, opToOutSch[address]);
-    std::ostringstream ossAllocsIn;
-    poprithms::util::append(ossAllocsIn, schToAllocFirsts[i]);
-    std::ostringstream ossAllocsOut;
-    poprithms::util::append(ossAllocsOut, schToAllocFinals[i]);
     std::ostringstream ossAllocs;
     poprithms::util::append(ossAllocs, schToAllocs[i]);
 
@@ -557,33 +551,27 @@ std::string Graph::getLivenessString() const {
     sIns.push_back(ossIns.str());
     sLinkTo.push_back(ossLinkTo.str());
     sOuts.push_back(ossOuts.str());
-    sAllocsIn.push_back(ossAllocsIn.str());
-    sAllocsOut.push_back(ossAllocsOut.str());
     sAllocs.push_back(ossAllocs.str());
     sName.push_back(ossName.str());
   }
 
-  uint64_t provIndex     = getProvision(sIndex);
-  uint64_t provLiveness  = getProvision(sLiveness);
-  uint64_t provIns       = getProvision(sIns);
-  uint64_t provLinkTo    = getProvision(sLinkTo);
-  uint64_t provOuts      = getProvision(sOuts);
-  uint64_t provAllocsIn  = getProvision(sAllocsIn);
-  uint64_t provAllocsOut = getProvision(sAllocsOut);
-  uint64_t provAllocs    = getProvision(sAllocs);
-  uint64_t provName      = getProvision(sName);
+  uint64_t provIndex    = getProvision(sIndex);
+  uint64_t provLiveness = getProvision(sLiveness);
+  uint64_t provIns      = getProvision(sIns);
+  uint64_t provLinkTo   = getProvision(sLinkTo);
+  uint64_t provOuts     = getProvision(sOuts);
+  uint64_t provAllocs   = getProvision(sAllocs);
+  uint64_t provName     = getProvision(sName);
 
   std::ostringstream oss;
   for (uint64_t i = 0; i < sIndex.size(); ++i) {
-    oss << sIndex[i] << spaceString(provIndex, sIndex[i])             //
-        << sName[i] << spaceString(provName, sName[i])                //
-        << sIns[i] << spaceString(provIns, sIns[i])                   //
-        << sLinkTo[i] << spaceString(provLinkTo, sLinkTo[i])          //
-        << sOuts[i] << spaceString(provOuts, sOuts[i])                //
-        << sAllocsIn[i] << spaceString(provAllocsIn, sAllocsIn[i])    //
-        << sAllocsOut[i] << spaceString(provAllocsOut, sAllocsOut[i]) //
-        << sAllocs[i] << spaceString(provAllocs, sAllocs[i])          //
-        << sLiveness[i] << spaceString(provLiveness, sLiveness[i])    //
+    oss << sIndex[i] << spaceString(provIndex, sIndex[i])          //
+        << sName[i] << spaceString(provName, sName[i])             //
+        << sIns[i] << spaceString(provIns, sIns[i])                //
+        << sLinkTo[i] << spaceString(provLinkTo, sLinkTo[i])       //
+        << sOuts[i] << spaceString(provOuts, sOuts[i])             //
+        << sAllocs[i] << spaceString(provAllocs, sAllocs[i])       //
+        << sLiveness[i] << spaceString(provLiveness, sLiveness[i]) //
         << '\n';
   }
 
@@ -685,12 +673,6 @@ void Graph::applyChange(const ScheduleChange &scheduleChange) {
   for (OpAddress producerAddress : producersTouched) {
     setOpToOutSch(producerAddress);
   }
-
-  // 6 schToAllocFirsts
-  rotate(schToAllocFirsts, x0, o0, o1);
-
-  // 7 schToAllocFinals
-  rotate(schToAllocFinals, x0, o0, o1);
 
   // 9 nCanFwd and nCanBwd
   updateNCanFwds(nToShift, x0, o1, producersTouched);
@@ -1130,31 +1112,6 @@ void Graph::initialize(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
   opToOutSch.resize(nOps());
   for (OpAddress opAddress = 0; opAddress < nOps(); ++opAddress) {
     setOpToOutSch(opAddress);
-  }
-
-  //
-  // schToAllocFirsts, schToAllocFinals
-  schToAllocFirsts.clear();
-  schToAllocFirsts.resize(nOps());
-  schToAllocFinals.clear();
-  schToAllocFinals.resize(nOps());
-  for (AllocAddress allocAddress = 0; allocAddress < nAllocs();
-       ++allocAddress) {
-    if (getAlloc(allocAddress).nOps() > 0) {
-      auto firstSched     = allocToFirstSchedule(allocAddress);
-      auto firstSched_u64 = static_cast<uint64_t>(firstSched);
-      auto finalSched     = allocToFinalSchedule(allocAddress);
-      auto finalSched_u64 = static_cast<uint64_t>(finalSched);
-      schToAllocFirsts[firstSched_u64].push_back(allocAddress);
-      schToAllocFinals[finalSched_u64].push_back(allocAddress);
-    }
-  }
-
-  for (auto &x : schToAllocFirsts) {
-    std::sort(x.begin(), x.end());
-  }
-  for (auto &x : schToAllocFinals) {
-    std::sort(x.begin(), x.end());
   }
 
   //

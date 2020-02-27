@@ -245,17 +245,6 @@ public:
     return opToOutSch[a];
   }
 
-  // any Allocs which are first used at a schedule index
-  const std::vector<AllocAddress> &
-  scheduleToAllocFirsts(ScheduleIndex i) const {
-    return schToAllocFirsts[i];
-  }
-
-  // any Allocs which are last used at a schedule index
-  const std::vector<AllocAddress> &
-  scheduleToAllocFinals(ScheduleIndex i) const {
-    return schToAllocFinals[i];
-  }
   int getNCanFwd(ScheduleIndex i) const {
     return nCanFwd[static_cast<uint64_t>(i)];
   }
@@ -333,8 +322,6 @@ private:
   std::vector<std::vector<AllocAddress>> schToAllocs;
   std::vector<std::vector<ScheduleIndex>> opToInSch;
   std::vector<std::vector<ScheduleIndex>> opToOutSch;
-  std::vector<std::vector<AllocAddress>> schToAllocFirsts;
-  std::vector<std::vector<AllocAddress>> schToAllocFinals;
   std::vector<int> nCanFwd;
   std::vector<int> nCanBwd;
 
