@@ -48,7 +48,11 @@ enum class MinSumLivenessAlgo { SIMPLE, RIPPLE };
 // tie-breaker does not make much difference to overall performance of the
 // algorithm but GREEDY means slightly fewer shifts are required when
 // annealing starts
-enum class KahnTieBreaker { RANDOM, GREEDY, FIFO };
+enum class KahnTieBreaker { RANDOM = 0, GREEDY, FIFO, N };
+static constexpr auto NKahnTieBreakers =
+    static_cast<uint64_t>(KahnTieBreaker::N);
+std::ostream &operator<<(std::ostream &, KahnTieBreaker);
+KahnTieBreaker kahnTieBreaker(const std::string &);
 
 class Graph {
 public:
@@ -139,6 +143,8 @@ public:
   void initialize(KahnTieBreaker    = KahnTieBreaker::GREEDY,
                   uint32_t kahnSeed = 1011);
 
+  void initialize(const std::map<std::string, std::string> &);
+
   // Should be called once after the final call to a growing member. Sorts
   // certain Op member ids to accelerate the annealing algorithm
   void finalize();
@@ -148,13 +154,18 @@ public:
   void assertCorrectness() const;
 
   static bool defaultDebug() { return false; }
-  static uint32_t defaultSeed() { return 1011; }
+  static uint32_t defaultMinSumLivenessSeed() { return 1011; }
   static double defaultPStayPut() { return 10.0; }
   static double defaultPHigherFallRate() { return 2.0; }
   static double defaultPClimb() { return 1.0; }
   static bool defaultLogging() { return true; }
   static double defaultTimeLimitSeconds() { return 1e9; }
   static int64_t defaultSwapLimitCount() { return static_cast<int64_t>(1e9); }
+
+  static KahnTieBreaker defaultKahnTieBreaker() {
+    return KahnTieBreaker::GREEDY;
+  }
+  static uint32_t defaultKahnSeed() { return 1012; }
 
   // All Ops which thus far do not have any input dependencies
   std::vector<OpAddress> getInputOps() const;
@@ -197,7 +208,7 @@ public:
   void
   minSumLivenessAnneal(MinSumLivenessAlgo algo = MinSumLivenessAlgo::RIPPLE,
                        bool debug              = defaultDebug(),
-                       uint32_t seed           = defaultSeed(),
+                       uint32_t seed           = defaultMinSumLivenessSeed(),
                        double pStayPut         = defaultPStayPut(),
                        double pHigherFallRate  = defaultPHigherFallRate(),
                        double pClimb           = defaultPClimb(),

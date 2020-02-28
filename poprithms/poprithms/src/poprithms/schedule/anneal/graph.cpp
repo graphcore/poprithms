@@ -1432,7 +1432,7 @@ void Graph::confirmShiftAndCost(ScheduleIndex start0,
 void Graph::minSumLivenessAnneal(
     const std::map<std::string, std::string> &m) {
   bool debug               = defaultDebug();
-  uint32_t seed            = defaultSeed();
+  uint32_t seed            = defaultMinSumLivenessSeed();
   Fraction pStayPut        = defaultPStayPut();
   Fraction pHigherFallRate = defaultPHigherFallRate();
   Fraction pClimb          = defaultPClimb();
@@ -1440,11 +1440,11 @@ void Graph::minSumLivenessAnneal(
   double timeLimitSeconds  = defaultTimeLimitSeconds();
   int64_t swapLimitCount   = defaultSwapLimitCount();
 
-  for (auto &[k, v] : m) {
+  for (const auto &[k, v] : m) {
     if (k == "debug") {
       debug = static_cast<bool>(std::stoi(v));
     } else if (k == "seed") {
-      seed = static_cast<uint32_t>(std::stoll(v));
+      seed = static_cast<uint32_t>(std::stoul(v));
     } else if (k == "pHigherFallRate") {
       pHigherFallRate = static_cast<Fraction>(std::stof(v));
     } else if (k == "pStayPut") {
@@ -1454,7 +1454,7 @@ void Graph::minSumLivenessAnneal(
     } else if (k == "logging") {
       logging = static_cast<bool>(std::stoi(v));
     } else if (k == "timeLimitSeconds") {
-      timeLimitSeconds = static_cast<double>(std::stof(v));
+      timeLimitSeconds = static_cast<double>(std::stod(v));
     } else if (k == "swapLimitCount") {
       swapLimitCount = static_cast<int64_t>(std::stoll(v));
     } else {
@@ -1470,6 +1470,77 @@ void Graph::minSumLivenessAnneal(
                        logging,
                        timeLimitSeconds,
                        swapLimitCount);
+}
+
+namespace {
+
+std::array<std::string, NKahnTieBreakers> initKahnTieBreakers() {
+
+  constexpr const char *const unset{"unset"};
+  std::array<std::string, NKahnTieBreakers> ktbs;
+  for (uint64_t i = 0; i < NKahnTieBreakers; ++i) {
+    ktbs[i] = unset;
+  }
+  ktbs[static_cast<uint64_t>(KahnTieBreaker::RANDOM)] = "Random";
+  ktbs[static_cast<uint64_t>(KahnTieBreaker::GREEDY)] = "Greedy";
+  ktbs[static_cast<uint64_t>(KahnTieBreaker::FIFO)]   = "Fifo";
+  for (uint64_t i = 0; i < NKahnTieBreakers; ++i) {
+    if (ktbs[i] == unset) {
+      throw error("Not all KahnTieBreaker strings are set");
+    }
+  }
+  return ktbs;
+}
+
+const std::array<std::string, NKahnTieBreakers> &getKahnTieBreakers() {
+  const auto static x = initKahnTieBreakers();
+  return x;
+}
+
+} // namespace
+
+std::ostream &operator<<(std::ostream &ost, KahnTieBreaker ktb) {
+  ost << getKahnTieBreakers()[static_cast<uint64_t>(ktb)];
+  return ost;
+}
+
+void Graph::initialize(const std::map<std::string, std::string> &m) {
+
+  auto ktb      = defaultKahnTieBreaker();
+  auto kahnSeed = defaultKahnSeed();
+  for (const auto &[k, v] : m) {
+    if (k == "seed") {
+      kahnSeed = static_cast<uint32_t>(std::stoul(v));
+    } else if (k == "tieBreaker") {
+      ktb = kahnTieBreaker(v);
+    } else {
+      throw error("invalid option to Graph::initialize, " + k);
+    }
+  }
+  initialize(ktb, kahnSeed);
+}
+
+namespace {
+
+std::string lowercase(const std::string &x) {
+  auto lower = x;
+  std::transform(lower.begin(),
+                 lower.end(),
+                 lower.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+  return lower;
+}
+
+} // namespace
+
+KahnTieBreaker kahnTieBreaker(const std::string &mixedCase) {
+  auto lower = lowercase(mixedCase);
+  for (uint64_t i = 0; i < NKahnTieBreakers; ++i) {
+    if (lower == lowercase(getKahnTieBreakers()[i])) {
+      return static_cast<KahnTieBreaker>(i);
+    }
+  }
+  throw error("Invalid kahnTieBreaker string, " + mixedCase);
 }
 
 void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
