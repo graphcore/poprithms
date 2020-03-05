@@ -1,0 +1,1 @@
+add_poprithms_unit_test(schedule_anneal_dfs_dfs_0 dfs_0.cpp)
