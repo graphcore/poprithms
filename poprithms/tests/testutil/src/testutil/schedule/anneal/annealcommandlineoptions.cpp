@@ -6,8 +6,13 @@ namespace anneal {
 
 const std::vector<std::string> &
 AnnealCommandLineOptions::getAlgoCommandLineOptions() const {
-  static std::vector<std::string> x{
-      "debug", "seed", "pStayPut", "pHigherFallRate", "pClimb", "logging"};
+  static std::vector<std::string> x{"debug",
+                                    "seed",
+                                    "pStayPut",
+                                    "pHigherFallRate",
+                                    "pClimb",
+                                    "logging",
+                                    "filterSusceptible"};
   return x;
 }
 

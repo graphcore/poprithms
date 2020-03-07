@@ -31,6 +31,7 @@ int main() {
     double pClimb           = 0.0;
     bool logging            = true;
     double timeLimitSeconds = 1000.0;
+    bool filterSusceptible  = false;
 
     g.minSumLivenessAnneal(MinSumLivenessAlgo::RIPPLE,
                            debug,
@@ -38,6 +39,7 @@ int main() {
                            pStayPut,
                            pHigherFallRate,
                            pClimb,
+                           filterSusceptible,
                            logging,
                            timeLimitSeconds,
                            swapLimitCount);

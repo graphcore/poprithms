@@ -144,7 +144,7 @@ public:
   // to be called once, when growing of Graph is complete
   void
   initialize(KahnTieBreaker              = KahnTieBreaker::GREEDY,
-             uint32_t kahnSeed           = 1011,
+             uint32_t kahnSeed           = defaultKahnSeed(),
              PathMatrixOptimizations pmo = PathMatrixOptimizations::allOff());
 
   void initialize(const std::map<std::string, std::string> &);
@@ -158,18 +158,19 @@ public:
   void assertCorrectness() const;
 
   static bool defaultDebug() { return false; }
-  static uint32_t defaultMinSumLivenessSeed() { return 1011; }
+  static uint32_t defaultMinSumLivenessSeed() { return 1; }
   static double defaultPStayPut() { return 10.0; }
   static double defaultPHigherFallRate() { return 2.0; }
   static double defaultPClimb() { return 1.0; }
   static bool defaultLogging() { return true; }
+  static bool defaultFilterSusceptible() { return true; }
   static double defaultTimeLimitSeconds() { return 1e9; }
   static int64_t defaultSwapLimitCount() { return static_cast<int64_t>(1e9); }
 
   static KahnTieBreaker defaultKahnTieBreaker() {
     return KahnTieBreaker::GREEDY;
   }
-  static uint32_t defaultKahnSeed() { return 1012; }
+  static uint32_t defaultKahnSeed() { return 1; }
 
   // All Ops which thus far do not have any input dependencies
   std::vector<OpAddress> getInputOps() const;
@@ -207,6 +208,11 @@ public:
   //   1) randomly shuffles op indices in each round
   //   2) randomly chooses between a, b, c above.
   //
+  // filterSusceptible : in each round which follows a round with at least one
+  // shift, only considershifts of ranges if at least one Op in the
+  // range has a constraint to an Op which moved in the previous round.
+  // Changing this boolean value may change the final local minimum found
+  //
   // logging : log the choice between a,b,c at each round
 
   void
@@ -216,6 +222,7 @@ public:
                        double pStayPut         = defaultPStayPut(),
                        double pHigherFallRate  = defaultPHigherFallRate(),
                        double pClimb           = defaultPClimb(),
+                       bool filterSusceptible  = defaultFilterSusceptible(),
                        bool logging            = defaultLogging(),
                        double timeLimitSeconds = defaultTimeLimitSeconds(),
                        int64_t swapLimitCount  = defaultSwapLimitCount());
@@ -339,6 +346,7 @@ private:
   std::vector<std::vector<ScheduleIndex>> opToOutSch;
   std::vector<int> nCanFwd;
   std::vector<int> nCanBwd;
+  std::vector<bool> susceptible;
 
   // not updated every time the schedule changes
   std::vector<AllocWeight> schToLiveness;
@@ -393,6 +401,10 @@ private:
                       int x0,
                       int o1,
                       const std::vector<OpAddress> &consumersTouched);
+
+  // Susceptible Ops are Ops in (out) the range [rangeStart, rangeEnd] which
+  // have a dependency outside the range
+  void updateSusceptible(ScheduleIndex rangeStart, ScheduleIndex rangeEnd);
 
   // TODO(T14827) for multithreading, need one of these scratchpads per thread
   mutable std::vector<TrackEntry> rippleScratch;

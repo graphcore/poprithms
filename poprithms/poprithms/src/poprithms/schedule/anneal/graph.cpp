@@ -624,6 +624,9 @@ void Graph::applyChange(const ScheduleChange &scheduleChange) {
   // >> std::rotate(a.begin() +2, a.begin() +5, a.begin() + 6);
   // #  0 1 5 2 3 4 6 7
 
+  updateSusceptible(x0, o0);
+  updateSusceptible(o0, o1);
+
   // 0 schToOp
   rotate(schToOp, x0, o0, o1);
 
@@ -675,13 +678,34 @@ void Graph::applyChange(const ScheduleChange &scheduleChange) {
     setOpToOutSch(producerAddress);
   }
 
-  // 9 nCanFwd and nCanBwd
+  // 6 nCanFwd and nCanBwd
   updateNCanFwds(nToShift, x0, o1, producersTouched);
   updateNCanBwds(nToShift, x0, o1, consumersTouched);
 }
 
-// TODO(T14827) : there's a faster way to do this when n2s = 1, will be useful
-// when multi-threading as fast updating will become important
+void Graph::updateSusceptible(ScheduleIndex a, ScheduleIndex b) {
+  if (susceptible.empty()) {
+    return;
+  }
+  for (auto i = a; i < b; ++i) {
+    const auto opAddress = scheduleToOp(i);
+    for (auto inAddress : getOp(opAddress).getIns()) {
+      if (opToSchedule(inAddress) < a) {
+        susceptible[inAddress] = true;
+        susceptible[opAddress] = true;
+      }
+    }
+    for (auto outAddress : getOp(opAddress).getOuts()) {
+      if (opToSchedule(outAddress) >= b) {
+        susceptible[outAddress] = true;
+        susceptible[opAddress]  = true;
+      }
+    }
+  }
+}
+
+// TODO(T14827) : there's a faster way to do this when n2s = 1, will be
+// useful when multi-threading as fast updating will become important
 void Graph::updateNCanFwds(int n2s,
                            int x0,
                            int o1,
@@ -745,8 +769,10 @@ bool Graph::isSchedulable() const {
   }
 
   if (!isFinalized) {
-    throw error(
-        "Graph not finalized, should call finalize() before isSchedulable()");
+    std::ostringstream oss;
+    oss << "Graph not finalized, should call finalize() "
+        << "before isSchedulable()";
+    throw error(oss.str());
   }
 
   std::vector<OpAddress> outstanding;
@@ -1814,6 +1840,7 @@ void Graph::minSumLivenessAnneal(
   Fraction pHigherFallRate = defaultPHigherFallRate();
   Fraction pClimb          = defaultPClimb();
   bool logging             = defaultLogging();
+  bool filterSusceptible   = defaultFilterSusceptible();
   double timeLimitSeconds  = defaultTimeLimitSeconds();
   int64_t swapLimitCount   = defaultSwapLimitCount();
 
@@ -1834,6 +1861,8 @@ void Graph::minSumLivenessAnneal(
       timeLimitSeconds = static_cast<double>(std::stod(v));
     } else if (k == "swapLimitCount") {
       swapLimitCount = static_cast<int64_t>(std::stoll(v));
+    } else if (k == "filterSusceptible") {
+      filterSusceptible = static_cast<bool>(std::stoi(v));
     } else {
       throw error("invalid option in minSumLivenessAnneal, " + k);
     }
@@ -1844,6 +1873,7 @@ void Graph::minSumLivenessAnneal(
                        pStayPut,
                        pHigherFallRate,
                        pClimb,
+                       filterSusceptible,
                        logging,
                        timeLimitSeconds,
                        swapLimitCount);
@@ -1926,6 +1956,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
                                  Fraction pStayPut,
                                  Fraction pHigherFallRate,
                                  Fraction pClimb,
+                                 bool filterSusceptible,
                                  bool logging,
                                  double timeLimitSeconds,
                                  int64_t swapLimitCount) {
@@ -1960,6 +1991,20 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
         "pStayPut + pHigherFallRate + pClimb must be strictly positive");
   }
 
+  auto resetSusceptibleTrue = [this, filterSusceptible]() {
+    if (filterSusceptible) {
+      susceptible.resize(nOps());
+      std::fill(susceptible.begin(), susceptible.end(), true);
+    }
+  };
+
+  auto resetSusceptibleFalse = [this, filterSusceptible]() {
+    if (filterSusceptible) {
+      susceptible.resize(nOps());
+      std::fill(susceptible.begin(), susceptible.end(), false);
+    }
+  };
+
   std::uniform_real_distribution<> realDis(0.0, pSum);
 
   // look for moves of this shift length
@@ -1982,22 +2027,8 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
 
   int64_t nChangesInTotal{0};
 
-  std::vector<ScheduleIndex> indices;
-  indices.reserve(nOps());
-
-  auto updateIndices = [&indices, &nToShift, this]() {
-    int nIndices = std::max(0, nOps_i32() + 1 - nToShift);
-    indices.clear();
-    for (ScheduleIndex index = 0; index < nIndices; ++index) {
-      const auto &op0 = getOp(scheduleToOp(index));
-      const auto &op1 = getOp(scheduleToOp(index + nToShift - 1));
-      if (!op0.hasBackwardLink() && !op1.hasForwardLink()) {
-        indices.push_back(index);
-      }
-    }
-  };
-
-  updateIndices();
+  std::vector<OpAddress> allOpAddresses(nOps());
+  std::iota(allOpAddresses.begin(), allOpAddresses.end(), 0UL);
 
   auto startCurrentShift = std::chrono::high_resolution_clock::now();
 
@@ -2006,7 +2037,12 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
   const AllocWeight initMaxLiveness = getMaxLiveness();
   AllocWeight totalDeltaSumLiveness{0};
 
+  resetSusceptibleTrue();
+
   while (continueAnnealing) {
+
+    auto susceptibleCurrent = susceptible;
+    resetSusceptibleFalse();
 
     auto startCurrentRound = std::chrono::high_resolution_clock::now();
 
@@ -2014,11 +2050,45 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     // different. The idea is that this prevents bad cases analogous to bad
     // hash functions, although these haven't been obsereved at time of
     // commenting
-    std::shuffle(indices.begin(), indices.end(), g);
+    std::shuffle(allOpAddresses.begin(), allOpAddresses.end(), g);
+
     nChangesInCurrentRound  = 0;
     deltaWeightCurrentRound = AllocWeight::zero();
-    for (auto start0 : indices) {
-      ShiftAndCost shiftAndCost{-1, AllocWeight::numericMaxLimit()};
+    for (auto opAddress0 : allOpAddresses) {
+
+      auto start0     = opToSchedule(opAddress0);
+      const auto &op0 = getOp(opAddress0);
+      if (start0 > nOps_i32() - nToShift) {
+        continue;
+      }
+
+      const auto &op1 = getOp(scheduleToOp(start0 + nToShift - 1));
+
+      // if links at end or start, can igonore. Consider
+      //
+      //    a op0 b c op1 d
+      //      -----------
+      //
+      // if a is linked to op0, any shift of op0-b-c-op1 would break this
+      // link: not allowed
+      //
+      // if op1 is linked to d, any shift of op0-b-c-op1 would break this
+      // link: not allowed.
+      //
+      if (op0.hasBackwardLink() || op1.hasForwardLink()) {
+        continue;
+      }
+
+      if (filterSusceptible &&
+          std::all_of(schToOp.begin() + start0,
+                      schToOp.begin() + start0 + nToShift,
+                      [&susceptibleCurrent](OpAddress a) {
+                        return !susceptibleCurrent[a];
+                      })) {
+        continue;
+      }
+
+      ShiftAndCost shiftAndCost{-1, -1 * AllocWeight::negativeOne()};
       if (algo == MinSumLivenessAlgo::RIPPLE) {
         shiftAndCost = getBestShiftRippleAlgo(start0, nToShift);
       } else {
@@ -2070,15 +2140,17 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     auto oldNToShift_u64 = nToShift_u64;
 
     std::ostringstream oss;
+    oss << "nChangesInCurrentRound = " << nChangesInCurrentRound << 'n';
 
     if (noChangeSinceStart) {
       oss << "noChangeSinceStart, so " << nToShift << " --> " << nToShift + 1;
       ++nToShift;
-
+      resetSusceptibleTrue();
     } else if (nChangesInCurrentRound == 0) {
-      oss << "no changes, so " << nToShift << " -->  1, cleaSlate";
+      oss << "no changes, so " << nToShift << " -->  1, cleanSlate";
       nToShift           = 1;
       noChangeSinceStart = true;
+      resetSusceptibleTrue();
     } else {
       auto p = realDis(g);
       if (p < pStayPut) {
@@ -2087,6 +2159,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
       } else if (p < pStayPut + pClimb) {
         oss << "climbing " << nToShift << " --> " << nToShift + 1;
         nToShift = oldNToShift + 1;
+        resetSusceptibleTrue();
       } else {
         auto bestFallRate = std::accumulate(
             fallRates.cbegin(),
@@ -2104,6 +2177,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
           oss << " reset to 1";
           nToShift           = 1;
           noChangeSinceStart = true;
+          resetSusceptibleTrue();
         }
       }
     }
@@ -2115,7 +2189,6 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     }
 
     if (oldNToShift != nToShift) {
-      updateIndices();
       updateCanCan(oldNToShift, nToShift);
       nChangesAtCurrentShift  = 0;
       auto finishCurrentShift = std::chrono::high_resolution_clock::now();
@@ -2279,9 +2352,7 @@ std::vector<AllocWeight> Graph::getRippleCosts(ScheduleIndex start0,
       }
 
       // only in a special case will incrWeight be non-zero:
-      // TODO(T14829) diagram explaining this special case. The diagram exists
-      // (jn) but is not publicly available. Sharepoint does not seem like a
-      // good place to keep it
+      // TODO(T14829) diagram explaining this special case.
       auto newIncr = AllocWeight::zero();
       auto post0 =
           custom_lower_bound(schedInds.cbegin(), schedInds.cend(), start0);
