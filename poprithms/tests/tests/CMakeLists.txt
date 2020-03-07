@@ -16,6 +16,13 @@ function(add_poprithms_unit_test name source)
            WORKING_DIRECTORY ${CMAKE_CURRENT_BUILD_DIR})
 endfunction()
 
+
+function(add_poprithms_unit_test_from_params name exe)
+  add_test(NAME ${name}
+           COMMAND ${exe} ${ARGN}
+           WORKING_DIRECTORY ${CMAKE_CURRENT_BUILD_DIR})
+endfunction()
+
 add_subdirectory(schedule)
 
 #Test(s) where poprithms is linked statically

@@ -1,7 +1,19 @@
 add_poprithms_unit_test(schedule_anneal_bifurcate bifurcate.cpp D 5)
 add_poprithms_unit_test(schedule_anneal_grid grid.cpp N 5)
 add_poprithms_unit_test(schedule_anneal_test_random test_random.cpp)
-add_poprithms_unit_test(schedule_anneal_recompute recompute.cpp N 50 type sqrt)
+
+add_test_executable(recompute recompute.cpp)
+add_poprithms_unit_test_from_params(schedule_anneal_recompute_sqrt 
+                                    recompute N 50 type sqrt)
+add_poprithms_unit_test_from_params(schedule_anneal_recompute_log 
+                                    recompute N 50 type log)
+
+add_test_executable(branch_doubling branch_doubling.cpp)
+add_poprithms_unit_test_from_params(schedule_anneal_branch_doubling_pos
+                                    branch_doubling nBranches 4 offset 1)
+add_poprithms_unit_test_from_params(schedule_anneal_branch_doubling_neg
+                                    branch_doubling nBranches 4 offset -1)
+
 add_poprithms_unit_test(schedule_anneal_random random.cpp N 100 E 5 D 10 graphSeed 1011)
 add_poprithms_unit_test(schedule_anneal_attractions attractions.cpp)
 add_poprithms_unit_test(schedule_anneal_tight_pairs tight_pairs.cpp)

@@ -1406,8 +1406,6 @@ void Graph::applyPathMatrixOptimizations(const PathMatrixOptimizations &pmo) {
 
   while (wasChange && iteration < pmo.maxIterations()) {
 
-    std::cout << "iteration = " << iteration << std::endl;
-
     wasChange = false;
 
     initializePathMatrix();

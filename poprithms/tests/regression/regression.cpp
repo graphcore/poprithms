@@ -5,6 +5,7 @@
 #include <iostream>
 #include <tuple>
 #include <testutil/schedule/anneal/bifurcate_generator.hpp>
+#include <testutil/schedule/anneal/branch_doubling_generator.hpp>
 #include <testutil/schedule/anneal/diamond_generator.hpp>
 #include <testutil/schedule/anneal/grid_generator.hpp>
 #include <testutil/schedule/anneal/randomgraph.hpp>
@@ -166,6 +167,27 @@ private:
   virtual void resetCurrentSize() final { nRows = 5; }
 };
 
+class BranchDoublingLogger : public Logger {
+public:
+  BranchDoublingLogger(int _offset_) : offset(_offset_) {}
+  virtual std::string getDescription() const final {
+    return "branch-doubling";
+  }
+  virtual Graph getCurrent() const final {
+    return getBranchDoublingGraph(nBranches, offset);
+  }
+  virtual void assertCorrectness(const Graph &g) const final {
+    assertGlobalMinimumBranchDoubling(g, nBranches, offset);
+  }
+
+private:
+  int nBranches;
+  int offset;
+
+  virtual void increaseCurrentSize() final { ++nBranches; }
+  virtual void resetCurrentSize() final { nBranches = 3; }
+};
+
 class DiamondLogger : public Logger {
 public:
   virtual std::string getDescription() const final { return "diamond"; }
@@ -235,6 +257,7 @@ int main() {
   out << GridLogger().getLogString();
   out << LogRecomputeLogger().getLogString();
   out << SqrtRecomputeLogger().getLogString();
+  out << BranchDoublingLogger(+1).getLogString();
 
   out.close();
 
