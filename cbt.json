@@ -1,4 +1,4 @@
 {
-  "dependencies" : [ "boost" ],
+  "dependencies" : [ "boost", "spdlog" ],
   "superproject_cmake_includes" : [ "SuperProjectConfig.cmake" ]
 }

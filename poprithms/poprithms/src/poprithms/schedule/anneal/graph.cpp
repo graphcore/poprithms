@@ -1,12 +1,12 @@
 #include <algorithm>
 #include <chrono>
-#include <iostream>
 #include <iterator>
 #include <limits>
 #include <random>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <poprithms/schedule/anneal/graphserialization.hpp>
+#include <poprithms/schedule/anneal/logging.hpp>
 #include <poprithms/schedule/anneal/printiter.hpp>
 
 namespace poprithms {
@@ -37,6 +37,10 @@ custom_lower_bound(ForwardIt first, ForwardIt last, const T &value) {
   */
 }
 } // namespace
+
+namespace {
+constexpr const char *const spaces = "         ";
+}
 
 OpAddress Graph::insertOp(const std::string &dbs) {
   OpAddress op = nOps();
@@ -516,7 +520,7 @@ std::string Graph::getLivenessString() const {
   std::vector<std::string> sLiveness{"Liveness", "========"};
   std::vector<std::string> sName{"Name", "===="};
 
-  auto spaceString = [](uint64_t provision, const std::string &x) {
+  auto spcStr = [](uint64_t provision, const std::string &x) {
     uint64_t l = provision > x.size() ? provision - x.size() : 1;
     return std::string(l, ' ');
   };
@@ -567,13 +571,13 @@ std::string Graph::getLivenessString() const {
 
   std::ostringstream oss;
   for (uint64_t i = 0; i < sIndex.size(); ++i) {
-    oss << sIndex[i] << spaceString(provIndex, sIndex[i])          //
-        << sName[i] << spaceString(provName, sName[i])             //
-        << sIns[i] << spaceString(provIns, sIns[i])                //
-        << sLinkTo[i] << spaceString(provLinkTo, sLinkTo[i])       //
-        << sOuts[i] << spaceString(provOuts, sOuts[i])             //
-        << sAllocs[i] << spaceString(provAllocs, sAllocs[i])       //
-        << sLiveness[i] << spaceString(provLiveness, sLiveness[i]) //
+    oss << sIndex[i] << spcStr(provIndex, sIndex[i])          //
+        << sName[i] << spcStr(provName, sName[i])             //
+        << sIns[i] << spcStr(provIns, sIns[i])                //
+        << sLinkTo[i] << spcStr(provLinkTo, sLinkTo[i])       //
+        << sOuts[i] << spcStr(provOuts, sOuts[i])             //
+        << sAllocs[i] << spcStr(provAllocs, sAllocs[i])       //
+        << sLiveness[i] << spcStr(provLiveness, sLiveness[i]) //
         << '\n';
   }
 
@@ -1418,6 +1422,10 @@ void Graph::applyPathMatrixOptimizations(const PathMatrixOptimizations &pmo) {
 
   while (wasChange && iteration < pmo.maxIterations()) {
 
+    std::ostringstream oss0;
+    oss0 << "iteration = " << iteration;
+    log().info(oss0.str());
+
     wasChange = false;
 
     initializePathMatrix();
@@ -1981,10 +1989,20 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
                                  double timeLimitSeconds,
                                  int64_t swapLimitCount) {
 
+  // TODO (T17224) remove/deprecate logging as an API parameter
   if (logging) {
-    std::cout << "debug=" << debug << " seed=" << seed
-              << " timeLimitSeconds=" << timeLimitSeconds
-              << " swapLimitCount=" << swapLimitCount << std::endl;
+    log().setLevelDebug();
+  }
+
+  if (log().shouldLog(logging::Level::Debug)) {
+    std::ostringstream oss0;
+    oss0 << '\n'
+         << spaces << "debug=" << debug << '\n'
+         << spaces << "seed=" << seed << '\n'
+         << spaces << "filterSusceptible=" << filterSusceptible << '\n'
+         << spaces << "timeLimitSeconds=" << timeLimitSeconds << '\n'
+         << spaces << "swapLimitCount=" << swapLimitCount;
+    log().info(oss0.str());
   }
 
   std::mt19937 g(seed);
@@ -2090,6 +2108,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
       } else {
         shiftAndCost = getBestShiftSimpleAlgo(start0, nToShift);
       }
+
       if (debug) {
         confirmShiftAndCost(start0, nToShift, shiftAndCost, algo);
       }
@@ -2097,6 +2116,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
         auto start1 = start0 + shiftAndCost.getShift();
         ScheduleChange scheduleChange{start0, start1, nToShift};
         applyChange(scheduleChange);
+
         if (debug) {
           assertCorrectness();
         }
@@ -2128,7 +2148,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     auto oldNToShift = nToShift;
 
     std::ostringstream oss;
-    oss << "nChangesInCurrentRound = " << nChangesInCurrentRound << 'n';
+    oss << "nChangesInCurrentRound = " << nChangesInCurrentRound << " ";
 
     if (noChangeSinceStart) {
       oss << "noChangeSinceStart, so " << nToShift << " --> " << nToShift + 1;
@@ -2146,9 +2166,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
 
     nToShift_u64 = static_cast<uint64_t>(nToShift);
 
-    if (logging) {
-      std::cout << oss.str() << std::endl;
-    }
+    log().info(oss.str());
 
     if (oldNToShift != nToShift) {
       updateCanCan(oldNToShift, nToShift);
@@ -2193,14 +2211,15 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     }
   }
 
-  if (logging) {
-    std::cout << "init sum liveness =  " << initSumLiveness << '\n'
-              << "final sum liveness = " << finalSumLiveness << '.'
-              << std::endl;
-
-    std::cout << "init max liveness =  " << initMaxLiveness << '\n'
-              << "final max liveness = " << finalMaxLiveness << '.'
-              << std::endl;
+  if (log().shouldLog(logging::Level::Debug)) {
+    std::ostringstream oss0;
+    oss0 << '\n'
+         << spaces << "init sum liveness =  " << initSumLiveness << '\n'
+         << spaces << "final sum liveness = " << finalSumLiveness << '.'
+         << '\n'
+         << spaces << "init max liveness =  " << initMaxLiveness << '\n'
+         << spaces << "final max liveness = " << finalMaxLiveness << '.';
+    log().info(oss0.str());
   }
 }
 
