@@ -1141,7 +1141,18 @@ void Graph::initializePathMatrix() {
   // initializing lowerBoundChange and upperBoundChange
   for (const auto &alloc : getAllocs()) {
     auto relativePositions = pathMatrix.getRelativePositions(alloc.getOps());
-    assert(relativePositions.size() == alloc.getOps().size());
+
+    // Logic check:
+    if (relativePositions.size() != alloc.getOps().size()) {
+      std::ostringstream oss;
+      oss << "There were " << alloc.getOps().size()
+          << " passed into the function getRelativePositions, but "
+          << relativePositions.size()
+          << " values were returned. There should be value entry returned "
+          << "for every Op. ";
+      throw error(oss.str());
+    }
+
     for (uint64_t opIndex = 0; opIndex < alloc.nOps(); ++opIndex) {
       auto opId = alloc.getOps()[opIndex];
       updateFromFirstFinal(lowerBoundChange[opId],
