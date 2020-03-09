@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <poprithms/schedule/anneal/alloc.hpp>
+#include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/printiter.hpp>
 #include <poprithms/schedule/anneal/unisort.hpp>
 
@@ -8,6 +9,12 @@ namespace schedule {
 namespace anneal {
 
 void Alloc::sortAndMakeUnique() { ops = unisorted(ops); }
+
+void Alloc::appendSerialization(std::ostream &ost) const {
+  ost << "{\"address\":" << address << ",\"weight\":";
+  weight.appendSerialization(ost);
+  ost << '}';
+}
 
 std::ostream &operator<<(std::ostream &ost, const Alloc &alloc) {
   ost << alloc.getAddress() << " ops=";

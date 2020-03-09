@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -40,15 +39,12 @@ public:
   // relativeLexico should be in the range [ - NAW / 2 , + NAW / 2 ]
   // large negative relativeLexico values have priority in AllocWeight
   // comparisons
-  AllocWeight(double _v_, int relativeLexico) : v{0, 0, 0, 0, 0, 0, 0} {
-    // -3  -2  -1  0  1  2  3
-    assert(relativeLexico > -(NAW + 1) / 2);
-    assert(relativeLexico < (NAW + 1) / 2);
-    v[static_cast<uint64_t>((NAW - 1) / 2 + relativeLexico)] = _v_;
-  }
+  AllocWeight(double _v_, int relativeLexico);
 
   // by default, the centre position is used.
   explicit AllocWeight(double _v_) : AllocWeight(_v_, 0) {}
+
+  AllocWeight(const std::array<double, NAW> &_v_) : v(_v_) {}
 
   static AllocWeight zero() { return AllocWeight(0.0, 0); }
   static AllocWeight negativeOne() { return AllocWeight(-1.0, 0); }
@@ -127,19 +123,9 @@ public:
     return *this;
   }
 
-  void append(std::ostream &ost) const {
-    ost << '(' << v[0];
-    for (auto i = 1; i < NAW; ++i) {
-      ost << ',' << ' ' << v[i];
-    }
-    ost << ')';
-  }
-
-  std::string str() const {
-    std::ostringstream oss;
-    append(oss);
-    return oss.str();
-  }
+  void append(std::ostream &ost) const;
+  std::string str() const;
+  void appendSerialization(std::ostream &ost) const;
 
   std::array<double, NAW> get() const { return v; }
 

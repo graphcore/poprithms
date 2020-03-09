@@ -127,6 +127,10 @@ public:
   // output of the other, which in turn is the unique input of the first.
   OpMerged getTightMerged() const;
 
+  static Graph fromSerializationString(const std::string &);
+  void appendSerialization(std::ostream &) const;
+  std::string getSerializationString() const;
+
   void append(std::ostream &ost) const;
 
   const std::vector<Op> &getOps() const { return allOps; }
@@ -291,6 +295,7 @@ public:
   bool operator==(const Graph &rhs) const {
     return allOps == rhs.allOps && allAllocs == rhs.allAllocs;
   }
+  bool operator!=(const Graph &rhs) const { return !operator==(rhs); }
 
   // A pair of Ops (a,b) is defined to be a "tight pair" if
   // 1) b is the only output of a,
@@ -443,7 +448,7 @@ public:
 
     // For each Op "a" \in opAddresses, the size of the attracting Alloc is
     // determined by the corresponding priority in "priorities"
-    assert(opAddresses.size() == priorities.size());
+    insertStartAttractorsAssert0(opAddresses.size(), priorities.size());
 
     // All Ops which have no dependencies and can legally be executed first
     auto inputs = getInputOps();
@@ -518,6 +523,7 @@ private:
   bool constrainWeightSeparatedGroups();
   bool constrainParallelChains();
   bool slideLinks();
+  void insertStartAttractorsAssert0(uint64_t, uint64_t) const;
 };
 
 std::ostream &operator<<(std::ostream &ost, const Graph &x);

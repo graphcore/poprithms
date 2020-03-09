@@ -72,5 +72,16 @@ int main(int argc, char **argv) {
     throw poprithms::schedule::anneal::error(
         "Computed sum of final liveness incorrect in random example test");
   }
+
+  if (g.getSerializationString() !=
+          Graph::fromSerializationString(g.getSerializationString())
+              .getSerializationString() ||
+      g != Graph::fromSerializationString(g.getSerializationString())) {
+    std::ostringstream oss;
+    oss << "g.serialization != g.serialization(fromSerial(g.serialization)). "
+        << "This suggests a problem with Graph serialization. ";
+    oss << "The serialization of G is " << g.getSerializationString();
+    throw error(oss.str());
+  }
   return 0;
 }

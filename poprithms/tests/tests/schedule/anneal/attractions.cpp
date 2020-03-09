@@ -17,9 +17,11 @@ poprithms::schedule::anneal::Graph getBaseGraph(uint64_t N) {
   //               1 -> N-2 :  of size i**2 a.k.a. i^2 a.k.a. i*i
   //               N-1      :  all allocations of 1->N-2
 
-  assert(N % 2 == 0);
-
   using namespace poprithms::schedule::anneal;
+
+  if (N % 2 != 0) {
+    throw error("N should be even in getBaseGraph");
+  }
 
   Graph g;
   std::vector<AllocAddress> allocIds;

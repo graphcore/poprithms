@@ -6,6 +6,7 @@
 #include <random>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
+#include <poprithms/schedule/anneal/graphserialization.hpp>
 #include <poprithms/schedule/anneal/printiter.hpp>
 
 namespace poprithms {
@@ -2413,6 +2414,53 @@ std::ostream &operator<<(std::ostream &ost, const ShiftAndCost &x) {
 std::ostream &operator<<(std::ostream &ost, const ScheduleChange &x) {
   x.append(ost);
   return ost;
+}
+
+void Graph::appendSerialization(std::ostream &ost) const {
+
+  constexpr const char *const newline = "\n     ";
+  ost << "{\"ops\":[";
+  if (nOps() != 0) {
+    ost << newline;
+    getOp(0).appendSerialization(ost);
+  }
+  for (uint64_t i = 1; i < nOps(); ++i) {
+    ost << ',';
+    ost << newline;
+    getOp(i).appendSerialization(ost);
+  }
+  ost << "],\n\"allocs\":[";
+  if (nAllocs() != 0) {
+    ost << newline;
+    getAlloc(0).appendSerialization(ost);
+  }
+  for (uint64_t i = 1; i < nAllocs(); ++i) {
+    ost << ',';
+    ost << newline;
+    getAlloc(i).appendSerialization(ost);
+  }
+  ost << "]}";
+}
+
+Graph Graph::fromSerializationString(const std::string &s) {
+  return serialization::fromSerializationString(s);
+}
+
+void Graph::insertStartAttractorsAssert0(uint64_t opAddsSize,
+                                         uint64_t priosSize) const {
+  if (opAddsSize != priosSize) {
+    std::ostringstream oss;
+    oss << "Number of opAddresses (" << opAddsSize
+        << ") is not the same as the number of priorities (" << priosSize
+        << ") in insertStartAttractors.";
+    throw error(oss.str());
+  }
+}
+
+std::string Graph::getSerializationString() const {
+  std::ostringstream oss;
+  appendSerialization(oss);
+  return oss.str();
 }
 
 } // namespace anneal

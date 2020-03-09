@@ -38,6 +38,7 @@ public:
   int nOuts_i32() const { return static_cast<int>(nOuts()); }
 
   const std::vector<AllocAddress> &getAllocs() const { return allocs; }
+  AllocAddress getAlloc(uint64_t i) const { return allocs[i]; }
   uint64_t nAllocs() const { return getAllocs().size(); }
   bool hasAlloc(AllocAddress a) const {
     return std::find(allocs.cbegin(), allocs.cend(), a) != allocs.cend();
@@ -74,15 +75,19 @@ public:
     outs.erase(std::find(outs.cbegin(), outs.cend(), out));
   }
 
+  void appendSerialization(std::ostream &) const;
+
 private:
   const OpAddress address;
   std::vector<OpAddress> ins;
   std::vector<OpAddress> outs;
   std::vector<AllocAddress> allocs;
   const std::string debugString;
-  static const OpAddress NoLinkVal = std::numeric_limits<OpAddress>::max();
   OpAddress fwdLink{NoLinkVal};
   OpAddress bwdLink{NoLinkVal};
+
+public:
+  static const OpAddress NoLinkVal = std::numeric_limits<OpAddress>::max();
 
 }; // namespace anneal
 

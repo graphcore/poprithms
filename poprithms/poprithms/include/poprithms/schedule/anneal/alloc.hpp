@@ -27,7 +27,8 @@ public:
     return address == rhs.address && weight == rhs.weight && ops == rhs.ops;
   }
 
-  void append(std::ostream &ost) const;
+  void append(std::ostream &) const;
+  void appendSerialization(std::ostream &) const;
 
   // Make "ops" have unique entries, in ascending order
   void sortAndMakeUnique();
