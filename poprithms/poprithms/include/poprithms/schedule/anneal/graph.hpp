@@ -184,33 +184,16 @@ public:
   // and possibly apply, improvements
   //
   // After each round with at least 1 improvement, the
-  // algorithm chooses between 3 options:
+  // algorithm runs again with the same nToShift
   //
-  // a) stay with current nToShift.
-  //
-  // b) choose between nToShift = 1 and current nToShift.
-  // The choice is made based on whether the current shift
-  // has the best recorded "sum liveness decrease" per second.
-  // Note that this dependant on time of execution makes this
-  // potentially non-deterministic if (b) is possible.
-  //
-  // c) increase nToShift, with probability pClimb.
-  //
-  // probabilities for a, b, c are:
-  // a) pStayPut
-  // b) pHigherFallRate
-  // c) pClimb
-  //
-  // Other arguments are
+  // Arguments are
   // algo : RIPPLE (recommended) or SIMPLE (slow) : identical scheduling but
-  // RIPPLE uses tricks to make it fast
+  // RIPPLE uses techniques to make it fast
   //
   // debug : compares "algo" above to SIMPLE to confirm agreement, and checks
   // state of graph edges at each iteration. This makes execution slow
   //
-  // seed : the algorithm
-  //   1) randomly shuffles op indices in each round
-  //   2) randomly chooses between a, b, c above.
+  // seed : the algorithm randomly shuffles op indices in each round
   //
   // filterSusceptible : in each round which follows a round with at least one
   // shift, only considershifts of ranges if at least one Op in the
@@ -223,13 +206,24 @@ public:
   minSumLivenessAnneal(MinSumLivenessAlgo algo = MinSumLivenessAlgo::RIPPLE,
                        bool debug              = defaultDebug(),
                        uint32_t seed           = defaultMinSumLivenessSeed(),
-                       double pStayPut         = defaultPStayPut(),
-                       double pHigherFallRate  = defaultPHigherFallRate(),
-                       double pClimb           = defaultPClimb(),
                        bool filterSusceptible  = defaultFilterSusceptible(),
                        bool logging            = defaultLogging(),
                        double timeLimitSeconds = defaultTimeLimitSeconds(),
                        int64_t swapLimitCount  = defaultSwapLimitCount());
+
+  // Deprecated API
+  // timeline:
+  // From 2 April 2020 using this API may result in an error being thrown.
+  // pStayPut, pHigherFallRate, pClimb are no longer supported.
+  void minSumLivenessAnneal(MinSumLivenessAlgo algo,
+                            bool debug,
+                            uint32_t seed,
+                            double pStayPut,
+                            double pHigherFallRate,
+                            double pClimb,
+                            bool logging,
+                            double timeLimitSeconds,
+                            int64_t swapLimitCount);
 
   void minSumLivenessAnneal(const std::map<std::string, std::string> &);
 

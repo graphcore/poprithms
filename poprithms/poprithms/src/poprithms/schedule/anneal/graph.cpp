@@ -1842,29 +1842,45 @@ void Graph::confirmShiftAndCost(ScheduleIndex start0,
   }
 }
 
+void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
+                                 bool debug,
+                                 uint32_t seed,
+                                 double,
+                                 double,
+                                 double,
+                                 bool logging,
+                                 double timeLimitSeconds,
+                                 int64_t swapLimitCount) {
+
+  // deprecate: final step of T16682 is to error
+
+  bool filterSusceptible = true;
+  minSumLivenessAnneal(algo,
+                       debug,
+                       seed,
+                       filterSusceptible,
+                       logging,
+                       timeLimitSeconds,
+                       swapLimitCount);
+}
+
 void Graph::minSumLivenessAnneal(
     const std::map<std::string, std::string> &m) {
-  bool debug               = defaultDebug();
-  uint32_t seed            = defaultMinSumLivenessSeed();
-  Fraction pStayPut        = defaultPStayPut();
-  Fraction pHigherFallRate = defaultPHigherFallRate();
-  Fraction pClimb          = defaultPClimb();
-  bool logging             = defaultLogging();
-  bool filterSusceptible   = defaultFilterSusceptible();
-  double timeLimitSeconds  = defaultTimeLimitSeconds();
-  int64_t swapLimitCount   = defaultSwapLimitCount();
+  bool debug              = defaultDebug();
+  uint32_t seed           = defaultMinSumLivenessSeed();
+  bool logging            = defaultLogging();
+  bool filterSusceptible  = defaultFilterSusceptible();
+  double timeLimitSeconds = defaultTimeLimitSeconds();
+  int64_t swapLimitCount  = defaultSwapLimitCount();
 
   for (const auto &[k, v] : m) {
+    if (k == "pStayPut" || k == "pHigherFallRate" || k == "pClimb") {
+      // deprecate: final step of T16682 is to error
+    }
     if (k == "debug") {
       debug = static_cast<bool>(std::stoi(v));
     } else if (k == "seed") {
       seed = static_cast<uint32_t>(std::stoul(v));
-    } else if (k == "pHigherFallRate") {
-      pHigherFallRate = static_cast<Fraction>(std::stof(v));
-    } else if (k == "pStayPut") {
-      pStayPut = static_cast<Fraction>(std::stof(v));
-    } else if (k == "pClimb") {
-      pClimb = static_cast<Fraction>(std::stof(v));
     } else if (k == "logging") {
       logging = static_cast<bool>(std::stoi(v));
     } else if (k == "timeLimitSeconds") {
@@ -1880,9 +1896,6 @@ void Graph::minSumLivenessAnneal(
   minSumLivenessAnneal(MinSumLivenessAlgo::RIPPLE,
                        debug,
                        seed,
-                       pStayPut,
-                       pHigherFallRate,
-                       pClimb,
                        filterSusceptible,
                        logging,
                        timeLimitSeconds,
@@ -1963,9 +1976,6 @@ KahnTieBreaker kahnTieBreaker(const std::string &mixedCase) {
 void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
                                  bool debug,
                                  uint32_t seed,
-                                 Fraction pStayPut,
-                                 Fraction pHigherFallRate,
-                                 Fraction pClimb,
                                  bool filterSusceptible,
                                  bool logging,
                                  double timeLimitSeconds,
@@ -1973,33 +1983,11 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
 
   if (logging) {
     std::cout << "debug=" << debug << " seed=" << seed
-              << " pStayPuy=" << pStayPut
-              << " pHigherFallRate=" << pHigherFallRate
-              << " pClimb=" << pClimb
               << " timeLimitSeconds=" << timeLimitSeconds
               << " swapLimitCount=" << swapLimitCount << std::endl;
   }
 
-  std::vector<FallRate> fallRates;
   std::mt19937 g(seed);
-
-  if (pStayPut < 0.0) {
-    throw error("pStayPut must be non-negative");
-  }
-
-  if (pHigherFallRate < 0.0) {
-    throw error("pHigherClimbRate must be non-negative");
-  }
-
-  if (pClimb < 0.0) {
-    throw error("pClimb must be non-negative");
-  }
-
-  auto pSum = pStayPut + pHigherFallRate + pClimb;
-  if (pSum <= 0.0) {
-    throw error(
-        "pStayPut + pHigherFallRate + pClimb must be strictly positive");
-  }
 
   auto resetSusceptibleTrue = [this, filterSusceptible]() {
     if (filterSusceptible) {
@@ -2014,8 +2002,6 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
       std::fill(susceptible.begin(), susceptible.end(), false);
     }
   };
-
-  std::uniform_real_distribution<> realDis(0.0, pSum);
 
   // look for moves of this shift length
   int nToShift{1};
@@ -2137,17 +2123,9 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
       continueAnnealing = false;
     }
 
-    auto fallRatesMinSize = static_cast<uint64_t>(nToShift + 1);
-    if (fallRates.size() < fallRatesMinSize) {
-      fallRates.resize(fallRatesMinSize, AllocWeight::zero());
-    }
-
     uint64_t nToShift_u64 = static_cast<uint64_t>(nToShift);
-    fallRates[nToShift_u64] =
-        deltaWeightCurrentRound / timeSpentInCurrentRound;
 
-    auto oldNToShift     = nToShift;
-    auto oldNToShift_u64 = nToShift_u64;
+    auto oldNToShift = nToShift;
 
     std::ostringstream oss;
     oss << "nChangesInCurrentRound = " << nChangesInCurrentRound << 'n';
@@ -2162,34 +2140,8 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
       noChangeSinceStart = true;
       resetSusceptibleTrue();
     } else {
-      auto p = realDis(g);
-      if (p < pStayPut) {
-        oss << "staying at " << nToShift;
-        nToShift = oldNToShift;
-      } else if (p < pStayPut + pClimb) {
-        oss << "climbing " << nToShift << " --> " << nToShift + 1;
-        nToShift = oldNToShift + 1;
-        resetSusceptibleTrue();
-      } else {
-        auto bestFallRate = std::accumulate(
-            fallRates.cbegin(),
-            std::next(fallRates.cbegin(), oldNToShift),
-            FallRate(0.0),
-            [](FallRate a, FallRate b) { return std::min(a, b); });
-        oss << "fal rate at " << oldNToShift_u64 << " is "
-            << fallRates[oldNToShift_u64] << " best fall rate in [1, "
-            << oldNToShift_u64 << ") is " << bestFallRate << ": ";
-        if (fallRates[oldNToShift_u64] < bestFallRate) {
-          oss << "staying at " << oldNToShift_u64;
-          nToShift = oldNToShift;
-
-        } else {
-          oss << " reset to 1";
-          nToShift           = 1;
-          noChangeSinceStart = true;
-          resetSusceptibleTrue();
-        }
-      }
+      oss << "staying at " << nToShift;
+      nToShift = oldNToShift;
     }
 
     nToShift_u64 = static_cast<uint64_t>(nToShift);

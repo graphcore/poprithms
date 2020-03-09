@@ -26,9 +26,6 @@ int main() {
 
     bool debug              = false;
     uint32_t seed           = 1012;
-    double pStayPut         = 10.0;
-    double pHigherFallRate  = 0.0;
-    double pClimb           = 0.0;
     bool logging            = true;
     double timeLimitSeconds = 1000.0;
     bool filterSusceptible  = false;
@@ -36,9 +33,6 @@ int main() {
     g.minSumLivenessAnneal(MinSumLivenessAlgo::RIPPLE,
                            debug,
                            seed,
-                           pStayPut,
-                           pHigherFallRate,
-                           pClimb,
                            filterSusceptible,
                            logging,
                            timeLimitSeconds,
