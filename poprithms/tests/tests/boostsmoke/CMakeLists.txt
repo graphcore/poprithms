@@ -12,12 +12,7 @@ target_link_libraries(smoke_test_boost_unit_test_framework # target
                       poprithms-shared                     
                       ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY} 
                       )
-   
-                    #   if (NOT Boost_UNIT_TEST_FRAMEWORK_LIBRARY MATCHES "\\.a$")
-                    #     target_compile_definitions(smoke_test_boost_unit_test_framework PRIVATE -DBOOST_TEST_DYN_LINK)
-                    #   endif()
 
 add_test(NAME smoke_test_boost_unit_test_framework
          COMMAND smoke_test_boost_unit_test_framework
          WORKING_DIRECTORY ${CMAKE_CURRENT_BUILD_DIR})
-
