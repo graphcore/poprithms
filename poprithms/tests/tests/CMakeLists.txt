@@ -25,6 +25,8 @@ endfunction()
 
 add_subdirectory(schedule)
 
+add_subdirectory(logging)
+
 #Test(s) where poprithms is linked statically
 add_subdirectory(staticlib)
 

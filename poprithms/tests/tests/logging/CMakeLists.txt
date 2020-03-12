@@ -1,0 +1,2 @@
+add_poprithms_unit_test(logging_test_0.cpp logging_test_0)
+

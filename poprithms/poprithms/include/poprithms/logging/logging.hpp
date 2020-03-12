@@ -1,7 +1,6 @@
 #ifndef POPRITHMS_LOGGING_LOGGING_HPP
 #define POPRITHMS_LOGGING_LOGGING_HPP
 
-#include <experimental/propagate_const>
 #include <memory>
 #include <string>
 
@@ -13,16 +12,31 @@ class LoggerImpl;
 enum class Level { Trace = 0, Debug, Info, Off };
 std::ostream &operator<<(std::ostream &, Level);
 
-// Set the logging level for all Loggers
+// Set the logging level for all Loggers. Example:
+//
+//                                A     B     C     D
+// Logger A("a");                Off   --    --    --
+// Logger B("b");                Off   Off   --    --
+// setGlobalLevel(Level::Info);  Info  Info  --    --
+// Logger C("c");                Info  Info  Info  --
+// setGlobalLevel(Level::Debug); Debug Debug Debug --
+// B.setLevel(Level::Off);       Debug Off   Debug --
+// setGlobalLevel(Level::Info);  Info  Info  Info  --
+// Logger D("d");                Info  Info  Info  Info
+// A.setLevel(Level::Off);       Off   Info  Info  Info
+// Logger E("a");                Error: cannot have 2 Loggers with same name
+//
+//
+
 void setGlobalLevel(Level);
 
 class Logger {
 public:
   Logger(const std::string &id);
   ~Logger();
-  void info(const std::string &);
-  void debug(const std::string &);
-  void trace(const std::string &);
+  void info(const std::string &) const;
+  void debug(const std::string &) const;
+  void trace(const std::string &) const;
 
   void setLevel(Level);
   void setLevelInfo() { setLevel(Level::Info); }
@@ -49,9 +63,7 @@ public:
   bool shouldLogTrace() const { return shouldLog(Level::Trace); }
 
 private:
-  // we use propagate_const to be stricter than just bitwise constness
-  // https://en.cppreference.com/w/cpp/experimental/propagate_const
-  std::experimental::propagate_const<std::unique_ptr<LoggerImpl>> impl;
+  LoggerImpl *impl;
 };
 
 } // namespace logging

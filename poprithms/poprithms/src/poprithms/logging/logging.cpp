@@ -1,44 +1,24 @@
-#ifndef USE_SPD_LOG
-static_assert(
-    false,
-    "Currently, logging is only supported with SPDLOG, A non-SPDLOG version "
-    "will needs to be implemented to mirror logging.cpp");
-#endif
-
-#include <experimental/propagate_const>
-#include <spdlog/fmt/fmt.h>
-#include <spdlog/fmt/ostr.h>
-#include <spdlog/spdlog.h>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <ostream>
+#include <poprithms/logging/error.hpp>
 #include <poprithms/logging/logging.hpp>
-
-namespace spdlog {
-class logger;
-}
 
 namespace poprithms {
 namespace logging {
 
-namespace {
-auto getSpdLogLevel(Level level) {
+class LoggerImpl {
+public:
+  LoggerImpl(const std::string &_id_);
+  Level getLevel() const;
+  void setLevel(Level _l_);
+  const std::string &getId();
 
-  switch (level) {
-  case (Level::Trace): {
-    return spdlog::level::trace;
-  }
-  case (Level::Debug): {
-    return spdlog::level::debug;
-  }
-  case (Level::Info): {
-    return spdlog::level::info;
-  }
-  case (Level::Off): {
-    return spdlog::level::off;
-  }
-  }
-}
-} // namespace
-
-void setGlobalLevel(Level l) { spdlog::set_level(getSpdLogLevel(l)); }
+private:
+  std::string id;
+  Level level;
+};
 
 std::ostream &operator<<(std::ostream &os, Level l) {
   os << "Level::";
@@ -62,58 +42,79 @@ std::ostream &operator<<(std::ostream &os, Level l) {
   }
 }
 
-class LoggerImpl {
+namespace {
+
+class LoggerImplContainer {
+
 public:
-  LoggerImpl(const std::string &id) {
-    lggr = spdlog::stdout_color_mt(id);
-    // https://github.com/gabime/spdlog/wiki/3.-Custom-formatting
-    lggr->set_pattern("[%H:%M:%S.%e] [%n] [%^%l%$] %v");
+  LoggerImpl *getLoggerImpl(const std::string &id) {
+    auto found = impls.find(id);
+    if (found != impls.cend()) {
+      throw logging::error("There is already a Logger with id `" + id + "'.");
+    }
+    impls[id] = std::make_unique<LoggerImpl>(id);
+    return impls[id].get();
   }
-  std::experimental::propagate_const<std::shared_ptr<spdlog::logger>> lggr;
-};
+
+  void setGlobalLevel(Level l) {
+    globalLevel = l;
+    for (auto &x : impls) {
+      x.second->setLevel(globalLevel);
+    }
+  }
+
+  Level getGlobalLevel() const { return globalLevel; }
+
+private:
+  std::map<std::string, std::unique_ptr<LoggerImpl>> impls;
+  Level globalLevel{Level::Off};
+} implContainer;
+
+} // namespace
+
+LoggerImpl::LoggerImpl(const std::string &_id_)
+    : id(_id_), level(implContainer.getGlobalLevel()) {}
+
+Level LoggerImpl::getLevel() const { return level; }
+
+void LoggerImpl::setLevel(Level _l_) { level = _l_; }
+
+const std::string &LoggerImpl::getId() { return id; }
+
+void setGlobalLevel(Level l) { implContainer.setGlobalLevel(l); }
+
+void Logger::info(const std::string &x) const {
+  if (shouldLog(Level::Info)) {
+    std::cout << '[' << impl->getId() << "] [info]  " << x << '\n';
+  }
+}
+
+void Logger::debug(const std::string &x) const {
+  if (shouldLog(Level::Debug)) {
+    std::cout << '[' << impl->getId() << "] [debug] " << x << '\n';
+  }
+}
+
+void Logger::trace(const std::string &x) const {
+  if (shouldLog(Level::Trace)) {
+    std::cout << '[' << impl->getId() << "] [trace] " << x << '\n';
+  }
+}
+
+void Logger::setLevel(Level l) { impl->setLevel(l); }
+
+Level Logger::getLevel() const { return impl->getLevel(); }
+
+bool Logger::shouldLog(Level atLevel) const {
+
+  auto current = getLevel();
+  return static_cast<int>(current) <= static_cast<int>(atLevel);
+}
 
 Logger::~Logger() = default;
 
-// _mt : a thread safe logger (_mt : multi-threading)
-// https://github.com/gabime/spdlog/wiki/1.1.-Thread-Safety
-Logger::Logger(const std::string &id)
-    : impl(std::make_unique<LoggerImpl>(id)) {}
-
-void Logger::info(const std::string &s) { impl->lggr->info(s); }
-void Logger::debug(const std::string &s) { impl->lggr->debug(s); }
-void Logger::trace(const std::string &s) { impl->lggr->trace(s); }
-
-void Logger::setLevel(Level level) {
-  impl->lggr->set_level(getSpdLogLevel(level));
-}
-
-Level Logger::getLevel() const {
-  switch (impl->lggr->level()) {
-  case spdlog::level::trace: {
-    return Level::Trace;
-  }
-  case spdlog::level::debug: {
-    return Level::Debug;
-  }
-  case spdlog::level::info: {
-    return Level::Info;
-  }
-  case spdlog::level::off: {
-    return Level::Off;
-  }
-
-  // These cases should never happen, as poprithms has no way of setting these
-  case spdlog::level::warn:
-  case spdlog::level::err:
-  case spdlog::level::critical:
-  default: {
-    throw std::runtime_error("Unsupported log level in poprithms");
-  }
-  }
-}
-
-bool Logger::shouldLog(Level l) const {
-  return impl->lggr->should_log(getSpdLogLevel(l));
+Logger::Logger(const std::string &id) {
+  impl = implContainer.getLoggerImpl(id);
 }
 
 } // namespace logging
