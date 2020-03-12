@@ -13,7 +13,7 @@ std::vector<uint64_t> postOrder(const Edges &edges) {
   }
 
   // Construct Boost Graph
-  boost::adjacency_list g;
+  boost::adjacency_list<> g;
   for (uint64_t i = 0; i < edges.size(); ++i) {
     boost::add_edge(i, i, g);
     for (auto y : edges[i]) {
