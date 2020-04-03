@@ -10,9 +10,13 @@ set(sources
 
 find_package (Threads REQUIRED)
 
-set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_STATIC_RUNTIME ON)
-find_package(Boost REQUIRED COMPONENTS graph)
+# currently all boost components used are header only, 
+# and so no "COMPONENTS foo" is needed when finding boost. 
+find_package(Boost REQUIRED)
+
+# Moreover, these lines are not needed while all boost deps are header only:
+# set(Boost_USE_STATIC_LIBS ON)
+# set(Boost_USE_STATIC_RUNTIME ON)
 
 add_library(poprithms-objlib OBJECT ${sources})
 add_library(poprithms STATIC $<TARGET_OBJECTS:poprithms-objlib>)
