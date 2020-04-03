@@ -15,7 +15,7 @@ endfunction()
 # This test will include all headers in poprithms. Generate a file to include
 # all headers for the test to use:
 execute_process (
-  COMMAND bash -c "echo \"$(for header in $(find ${PROJECT_SOURCE_DIR}/poprithms/include -name '*hpp' | sort);
+  COMMAND bash -c "echo \"$(for header in $(find ${PROJECT_SOURCE_DIR}/poprithms/poprithms/include -name '*hpp' | sort);
                               do printf \"#include <$header>\n\";
                             done)\""
   OUTPUT_VARIABLE allHeaders
