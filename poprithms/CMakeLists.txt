@@ -1,3 +1,6 @@
+cmake_minimum_required(VERSION 3.10)
+project(poprithms)
+
 # All C++ code in project poprithms will be compiled as C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,8 +21,8 @@ endif ()
 # Where to find Findxxxx.cmake files
 # PROJECT_SOURCE_DIR is the directory with the most recent project() call, 
 # which in this case is this directory 
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/poprithms/cmake/Modules)
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/poprithms/cmake)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Tests path
 set(INSTALL_TESTS ${CMAKE_INSTALL_PREFIX}/tests)
