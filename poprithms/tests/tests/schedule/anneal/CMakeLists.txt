@@ -51,3 +51,5 @@ add_poprithms_unit_test(schedule_anneal_pmo_constrain_parallel_chains_0
                                         pmo_constrain_parallel_chains_0.cpp)
 
 add_poprithms_unit_test(schedule_anneal_logging_0 logging_0.cpp)
+
+add_poprithms_unit_test(schedule_anneal_filtered_schedule_0 filtered_schedule_0.cpp)

@@ -4,10 +4,12 @@
 #include <limits>
 #include <random>
 #include <poprithms/schedule/anneal/error.hpp>
+#include <poprithms/schedule/anneal/filteredschedule.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <poprithms/schedule/anneal/graphserialization.hpp>
 #include <poprithms/schedule/anneal/logging.hpp>
 #include <poprithms/schedule/anneal/printiter.hpp>
+#include <poprithms/schedule/anneal/unisort.hpp>
 
 namespace poprithms {
 namespace schedule {
@@ -1127,9 +1129,7 @@ void updateFromFirstFinal(
 
 } // namespace
 
-void Graph::initializePathMatrix() {
-
-  pathMatrix = pathmatrix::PathMatrix(getForwardEdges());
+void Graph::finalizePathMatrix() {
 
   // removing redundant constraints
   for (const auto &redundantConstraint : pathMatrix.getFwdRedundant()) {
@@ -1143,6 +1143,7 @@ void Graph::initializePathMatrix() {
   upperBoundChange = std::vector<AllocWeight>(nOps(), zero);
 
   // initializing lowerBoundChange and upperBoundChange
+  log().debug("Initializing lowerBoundChange and upperBoundChange");
   for (const auto &alloc : getAllocs()) {
     auto relativePositions = pathMatrix.getRelativePositions(alloc.getOps());
 
@@ -1167,6 +1168,11 @@ void Graph::initializePathMatrix() {
   }
 }
 
+void Graph::initializePathMatrix() {
+  pathMatrix = pathmatrix::PathMatrix(getForwardEdges());
+  finalizePathMatrix();
+}
+
 bool Graph::linkTightDrops() {
   std::vector<std::array<OpAddress, 2>> newLinks;
   for (const auto tightPair : getTightPairs()) {
@@ -1181,6 +1187,8 @@ bool Graph::linkTightDrops() {
   for (auto link : newLinks) {
     insertLink(std::get<0>(link), std::get<1>(link));
   }
+  log().debug(std::to_string(newLinks.size()) +
+              " new links inserted in Graph::linkTightDrops()");
   return !newLinks.empty();
 }
 
@@ -1218,58 +1226,76 @@ bool Graph::linkCloseTightPairs() {
   for (auto link : newLinks) {
     insertLink(std::get<0>(link), std::get<1>(link));
   }
+  log().debug(std::to_string(newLinks.size()) +
+              " new links inserted in Graph::linkCloseTightPairs()");
   return !newLinks.empty();
 }
 
-bool Graph::constrainWeightSeparatedGroups() {
+void Graph::processWeightSeparatedIdenticalIns(
+    const std::vector<OpAddress> &identicalIns,
+    std::vector<std::array<OpAddress, 2>> &newConstraints) const {
 
-  std::vector<std::array<OpAddress, 2>> newConstraints;
-  for (OpAddress a = 0; a < nOps(); ++a) {
-    for (auto b : getIdenticalIns(a)) {
-      if (b != a) {
+  // for (a,b) can we insert a'->b for any a' which are post a?
+  for (auto a : identicalIns) {
+    for (auto b : identicalIns) {
 
-        // unconstrained w.r.t. a, and post b
-        auto postB = pathMatrix.getUnconstrainedPost(a, b);
-        auto lb    = lowerBoundChange[b];
-        for (OpAddress add : postB) {
-          lb = std::min(lb, lowerBoundChange[add]);
-        }
+      // after (or equal to) b, and unconstrained w.r.t. a:
+      const auto postBs = getFilteredSchedule(*this, b, [](OpAddress) {
+        // any Op which is after a will not be returned, as it will never
+        // have all its input deps satisfied. Thus we do not need to check
+        // unconstrained(a,x) here
+        return true;
+      });
 
-        // unconstrained w.r.t. b, and post a
-        auto postA = pathMatrix.getUnconstrainedPost(b, a);
-        auto ub    = upperBoundChange[a];
-        for (OpAddress add : postA) {
-          ub = std::max(ub, upperBoundChange[add]);
-        }
+      auto lb = lowerBoundChange[b];
+      for (auto postB : postBs) {
+        lb = std::min(lb, lowerBoundChange[postB]);
+      }
 
-        if (ub <= lb) {
-          auto nPostBoth = pathMatrix.nPostPost(a, b);
-          std::vector<OpAddress> samePostPostAsA{a};
-          for (auto x : postA) {
-            if (pathMatrix.nPostPost(x, b) == nPostBoth) {
-              samePostPostAsA.push_back(x);
-            }
-          }
+      if (upperBoundChange[a] <= lb) {
+        auto nPostBoth  = pathMatrix.nPostPost(a, b);
+        auto candidates = getFilteredSchedule(
+            *this, a, [this, lb, b, nPostBoth](OpAddress x) {
+              return upperBoundChange[x] <= lb &&
+                     (pathMatrix.nPostPost(b, x) == nPostBoth);
+            });
 
-          bool allUpperSame =
-              std::all_of(samePostPostAsA.cbegin(),
-                          samePostPostAsA.cend(),
-                          [this, ub](OpAddress add) {
-                            return upperBoundChange[add] == ub;
-                          });
-
-          if ((ub < lb) ||                         //
-              (ub == lb && !allUpperSame) ||       //
-              (ub == lb && allUpperSame && a < b)) //
-          {
-            for (auto x : samePostPostAsA) {
-              newConstraints.push_back({x, b});
-            }
+        if (std::any_of(candidates.cbegin(),
+                        candidates.cend(),
+                        [lb, this](OpAddress postA) {
+                          return upperBoundChange[postA] < lb;
+                        }) ||
+            a < b) {
+          for (auto aPrime : candidates) {
+            newConstraints.push_back({aPrime, b});
           }
         }
       }
     }
   }
+}
+
+bool Graph::constrainWeightSeparatedGroups() {
+
+  std::vector<bool> processed(nOps(), false);
+
+  std::vector<std::array<OpAddress, 2>> newConstraints;
+  for (OpAddress add0 = 0; add0 < nOps(); ++add0) {
+    if (processed[add0]) {
+      continue;
+    }
+    auto identicalIns = getIdenticalIns(add0);
+    for (auto id0 : identicalIns) {
+      processed[id0] = true;
+    }
+
+    if (identicalIns.size() < 2) {
+      continue;
+    }
+
+    processWeightSeparatedIdenticalIns(identicalIns, newConstraints);
+  }
+
   for (auto constraint : newConstraints) {
     auto from = std::get<0>(constraint);
     auto to   = std::get<1>(constraint);
@@ -1277,6 +1303,10 @@ bool Graph::constrainWeightSeparatedGroups() {
   }
 
   finalize();
+
+  log().debug(
+      std::to_string(newConstraints.size()) +
+      " new constraints inserted in graph::constrainWeightSeparatedGroups()");
 
   return !newConstraints.empty();
 }
@@ -1375,6 +1405,10 @@ bool Graph::constrainParallelChains() {
     insertConstraint(from, to);
   }
 
+  log().debug(
+      std::to_string(newConstraints.size()) +
+      " new constraints inserted in graph::constrainParallelChains()");
+
   return !newConstraints.empty();
 }
 
@@ -1422,31 +1456,34 @@ void Graph::applyPathMatrixOptimizations(const PathMatrixOptimizations &pmo) {
 
   while (wasChange && iteration < pmo.maxIterations()) {
 
-    std::ostringstream oss0;
-    oss0 << "iteration = " << iteration;
-    log().info(oss0.str());
+    log().debug("Initializing PathMatrix, iteration = " +
+                std::to_string(iteration));
+    initializePathMatrix();
 
     wasChange = false;
 
-    initializePathMatrix();
-
     if (pmo.linkTightDrops()) {
+      log().debug("Applying PMO linkTightDrops.");
       wasChange |= linkTightDrops();
     }
 
     if (pmo.linkCloseTightPairs()) {
+      log().debug("Applying PMO linkCloseTightPairs.");
       wasChange |= linkCloseTightPairs();
     }
 
     if (pmo.constrainWeightSeparatedGroups()) {
+      log().debug("Applying PMO constrainWeightSeparatedGroups.");
       wasChange |= constrainWeightSeparatedGroups();
     }
 
     if (pmo.constrainParallelChains()) {
+      log().debug("Applying PMO constrainParallelChains.");
       wasChange |= constrainParallelChains();
     }
 
     if (pmo.slideLinks()) {
+      log().debug("Applying PMO slideLinks.");
       wasChange |= slideLinks();
     }
     ++iteration;
@@ -1470,9 +1507,21 @@ std::vector<OpAddress> Graph::getIdenticalIns(OpAddress a) const {
   return sameIns;
 }
 
+uint64_t Graph::nConstraints() const {
+  return std::accumulate(
+      allOps.cbegin(), allOps.cend(), 0ULL, [](uint64_t n, const Op &op) {
+        return n + op.nIns();
+      });
+}
+
 void Graph::initialize(KahnTieBreaker kahnTie,
                        uint32_t kahnSeed,
                        PathMatrixOptimizations pmo) {
+
+  std::ostringstream oss;
+  oss << "Graph::initialize() entered for Graph with " << nOps() << " Ops, "
+      << nAllocs() << " Allocs, " << nConstraints() << " constraints. ";
+  log().trace(oss.str());
 
   if (!isFinalized) {
     finalize();

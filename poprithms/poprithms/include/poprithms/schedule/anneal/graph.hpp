@@ -138,6 +138,9 @@ public:
   uint64_t nOps() const { return allOps.size(); }
   int nOps_i32() const { return static_cast<int>(nOps()); }
 
+  // The total number of constraints
+  uint64_t nConstraints() const;
+
   const std::vector<Alloc> &getAllocs() const { return allAllocs; }
   const Alloc &getAlloc(AllocAddress address) const {
     return allAllocs[address];
@@ -512,9 +515,14 @@ private:
   std::vector<AllocWeight> upperBoundChange;
 
   void initializePathMatrix();
+
+  void finalizePathMatrix();
   bool linkTightDrops();
   bool linkCloseTightPairs();
   bool constrainWeightSeparatedGroups();
+  void processWeightSeparatedIdenticalIns(
+      const std::vector<OpAddress> &opsWithIdenticalIns,
+      std::vector<std::array<OpAddress, 2>> &cons) const;
   bool constrainParallelChains();
   bool slideLinks();
   void insertStartAttractorsAssert0(uint64_t, uint64_t) const;
