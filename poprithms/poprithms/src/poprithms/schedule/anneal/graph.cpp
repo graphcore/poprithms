@@ -2494,6 +2494,29 @@ std::string Graph::getSerializationString() const {
   return oss.str();
 }
 
+std::vector<std::vector<OpAddress>>
+Graph::constraintDiff(const Graph &rhs) const {
+
+  if (nOps() != rhs.nOps()) {
+    std::ostringstream oss;
+    oss << "Graph::constraintDiff can only be called on "
+        << "Graph with the same number of Ops as thisGraph. "
+        << "This Graph has " << nOps() << " but \"rhs\" has " << rhs.nOps();
+    throw error(oss.str());
+  }
+
+  std::vector<std::vector<OpAddress>> uniqueToThis(nOps());
+  for (OpAddress x0 = 0; x0 < nOps(); ++x0) {
+    for (OpAddress x1 : getOp(x0).getOuts()) {
+      if (!rhs.getOp(x0).hasOut(x1)) {
+        uniqueToThis[x0].push_back(x1);
+      }
+    }
+    uniqueToThis[x0] = unisorted(uniqueToThis[x0]);
+  }
+  return uniqueToThis;
+}
+
 } // namespace anneal
 } // namespace schedule
 } // namespace poprithms

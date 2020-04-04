@@ -307,6 +307,9 @@ public:
   // not tightly coupled to an output.
   std::vector<OpAddress> tightChainFrom(OpAddress a) const;
 
+  // All constraints which are in this Graph, but not in "rhs"
+  std::vector<std::vector<OpAddress>> constraintDiff(const Graph &rhs) const;
+
 private:
   // Return true if there are no linked Ops which would be disconnected by a
   // shift of Ops
