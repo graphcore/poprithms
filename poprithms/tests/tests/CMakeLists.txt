@@ -27,8 +27,6 @@ add_subdirectory(schedule)
 
 add_subdirectory(logging)
 
-add_subdirectory(verify_cxx_11_interface)
-
 #Test(s) where poprithms is linked statically
 add_subdirectory(staticlib)
 
