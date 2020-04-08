@@ -30,6 +30,14 @@ std::ostream &operator<<(std::ostream &, Level);
 
 void setGlobalLevel(Level);
 
+// By default there is no timing information with logging. It can be enabled
+// with these functions
+//
+// Log the time taken between successive log lines
+void enableDeltaTime(bool);
+// Log the total time taken since execution commenced
+void enableTotalTime(bool);
+
 class Logger {
 public:
   Logger(const std::string &id);

@@ -1,8 +1,8 @@
 #ifndef POPRITHMS_SCHEDULE_ANNEAL_SHIFTANDCOST_HPP
 #define POPRITHMS_SCHEDULE_ANNEAL_SHIFTANDCOST_HPP
 
-#include <poprithms/schedule/anneal/annealusings.hpp>
 #include <poprithms/schedule/anneal/allocweight.hpp>
+#include <poprithms/schedule/anneal/annealusings.hpp>
 
 namespace poprithms {
 namespace schedule {
