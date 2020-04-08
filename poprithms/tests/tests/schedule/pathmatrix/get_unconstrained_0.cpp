@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <poprithms/logging/logging.hpp>
+#include <poprithms/schedule/anneal/printiter.hpp>
 #include <poprithms/schedule/pathmatrix/error.hpp>
 #include <poprithms/schedule/pathmatrix/pathmatrix.hpp>
 #include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>
@@ -42,7 +44,11 @@ void test0() {
   }
 
   if (pl.getUnconstrained(1) != std::vector<OpId>{2}) {
-    throw error("1 is unconstrained only w.r.t. 2");
+    std::ostringstream oss;
+    oss << "1 is unconstrained only w.r.t. 2, not:(";
+    poprithms::util::append(oss, pl.getUnconstrained(1));
+    oss << ").";
+    throw error(oss.str());
   }
 
   if (pl.getUnconstrained(3) != std::vector<OpId>{2}) {
@@ -88,6 +94,9 @@ void test1() {
 } // namespace
 
 int main() {
+
+  using namespace poprithms;
+  logging::setGlobalLevel(logging::Level::Trace);
   test0();
   test1();
   return 0;

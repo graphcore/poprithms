@@ -13,7 +13,8 @@ int main() {
   // diamond
   //
   //
-  PathMatrix em{{{1, 2}, {3}, {3}, {}}};
+  const Edges diamondEdges{{1, 2}, {3}, {3}, {}};
+  PathMatrix em{diamondEdges};
   if (em.earliest(0) != 0 || em.latest(0) != 0) {
     std::ostringstream oss;
     oss << "Start of diamond range returned : ";
@@ -36,7 +37,7 @@ int main() {
     throw error("incorrect diamond constraints");
   }
 
-  if (em.getFwdRedundant().size() != 0 || em.getBwdRedundant().size() != 0) {
+  if (em.getFlattenedRedundants(diamondEdges).size() != 0) {
     throw error("there are no redundant edges in this diamond");
   }
 
@@ -50,18 +51,31 @@ int main() {
   //      \  /
   //        X
   //
-  em = PathMatrix{{{1, 2}, {2, 4}, {3}, {4}, {}}};
+  Edges stripyEdges{{{1, 2}, {2, 4}, {3}, {4}, {}}};
+  em = PathMatrix{stripyEdges};
   for (uint64_t i = 0; i < 5; ++i) {
     if (em.earliest(i) != i || em.latest(i) != i) {
       throw error("stripy diamond has unique schedule");
     }
+    for (uint64_t j = 0; j < 5; ++j) {
+      if (j > i) {
+        if (!em.constrained(i, j)) {
+          throw error("Expected constrained to be true");
+        }
+      } else {
+        if (em.constrained(i, j)) {
+          throw error("Expected constrained to be false");
+        }
+      }
+    }
   }
-  auto fwdRed = em.getFwdRedundant();
+
+  auto fwdRed = em.getFlattenedRedundants(stripyEdges);
   std::sort(fwdRed.begin(), fwdRed.end());
   if (fwdRed.size() != 2 || fwdRed[0] != std::array<OpId, 2>{0, 2} ||
       fwdRed[1] != std::array<OpId, 2>{1, 4}) {
     std::ostringstream oss;
-    oss << "Exected 2 specific redundant edges, got:\n";
+    oss << "Expected 2 specific redundant edges, got:\n";
     for (auto x : fwdRed) {
       oss << "(" << std::get<0>(x) << "," << std::get<1>(x) << ")";
     }
@@ -82,9 +96,8 @@ int main() {
       }
     }
   }
-  em          = PathMatrix(edges);
-  fwdRed      = em.getFwdRedundant();
-  auto bwdRed = em.getBwdRedundant();
+  em     = PathMatrix(edges);
+  fwdRed = em.getFlattenedRedundants(edges);
   for (uint64_t i = 0; i < nOps; ++i) {
     for (auto j : edges[i]) {
       std::array<OpId, 2> x{i, j};
@@ -92,12 +105,6 @@ int main() {
           (std::find(fwdRed.cbegin(), fwdRed.cend(), x) != fwdRed.cend());
       if (found == ((j - i) == 1)) {
         throw error("unexpected redundant fwd edge");
-      }
-
-      std::array<OpId, 2> y{j, i};
-      found = (std::find(bwdRed.cbegin(), bwdRed.cend(), y) != bwdRed.cend());
-      if (found == ((j - i) == 1)) {
-        throw error("unexpected redundant bwd edge");
       }
     }
   }

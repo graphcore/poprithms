@@ -76,7 +76,7 @@ int main() {
   using namespace poprithms::schedule::anneal;
   auto g = getGraph();
   if (g.getOp(1).getIns() != std::vector<OpAddress>{0, 3, 4, 5, 6, 7, 8, 9}) {
-    throw error("Expected all uncononstrained w.r.t. 1 to point to it");
+    throw error("Expected all unconstrained w.r.t. 1 to point to it");
   }
   if (g.getOp(3).getIns() != std::vector<OpAddress>{0, 6, 7, 8, 9}) {
     throw error(

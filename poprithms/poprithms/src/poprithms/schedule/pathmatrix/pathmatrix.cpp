@@ -14,9 +14,7 @@ std::ostream &operator<<(std::ostream &, IsFinal);
 namespace {
 void propagate(const Edges &fwd,
                const Edges &bwd,
-               std::vector<BitSet> &edgeSet,
-               std::vector<uint64_t> &nBefore,
-               std::vector<std::array<OpId, 2>> &redundant) {
+               std::vector<BitSet> &edgeSet) {
 
   auto nOps          = fwd.size();
   auto nBitSetsPerOp = PathMatrix::getNBitSetsPerOp(nOps);
@@ -85,9 +83,7 @@ void propagate(const Edges &fwd,
 
     for (uint64_t bwdIndex = 0; bwdIndex < bwd[b].size(); ++bwdIndex) {
       auto a = bwd[b][bwdIndex];
-      if (isRedundant[bwdIndex]) {
-        redundant.push_back({a, b});
-      } else {
+      if (!isRedundant[bwdIndex]) {
         record(a, b);
         for (uint64_t i = 0; i < nBitSetsPerOp; ++i) {
           edgeSet[b * nBitSetsPerOp + i] |= edgeSet[a * nBitSetsPerOp + i];
@@ -95,9 +91,6 @@ void propagate(const Edges &fwd,
       }
     }
 
-    for (uint64_t toSet = 0; toSet < nBitSetsPerOp; ++toSet) {
-      nBefore[b] += edgeSet[b * nBitSetsPerOp + toSet].count();
-    }
     ++nScheduled;
   }
 
@@ -106,101 +99,46 @@ void propagate(const Edges &fwd,
   }
 }
 
-template <class T, class U> void removeFromMap(const T &pairs, U &fromToMap) {
-  for (const auto &r : pairs) {
-    auto from = std::get<0>(r);
-    auto to   = std::get<1>(r);
-    std::vector<OpId> old;
-    old.reserve(fromToMap[from].size() - 1);
-    std::swap(old, fromToMap[from]);
-    for (auto x : old) {
-      if (x != to) {
-        fromToMap[from].push_back(x);
-      }
-    }
-  }
-}
 } // namespace
 
-void PathMatrix::setChains() {
-  constexpr ChainId Undef = std::numeric_limits<ChainId>::max();
-  opToChainId             = std::vector<ChainId>(nOps, Undef);
-  // Guess that the number of Chains is about equal to the number of Ops.
-  chainToRootOpId = {};
-  chainToRootOpId.reserve(nOps);
-  ChainId currentChainId = 0;
-  for (OpId opId = 0; opId < nOps; ++opId) {
-    if (opToChainId[opId] == Undef) {
-      opToChainId[opId] = currentChainId;
-      auto tmpId        = opId;
-      while (bwd[tmpId].size() == 1 && fwd[bwd[tmpId][0]].size() == 1) {
-        tmpId              = bwd[tmpId][0];
-        opToChainId[tmpId] = currentChainId;
-      }
-      chainToRootOpId.push_back(tmpId);
-      tmpId = opId;
-      while (fwd[tmpId].size() == 1 && bwd[fwd[tmpId][0]].size() == 1) {
-        tmpId              = fwd[tmpId][0];
-        opToChainId[tmpId] = currentChainId;
-      }
-      ++currentChainId;
-    }
-  }
-}
-
-std::vector<OpId> PathMatrix::getUnconstrainedPost(OpId unconstrainedWrtThis,
-                                                   OpId postThis) const {
-  std::vector<OpId> soln;
-  for (auto id : getUnconstrained(unconstrainedWrtThis)) {
-    if (constrained(postThis, id)) {
-      soln.push_back(id);
+Edges PathMatrix::getRedundants(const Edges &edges) const {
+  Edges revEdges(edges.size());
+  for (OpId from = 0; from < edges.size(); ++from) {
+    for (auto to : edges[from]) {
+      revEdges[to].push_back(from);
     }
   }
 
-  return soln;
-}
-
-void PathMatrix::setChainToUnconstrained() {
-  chainIdToUnconstrained.resize(nChains());
-  chainIdToEarliestUnconstrained.resize(nChains(),
-                                        std::numeric_limits<uint64_t>::max());
-
-  for (ChainId chainId = 0; chainId < nChains(); ++chainId) {
-    // Optimization guess on how much to reserve
-    if (chainId > 0) {
-      chainIdToUnconstrained[chainId].reserve(
-          chainIdToUnconstrained[chainId - 1].size());
-    }
-    auto opId = chainToRootOpId[chainId];
-    for (uint64_t i = 0; i < nBitSetsPerOp; ++i) {
-      auto index     = opId * nBitSetsPerOp + i;
-      BitSet neither = fwdEdgeSet[index] | bwdEdgeSet[index];
-      neither.flip();
-      if (neither.any()) {
-        for (uint64_t shift = 0; shift < BitSetSize; ++shift) {
-          auto unconId = i * BitSetSize + shift;
-          if (neither[shift] && unconId < nOps && unconId != opId) {
-            chainIdToUnconstrained[chainId].push_back(unconId);
-          }
+  Edges redundants(edges.size());
+  for (OpId from = 0; from < edges.size(); ++from) {
+    for (OpId to : edges[from]) {
+      for (auto toPrime : revEdges[to]) {
+        if (constrained(from, toPrime)) {
+          redundants[from].push_back(to);
+          break;
         }
       }
     }
+  }
+  return redundants;
+}
 
-    for (auto id : chainIdToUnconstrained[chainId]) {
-      chainIdToEarliestUnconstrained[chainId] =
-          std::min(chainIdToEarliestUnconstrained[chainId], earliest(id));
+std::vector<std::array<OpId, 2>>
+PathMatrix::getFlattenedRedundants(const Edges &edges) const {
+  Edges redEdges = getRedundants(edges);
+  std::vector<std::array<OpId, 2>> redundants;
+  for (OpId from = 0; from < redEdges.size(); ++from) {
+    for (auto to : redEdges[from]) {
+      redundants.push_back({from, to});
     }
   }
+  return redundants;
 }
 
-bool PathMatrix::sameUnconstrained(OpId a, OpId b) const {
-  return getUnconstrained(a) == getUnconstrained(b);
-}
-
-PathMatrix::PathMatrix(const Edges &_fwd_)
-    : nOps(_fwd_.size()), nBitSetsPerOp(getNBitSetsPerOp(nOps)),
-      nBitSets(nBitSetsPerOp * nOps), fwd(_fwd_), fwdEdgeSet(nBitSets),
-      nFwdBefore(nOps), bwd(nOps), bwdEdgeSet(nBitSets), nBwdBefore(nOps) {
+PathMatrix::PathMatrix(const Edges &fwd)
+    : nOps(fwd.size()), nBitSetsPerOp(getNBitSetsPerOp(nOps)),
+      nBitSets(nBitSetsPerOp * nOps), fwdEdgeSet(nBitSets),
+      bwdEdgeSet(nBitSets) {
 
   for (const auto &evs : fwd) {
     for (auto e : evs) {
@@ -213,20 +151,100 @@ PathMatrix::PathMatrix(const Edges &_fwd_)
   }
 
   // setting bwd
+  std::vector<std::vector<OpId>> bwd(nOps);
   for (uint64_t i = 0; i < nOps; ++i) {
     for (auto j : fwd[i]) {
       bwd[j].push_back(i);
     }
   }
 
-  propagate(fwd, bwd, fwdEdgeSet, nFwdBefore, fwdRedundant);
-  propagate(bwd, fwd, bwdEdgeSet, nBwdBefore, bwdRedundant);
+  propagate(fwd, bwd, fwdEdgeSet);
+  propagate(bwd, fwd, bwdEdgeSet);
+}
 
-  removeFromMap(fwdRedundant, fwd);
-  removeFromMap(bwdRedundant, bwd);
+std::vector<BitSet> PathMatrix::getBits(const Filters &filters) const {
 
-  setChains();
-  setChainToUnconstrained();
+  std::vector<BitSet> soln(nBitSetsPerOp);
+
+  for (uint64_t i = 0; i < nBitSetsPerOp; ++i) {
+    if (nOps - i * BitSetSize >= BitSetSize) {
+      soln[i].set(); // set to true
+    } else {
+      soln[i].reset();
+      for (uint64_t j = 0; j < nOps % BitSetSize; ++j) {
+        soln[i].set(j, true);
+      }
+    }
+    for (const auto &f : filters) {
+      auto type  = std::get<0>(f);
+      auto opId  = std::get<1>(f);
+      auto index = opId * nBitSetsPerOp + i;
+
+      if (type == IsFirst::Maybe) {
+        BitSet neither = fwdEdgeSet[index] | bwdEdgeSet[index];
+        neither.flip();
+        if (i == (opId / BitSetSize)) {
+          neither[opId % BitSetSize] = false;
+        }
+        soln[i] &= neither;
+      }
+
+      // TODO : test this:
+      else if (type == IsFirst::Yes) {
+        soln[i] &= fwdEdgeSet[index];
+      }
+
+      else {
+        soln[i] &= bwdEdgeSet[index];
+      }
+    }
+  }
+
+  return soln;
+}
+
+std::vector<OpId> PathMatrix::get(const Filters &filters) const {
+  auto soln = getBits(filters);
+  std::vector<OpId> uCon;
+
+  for (uint64_t i = 0; i < nBitSetsPerOp; ++i) {
+    if (soln[i].any()) {
+      for (uint64_t shift = 0; shift < BitSetSize; ++shift) {
+        auto id = i * BitSetSize + shift;
+        if (soln[i][shift]) {
+          uCon.push_back(id);
+        }
+      }
+    }
+  }
+
+  return uCon;
+}
+
+uint64_t PathMatrix::n(const Filters &filters) const {
+  auto soln = getBits(filters);
+  uint64_t c{0};
+  for (uint64_t i = 0; i < nBitSetsPerOp; ++i) {
+    c += soln[i].count();
+  }
+  return c;
+}
+
+bool PathMatrix::same(IsFirst r, const std::vector<OpId> &ids) const {
+  if (ids.size() < 2) {
+    return true;
+  }
+  auto soln0 = getBits({{r, ids[0]}});
+  for (auto iter = std::next(ids.cbegin()); iter != ids.cend();
+       std::advance(iter, 1)) {
+    auto soln1 = getBits({{r, *iter}});
+    for (uint64_t i = 0; i < nBitSetsPerOp; ++i) {
+      if (soln0[i] != soln1[i]) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 std::vector<std::tuple<IsFirst, IsFinal>>
@@ -256,14 +274,23 @@ PathMatrix::getRelativePositions(const std::vector<OpId> &ids) const {
   return rps;
 }
 
-uint64_t PathMatrix::nPostPost(OpId a, OpId b) const {
-  uint64_t nPP{0};
-  for (uint64_t i = 0; i < nBitSetsPerOp; ++i) {
-    auto uni = bwdEdgeSet[a * nBitSetsPerOp + i];
-    uni &= bwdEdgeSet[b * nBitSetsPerOp + i];
-    nPP += uni.count();
+// TODO : there may be a more efficient way to implement this
+bool PathMatrix::asEarlyAsAllUnconstrained(OpId id) const {
+  const auto e = earliest(id);
+  for (auto x : get({{IsFirst::Maybe, id}})) {
+    if (earliest(x) < e) {
+      return false;
+    }
   }
-  return nPP;
+  return true;
+}
+
+uint64_t PathMatrix::earliest(OpId id) const {
+  return n({{IsFirst::Yes, id}});
+}
+
+uint64_t PathMatrix::latest(OpId id) const {
+  return nOps - n({{IsFirst::No, id}}) - 1;
 }
 
 std::ostream &operator<<(std::ostream &os, IsFirst isFirst) {

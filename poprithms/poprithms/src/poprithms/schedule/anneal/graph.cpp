@@ -1131,11 +1131,11 @@ void updateFromFirstFinal(
 
 void Graph::finalizePathMatrix() {
 
+  const auto fwdEdges = getForwardEdges();
+
   // removing redundant constraints
-  for (const auto &redundantConstraint : pathMatrix.getFwdRedundant()) {
-    auto fromId = std::get<0>(redundantConstraint);
-    auto toId   = std::get<1>(redundantConstraint);
-    removeConstraint(fromId, toId);
+  for (const auto x : pathMatrix.getFlattenedRedundants(fwdEdges)) {
+    removeConstraint(std::get<0>(x), std::get<1>(x));
   }
 
   auto zero        = AllocWeight::zero();

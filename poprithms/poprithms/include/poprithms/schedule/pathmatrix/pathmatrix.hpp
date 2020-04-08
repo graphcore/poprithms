@@ -44,67 +44,62 @@ public:
     return fwdEdgeSet[index][shift];
   }
 
-  // The number of Ops which appear after both "a" and "b" in all schedules
-  uint64_t nPostPost(OpId a, OpId b) const;
-
-  // Returns true iff there exists
+  // Returns true if and only if (iff) there exists
   // at least 1 schedule with a before b, and
   // at least 1 schedule with b before a.
   bool unconstrained(OpId a, OpId b) const {
     return !constrained(a, b) && !constrained(b, a);
   }
 
-  // All Ops which appear before "id" in at least 1 schedule and after "id" in
-  // at least one schedule
-  const std::vector<OpId> &getUnconstrained(OpId id) const {
-    return chainIdToUnconstrained[opToChainId[id]];
+  using Filter  = std::tuple<IsFirst, OpId>;
+  using Filters = std::vector<Filter>;
+  // Filters are used in get (below) with the following semantics
+  //  {IsFirst::Yes, a}
+  //      will be true for all b s.t. a is before b in all schedules,
+  //  {IsFirst::Maybe, a}
+  //      will be true for all b s.t. a is before b in at least 1 schedule,
+  //      and a is after b in at least 1 schedule,
+  //  {IsFirst::No, a}
+  //      will be true for all b s.t. a is after b in all schedules.
+
+  // Get the intersection of all Filters.
+  //   Example:
+  //   get({{IsFirst::Yes, a}, {IsFirst::Maybe, b}, {IsFirst::No, c}})
+  //   returns the set of all Ops which are
+  //   - always after a (as the first filter is "a is IsFirst::Yes")
+  //   - sometimes before a, sometimes after b
+  //   - always before c.
+  std::vector<OpId> get(const Filters &) const;
+
+  // The size of the set returned by get(.)
+  uint64_t n(const Filters &) const;
+
+  // return true if get({{x, y}}) is the same for all y in ys.
+  bool same(IsFirst x, const std::vector<OpId> &ys) const;
+
+  // convenience functions
+  std::vector<OpId> getUnconstrained(OpId id) const {
+    return get({{IsFirst::Maybe, id}});
   }
-
-  // All Ops which are appear after "post" in all schedules, and before
-  // "unconstrained" in at least 1 schedule and after "unconstrained" in at
-  // least 1 schedule
-  std::vector<OpId> getUnconstrainedPost(OpId unconstrained, OpId post) const;
-
-  // Return true if the Ops "a" and "b" have the same sets return by
-  // getUnonstrained
-  bool sameUnconstrained(OpId a, OpId b) const;
-
-  // The lowest SchedId that "a" has over all schedules
-  SchedId earliest(OpId a) const { return nFwdBefore[a]; }
-
-  // Return true iff the earliest schedule index, over all schedules, that
-  // "id" appears at, is at least as low as any Op in its unconstrained set
-  bool asEarlyAsAllUnconstrained(OpId id) const {
-    return earliest(id) <= chainIdToEarliestUnconstrained[opToChainId[id]];
+  std::vector<OpId> getPost(OpId id) const {
+    return get({{IsFirst::No, id}});
   }
-
-  // The highest SchedId that "a" has over all schedules
-  SchedId latest(OpId a) const { return nOps_u64() - nBwdBefore[a] - 1; }
+  std::vector<OpId> getUnconstrainedPost(OpId a, OpId b) const {
+    return get({{IsFirst::Maybe, a}, {IsFirst::No, b}});
+  }
+  bool sameUnconstrained(OpId a, OpId b) const {
+    return same(IsFirst::Maybe, {a, b});
+  }
+  uint64_t nPostPost(OpId a, OpId b) const {
+    return n({{IsFirst::No, a}, {IsFirst::No, b}});
+  }
 
   uint64_t nOps_u64() const { return nOps; }
-  uint64_t nOps_i64() const { return static_cast<int64_t>(nOps); }
-
-  // The set of forward edges passed to the constructor which are redundant.
-  // That is, all edges which if removed would not change the total number of
-  // schedules
-  const std::vector<std::array<OpId, 2>> &getFwdRedundant() const {
-    return fwdRedundant;
-  }
-
-  // The same edges as getFwdRedundant(), but reversed
-  const std::vector<std::array<OpId, 2>> &getBwdRedundant() const {
-    return bwdRedundant;
-  }
+  int64_t nOps_i64() const { return static_cast<int64_t>(nOps); }
 
   static uint64_t getNBitSetsPerOp(uint64_t nOps) {
     return nOps / BitSetSize + (nOps % BitSetSize != 0);
   }
-
-  // Forward edges, with redundant ones removed
-  const Edges &getFwd() const { return fwd; }
-
-  // Backward edges, with redundant ones removed
-  const Edges &getBwd() const { return bwd; }
 
   // for each Op \in subOps, what can be said about its position in a schedule
   // relative to each of the other Ops in subOps? For example, if Op a appears
@@ -113,30 +108,24 @@ public:
   std::vector<std::tuple<IsFirst, IsFinal>>
   getRelativePositions(const std::vector<OpId> &subOps) const;
 
-  uint64_t nChains() const { return chainToRootOpId.size(); }
+  std::vector<std::array<OpId, 2>>
+  getFlattenedRedundants(const Edges &) const;
+
+  Edges getRedundants(const Edges &) const;
+
+  bool asEarlyAsAllUnconstrained(OpId id) const;
+  uint64_t earliest(OpId id) const;
+  uint64_t latest(OpId id) const;
 
 private:
   uint64_t nOps;
   uint64_t nBitSetsPerOp;
   uint64_t nBitSets;
 
-  Edges fwd;
   std::vector<BitSet> fwdEdgeSet;
-  std::vector<uint64_t> nFwdBefore;
-  std::vector<std::array<OpId, 2>> fwdRedundant;
-
-  Edges bwd;
   std::vector<BitSet> bwdEdgeSet;
-  std::vector<uint64_t> nBwdBefore;
-  std::vector<std::array<OpId, 2>> bwdRedundant;
 
-  std::vector<ChainId> opToChainId;
-  std::vector<OpId> chainToRootOpId;
-  void setChains();
-
-  std::vector<std::vector<OpId>> chainIdToUnconstrained;
-  std::vector<uint64_t> chainIdToEarliestUnconstrained;
-  void setChainToUnconstrained();
+  std::vector<BitSet> getBits(const Filters &) const;
 
   // Diagram:
   //          from
