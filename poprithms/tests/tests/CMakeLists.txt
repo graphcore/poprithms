@@ -31,4 +31,5 @@ add_subdirectory(logging)
 add_subdirectory(staticlib)
 
 #Test that tests can use boost test framework
-add_subdirectory(boostsmoke)
+# Currently disabled due to failing external build, see T19253 to re-enable
+# add_subdirectory(boostsmoke)
