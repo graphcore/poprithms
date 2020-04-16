@@ -9,3 +9,4 @@ function(add_regression_executable name source)
 endfunction()
 
 add_regression_executable(regression regression.cpp)
+add_regression_executable(fromserial fromserial.cpp)
