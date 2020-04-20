@@ -2,9 +2,9 @@
 #include <iostream>
 #include <sstream>
 #include <poprithms/logging/logging.hpp>
-#include <poprithms/schedule/anneal/printiter.hpp>
 #include <poprithms/schedule/pathmatrix/error.hpp>
 #include <poprithms/schedule/pathmatrix/pathmatrix.hpp>
+#include <poprithms/util/printiter.hpp>
 #include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>
 #include <testutil/schedule/pathmatrix/randomedges.hpp>
 

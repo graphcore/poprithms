@@ -4,7 +4,7 @@
 #include <random>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
-#include <poprithms/schedule/anneal/printiter.hpp>
+#include <poprithms/util/printiter.hpp>
 
 //
 //

@@ -8,8 +8,8 @@
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <poprithms/schedule/anneal/graphserialization.hpp>
 #include <poprithms/schedule/anneal/logging.hpp>
-#include <poprithms/schedule/anneal/printiter.hpp>
-#include <poprithms/schedule/anneal/unisort.hpp>
+#include <poprithms/util/printiter.hpp>
+#include <poprithms/util/unisort.hpp>
 
 namespace poprithms {
 namespace schedule {
@@ -2512,7 +2512,7 @@ Graph::constraintDiff(const Graph &rhs) const {
         uniqueToThis[x0].push_back(x1);
       }
     }
-    uniqueToThis[x0] = unisorted(uniqueToThis[x0]);
+    uniqueToThis[x0] = util::unisorted(uniqueToThis[x0]);
   }
   return uniqueToThis;
 }

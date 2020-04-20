@@ -3,8 +3,8 @@
 #include <iomanip>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/op.hpp>
-#include <poprithms/schedule/anneal/printiter.hpp>
-#include <poprithms/schedule/anneal/unisort.hpp>
+#include <poprithms/util/printiter.hpp>
+#include <poprithms/util/unisort.hpp>
 
 namespace poprithms {
 namespace schedule {
@@ -18,9 +18,9 @@ std::ostream &operator<<(std::ostream &ost, const Op &op) {
 void Op::append(std::ostream &ost) const { ost << debugString; }
 
 void Op::sortAndMakeUnique() {
-  ins    = unisorted(ins);
-  outs   = unisorted(outs);
-  allocs = unisorted(allocs);
+  ins    = util::unisorted(ins);
+  outs   = util::unisorted(outs);
+  allocs = util::unisorted(allocs);
 }
 
 void Op::appendSerialization(std::ostream &ost) const {

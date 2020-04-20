@@ -1,12 +1,11 @@
-#ifndef POPRITHMS_SCHEDULE_ANNEAL_UNISORT_HPP
-#define POPRITHMS_SCHEDULE_ANNEAL_UNISORT_HPP
+#ifndef POPRITHMS_UTIL_UNISORT_HPP
+#define POPRITHMS_UTIL_UNISORT_HPP
 
 #include <algorithm>
 #include <vector>
 
 namespace poprithms {
-namespace schedule {
-namespace anneal {
+namespace util {
 
 template <typename T> std::vector<T> unisorted(const std::vector<T> &x) {
   std::vector<T> y = x;
@@ -16,8 +15,7 @@ template <typename T> std::vector<T> unisorted(const std::vector<T> &x) {
   return y;
 }
 
-} // namespace anneal
-} // namespace schedule
+} // namespace util
 } // namespace poprithms
 
 #endif

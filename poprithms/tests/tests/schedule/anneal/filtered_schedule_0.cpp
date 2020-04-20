@@ -1,6 +1,6 @@
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/filteredschedule.hpp>
-#include <poprithms/schedule/anneal/printiter.hpp>
+#include <poprithms/util/printiter.hpp>
 
 namespace {
 using namespace poprithms::schedule::anneal;

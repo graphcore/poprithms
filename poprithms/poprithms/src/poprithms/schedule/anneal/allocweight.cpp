@@ -4,7 +4,7 @@
 #include <string>
 #include <poprithms/schedule/anneal/allocweight.hpp>
 #include <poprithms/schedule/anneal/error.hpp>
-#include <poprithms/schedule/anneal/printiter.hpp>
+#include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
 namespace schedule {
