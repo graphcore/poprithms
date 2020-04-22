@@ -1,5 +1,5 @@
-#ifndef POPRITHMS_IR_LOGGING_HPP
-#define POPRITHMS_IR_LOGGING_HPP
+#ifndef POPRITHMS_SCHEDULE_ANNEAL_LOGGING_HPP
+#define POPRITHMS_SCHEDULE_ANNEAL_LOGGING_HPP
 
 #include <poprithms/logging/logging.hpp>
 
