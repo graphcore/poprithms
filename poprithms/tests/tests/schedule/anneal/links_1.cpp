@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <poprithms/logging/logging.hpp>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <testutil/schedule/anneal/randomgraph.hpp>
@@ -18,7 +19,9 @@ void test0() {
   g.insertLink(ops[0], ops[1]);
   g.insertConstraint(ops[1], ops[2]);
   g.insertOpAlloc(ops, alloc0);
-  g.initialize(KahnTieBreaker::RANDOM, 1011);
+  g.initialize(
+      KahnTieBreaker::RANDOM, 1011, PathMatrixOptimizations::allOn());
+
   if (g.getScheduleToOp() != std::vector<OpAddress>{0, 1, 2}) {
     throw error("Expected schedule to be {0,1,2}");
   }
@@ -26,19 +29,25 @@ void test0() {
 
 void test1() {
 
-  //         X
-  //     / / | \ \
-  //    . .  .  . .
-  //     \ \ | / /
-  //         X
+  poprithms::logging::setGlobalLevel(poprithms::logging::Level::Trace);
+
+  //         0
+  //     /  /|\\ \
+  //    /  / | \\ \
+  //   1  2  3  4  5
+  //    \ \\ | /  /
+  //     \ \\|/  /
+  //         6
   //
-  // tie begin to 4, end to 2. Expect {0,4...2,6}
+  // tie 0->4, 2->6. Expect {0,4,1,5,3,2,6}
+  //                         ===       ===
 
   Graph g;
   auto ops = g.insertOps({"op0", "op1", "op2", "op3", "op4", "op5", "op6"});
   g.insertLink(ops[0], ops[4]);
   g.insertLink(ops[2], ops[6]);
   g.insertOpAlloc({ops[3], ops[6]}, g.insertAlloc(1000.0f));
+  g.insertOpAlloc({ops[5], ops[6]}, g.insertAlloc(100.0f));
   for (uint64_t i = 1; i < 6; ++i) {
     g.insertConstraint(ops[0], ops[i]);
     g.insertConstraint(ops[i], ops[6]);
@@ -116,10 +125,19 @@ void test4() {
 } // namespace
 
 int main() {
+  std::cout << "test 0" << std::endl;
   test0();
+
+  std::cout << "test 1" << std::endl;
   test1();
+
+  std::cout << "test 2" << std::endl;
   test2();
+
+  std::cout << "test 3" << std::endl;
   test3();
+
+  std::cout << "test 4" << std::endl;
   test4();
   return 0;
 }

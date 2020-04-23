@@ -37,6 +37,9 @@ class PathMatrix {
 public:
   PathMatrix(const Edges &forwardEdges);
 
+  void update(const Edges &newEdges);
+  void insertConstraint(OpId from, OpId to, std::vector<BitSet> &edgeSet);
+
   // Returns true if there exist no schedules with "to" before "from"
   bool constrained(OpId from, OpId to) const {
     auto index = to * nBitSetsPerOp + from / BitSetSize;
@@ -116,6 +119,18 @@ public:
   bool asEarlyAsAllUnconstrained(OpId id) const;
   uint64_t earliest(OpId id) const;
   uint64_t latest(OpId id) const;
+
+  bool operator==(const PathMatrix &x) const {
+    return fwdEdgeSet == x.fwdEdgeSet && bwdEdgeSet == x.bwdEdgeSet;
+  }
+
+  bool operator!=(const PathMatrix &x) const { return !operator==(x); }
+
+  // Advanced optimizations may require direct bit-access:
+  const std::vector<BitSet> &getFwdEdgeSet() const { return fwdEdgeSet; }
+  const std::vector<BitSet> &getBwdEdgeSet() const { return bwdEdgeSet; }
+
+  uint64_t getNBitSetsPerOp() const { return nBitSetsPerOp; }
 
 private:
   uint64_t nOps;

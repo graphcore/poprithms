@@ -26,8 +26,6 @@ std::array<std::string, NPMOS> initPmosNames() {
   names[static_cast<uint64_t>(PMO::ConstrainParallelChains)] =
       "ConstrainParallelChains";
 
-  names[static_cast<uint64_t>(PMO::SlideLinks)] = "SlideLinks";
-
   for (const auto &x : names) {
     if (x == "unset") {
       throw error("Failed to set all names for PMO enum");

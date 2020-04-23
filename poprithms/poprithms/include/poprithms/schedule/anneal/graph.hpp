@@ -308,7 +308,12 @@ public:
   std::vector<OpAddress> tightChainFrom(OpAddress a) const;
 
   // All constraints which are in this Graph, but not in "rhs"
-  std::vector<std::vector<OpAddress>> constraintDiff(const Graph &rhs) const;
+  std::vector<std::vector<OpAddress>>
+  constraintDiff(const std::vector<std::vector<OpAddress>> &rhs) const;
+
+  std::vector<std::vector<OpAddress>> constraintDiff(const Graph &rhs) const {
+    return constraintDiff(rhs.getForwardEdges());
+  }
 
 private:
   // Return true if there are no linked Ops which would be disconnected by a
@@ -518,6 +523,11 @@ private:
   std::vector<AllocWeight> upperBoundChange;
 
   void initializePathMatrix();
+
+  // Incrementally update the PathMatrix of this Graph. Note that the
+  // PathMatrix can be initialized with updatePathMatrix(getForwardEdges()),
+  // but it is less efficient than calling initializePathMatrix().
+  void updatePathMatrix(const std::vector<std::vector<OpAddress>> &nEdges);
 
   void finalizePathMatrix();
   bool linkTightDrops();

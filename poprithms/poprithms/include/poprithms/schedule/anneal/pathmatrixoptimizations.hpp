@@ -16,7 +16,6 @@ enum class PMO {
   LinkCloseTightPairs,
   ConstrainWeightSeparatedGroups,
   ConstrainParallelChains,
-  SlideLinks, // not really a path matrix optimization
   N // this is not an optimization, it is the number of optimizations
 };
 
@@ -88,11 +87,6 @@ public:
     return update(PMO::LinkCloseTightPairs, b);
   }
   bool linkCloseTightPairs() const { return at(PMO::LinkCloseTightPairs); }
-
-  PathMatrixOptimizations &withSlideLinks(bool b = true) {
-    return update(PMO::SlideLinks, b);
-  }
-  bool slideLinks() const { return at(PMO::SlideLinks); }
 
   PathMatrixOptimizations &withConstrainWeightSeparatedGroups(bool b = true) {
     return update(PMO::ConstrainWeightSeparatedGroups, b);

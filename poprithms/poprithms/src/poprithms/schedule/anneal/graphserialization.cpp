@@ -5,6 +5,7 @@
 #include <string>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graphserialization.hpp>
+#include <poprithms/schedule/anneal/logging.hpp>
 
 namespace poprithms {
 namespace schedule {
@@ -46,6 +47,7 @@ Graph fromSerializationString(const std::string &serialization) {
   boost::property_tree::ptree tree;
 
   try {
+    log().trace("Entering boost::propery_tree::read_json");
     boost::property_tree::read_json(ist, tree);
   } catch (boost::property_tree::ptree_error &e) {
     throw error(std::string("Failed to parse string to JSON: ") + e.what());
@@ -105,6 +107,7 @@ Graph fromSerializationString(const std::string &serialization) {
     allocToInd[allocAddresses[i]] = i;
   }
 
+  log().trace("Constructing Graph from boost::property_tree::ptree");
   // Construct graph
   Graph graph;
 

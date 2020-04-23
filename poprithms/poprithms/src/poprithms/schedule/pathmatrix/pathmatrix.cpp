@@ -12,6 +12,19 @@ std::ostream &operator<<(std::ostream &, IsFirst);
 std::ostream &operator<<(std::ostream &, IsFinal);
 
 namespace {
+
+void verifyOpAddresses(const Edges &edges, uint64_t nOps) {
+  for (const auto &evs : edges) {
+    for (auto e : evs) {
+      if (e >= nOps) {
+        std::ostringstream oss;
+        oss << "Invalid edge end, " << e << ", with only " << nOps << " Ops.";
+        throw error(oss.str());
+      }
+    }
+  }
+}
+
 void propagate(const Edges &fwd,
                const Edges &bwd,
                std::vector<BitSet> &edgeSet) {
@@ -309,6 +322,45 @@ std::ostream &operator<<(std::ostream &os, IsFirst isFirst) {
   }
   }
   return os;
+}
+
+void PathMatrix::update(const Edges &newEdges) {
+  verifyOpAddresses(newEdges, nOps);
+  for (OpId from = 0; from < newEdges.size(); ++from) {
+    for (auto to : newEdges[from]) {
+      insertConstraint(from, to, fwdEdgeSet);
+      insertConstraint(to, from, bwdEdgeSet);
+    }
+  }
+}
+
+void PathMatrix::insertConstraint(OpId from,
+                                  OpId to,
+                                  std::vector<BitSet> &edgeSet) {
+
+  auto isRecordered = [&edgeSet, this](OpId f, OpId t) {
+    auto index = t * nBitSetsPerOp + f / BitSetSize;
+    auto shift = f % BitSetSize;
+    return edgeSet[index][shift];
+  };
+
+  auto record = [&edgeSet, this](OpId f, OpId t) {
+    auto index            = t * nBitSetsPerOp + f / BitSetSize;
+    auto shift            = f % BitSetSize;
+    edgeSet[index][shift] = true;
+    for (uint64_t i = 0; i < nBitSetsPerOp; ++i) {
+      edgeSet[t * nBitSetsPerOp + i] |= edgeSet[f * nBitSetsPerOp + i];
+    }
+  };
+
+  if (!isRecordered(from, to)) {
+    record(from, to);
+    for (OpId postTo = 0; postTo < nOps; ++postTo) {
+      if (isRecordered(to, postTo) && !isRecordered(from, postTo)) {
+        record(from, postTo);
+      }
+    }
+  }
 }
 
 std::ostream &operator<<(std::ostream &os, IsFinal isFinal) {

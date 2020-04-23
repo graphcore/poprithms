@@ -1133,8 +1133,10 @@ void Graph::finalizePathMatrix() {
 
   const auto fwdEdges = getForwardEdges();
 
-  // removing redundant constraints
-  for (const auto x : pathMatrix.getFlattenedRedundants(fwdEdges)) {
+  const auto redundants = pathMatrix.getFlattenedRedundants(fwdEdges);
+  log().debug("Removing " + std::to_string(redundants.size()) +
+              " redundant PathMatrix edges/constraints.");
+  for (const auto x : redundants) {
     removeConstraint(std::get<0>(x), std::get<1>(x));
   }
 
@@ -1143,7 +1145,7 @@ void Graph::finalizePathMatrix() {
   upperBoundChange = std::vector<AllocWeight>(nOps(), zero);
 
   // initializing lowerBoundChange and upperBoundChange
-  log().debug("Initializing lowerBoundChange and upperBoundChange");
+  log().debug("Initializing lowerBoundChange and upperBoundChange.");
   for (const auto &alloc : getAllocs()) {
     auto relativePositions = pathMatrix.getRelativePositions(alloc.getOps());
 
@@ -1179,7 +1181,8 @@ bool Graph::linkTightDrops() {
     OpAddress before = std::get<0>(tightPair);
     OpAddress after  = std::get<1>(tightPair);
     if (upperBoundChange[after] <= lowerBoundChange[before]) {
-      if (!getOp(before).hasForwardLink()) {
+      if (!getOp(before).hasForwardLink() &&
+          !getOp(after).hasBackwardLink()) {
         newLinks.push_back(tightPair);
       }
     }
@@ -1194,29 +1197,47 @@ bool Graph::linkTightDrops() {
 
 bool Graph::linkCloseTightPairs() {
   std::vector<std::array<OpAddress, 2>> newLinks;
+
   for (const auto tightPair : getTightPairs()) {
     auto before = std::get<0>(tightPair);
     auto after  = std::get<1>(tightPair);
-    auto L      = std::min(lowerBoundChange[before], lowerBoundChange[after]);
-    auto U      = std::max(upperBoundChange[before], upperBoundChange[after]);
-    bool canTie{true};
-    for (auto op : pathMatrix.getUnconstrained(before)) {
-
-      // Is there any intersection between a and b below?
-      //
-      //      L     U
-      //  ....xxxxxxx..  -- a
-      //  ..xxxxx......  -- b
-      //    l   u
-      //
-      auto l = lowerBoundChange[op];
-      auto u = upperBoundChange[op];
-      if (u < L || l > U) {
-      } else {
-        canTie = false;
-        break;
-      }
+    if (getOp(before).hasForwardLink()) {
+      continue;
     }
+
+    auto L = std::min(lowerBoundChange[before], lowerBoundChange[after]);
+    auto U = std::max(upperBoundChange[before], upperBoundChange[after]);
+
+    auto getCanTie = [this, L, U](OpAddress opId) {
+      using namespace pathmatrix;
+      for (uint64_t i = 0; i < pathMatrix.getNBitSetsPerOp(); ++i) {
+        auto index     = opId * pathMatrix.getNBitSetsPerOp() + i;
+        BitSet neither = pathMatrix.getFwdEdgeSet()[index] |
+                         pathMatrix.getBwdEdgeSet()[index];
+        neither.flip();
+        if (neither.any()) {
+          for (uint64_t shift = 0; shift < BitSetSize; ++shift) {
+            auto id = i * BitSetSize + shift;
+
+            //      L     U
+            //  ....xxxxxxx..  -- a
+            //  ..xxxxx......  -- b
+            //    l   u
+            //  ==> intersection if L < u && l < U
+            auto l = lowerBoundChange[id];
+            auto u = upperBoundChange[id];
+            if (id != opId && id < nOps() && neither[shift] && L < u &&
+                l < U) {
+              return false;
+            }
+          }
+        }
+      }
+      return true;
+    };
+
+    bool canTie = getCanTie(before);
+
     if (canTie) {
       if (!getOp(before).hasForwardLink()) {
         newLinks.push_back(tightPair);
@@ -1445,6 +1466,24 @@ bool Graph::slideLinks() {
   return wasChange;
 }
 
+void Graph::updatePathMatrix(
+    const std::vector<std::vector<OpAddress>> &edges) {
+  if (log().shouldLog(logging::Level::Debug)) {
+    std::ostringstream oss;
+    oss << "Updating PathMatrix with "
+        << std::accumulate(
+               edges.cbegin(),
+               edges.cend(),
+               0,
+               [](size_t a, const auto &x) { return a + x.size(); })
+        << " new constraints. ";
+    log().debug(oss.str());
+  }
+
+  pathMatrix.update(edges);
+  finalizePathMatrix();
+}
+
 void Graph::applyPathMatrixOptimizations(const PathMatrixOptimizations &pmo) {
 
   if (pmo.allOptimizationsOff()) {
@@ -1453,24 +1492,38 @@ void Graph::applyPathMatrixOptimizations(const PathMatrixOptimizations &pmo) {
 
   bool wasChange{true};
   int iteration{0};
+  const auto iterStr = "iteration = " + std::to_string(iteration);
 
+  std::vector<std::vector<OpAddress>> prevGraphEdges;
   while (wasChange && iteration < pmo.maxIterations()) {
 
-    log().debug("Initializing PathMatrix, iteration = " +
-                std::to_string(iteration));
-    initializePathMatrix();
+    if (iteration == 0) {
+      log().debug("Initializing PathMatrix," + iterStr);
+      initializePathMatrix();
+    } else {
+      const auto dff = constraintDiff(prevGraphEdges);
+      // As Updating a PathMatrix takes significantly more time for a large
+      // number of edges, we prefer to re-initialize when the number of edges
+      // is "large";
+      const uint64_t nLarge = nOps() / 10;
+      if (std::accumulate(
+              dff.cbegin(), dff.cend(), 0, [](size_t x, const auto &y) {
+                return x + y.size();
+              }) < nLarge) {
 
-    wasChange = false;
-
-    if (pmo.linkTightDrops()) {
-      log().debug("Applying PMO linkTightDrops.");
-      wasChange |= linkTightDrops();
+        log().debug("Updating PathMatrix, " + iterStr);
+        updatePathMatrix(dff);
+      } else {
+        log().debug("Re-initializing PathMatrix,  " + iterStr);
+        initializePathMatrix();
+      }
     }
 
-    if (pmo.linkCloseTightPairs()) {
-      log().debug("Applying PMO linkCloseTightPairs.");
-      wasChange |= linkCloseTightPairs();
-    }
+    log().debug("Storing Graph edges, to detect changes in next iteration");
+    prevGraphEdges = getForwardEdges();
+
+    log().debug("Applying PMO slideLinks");
+    wasChange = slideLinks();
 
     if (pmo.constrainWeightSeparatedGroups()) {
       log().debug("Applying PMO constrainWeightSeparatedGroups.");
@@ -1482,9 +1535,14 @@ void Graph::applyPathMatrixOptimizations(const PathMatrixOptimizations &pmo) {
       wasChange |= constrainParallelChains();
     }
 
-    if (pmo.slideLinks()) {
-      log().debug("Applying PMO slideLinks.");
-      wasChange |= slideLinks();
+    if (pmo.linkTightDrops()) {
+      log().debug("Applying PMO linkTightDrops.");
+      wasChange |= linkTightDrops();
+    }
+
+    if (pmo.linkCloseTightPairs()) {
+      log().debug("Applying PMO linkCloseTightPairs.");
+      wasChange |= linkCloseTightPairs();
     }
     ++iteration;
   }
@@ -2495,20 +2553,20 @@ std::string Graph::getSerializationString() const {
 }
 
 std::vector<std::vector<OpAddress>>
-Graph::constraintDiff(const Graph &rhs) const {
+Graph::constraintDiff(const std::vector<std::vector<OpAddress>> &rhs) const {
 
-  if (nOps() != rhs.nOps()) {
+  if (nOps() != rhs.size()) {
     std::ostringstream oss;
     oss << "Graph::constraintDiff can only be called on "
-        << "Graph with the same number of Ops as thisGraph. "
-        << "This Graph has " << nOps() << " but \"rhs\" has " << rhs.nOps();
+        << "Edges with the same number of Ops as thisGraph. "
+        << "This Graph has " << nOps() << " but \"rhs\" has " << rhs.size();
     throw error(oss.str());
   }
 
   std::vector<std::vector<OpAddress>> uniqueToThis(nOps());
   for (OpAddress x0 = 0; x0 < nOps(); ++x0) {
     for (OpAddress x1 : getOp(x0).getOuts()) {
-      if (!rhs.getOp(x0).hasOut(x1)) {
+      if (std::find(rhs[x0].cbegin(), rhs[x0].cend(), x1) == rhs[x0].cend()) {
         uniqueToThis[x0].push_back(x1);
       }
     }
