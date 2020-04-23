@@ -2,8 +2,10 @@
 
 // Using this include path is 5x slower for compilation
 // #include <boost/test/included/unit_test.hpp>
-#include <boost/test/unit_test.hpp>
 #include <vector>
+
+#include <boost/test/unit_test.hpp>
+
 #include <poprithms/schedule/anneal/graph.hpp>
 
 BOOST_AUTO_TEST_CASE(WeightAnchorTest0) {

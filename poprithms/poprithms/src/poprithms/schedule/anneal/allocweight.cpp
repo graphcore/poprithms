@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <numeric>
 #include <string>
+
 #include <poprithms/schedule/anneal/allocweight.hpp>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/util/printiter.hpp>

@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iostream>
 #include <random>
+
 #include <poprithms/schedule/pathmatrix/error.hpp>
 
 namespace poprithms {

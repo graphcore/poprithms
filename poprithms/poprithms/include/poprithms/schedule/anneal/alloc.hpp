@@ -2,6 +2,7 @@
 #define POPRITHMS_SCHEDULE_ANNEAL_ALLOC_HPP
 
 #include <vector>
+
 #include <poprithms/schedule/anneal/allocweight.hpp>
 #include <poprithms/schedule/anneal/annealusings.hpp>
 

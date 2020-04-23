@@ -2,6 +2,7 @@
 #define TESTUTIL_SCHEDULE_ANNEAL_GRID_HPP
 
 #include <vector>
+
 #include <poprithms/schedule/anneal/graph.hpp>
 
 namespace poprithms {

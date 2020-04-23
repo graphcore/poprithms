@@ -1,5 +1,6 @@
 #include <iostream>
 #include <sstream>
+
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/logging.hpp>
 

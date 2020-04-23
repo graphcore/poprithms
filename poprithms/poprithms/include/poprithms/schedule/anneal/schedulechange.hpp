@@ -2,6 +2,7 @@
 #define POPRITHMS_SCHEDULE_ANNEAL_SCHEDULECHANGE_HPP
 
 #include <ostream>
+
 #include <poprithms/schedule/anneal/annealusings.hpp>
 
 namespace poprithms {

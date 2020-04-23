@@ -1,6 +1,7 @@
 #include <iterator>
 #include <numeric>
 #include <string>
+
 #include <poprithms/schedule/anneal/annealusings.hpp>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <testutil/schedule/anneal/branch_doubling_generator.hpp>

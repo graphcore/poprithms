@@ -2,6 +2,7 @@
 #define POPRITHMS_SCHEDULE_ANNEAL_FILTEREDSCHEDULE_GRAPH
 
 #include <unordered_map>
+
 #include <poprithms/schedule/anneal/graph.hpp>
 
 namespace poprithms {

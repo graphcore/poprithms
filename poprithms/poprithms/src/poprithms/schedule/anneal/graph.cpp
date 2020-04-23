@@ -3,6 +3,7 @@
 #include <iterator>
 #include <limits>
 #include <random>
+
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/filteredschedule.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>

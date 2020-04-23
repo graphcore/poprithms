@@ -5,6 +5,7 @@
 #include <random>
 #include <tuple>
 #include <vector>
+
 #include <poprithms/schedule/anneal/graph.hpp>
 
 using namespace poprithms::schedule::anneal;

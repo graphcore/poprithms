@@ -2,6 +2,7 @@
 #include <array>
 #include <numeric>
 #include <vector>
+
 #include <poprithms/schedule/anneal/annealusings.hpp>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>

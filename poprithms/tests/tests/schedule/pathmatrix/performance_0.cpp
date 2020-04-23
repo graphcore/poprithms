@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iostream>
 #include <random>
+
 #include <poprithms/schedule/pathmatrix/error.hpp>
 #include <poprithms/schedule/pathmatrix/pathmatrix.hpp>
 #include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>

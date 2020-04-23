@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <numeric>
+
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 

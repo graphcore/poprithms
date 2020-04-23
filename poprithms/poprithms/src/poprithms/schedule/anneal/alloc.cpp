@@ -1,4 +1,5 @@
 #include <algorithm>
+
 #include <poprithms/schedule/anneal/alloc.hpp>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/util/printiter.hpp>

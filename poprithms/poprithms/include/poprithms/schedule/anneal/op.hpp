@@ -4,6 +4,7 @@
 #include <limits>
 #include <sstream>
 #include <vector>
+
 #include <poprithms/schedule/anneal/annealusings.hpp>
 
 namespace poprithms {

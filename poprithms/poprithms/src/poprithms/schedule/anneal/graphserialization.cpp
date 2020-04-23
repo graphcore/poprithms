@@ -1,8 +1,10 @@
 #include <algorithm>
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <sstream>
 #include <string>
+
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graphserialization.hpp>
 #include <poprithms/schedule/anneal/logging.hpp>

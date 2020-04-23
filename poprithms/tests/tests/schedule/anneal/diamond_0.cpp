@@ -1,4 +1,5 @@
 #include <string>
+
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <testutil/schedule/anneal/annealcommandlineoptions.hpp>

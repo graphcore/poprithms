@@ -2,6 +2,7 @@
 #include <iostream>
 #include <numeric>
 #include <random>
+
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 

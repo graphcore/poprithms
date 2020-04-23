@@ -4,6 +4,7 @@
 #include <memory>
 #include <ostream>
 #include <sstream>
+
 #include <poprithms/logging/error.hpp>
 #include <poprithms/logging/logging.hpp>
 

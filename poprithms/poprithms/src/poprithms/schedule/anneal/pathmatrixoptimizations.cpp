@@ -1,5 +1,6 @@
 #include <array>
 #include <ostream>
+
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/pathmatrixoptimizations.hpp>
 

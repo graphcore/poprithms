@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <testutil/schedule/anneal/randomgraph.hpp>

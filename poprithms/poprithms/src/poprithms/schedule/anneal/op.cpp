@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <array>
 #include <iomanip>
+
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/op.hpp>
 #include <poprithms/util/printiter.hpp>

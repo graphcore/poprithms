@@ -3,6 +3,7 @@
 #include <chrono>
 #include <iostream>
 #include <vector>
+
 #include <testutil/schedule/pathmatrix/pathmatrixcommandlineoptions.hpp>
 
 // Motivation for going with BitSetSize = 512;

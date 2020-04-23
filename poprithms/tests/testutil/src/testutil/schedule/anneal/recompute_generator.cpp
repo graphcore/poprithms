@@ -3,6 +3,7 @@
 #include <iterator>
 #include <numeric>
 #include <string>
+
 #include <poprithms/schedule/anneal/annealusings.hpp>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/opalloc.hpp>

@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+
 #include <testutil/schedule/commandlineoptions.hpp>
 
 namespace poprithms {

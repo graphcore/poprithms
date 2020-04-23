@@ -1,6 +1,7 @@
 #include <fstream>
 #include <sstream>
 #include <streambuf>
+
 #include <poprithms/logging/logging.hpp>
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>

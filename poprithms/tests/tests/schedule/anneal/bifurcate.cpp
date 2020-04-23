@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <poprithms/schedule/anneal/opalloc.hpp>

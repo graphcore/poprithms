@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <tuple>
+
 #include <testutil/schedule/anneal/bifurcate_generator.hpp>
 #include <testutil/schedule/anneal/branch_doubling_generator.hpp>
 #include <testutil/schedule/anneal/diamond_generator.hpp>

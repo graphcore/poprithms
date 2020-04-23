@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
 #include <testutil/schedule/anneal/randomgraph.hpp>
 
 namespace poprithms {

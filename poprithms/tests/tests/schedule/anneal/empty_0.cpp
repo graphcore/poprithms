@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include <poprithms/schedule/anneal/graph.hpp>
 
 int main() {

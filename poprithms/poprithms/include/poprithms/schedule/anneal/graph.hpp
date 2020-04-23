@@ -6,6 +6,7 @@
 #include <set>
 #include <tuple>
 #include <vector>
+
 #include <poprithms/schedule/anneal/alloc.hpp>
 #include <poprithms/schedule/anneal/allocweight.hpp>
 #include <poprithms/schedule/anneal/annealusings.hpp>
