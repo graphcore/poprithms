@@ -1,0 +1,1 @@
+add_poprithms_unit_test(util_typedinteger_0.cpp typedinteger_0)
