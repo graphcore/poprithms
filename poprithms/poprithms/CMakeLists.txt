@@ -21,7 +21,7 @@ find_package(Boost REQUIRED)
 add_library(poprithms-objlib OBJECT ${sources})
 add_library(poprithms STATIC $<TARGET_OBJECTS:poprithms-objlib>)
 add_library(poprithms-shared SHARED $<TARGET_OBJECTS:poprithms-objlib>)
-message(STATUS "Boost_INLCUDE_DIRS is " ${Boost_INCLUDE_DIRS})
+message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
 
 list(APPEND POPRITHMS_COMMON_INCLUDES ${Boost_INCLUDE_DIR} "include" )
 
