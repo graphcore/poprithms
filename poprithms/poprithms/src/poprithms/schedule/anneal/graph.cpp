@@ -10,6 +10,7 @@
 #include <poprithms/schedule/anneal/graphserialization.hpp>
 #include <poprithms/schedule/anneal/logging.hpp>
 #include <poprithms/util/printiter.hpp>
+#include <poprithms/util/stringutil.hpp>
 #include <poprithms/util/unisort.hpp>
 
 namespace poprithms {
@@ -2066,23 +2067,10 @@ void Graph::initialize(const std::map<std::string, std::string> &m) {
   initialize(ktb, kahnSeed);
 }
 
-namespace {
-
-std::string lowercase(const std::string &x) {
-  auto lower = x;
-  std::transform(lower.begin(),
-                 lower.end(),
-                 lower.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
-  return lower;
-}
-
-} // namespace
-
 KahnTieBreaker kahnTieBreaker(const std::string &mixedCase) {
-  auto lower = lowercase(mixedCase);
+  auto lower = util::lowercase(mixedCase);
   for (uint64_t i = 0; i < NKahnTieBreakers; ++i) {
-    if (lower == lowercase(getKahnTieBreakers()[i])) {
+    if (lower == util::lowercase(getKahnTieBreakers()[i])) {
       return static_cast<KahnTieBreaker>(i);
     }
   }

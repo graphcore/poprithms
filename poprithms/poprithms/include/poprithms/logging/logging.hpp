@@ -9,8 +9,10 @@ namespace logging {
 
 class LoggerImpl;
 
-enum class Level { Trace = 0, Debug, Info, Off };
+enum class Level { Trace = 0, Debug, Info, Off, NumberOfLevels };
 std::ostream &operator<<(std::ostream &, Level);
+Level getLevel(const std::string &);
+std::string getName(Level);
 
 // Set the logging level for all Loggers. Example:
 //

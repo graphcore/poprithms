@@ -129,9 +129,7 @@ void test1() {
 } // namespace
 
 int main() {
-  log().setLevel(poprithms::logging::Level::Debug);
   test0();
   test1();
-
   return 0;
 }

@@ -95,9 +95,6 @@ void test1() {
 } // namespace
 
 int main() {
-
-  using namespace poprithms;
-  logging::setGlobalLevel(logging::Level::Trace);
   test0();
   test1();
   return 0;

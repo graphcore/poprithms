@@ -30,8 +30,6 @@ void test0() {
 
 void test1() {
 
-  poprithms::logging::setGlobalLevel(poprithms::logging::Level::Trace);
-
   //         0
   //     /  /|\\ \
   //    /  / | \\ \

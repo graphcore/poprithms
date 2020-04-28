@@ -1,3 +1,4 @@
+#include <array>
 #include <chrono>
 #include <iostream>
 #include <map>
@@ -7,6 +8,7 @@
 
 #include <poprithms/logging/error.hpp>
 #include <poprithms/logging/logging.hpp>
+#include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace logging {
@@ -29,29 +31,81 @@ private:
   LoggerImplContainer *container;
 };
 
-std::ostream &operator<<(std::ostream &os, Level l) {
-  os << "Level::";
-  switch (l) {
-  case (Level::Trace): {
-    os << "Trace";
-    return os;
+namespace {
+
+constexpr auto NLevels = static_cast<uint64_t>(Level::NumberOfLevels);
+
+std::map<std::string, Level> initToLevels() {
+  std::map<std::string, Level> x{{"Trace", Level::Trace},
+                                 {"Debug", Level::Debug},
+                                 {"Info", Level::Info},
+                                 {"Off", Level::Off}};
+  if (x.size() != NLevels) {
+    throw error("Error in getInitLevels: not all Levels have a string set.");
   }
-  case (Level::Debug): {
-    os << "Debug";
-    return os;
+  return x;
+}
+
+std::array<std::string, NLevels> initToNames() {
+  const auto toLevels = initToLevels();
+  std::array<std::string, NLevels> toNames;
+  for (const auto &[name, level] : toLevels) {
+    toNames[static_cast<uint64_t>(level)] = name;
   }
-  case (Level::Info): {
-    os << "Info";
-    return os;
+  return toNames;
+}
+} // namespace
+
+Level getLevel(const std::string &l) {
+  const auto ll             = util::lowercase(l);
+  static const auto toNames = initToNames();
+  for (uint64_t i = 0; i < toNames.size(); ++i) {
+    if (util::lowercase(toNames[i]) == ll) {
+      return static_cast<Level>(i);
+    }
   }
-  case (Level::Off): {
-    os << "Off";
-    return os;
-  }
+
+  // Failed to find string, throw error
+  {
+    std::ostringstream oss;
+    oss << "Failed to get poprithms log level from string \"" << l << "\" (\""
+        << ll << "\"). "
+        << "The supported levels in poprithms are [ ";
+    for (const auto &name : toNames) {
+      oss << '\"' << name << '\"' << ' ';
+    }
+    oss << ']';
+    throw error(oss.str());
   }
 }
 
+std::ostream &operator<<(std::ostream &os, Level l) {
+  os << "Level::" << getName(l);
+  return os;
+}
+
+std::string getName(Level l) {
+  const auto static toNames = initToNames();
+  if (l == Level::NumberOfLevels) {
+    return "NumberOfLevels";
+  }
+  return toNames[static_cast<uint64_t>(l)];
+}
+
 namespace {
+
+Level getInitialLevel() {
+
+  // The user can
+  // >> export POPRITHMS_LOG_LEVEL=requires_level
+  // to set the required level before executing a program with poprithms
+  if (const char *fromEnvVar = std::getenv("POPRITHMS_LOG_LEVEL")) {
+    return getLevel(std::string(fromEnvVar));
+  }
+
+  // If there is no environment variable set by user, logging is off.
+  return Level::Off;
+}
 
 class LoggerImplContainer {
 
@@ -99,7 +153,7 @@ public:
 
 private:
   std::map<std::string, std::unique_ptr<LoggerImpl>> impls;
-  Level globalLevel{Level::Off};
+  Level globalLevel{getInitialLevel()};
 
   using TimePoint    = decltype(std::chrono::high_resolution_clock::now());
   using TimeInterval = std::chrono::duration<double>;
