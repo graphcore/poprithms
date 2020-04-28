@@ -170,7 +170,6 @@ public:
   static double defaultPStayPut() { return 10.0; }
   static double defaultPHigherFallRate() { return 2.0; }
   static double defaultPClimb() { return 1.0; }
-  static bool defaultLogging() { return true; }
   static bool defaultFilterSusceptible() { return true; }
   static double defaultTimeLimitSeconds() { return 1e9; }
   static int64_t defaultSwapLimitCount() { return static_cast<int64_t>(1e9); }
@@ -203,31 +202,14 @@ public:
   // shift, only considershifts of ranges if at least one Op in the
   // range has a constraint to an Op which moved in the previous round.
   // Changing this boolean value may change the final local minimum found
-  //
-  // logging : log the choice between a,b,c at each round
 
   void
   minSumLivenessAnneal(MinSumLivenessAlgo algo = MinSumLivenessAlgo::RIPPLE,
                        bool debug              = defaultDebug(),
                        uint32_t seed           = defaultMinSumLivenessSeed(),
                        bool filterSusceptible  = defaultFilterSusceptible(),
-                       bool logging            = defaultLogging(),
                        double timeLimitSeconds = defaultTimeLimitSeconds(),
                        int64_t swapLimitCount  = defaultSwapLimitCount());
-
-  // Deprecated API
-  // timeline:
-  // From 2 April 2020 using this API may result in an error being thrown.
-  // pStayPut, pHigherFallRate, pClimb are no longer supported.
-  void minSumLivenessAnneal(MinSumLivenessAlgo algo,
-                            bool debug,
-                            uint32_t seed,
-                            double pStayPut,
-                            double pHigherFallRate,
-                            double pClimb,
-                            bool logging,
-                            double timeLimitSeconds,
-                            int64_t swapLimitCount);
 
   void minSumLivenessAnneal(const std::map<std::string, std::string> &);
 

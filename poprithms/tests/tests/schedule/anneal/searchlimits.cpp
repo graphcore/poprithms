@@ -25,14 +25,12 @@ int main() {
 
     g.initialize(KahnTieBreaker::RANDOM, 1015);
 
-    bool debug              = false;
     uint32_t seed           = 1012;
     bool logging            = true;
     double timeLimitSeconds = 1000.0;
     bool filterSusceptible  = false;
 
     g.minSumLivenessAnneal(MinSumLivenessAlgo::RIPPLE,
-                           debug,
                            seed,
                            filterSusceptible,
                            logging,

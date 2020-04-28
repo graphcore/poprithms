@@ -1959,47 +1959,19 @@ void Graph::confirmShiftAndCost(ScheduleIndex start0,
   }
 }
 
-void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
-                                 bool debug,
-                                 uint32_t seed,
-                                 double,
-                                 double,
-                                 double,
-                                 bool logging,
-                                 double timeLimitSeconds,
-                                 int64_t swapLimitCount) {
-
-  // deprecate: final step of T16682 is to error
-
-  bool filterSusceptible = true;
-  minSumLivenessAnneal(algo,
-                       debug,
-                       seed,
-                       filterSusceptible,
-                       logging,
-                       timeLimitSeconds,
-                       swapLimitCount);
-}
-
 void Graph::minSumLivenessAnneal(
     const std::map<std::string, std::string> &m) {
   bool debug              = defaultDebug();
   uint32_t seed           = defaultMinSumLivenessSeed();
-  bool logging            = defaultLogging();
   bool filterSusceptible  = defaultFilterSusceptible();
   double timeLimitSeconds = defaultTimeLimitSeconds();
   int64_t swapLimitCount  = defaultSwapLimitCount();
 
   for (const auto &[k, v] : m) {
-    if (k == "pStayPut" || k == "pHigherFallRate" || k == "pClimb") {
-      // deprecate: final step of T16682 is to error
-    }
     if (k == "debug") {
       debug = static_cast<bool>(std::stoi(v));
     } else if (k == "seed") {
       seed = static_cast<uint32_t>(std::stoul(v));
-    } else if (k == "logging") {
-      logging = static_cast<bool>(std::stoi(v));
     } else if (k == "timeLimitSeconds") {
       timeLimitSeconds = static_cast<double>(std::stod(v));
     } else if (k == "swapLimitCount") {
@@ -2014,7 +1986,6 @@ void Graph::minSumLivenessAnneal(
                        debug,
                        seed,
                        filterSusceptible,
-                       logging,
                        timeLimitSeconds,
                        swapLimitCount);
 }
@@ -2081,14 +2052,8 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
                                  bool debug,
                                  uint32_t seed,
                                  bool filterSusceptible,
-                                 bool logging,
                                  double timeLimitSeconds,
                                  int64_t swapLimitCount) {
-
-  // TODO (T17224) remove/deprecate logging as an API parameter
-  if (logging) {
-    log().setLevelDebug();
-  }
 
   if (log().shouldLog(logging::Level::Debug)) {
     std::ostringstream oss0;
@@ -2098,7 +2063,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
          << spaces << "filterSusceptible=" << filterSusceptible << '\n'
          << spaces << "timeLimitSeconds=" << timeLimitSeconds << '\n'
          << spaces << "swapLimitCount=" << swapLimitCount;
-    log().info(oss0.str());
+    log().debug(oss0.str());
   }
 
   std::mt19937 g(seed);
