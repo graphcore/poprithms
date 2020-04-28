@@ -1,10 +1,13 @@
 #include <chrono>
+#include <ctime>
 #include <fstream>
 #include <functional>
 #include <iomanip>
 #include <iostream>
 #include <tuple>
 
+#include <poprithms/logging/logging.hpp>
+#include <poprithms/schedule/anneal/error.hpp>
 #include <testutil/schedule/anneal/bifurcate_generator.hpp>
 #include <testutil/schedule/anneal/branch_doubling_generator.hpp>
 #include <testutil/schedule/anneal/diamond_generator.hpp>
@@ -19,40 +22,31 @@ using namespace poprithms::schedule::anneal;
 
 auto getTestSuite() {
   std::vector<std::tuple<Map, Map>> testSuite;
-
-  testSuite.push_back({{{"tieBreaker", "RANDOM"}},
-                       {{"logging", "0"},
-                        {"pStayPut", "1.0"},
-                        {"pHigherFallRate", "0.0"},
-                        {"pClimb", "0.0"}}});
-
-  testSuite.push_back({{{"tieBreaker", "FIFO"}},
-                       {{"logging", "0"},
-                        {"pStayPut", "1.0"},
-                        {"pHigherFallRate", "0.0"},
-                        {"pClimb", "0.0"}}});
-
-  testSuite.push_back({{{"tieBreaker", "GREEDY"}},
-                       {{"logging", "0"},
-                        {"pStayPut", "1.0"},
-                        {"pHigherFallRate", "0.0"},
-                        {"pClimb", "0.0"}}});
-
-  testSuite.push_back({{{"tieBreaker", "RANDOM"}},
-                       {{"logging", "0"},
-                        {"pStayPut", "50.0"},
-                        {"pHigherFallRate", "0.0"},
-                        {"pClimb", "0.5"}}});
-
-  testSuite.push_back({{{"tieBreaker", "FIFO"}},
-                       {{"logging", "0"},
-                        {"pStayPut", "4.0"},
-                        {"pHigherFallRate", "1.0"},
-                        {"pClimb", "0.5"}}});
+  testSuite.push_back(
+      {{{"tieBreaker", "RANDOM"}}, {{"filterSusceptible", "0"}}});
+  testSuite.push_back(
+      {{{"tieBreaker", "RANDOM"}}, {{"filterSusceptible", "1"}}});
+  testSuite.push_back({{{"tieBreaker", "FIFO"}}, {{"logging", "0"}}});
+  testSuite.push_back({{{"tieBreaker", "GREEDY"}}, {{"logging", "0"}}});
   return testSuite;
 }
 
+std::string mapstring(const Map &m) {
+  std::ostringstream oss;
+  oss << "[ ";
+  for (auto x : m) {
+    oss << x.first << ':' << x.second << ' ';
+  }
+  oss << ']';
+  return oss.str();
+}
+
 class Logger {
+
+  // The Graphs used for regression will be progressively "larger" until thet
+  // are so large that the time to schedule them exceeds the time limit
+  // (timeLimit()). The definition of "large" depends on the Graph type, and
+  // managed by increaseCurrentSize()
 
 public:
   virtual std::string getDescription() const           = 0;
@@ -61,22 +55,29 @@ public:
   virtual double timeLimit() const { return 6.0; }
 
   std::string getLogString() {
-    std::cout << "\n\n"
-              << "Processing " << getDescription() << std::endl;
+    std::cout << "\n>>> Processing Graph Type " << getDescription() << '.'
+              << std::endl;
     std::ostringstream oss;
     for (auto iMap_aMap : getTestSuite()) {
-      std::cout << "\n"
-                << "Processing next settings" << std::endl;
-      double deltaT{0.0};
+      const auto iMap = std::get<0>(iMap_aMap);
+      const auto aMap = std::get<1>(iMap_aMap);
+
+      std::cout << "\n\nprocessing with \n      initializer settings : "
+                << mapstring(iMap)
+                << "\n      anneal settings :      " << mapstring(aMap)
+                << std::endl;
+
+      double deltaT{0};
       resetCurrentSize();
       while (deltaT < timeLimit()) {
         auto t0 = std::chrono::high_resolution_clock::now();
         increaseCurrentSize();
         auto g = getCurrent();
-        apply(std::get<0>(iMap_aMap), std::get<1>(iMap_aMap), g, oss);
+        apply(iMap, aMap, g, oss);
         assertCorrectness(g);
         auto t1 = std::chrono::high_resolution_clock::now();
         deltaT  = std::chrono::duration<double>(t1 - t0).count();
+
         std::cout << "at " << g.nOps() << "     time taken was " << deltaT
                   << " [s]" << std::endl;
       }
@@ -96,6 +97,10 @@ private:
              std::ostream &oss) {
     oss << "\n\ndescription=" << getDescription()
         << "\nnOpsBefore=" << g.nOps();
+    auto t  = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    oss << "\nlogTime=" << std::put_time(&tm, "%d-%m-%Y at %H-%M");
+
     for (const auto &[k, v] : initializeMap) {
       oss << '\n' << k << '=' << v;
     }
@@ -248,9 +253,18 @@ private:
 
 } // namespace
 
-int main() {
+int main(int argc, char **argv) {
 
-  std::ofstream out("logging_file_name.txt");
+  if (argc != 2) {
+    std::ostringstream oss;
+    oss << "\nWhile executing main of regression.cpp. "
+        << "\nThe number of arguments received was argc=" << argc << '.'
+        << "\nThe expected number of arguments was 1, "
+        << " the name of the file to write logging information to. ";
+    throw error(oss.str());
+  }
+
+  std::ofstream out(argv[1]);
 
   out << DiamondLogger().getLogString();
   out << BifurcateLogger().getLogString();
