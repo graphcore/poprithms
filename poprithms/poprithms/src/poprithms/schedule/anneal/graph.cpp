@@ -2026,8 +2026,13 @@ void Graph::initialize(const std::map<std::string, std::string> &m) {
 
   auto ktb      = defaultKahnTieBreaker();
   auto kahnSeed = defaultKahnSeed();
+  auto pmo      = defaultPathMatrixOptimizations();
   for (const auto &[k, v] : m) {
-    if (k == "seed") {
+    if (k == "allPMO") {
+      const auto allPMOs = static_cast<bool>(std::stoi(v));
+      pmo                = allPMOs ? PathMatrixOptimizations::allOn()
+                    : PathMatrixOptimizations::allOff();
+    } else if (k == "seed") {
       kahnSeed = static_cast<uint32_t>(std::stoul(v));
     } else if (k == "tieBreaker") {
       ktb = kahnTieBreaker(v);
@@ -2035,7 +2040,7 @@ void Graph::initialize(const std::map<std::string, std::string> &m) {
       throw error("invalid option to Graph::initialize, " + k);
     }
   }
-  initialize(ktb, kahnSeed);
+  initialize(ktb, kahnSeed, pmo);
 }
 
 KahnTieBreaker kahnTieBreaker(const std::string &mixedCase) {

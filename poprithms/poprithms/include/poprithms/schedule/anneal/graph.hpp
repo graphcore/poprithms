@@ -178,6 +178,11 @@ public:
     return KahnTieBreaker::GREEDY;
   }
   static uint32_t defaultKahnSeed() { return 1; }
+  static PathMatrixOptimizations defaultPathMatrixOptimizations() {
+    // TODO(T19732) change to allOn(). Make sure all buildbots are happy with
+    // this before landing.
+    return PathMatrixOptimizations::allOff();
+  }
 
   // All Ops which thus far do not have any input dependencies
   std::vector<OpAddress> getInputOps() const;

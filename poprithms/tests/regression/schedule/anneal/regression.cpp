@@ -21,13 +21,22 @@ using Map = std::map<std::string, std::string>;
 using namespace poprithms::schedule::anneal;
 
 auto getTestSuite() {
+
+  // tieBreaker       allPMO      filterSusceptible
+  // ----------------------------------------------
+  std::vector<std::array<std::string, 3>> testSuiteStrings{
+      {"FIFO", "1", "0"},
+      {"FIFO", "0", "0"},
+      {"RANDOM", "0", "1"},
+      {"RANDOM", "0", "0"},
+      {"GREEDY", "0", "0"}};
+
   std::vector<std::tuple<Map, Map>> testSuite;
-  testSuite.push_back(
-      {{{"tieBreaker", "RANDOM"}}, {{"filterSusceptible", "0"}}});
-  testSuite.push_back(
-      {{{"tieBreaker", "RANDOM"}}, {{"filterSusceptible", "1"}}});
-  testSuite.push_back({{{"tieBreaker", "FIFO"}}, {{"logging", "0"}}});
-  testSuite.push_back({{{"tieBreaker", "GREEDY"}}, {{"logging", "0"}}});
+  for (auto x : testSuiteStrings) {
+    testSuite.push_back(
+        {{{"tieBreaker", std::get<0>(x)}, {"allPMO", std::get<1>(x)}},
+         {{"filterSusceptible", std::get<2>(x)}}});
+  }
   return testSuite;
 }
 
