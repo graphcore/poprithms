@@ -29,10 +29,9 @@ namespace util {
 // >  OpId a(11);
 // >    .
 // >    .
-// >    .
-// >  TensorId b = a; // compiler error!
+// >  TensorId b = a; // compilation error!
 //
-// If it is really what is wanted, TensorId b(a.get()); will still work.
+// Note that TensorId b(a.get()); will still work.
 //
 
 template <char T, typename INT> class TypedInteger {
@@ -69,7 +68,7 @@ std::ostream &operator<<(std::ostream &ost, TypedInteger<T, INT> id) {
 } // namespace util
 } // namespace poprithms
 
-// To enable hashing of new classes, this is the recommended approach at
+// To enable hashing of new classes, this is the recommended approach from
 // https://en.cppreference.com/w/cpp/utility/hash
 // With this, it is possible to create std::unordered_sets of TypedIntegers.
 namespace std {
