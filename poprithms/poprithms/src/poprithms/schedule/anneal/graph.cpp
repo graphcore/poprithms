@@ -2209,8 +2209,6 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
       continueAnnealing = false;
     }
 
-    uint64_t nToShift_u64 = static_cast<uint64_t>(nToShift);
-
     auto oldNToShift = nToShift;
 
     std::ostringstream oss;
@@ -2229,8 +2227,6 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
       oss << "staying at " << nToShift;
       nToShift = oldNToShift;
     }
-
-    nToShift_u64 = static_cast<uint64_t>(nToShift);
 
     log().info(oss.str());
 

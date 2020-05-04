@@ -62,6 +62,7 @@ Graph fromSerializationString(const std::string &serialization) {
   std::vector<std::vector<OpAddress>> outs;
   std::vector<std::vector<AllocAddress>> allocs;
   for (const auto &[k, opEntry] : tree.get_child("ops")) {
+    (void)k;
     opAddresses.push_back(opEntry.get<OpAddress>("address"));
     debugStrings.push_back(opEntry.get<std::string>("debugString"));
     fwdLink_i64s.push_back(opEntry.get<int64_t>("fwdLink"));
@@ -80,6 +81,7 @@ Graph fromSerializationString(const std::string &serialization) {
   std::vector<AllocAddress> allocAddresses;
   std::vector<std::vector<double>> weights;
   for (const auto &[k, allocEntry] : tree.get_child("allocs")) {
+    (void)k;
     allocAddresses.push_back(allocEntry.get<AllocAddress>("address"));
     weights.push_back({});
     for (auto w : allocEntry.get_child("weight")) {
