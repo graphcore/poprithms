@@ -1,0 +1,54 @@
+// Why not have a single master Graph class which all algorithms use?
+// ------------------------------------------------------------------
+//
+// The different algorithms have different requirements on what attributes a
+// Graph has, and what methods a Graph performs. For example:
+//
+// A schedule::anneal::Graph's Ops don't need N-d array (ensor) inputs
+// and outputs, but do need an abstraction of Allocations -- units of memory
+// with liveness durations. The schedule::anneal::Graph also has the concept
+// of a Link, which softly ties Ops together in a schedule so that they are
+// preferably contiguous.
+//
+// The schedule::polar::Graph does not have Tensors, Allocations, or Links.
+// But it does have functionality for ensuring relative orders of Ops are the
+// same.
+//
+// The outline::linear::Graph does need the concept of Tensors,
+// but not of Allocations. Each Op in the outline::linear::Graph also has a
+// Type and a Color, neither of these are required by other Graph classes.
+//
+// So basically, the Graphs are all quite different.
+//
+//
+// Ok, so then why not have a base class for the different Graphs?
+// ---------------------------------------------------------------
+//
+// This is something to definitely reconsider periodically. But for now I
+// think it is not worth it.
+//
+// Firstly, while it would be possible to have containers of unique_ptrs to
+// virtual base class Ops, I believe this would make understanding each
+// algorithm individually more difficult, and incur performance overheads.
+//
+// Secondly, the overlap of the Op classes consists only the constraints
+// (edges) between Ops. This is a small overlap, and it is little effort to
+// implement each time. Even the edges aren't quite the same - for a
+// Graph which has Tensors it is useful to choose more verbose method names to
+// distinguish between Op inputs (dependecies) and Tensor inputs. So a common
+// base class would make Tensor-less Graphs unnecessarily verbose.
+//
+// As a final comment here, a goal of poprithms is to keep algorithms
+// independant and as light-weight as practically possible. It is inevitable
+// that in the future some of the algorithms in poprithms will be retired from
+// use, either due to changes in user requirements or simpler/faster
+// alternative algorithms replacing them. Keeping the algorithms (and Graphs)
+// independent of each other will help to prevent the build-up and burden of
+// ununsed code.
+//
+
+
+
+
+
+
