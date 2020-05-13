@@ -223,7 +223,7 @@ public:
   AllocWeight getSumLiveness() const;
 
   AllocWeight scheduleToLiveness(ScheduleIndex i) const {
-    return schToLiveness[i];
+    return schToLiveness[static_cast<uint64_t>(i)];
   }
   OpAddress scheduleToOp(ScheduleIndex i) const {
     return schToOp[static_cast<uint64_t>(i)];
@@ -243,7 +243,7 @@ public:
 
   // the allocs required by the op at a schedule index
   const std::vector<AllocAddress> &scheduleToAllocs(ScheduleIndex i) const {
-    return schToAllocs[i];
+    return schToAllocs[static_cast<uint64_t>(i)];
   }
 
   // schedule indices of an ops inputs, sorted

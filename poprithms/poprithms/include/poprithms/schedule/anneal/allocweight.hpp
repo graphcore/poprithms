@@ -109,7 +109,7 @@ public:
 
   AllocWeight &operator/=(AllocWeight d) {
     for (uint64_t i = 0; i < NAW; ++i) {
-      if (d.get(i) != 0) {
+      if (d.get(i) != 0.) {
         v[i] /= d.get(i);
       }
     }
@@ -141,48 +141,54 @@ template <typename T> static AllocWeight operator*(T a, AllocWeight w) {
   return b;
 }
 
-static AllocWeight operator*(AllocWeight w, int a) { return a * w; }
+static inline AllocWeight operator*(AllocWeight w, int a) { return a * w; }
 
-static AllocWeight operator+(const AllocWeight &a, const AllocWeight &b) {
+static inline AllocWeight operator+(const AllocWeight &a,
+                                    const AllocWeight &b) {
   AllocWeight c(a);
   c += b;
   return c;
 }
 
-static AllocWeight operator+(double a, const AllocWeight &b) {
+static inline AllocWeight operator+(double a, const AllocWeight &b) {
   AllocWeight c(b);
   c += a;
   return c;
 }
 
-static AllocWeight operator/(const AllocWeight &w, double d) {
+static inline AllocWeight operator/(const AllocWeight &w, double d) {
   AllocWeight x(w);
   x /= d;
   return x;
 }
 
-static AllocWeight operator/(const AllocWeight &n, const AllocWeight &d) {
+static inline AllocWeight operator/(const AllocWeight &n,
+                                    const AllocWeight &d) {
   AllocWeight x(n);
   x /= d;
   return x;
 }
 
-static AllocWeight operator-(const AllocWeight &a, const AllocWeight &b) {
+static inline AllocWeight operator-(const AllocWeight &a,
+                                    const AllocWeight &b) {
   AllocWeight c(a);
   c -= b;
   return c;
 }
 
-static std::ostream &operator<<(std::ostream &ost, const AllocWeight &x) {
+static inline std::ostream &operator<<(std::ostream &ost,
+                                       const AllocWeight &x) {
   x.append(ost);
   return ost;
 }
 
-static AllocWeight absolute(const AllocWeight &w) { return w.getAbsolute(); }
+static inline AllocWeight absolute(const AllocWeight &w) {
+  return w.getAbsolute();
+}
 
-static double getL1(const AllocWeight &w) { return w.getL1(); }
+static inline double getL1(const AllocWeight &w) { return w.getL1(); }
 
-static std::string toString(AllocWeight w) { return w.str(); }
+static inline std::string toString(AllocWeight w) { return w.str(); }
 
 using FallRate = AllocWeight;
 

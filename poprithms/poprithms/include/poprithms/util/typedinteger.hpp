@@ -41,7 +41,7 @@ public:
   TypedInteger(const TypedInteger &x)            = default;
   TypedInteger(INT v_) : v(v_) {}
 
-  uint64_t get() const { return static_cast<INT>(v); };
+  INT get() const { return static_cast<INT>(v); }
 
   bool operator==(const TypedInteger &rhs) const {
     return get() == rhs.get();
