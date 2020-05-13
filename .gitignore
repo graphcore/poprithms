@@ -1,2 +1,2 @@
-experimental
-build*
+# create ~/.local_gitignore or similar for personal ignores. see for example,
+# https://medium.com/@peter_graham/how-to-create-a-local-gitignore-1b19f083492b
