@@ -4,6 +4,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Compile with fpic on to support linking into a shared library.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Generate compile_commands.json file for IDE integration
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Colorful ninja! Idea taken from
 # @alasher: colored-c-compiler-output-with-ninja-clang-gcc-10bfe7f2b949
