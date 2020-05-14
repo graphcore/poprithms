@@ -120,7 +120,7 @@ void test1() {
   try {
     assertCorrectness(
         "test1-d", edges, {{1, 2, 3, 4}, {3, 4, 5, 6}, {5, 6, 2, 1}});
-  } catch (const error &e) {
+  } catch (const poprithms::util::error &e) {
     log().info("CAUGHT an error as EXPECTED. It was " +
                std::string(e.what()));
   }

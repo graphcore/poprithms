@@ -29,7 +29,7 @@ int main() {
   bool didCatch = false;
   try {
     graph.insertOut(op1, 0, t2);
-  } catch (const error &e) {
+  } catch (const poprithms::util::error &e) {
     didCatch = true;
   }
   if (!didCatch) {
