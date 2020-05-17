@@ -22,7 +22,7 @@ using namespace poprithms::schedule::anneal;
 
 auto getTestSuite() {
 
-  // tieBreaker       allPMO      filterSusceptible
+  // tieBreaker       allTCO      filterSusceptible
   // ----------------------------------------------
   std::vector<std::array<std::string, 3>> testSuiteStrings{
       {"FIFO", "1", "0"},
@@ -34,7 +34,7 @@ auto getTestSuite() {
   std::vector<std::tuple<Map, Map>> testSuite;
   for (auto x : testSuiteStrings) {
     testSuite.push_back(
-        {{{"tieBreaker", std::get<0>(x)}, {"allPMO", std::get<1>(x)}},
+        {{{"tieBreaker", std::get<0>(x)}, {"allTCO", std::get<1>(x)}},
          {{"filterSusceptible", std::get<2>(x)}}});
   }
   return testSuite;

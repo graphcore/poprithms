@@ -11,11 +11,11 @@
 #include <poprithms/schedule/anneal/allocweight.hpp>
 #include <poprithms/schedule/anneal/annealusings.hpp>
 #include <poprithms/schedule/anneal/op.hpp>
-#include <poprithms/schedule/anneal/pathmatrixoptimizations.hpp>
 #include <poprithms/schedule/anneal/schedulechange.hpp>
 #include <poprithms/schedule/anneal/shiftandcost.hpp>
 #include <poprithms/schedule/anneal/trackentry.hpp>
-#include <poprithms/schedule/pathmatrix/pathmatrix.hpp>
+#include <poprithms/schedule/anneal/transitiveclosureoptimizations.hpp>
+#include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 
 // Design of the schedule annealing algorithm
 // -------------------------------------------
@@ -150,10 +150,10 @@ public:
   std::string getLivenessString() const;
 
   // to be called once, when growing of Graph is complete
-  void
-  initialize(KahnTieBreaker              = KahnTieBreaker::GREEDY,
-             uint32_t kahnSeed           = defaultKahnSeed(),
-             PathMatrixOptimizations pmo = PathMatrixOptimizations::allOff());
+  void initialize(KahnTieBreaker    = KahnTieBreaker::GREEDY,
+                  uint32_t kahnSeed = defaultKahnSeed(),
+                  TransitiveClosureOptimizations tco =
+                      TransitiveClosureOptimizations::allOff());
 
   void initialize(const std::map<std::string, std::string> &);
 
@@ -178,10 +178,11 @@ public:
     return KahnTieBreaker::GREEDY;
   }
   static uint32_t defaultKahnSeed() { return 1; }
-  static PathMatrixOptimizations defaultPathMatrixOptimizations() {
+  static TransitiveClosureOptimizations
+  defaultTransitiveClosureOptimizations() {
     // TODO(T19732) change to allOn(). Make sure all buildbots are happy with
     // this before landing.
-    return PathMatrixOptimizations::allOff();
+    return TransitiveClosureOptimizations::allOff();
   }
 
   // All Ops which thus far do not have any input dependencies
@@ -502,22 +503,25 @@ private:
   // Insert constraints and links which can be proven to satisfy at least one
   // globally minimizing schedule. These constraints accelerate the annealing
   // algorithm by reducing its search space.
-  void applyPathMatrixOptimizations(const PathMatrixOptimizations &);
+  void
+  applyTransitiveClosureOptimizations(const TransitiveClosureOptimizations &);
 
-  pathmatrix::PathMatrix pathMatrix{{}};
+  transitiveclosure::TransitiveClosure transitiveClosure{{}};
   // The lowest change in liveness across all schedules, for each Op
   std::vector<AllocWeight> lowerBoundChange;
   // The highest change in liveness across all schedules, for each Op
   std::vector<AllocWeight> upperBoundChange;
 
-  void initializePathMatrix();
+  void initializeTransitiveClosure();
 
-  // Incrementally update the PathMatrix of this Graph. Note that the
-  // PathMatrix can be initialized with updatePathMatrix(getForwardEdges()),
-  // but it is less efficient than calling initializePathMatrix().
-  void updatePathMatrix(const std::vector<std::vector<OpAddress>> &nEdges);
+  // Incrementally update the TransitiveClosure of this Graph. Note that the
+  // TransitiveClosure can be initialized with
+  // updateTransitiveClosure(getForwardEdges()), but it is less efficient than
+  // calling initializeTransitiveClosure().
+  void
+  updateTransitiveClosure(const std::vector<std::vector<OpAddress>> &nEdges);
 
-  void finalizePathMatrix();
+  void finalizeTransitiveClosure();
   bool linkTightDrops();
   bool linkCloseTightPairs();
   bool constrainWeightSeparatedGroups();

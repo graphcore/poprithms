@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
   auto g = getBranchDoublingGraph(nBranches, offset);
 
   g.initialize(
-      KahnTieBreaker::RANDOM, 1011, PathMatrixOptimizations::allOn());
+      KahnTieBreaker::RANDOM, 1011, TransitiveClosureOptimizations::allOn());
   g.minSumLivenessAnneal(
       AnnealCommandLineOptions().getAlgoCommandLineOptionsMap(opts));
   assertGlobalMinimumBranchDoubling(g, nBranches, offset);

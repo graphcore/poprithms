@@ -21,7 +21,7 @@ void test0() {
   g.insertConstraint(ops[1], ops[2]);
   g.insertOpAlloc(ops, alloc0);
   g.initialize(
-      KahnTieBreaker::RANDOM, 1011, PathMatrixOptimizations::allOn());
+      KahnTieBreaker::RANDOM, 1011, TransitiveClosureOptimizations::allOn());
 
   if (g.getScheduleToOp() != std::vector<OpAddress>{0, 1, 2}) {
     throw error("Expected schedule to be {0,1,2}");

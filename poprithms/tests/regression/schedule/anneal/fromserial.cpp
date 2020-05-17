@@ -10,7 +10,7 @@
 
 // Example use case:
 //
-// ./fromserial filename /path/to/graph17.json pmo yes
+// ./fromserial filename /path/to/graph17.json tco yes
 
 int main(int argc, char **argv) {
 
@@ -19,26 +19,26 @@ int main(int argc, char **argv) {
   auto opts = AnnealCommandLineOptions().getCommandLineOptionsMap(
       argc,
       argv,
-      {"filename", "pmo"},
+      {"filename", "tco"},
       {"The full path of the json serialized poprithms anneal Graph.",
-       "If yes/1/true : apply all PathMatrixOptimizations during "
+       "If yes/1/true : apply all TransitiveClosureOptimizations during "
        "initialization. If no/0/false : do not apply any "
-       "PathMatrixOptimizations during initialization."});
+       "TransitiveClosureOptimizations during initialization."});
 
   logging::setGlobalLevel(logging::Level::Trace);
   logging::enableDeltaTime(true);
   logging::enableTotalTime(true);
 
-  const auto optPMO = opts.at("pmo");
-  bool applyPMOs;
-  if (optPMO == "yes" || optPMO == "1" || optPMO == "true") {
-    applyPMOs = true;
-  } else if (optPMO == "no" || optPMO == "0" || optPMO == "false") {
-    applyPMOs = false;
+  const auto optTCO = opts.at("tco");
+  bool applyTCOs;
+  if (optTCO == "yes" || optTCO == "1" || optTCO == "true") {
+    applyTCOs = true;
+  } else if (optTCO == "no" || optTCO == "0" || optTCO == "false") {
+    applyTCOs = false;
   } else {
-    throw error("Invalid value for option \"pmo\", must be one of "
+    throw error("Invalid value for option \"tco\", must be one of "
                 "{no,0,false,yes,1,true} and not " +
-                optPMO);
+                optTCO);
   }
 
   log().debug("Loading json file into buffer");
@@ -52,10 +52,10 @@ int main(int argc, char **argv) {
   log().debug("Calling Graph::fromSerializationString");
   auto g = Graph::fromSerializationString(buffer.str());
 
-  auto pmos = applyPMOs ? PathMatrixOptimizations::allOn()
-                        : PathMatrixOptimizations::allOff();
+  auto tcos = applyTCOs ? TransitiveClosureOptimizations::allOn()
+                        : TransitiveClosureOptimizations::allOff();
 
-  g.initialize(KahnTieBreaker::GREEDY, 1011, pmos);
+  g.initialize(KahnTieBreaker::GREEDY, 1011, tcos);
   g.minSumLivenessAnneal(
       AnnealCommandLineOptions().getAlgoCommandLineOptionsMap(opts));
   return 0;

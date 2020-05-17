@@ -24,7 +24,7 @@ std::string getCxxVersionSting() {
 int main() {
   // Verify that we have included the headers
   poprithms::schedule::anneal::AllocAddress address = 4;
-  auto pm = poprithms::schedule::pathmatrix::PathMatrix({});
+  auto pm = poprithms::schedule::transitiveclosure::TransitiveClosure({});
 
   // Verify that this test has been compiled with the C++11 standard - this
   // should have been enforced via CMake

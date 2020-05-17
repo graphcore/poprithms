@@ -33,22 +33,22 @@ add_poprithms_unit_test(schedule_anneal_is_schedulable schedulable.cpp)
 add_poprithms_unit_test(schedule_anneal_is_search_limits searchlimits.cpp)
 add_poprithms_unit_test(schedule_anneal_diamond_0 diamond_0.cpp N 19)
 
-add_poprithms_unit_test(schedule_anneal_pmo_link_close_tight_pairs_0
-                                        pmo_link_close_tight_pairs_0.cpp)
-add_poprithms_unit_test(schedule_anneal_pmo_link_tight_drops_0
-                                        pmo_link_tight_drops_0.cpp)
-add_poprithms_unit_test(schedule_anneal_pmo_link_tight_drops_1
-                                        pmo_link_tight_drops_1.cpp)
-add_poprithms_unit_test(schedule_anneal_pmo_constrain_weight_separated_0
-                                        pmo_constrain_weight_separated_0.cpp)
-add_poprithms_unit_test(schedule_anneal_pmo_constrain_weight_separated_1
-                                        pmo_constrain_weight_separated_1.cpp)
-add_poprithms_unit_test(schedule_anneal_pmo_constrain_weight_separated_2
-                                        pmo_constrain_weight_separated_2.cpp)
-add_poprithms_unit_test(schedule_anneal_pmo_constrain_weight_separated_3
-                                        pmo_constrain_weight_separated_3.cpp)
-add_poprithms_unit_test(schedule_anneal_pmo_constrain_parallel_chains_0
-                                        pmo_constrain_parallel_chains_0.cpp)
+add_poprithms_unit_test(schedule_anneal_tco_link_close_tight_pairs_0
+                                        tco_link_close_tight_pairs_0.cpp)
+add_poprithms_unit_test(schedule_anneal_tco_link_tight_drops_0
+                                        tco_link_tight_drops_0.cpp)
+add_poprithms_unit_test(schedule_anneal_tco_link_tight_drops_1
+                                        tco_link_tight_drops_1.cpp)
+add_poprithms_unit_test(schedule_anneal_tco_constrain_weight_separated_0
+                                        tco_constrain_weight_separated_0.cpp)
+add_poprithms_unit_test(schedule_anneal_tco_constrain_weight_separated_1
+                                        tco_constrain_weight_separated_1.cpp)
+add_poprithms_unit_test(schedule_anneal_tco_constrain_weight_separated_2
+                                        tco_constrain_weight_separated_2.cpp)
+add_poprithms_unit_test(schedule_anneal_tco_constrain_weight_separated_3
+                                        tco_constrain_weight_separated_3.cpp)
+add_poprithms_unit_test(schedule_anneal_tco_constrain_parallel_chains_0
+                                        tco_constrain_parallel_chains_0.cpp)
 
 add_poprithms_unit_test(schedule_anneal_logging_0 logging_0.cpp)
 

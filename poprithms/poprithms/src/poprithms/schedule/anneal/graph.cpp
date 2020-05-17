@@ -1078,21 +1078,21 @@ namespace {
 void updateFromFirst(AllocWeight &lwr,
                      AllocWeight &upp,
                      const AllocWeight &w,
-                     pathmatrix::IsFirst isFirst) {
+                     transitiveclosure::IsFirst isFirst) {
   switch (isFirst) {
   // If an Op is definitely not the first consumer of an allocation, the
   // allocation definitely does not increase liveness
-  case (pathmatrix::IsFirst::No): {
+  case (transitiveclosure::IsFirst::No): {
     break;
   }
-  case (pathmatrix::IsFirst::Maybe): {
+  case (transitiveclosure::IsFirst::Maybe): {
     // If an Op might be the first consumer of an allocation, the allocation
     // might increase liveness. The upper-bound on liveness is therefore
     // increased
     upp += w;
     break;
   }
-  case (pathmatrix::IsFirst::Yes): {
+  case (transitiveclosure::IsFirst::Yes): {
     lwr += w;
     upp += w;
     break;
@@ -1103,16 +1103,16 @@ void updateFromFirst(AllocWeight &lwr,
 void updateFromFinal(AllocWeight &lwr,
                      AllocWeight &upp,
                      const AllocWeight &w,
-                     pathmatrix::IsFinal isFinal) {
+                     transitiveclosure::IsFinal isFinal) {
   switch (isFinal) {
-  case (pathmatrix::IsFinal::No): {
+  case (transitiveclosure::IsFinal::No): {
     break;
   }
-  case (pathmatrix::IsFinal::Maybe): {
+  case (transitiveclosure::IsFinal::Maybe): {
     lwr -= w;
     break;
   }
-  case (pathmatrix::IsFinal::Yes): {
+  case (transitiveclosure::IsFinal::Yes): {
     lwr -= w;
     upp -= w;
     break;
@@ -1124,20 +1124,20 @@ void updateFromFirstFinal(
     AllocWeight &lwr,
     AllocWeight &upp,
     const AllocWeight &w,
-    std::tuple<pathmatrix::IsFirst, pathmatrix::IsFinal> ff) {
+    std::tuple<transitiveclosure::IsFirst, transitiveclosure::IsFinal> ff) {
   updateFromFirst(lwr, upp, w, std::get<0>(ff));
   updateFromFinal(lwr, upp, w, std::get<1>(ff));
 }
 
 } // namespace
 
-void Graph::finalizePathMatrix() {
+void Graph::finalizeTransitiveClosure() {
 
   const auto fwdEdges = getForwardEdges();
 
-  const auto redundants = pathMatrix.getFlattenedRedundants(fwdEdges);
+  const auto redundants = transitiveClosure.getFlattenedRedundants(fwdEdges);
   log().debug("Removing " + std::to_string(redundants.size()) +
-              " redundant PathMatrix edges/constraints.");
+              " redundant TransitiveClosure edges/constraints.");
   for (const auto x : redundants) {
     removeConstraint(std::get<0>(x), std::get<1>(x));
   }
@@ -1149,7 +1149,8 @@ void Graph::finalizePathMatrix() {
   // initializing lowerBoundChange and upperBoundChange
   log().debug("Initializing lowerBoundChange and upperBoundChange.");
   for (const auto &alloc : getAllocs()) {
-    auto relativePositions = pathMatrix.getRelativePositions(alloc.getOps());
+    auto relativePositions =
+        transitiveClosure.getRelativePositions(alloc.getOps());
 
     // Logic check:
     if (relativePositions.size() != alloc.getOps().size()) {
@@ -1172,9 +1173,9 @@ void Graph::finalizePathMatrix() {
   }
 }
 
-void Graph::initializePathMatrix() {
-  pathMatrix = pathmatrix::PathMatrix(getForwardEdges());
-  finalizePathMatrix();
+void Graph::initializeTransitiveClosure() {
+  transitiveClosure = transitiveclosure::TransitiveClosure(getForwardEdges());
+  finalizeTransitiveClosure();
 }
 
 bool Graph::linkTightDrops() {
@@ -1211,11 +1212,11 @@ bool Graph::linkCloseTightPairs() {
     auto U = std::max(upperBoundChange[before], upperBoundChange[after]);
 
     auto getCanTie = [this, L, U](OpAddress opId) {
-      using namespace pathmatrix;
-      for (uint64_t i = 0; i < pathMatrix.getNBitSetsPerOp(); ++i) {
-        auto index     = opId * pathMatrix.getNBitSetsPerOp() + i;
-        BitSet neither = pathMatrix.getFwdEdgeSet()[index] |
-                         pathMatrix.getBwdEdgeSet()[index];
+      using namespace transitiveclosure;
+      for (uint64_t i = 0; i < transitiveClosure.getNBitSetsPerOp(); ++i) {
+        auto index     = opId * transitiveClosure.getNBitSetsPerOp() + i;
+        BitSet neither = transitiveClosure.getFwdEdgeSet()[index] |
+                         transitiveClosure.getBwdEdgeSet()[index];
         neither.flip();
         if (neither.any()) {
           for (uint64_t shift = 0; shift < BitSetSize; ++shift) {
@@ -1276,11 +1277,11 @@ void Graph::processWeightSeparatedIdenticalIns(
       }
 
       if (upperBoundChange[a] <= lb) {
-        auto nPostBoth  = pathMatrix.nPostPost(a, b);
+        auto nPostBoth  = transitiveClosure.nPostPost(a, b);
         auto candidates = getFilteredSchedule(
             *this, a, [this, lb, b, nPostBoth](OpAddress x) {
               return upperBoundChange[x] <= lb &&
-                     (pathMatrix.nPostPost(b, x) == nPostBoth);
+                     (transitiveClosure.nPostPost(b, x) == nPostBoth);
             });
 
         if (std::any_of(candidates.cbegin(),
@@ -1383,7 +1384,7 @@ bool Graph::constrainParallelChains() {
           // Remove shared: alloc contribution
           const auto &alloc = getAlloc(allocAddress);
           const auto &all   = alloc.getOps();
-          auto relPoss      = pathMatrix.getRelativePositions(all);
+          auto relPoss      = transitiveClosure.getRelativePositions(all);
           auto negW         = -1 * alloc.getWeight();
 
           AllocWeight dummy = AllocWeight::zero();
@@ -1468,11 +1469,11 @@ bool Graph::slideLinks() {
   return wasChange;
 }
 
-void Graph::updatePathMatrix(
+void Graph::updateTransitiveClosure(
     const std::vector<std::vector<OpAddress>> &edges) {
   if (log().shouldLog(logging::Level::Debug)) {
     std::ostringstream oss;
-    oss << "Updating PathMatrix with "
+    oss << "Updating TransitiveClosure with "
         << std::accumulate(
                edges.cbegin(),
                edges.cend(),
@@ -1482,13 +1483,14 @@ void Graph::updatePathMatrix(
     log().debug(oss.str());
   }
 
-  pathMatrix.update(edges);
-  finalizePathMatrix();
+  transitiveClosure.update(edges);
+  finalizeTransitiveClosure();
 }
 
-void Graph::applyPathMatrixOptimizations(const PathMatrixOptimizations &pmo) {
+void Graph::applyTransitiveClosureOptimizations(
+    const TransitiveClosureOptimizations &tco) {
 
-  if (pmo.allOptimizationsOff()) {
+  if (tco.allOptimizationsOff()) {
     return;
   }
 
@@ -1497,53 +1499,53 @@ void Graph::applyPathMatrixOptimizations(const PathMatrixOptimizations &pmo) {
   const auto iterStr = "iteration = " + std::to_string(iteration);
 
   std::vector<std::vector<OpAddress>> prevGraphEdges;
-  while (wasChange && iteration < pmo.maxIterations()) {
+  while (wasChange && iteration < tco.maxIterations()) {
 
     if (iteration == 0) {
-      log().debug("Initializing PathMatrix," + iterStr);
-      initializePathMatrix();
+      log().debug("Initializing TransitiveClosure," + iterStr);
+      initializeTransitiveClosure();
     } else {
       const auto dff = constraintDiff(prevGraphEdges);
-      // As Updating a PathMatrix takes significantly more time for a large
-      // number of edges, we prefer to re-initialize when the number of edges
-      // is "large";
+      // As Updating a TransitiveClosure takes significantly more time for a
+      // large number of edges, we prefer to re-initialize when the number of
+      // edges is "large";
       const uint64_t nLarge = nOps() / 10;
       if (std::accumulate(
               dff.cbegin(), dff.cend(), 0, [](size_t x, const auto &y) {
                 return x + y.size();
               }) < nLarge) {
 
-        log().debug("Updating PathMatrix, " + iterStr);
-        updatePathMatrix(dff);
+        log().debug("Updating TransitiveClosure, " + iterStr);
+        updateTransitiveClosure(dff);
       } else {
-        log().debug("Re-initializing PathMatrix,  " + iterStr);
-        initializePathMatrix();
+        log().debug("Re-initializing TransitiveClosure,  " + iterStr);
+        initializeTransitiveClosure();
       }
     }
 
     log().debug("Storing Graph edges, to detect changes in next iteration");
     prevGraphEdges = getForwardEdges();
 
-    log().debug("Applying PMO slideLinks");
+    log().debug("Applying TCO slideLinks");
     wasChange = slideLinks();
 
-    if (pmo.constrainWeightSeparatedGroups()) {
-      log().debug("Applying PMO constrainWeightSeparatedGroups.");
+    if (tco.constrainWeightSeparatedGroups()) {
+      log().debug("Applying TCO constrainWeightSeparatedGroups.");
       wasChange |= constrainWeightSeparatedGroups();
     }
 
-    if (pmo.constrainParallelChains()) {
-      log().debug("Applying PMO constrainParallelChains.");
+    if (tco.constrainParallelChains()) {
+      log().debug("Applying TCO constrainParallelChains.");
       wasChange |= constrainParallelChains();
     }
 
-    if (pmo.linkTightDrops()) {
-      log().debug("Applying PMO linkTightDrops.");
+    if (tco.linkTightDrops()) {
+      log().debug("Applying TCO linkTightDrops.");
       wasChange |= linkTightDrops();
     }
 
-    if (pmo.linkCloseTightPairs()) {
-      log().debug("Applying PMO linkCloseTightPairs.");
+    if (tco.linkCloseTightPairs()) {
+      log().debug("Applying TCO linkCloseTightPairs.");
       wasChange |= linkCloseTightPairs();
     }
     ++iteration;
@@ -1576,7 +1578,7 @@ uint64_t Graph::nConstraints() const {
 
 void Graph::initialize(KahnTieBreaker kahnTie,
                        uint32_t kahnSeed,
-                       PathMatrixOptimizations pmo) {
+                       TransitiveClosureOptimizations tco) {
 
   std::ostringstream oss;
   oss << "Graph::initialize() entered for Graph with " << nOps() << " Ops, "
@@ -1587,7 +1589,7 @@ void Graph::initialize(KahnTieBreaker kahnTie,
     finalize();
   }
 
-  applyPathMatrixOptimizations(pmo);
+  applyTransitiveClosureOptimizations(tco);
 
   //
   // schToOp. Vanilla run of Kahn's O(E) algorithm, random tie-breaks
@@ -2026,12 +2028,12 @@ void Graph::initialize(const std::map<std::string, std::string> &m) {
 
   auto ktb      = defaultKahnTieBreaker();
   auto kahnSeed = defaultKahnSeed();
-  auto pmo      = defaultPathMatrixOptimizations();
+  auto tco      = defaultTransitiveClosureOptimizations();
   for (const auto &[k, v] : m) {
-    if (k == "allPMO") {
-      const auto allPMOs = static_cast<bool>(std::stoi(v));
-      pmo                = allPMOs ? PathMatrixOptimizations::allOn()
-                    : PathMatrixOptimizations::allOff();
+    if (k == "allTCO") {
+      const auto allTCOs = static_cast<bool>(std::stoi(v));
+      tco                = allTCOs ? TransitiveClosureOptimizations::allOn()
+                    : TransitiveClosureOptimizations::allOff();
     } else if (k == "seed") {
       kahnSeed = static_cast<uint32_t>(std::stoul(v));
     } else if (k == "tieBreaker") {
@@ -2040,7 +2042,7 @@ void Graph::initialize(const std::map<std::string, std::string> &m) {
       throw error("invalid option to Graph::initialize, " + k);
     }
   }
-  initialize(ktb, kahnSeed, pmo);
+  initialize(ktb, kahnSeed, tco);
 }
 
 KahnTieBreaker kahnTieBreaker(const std::string &mixedCase) {
