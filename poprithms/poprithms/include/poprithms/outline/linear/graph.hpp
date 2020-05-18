@@ -73,7 +73,7 @@ public:
   // \in g, there is no c not \in g s.t. a before c and c before b. Bins can
   // only be inserted after all Ops and constraints have been inserted.
   // TODO(T19634) implement this
-  void insertBin(const std::vector<OpId> &g);
+  // void insertBin(const std::vector<OpId> &g);
 
   // ensure that "a" before "b" iff "c" before "d"
   void insertOrderCouple(OpId a, OpId b, OpId c, OpId d);

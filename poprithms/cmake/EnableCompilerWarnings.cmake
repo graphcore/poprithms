@@ -8,6 +8,7 @@ else()
     foreach(COMPILER C CXX)
         set(CMAKE_COMPILER_WARNINGS)
         list(APPEND CMAKE_COMPILER_WARNINGS 
+            -Werror
             -Wall
             -Wextra
             -Wcomment

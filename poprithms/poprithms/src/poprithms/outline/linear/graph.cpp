@@ -153,11 +153,6 @@ void Graph::insertOut(OpId opId, OutIndex outIndex, TensorId tId) {
   }
 }
 
-void Graph::insertBin(const std::vector<OpId> &) {
-  // TODO(T19634)
-  throw error("insert bin needs implementing, see T19634");
-}
-
 void Graph::append(std::ostream &ost) const {
   ost << "Graph, with Ops:";
   for (const auto &op : allOps) {
