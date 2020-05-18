@@ -33,6 +33,11 @@ set(POPRITHMS_COMMON_LIBRARIES
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
+if (${POPRITHMS_USE_STACKTRACE})
+  # Boost stacktrace requires linking with libdl
+  list(APPEND POPRITHMS_COMMON_LIBRARIES ${CMAKE_DL_LIBS})
+endif()
+
 target_link_libraries(poprithms 
   ${POPRITHMS_COMMON_LIBRARIES}
 )
