@@ -10,8 +10,8 @@ set(sources
 
 find_package (Threads REQUIRED)
 
-# currently all boost components used are header only, 
-# and so no "COMPONENTS foo" is needed when finding boost. 
+# currently all boost components used are header only,
+# and so no "COMPONENTS foo" is needed when finding boost.
 find_package(Boost REQUIRED)
 
 # Moreover, these lines are not needed while all boost deps are header only:
@@ -19,35 +19,61 @@ find_package(Boost REQUIRED)
 # set(Boost_USE_STATIC_RUNTIME ON)
 
 add_library(poprithms-objlib OBJECT ${sources})
-add_library(poprithms STATIC $<TARGET_OBJECTS:poprithms-objlib>)
-add_library(poprithms-shared SHARED $<TARGET_OBJECTS:poprithms-objlib>)
+add_library(poprithms SHARED $<TARGET_OBJECTS:poprithms-objlib>)
+add_library(poprithms-static STATIC $<TARGET_OBJECTS:poprithms-objlib>)
 message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
 
-list(APPEND POPRITHMS_COMMON_INCLUDES ${Boost_INCLUDE_DIR} "include" )
-
-target_include_directories (poprithms-objlib SYSTEM PUBLIC ${POPRITHMS_COMMON_INCLUDES})
-target_include_directories (poprithms SYSTEM PUBLIC ${POPRITHMS_COMMON_INCLUDES})
+list(APPEND POPRITHMS_COMMON_INCLUDES ${Boost_INCLUDE_DIR})
 
 set(POPRITHMS_COMMON_LIBRARIES
   ${Boost_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
 )
 
-target_link_libraries(poprithms 
-  ${POPRITHMS_COMMON_LIBRARIES}
-)
+foreach(tgt IN ITEMS poprithms-objlib poprithms poprithms-static)
+  target_include_directories (${tgt} SYSTEM PRIVATE ${POPRITHMS_COMMON_INCLUDES})
+  target_link_libraries(${tgt} PRIVATE ${POPRITHMS_COMMON_LIBRARIES})
 
-target_link_libraries(poprithms-shared
-  ${POPRITHMS_COMMON_LIBRARIES}
-)
+  target_include_directories(${tgt}
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_INSTALL_INCLUDEDIR}>
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  )
+endforeach()
 
 install(TARGETS poprithms
-        EXPORT poprithms
+        EXPORT poprithmsTargets
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        COMPONENT poprithms)
+
+install(EXPORT poprithmsTargets
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms
+        FILE poprithms-targets.cmake
         COMPONENT poprithms)
 
 install(DIRECTORY "include/poprithms"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         COMPONENT poprithms)
 
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/poprithms-config.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms
+        COMPONENT poprithms)
 
+
+install(TARGETS poprithms-static
+        EXPORT poprithmsStaticTargets
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        COMPONENT poprithms-static)
+
+install(EXPORT poprithmsStaticTargets
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms-static
+        FILE poprithms-static-targets.cmake
+        COMPONENT poprithms-static)
+
+install(DIRECTORY "include/poprithms"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        COMPONENT poprithms-static)
+
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/poprithms-static-config.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms-static
+        COMPONENT poprithms-static)
