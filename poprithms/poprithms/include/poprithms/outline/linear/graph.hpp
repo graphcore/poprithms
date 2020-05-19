@@ -157,7 +157,7 @@ public:
       //
       // Subgraph 2:
       //  A-->B-->C-->F
-      //       \
+      //       \.
       //        G
       //
       // If requireCommonExternalOutputs is true, (A,B,C) is not matched

@@ -173,11 +173,11 @@ private:
   // Example:
   //
   //       X0
-  //      / \
+  //      / \.
   //     X1  X2
   //      \ /
   //       X3
-  //         \
+  //         \.
   //          X4
   //
   //  has fwdEdgeSet:

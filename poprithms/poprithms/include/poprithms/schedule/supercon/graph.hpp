@@ -32,7 +32,7 @@ using Arrows = std::array<std::array<uint64_t, 2>, 4>;
 // As an example, suppose the Graph is
 //
 //    A   E
-//   /|   |\
+//   /|   |\.
 //  B C   F G
 //   \|   |/
 //    D   H
