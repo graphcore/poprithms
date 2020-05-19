@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 

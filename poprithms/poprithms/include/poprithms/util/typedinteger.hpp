@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_UTIL_TYPEDINTEGER_HPP
 #define POPRITHMS_UTIL_TYPEDINTEGER_HPP
 

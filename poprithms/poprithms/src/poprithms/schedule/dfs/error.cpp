@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <poprithms/schedule/dfs/error.hpp>
 
 namespace poprithms {

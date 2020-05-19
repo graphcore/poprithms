@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <testutil/schedule/anneal/annealcommandlineoptions.hpp>
 
 namespace poprithms {

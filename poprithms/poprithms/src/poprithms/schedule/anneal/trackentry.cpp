@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <poprithms/schedule/anneal/allocweight.hpp>
 #include <poprithms/schedule/anneal/trackentry.hpp>
 

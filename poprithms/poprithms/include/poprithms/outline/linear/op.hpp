@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_OUTLINE_LINEAR_OP_HPP
 #define POPRITHMS_OUTLINE_LINEAR_OP_HPP
 

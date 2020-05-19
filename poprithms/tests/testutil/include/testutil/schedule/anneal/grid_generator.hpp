@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef TESTUTIL_SCHEDULE_ANNEAL_GRID_HPP
 #define TESTUTIL_SCHEDULE_ANNEAL_GRID_HPP
 

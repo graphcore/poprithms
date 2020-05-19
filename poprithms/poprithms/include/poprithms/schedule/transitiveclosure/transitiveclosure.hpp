@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_SCHEDULE_EDGEMAP_EDGEMAP_HPP
 #define POPRITHMS_SCHEDULE_EDGEMAP_EDGEMAP_HPP
 

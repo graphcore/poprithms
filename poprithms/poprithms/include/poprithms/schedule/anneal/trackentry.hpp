@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_SCHEDULE_ANNEAL_TRACKENTRY_HPP
 #define POPRITHMS_SCHEDULE_ANNEAL_TRACKENTRY_HPP
 

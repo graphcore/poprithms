@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <string>
 
 #include <poprithms/schedule/anneal/error.hpp>

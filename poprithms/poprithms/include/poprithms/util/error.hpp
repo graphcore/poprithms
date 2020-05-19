@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_UTIL_ERROR_HPP
 #define POPRITHMS_UTIL_ERROR_HPP
 

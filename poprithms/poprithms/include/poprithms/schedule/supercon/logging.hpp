@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_SCHEDULE_SUPER_LOGGING_HPP
 #define POPRITHMS_SCHEDULE_SUPER_LOGGING_HPP
 

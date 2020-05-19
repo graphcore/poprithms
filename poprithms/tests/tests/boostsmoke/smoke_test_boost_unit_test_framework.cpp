@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #define BOOST_TEST_MODULE boostsmoke_smoke_test_boost_unit_test_framework_cpp
 
 // Using this include path is 5x slower for compilation

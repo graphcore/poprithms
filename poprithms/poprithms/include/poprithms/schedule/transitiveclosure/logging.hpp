@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_IR_LOGGING_HPP
 #define POPRITHMS_IR_LOGGING_HPP
 

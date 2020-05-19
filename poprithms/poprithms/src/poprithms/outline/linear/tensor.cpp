@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <poprithms/outline/linear/tensor.hpp>
 #include <poprithms/util/printiter.hpp>
 

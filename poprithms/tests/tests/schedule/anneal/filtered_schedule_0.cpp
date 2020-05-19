@@ -1,3 +1,4 @@
+// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <poprithms/schedule/anneal/error.hpp>
 #include <poprithms/schedule/anneal/filteredschedule.hpp>
 #include <poprithms/util/printiter.hpp>
