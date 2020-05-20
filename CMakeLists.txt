@@ -7,6 +7,17 @@ if (${ENABLE_TESTS})
     enable_testing()
 endif()
 
+# Add an explicit exported symbols file (a linker flag)
+if(APPLE)
+  string(APPEND CMAKE_SHARED_LINKER_FLAGS
+         " -Wl,-exported_symbols_list,"
+         "${CMAKE_CURRENT_SOURCE_DIR}/exported_symbols_osx.lds")
+else()
+  string(APPEND CMAKE_SHARED_LINKER_FLAGS
+         " -Wl,--version-script,"
+         "${CMAKE_CURRENT_SOURCE_DIR}/exported_symbols_linux.lds")
+endif()
+
 option(POPRITHMS_USE_STACKTRACE "Enable boost stacktrace reports in error messages" ON)
 if (${POPRITHMS_USE_STACKTRACE})
     # Building with Boost Stacktrace using the default header only implementation

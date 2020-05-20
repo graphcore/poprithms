@@ -55,6 +55,8 @@ Currently the test directory serves as examples.
 
 ### Using the poprithms library in CMake projects
 
+### Usage
+
 The easiest way to use poprithms in CMake is via `find_package`, specifying on the `CMAKE_PREFIX_PATH` the location of the poprithms install.
 
 ```
