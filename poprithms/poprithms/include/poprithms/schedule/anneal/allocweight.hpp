@@ -136,7 +136,8 @@ private:
 
 template <typename T> static AllocWeight operator*(T a, AllocWeight w) {
   static_assert(std::is_integral<T>::value ||
-                std::is_floating_point<T>::value);
+                    std::is_floating_point<T>::value,
+                "must be number");
   AllocWeight b(w);
   b *= static_cast<double>(a);
   return b;

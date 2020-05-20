@@ -10,6 +10,53 @@ namespace poprithms {
 namespace schedule {
 namespace transitiveclosure {
 
+// Diagram:
+//          from
+//
+//        **** ****
+//        **** ****
+//  to    **** ****
+//        **** ****
+//        **** ****
+//        **** ****
+//        **** ****
+//        **** ****
+//
+// A TransitiveClosure is O(nOps^2) in memory. Each of fwdEdgeSet and
+// bwdEdgeSet store nOps*(nOps+ O(1)) bits, they record forward and backard
+// constraints respectively.
+//
+// In the diagram above, BitSetSize is 4 and nOps is 8. Each * in the
+// diagram is a constraint between 2 Ops, and will either be on or off.
+//
+// The majority of time spent in the construction is in bitwise addition of
+// 2 rows, and summation over columns.
+//
+// Note that bwdEdgeSet is the transpose of fwdEdgeSet, and so is not
+// required to be stored. However, certain operations are significantly
+// faster using the transposed layout, and so it is stored.
+//
+// Example:
+//
+//       X0
+//      / \..
+//     X1  X2
+//      \ /..
+//       X3
+//         \..
+//          X4
+//
+//  has fwdEdgeSet:
+//
+//       from
+//       01234
+//     0 00000
+//     1 10000
+//  to 2 10000
+//     3 11100
+//     4 11110
+//
+
 std::ostream &operator<<(std::ostream &, IsFirst);
 std::ostream &operator<<(std::ostream &, IsFinal);
 
@@ -204,7 +251,6 @@ std::vector<BitSet> TransitiveClosure::getBits(const Filters &filters) const {
         soln[i] &= neither;
       }
 
-      // TODO : test this:
       else if (type == IsFirst::Yes) {
         soln[i] &= fwdEdgeSet[index];
       }
