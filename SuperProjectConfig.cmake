@@ -9,6 +9,6 @@
 # The special one required by poprithms is graph
 
 
-set(BOOST_COMPONENTS "graph system filesystem test program_options atomic container date_time log math regex thread timer")
+set(BOOST_COMPONENTS "graph system filesystem test program_options atomic container date_time log math regex thread timer context")
 
 list(APPEND BOOST_CMAKE_ARGS -DBoost_build_specific_components=${BOOST_COMPONENTS})
