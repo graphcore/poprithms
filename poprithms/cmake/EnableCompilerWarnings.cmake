@@ -28,7 +28,6 @@ else()
         )
         if (CMAKE_${COMPILER}_COMPILER_ID MATCHES "Clang")
             list(APPEND CMAKE_COMPILER_WARNINGS
-                # -Werror
                 -Weverything
                  # absolutely need these:
                 -Wno-exit-time-destructors
@@ -36,19 +35,18 @@ else()
                 -Wno-c++98-compat-pedantic
                 -Wno-padded
                 -Wno-weak-vtables
-                # requires careful integer typing to not have this one, but can
-                # be useful to detect "using" errors
-                # -Wno-sign-conversion
-                #
                 # I like having a default in switch statement even
                 # if all cases are covered. This is because if
-                # someone adds a additional case (additional enum) which is
-                # not covered in the switch statement, default
+                # someone adds a additional case (additional enum) which
+                # is not covered in the switch statement, default
                 # catches it.
                 -Wno-covered-switch-default
                 # This warning seems unavoidable
                 # for non-trivial static construction.
                 -Wno-global-constructors
+                # Overwrite -Werror for this warning, i.e. do not
+                # error for an unknown warning flag
+                -Wno-error=unknown-warning-option
             )
         else()
             list(APPEND CMAKE_COMPILER_WARNINGS
@@ -57,13 +55,17 @@ else()
             )
         endif()
 
-        if (CMAKE_${COMPILER}_COMPILER_ID MATCHES "AppleClang")
-            list(APPEND CMAKE_COMPILER_WARNINGS
-                # Seems like best practise is to always return by value,
-                # c11-rvalues-and-move-semantics-confusion-return-statement
-                -Wno-return-std-move-in-c++11
-              )
-        endif()
+        # An issue with older AppleClang compiler, not deleting for now
+        # in case this issue crops up again.
+        #
+        # if (CMAKE_${COMPILER}_COMPILER_ID MATCHES "AppleClang")
+        #     list(APPEND CMAKE_COMPILER_WARNINGS
+        #         # Seems like best practise is to always return by value. See
+        #         # c11-rvalues-and-move-semantics-confusion-return-statement
+        #         # for stackoverflow discussion
+        #         -Wno-return-std-move-in-c++11
+        #       )
+        # endif()
 
         add_compile_options(${CMAKE_COMPILER_WARNINGS})
     endforeach()
