@@ -1,0 +1,1 @@
+add_poprithms_unit_test(memory_nest_stripe_basic_0 basic_0)

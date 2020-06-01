@@ -5,6 +5,8 @@ include(EnableCompilerWarnings)
 set(sources
   ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/logging/error.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/logging/logging.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/memory/nest/error.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/memory/nest/stripe.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/outline/linear/error.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/outline/linear/graph.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/outline/linear/linearusings.hpp
@@ -40,6 +42,8 @@ set(sources
   ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/util/unisort.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/error.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/logging.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/error.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/stripe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/error.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/graph.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/linearusings.cpp
