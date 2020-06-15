@@ -44,7 +44,7 @@ private:
 AllocWeight::AllocWeight(double _v_, int relativeLexico)
     : v{0, 0, 0, 0, 0, 0, 0} {
   //   -3 -2  -1 0  1  2  3
-  if (std::abs(relativeLexico) >= (NAW + 1) / 1) {
+  if (std::abs(relativeLexico) >= (NAW + 1) / 2) {
     throw error("invalid relativeLexico in AllocWeight constructor");
   }
   v[static_cast<uint64_t>((NAW - 1) / 2 + relativeLexico)] = _v_;
