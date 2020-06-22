@@ -161,6 +161,8 @@ public:
   // Should be called once after the final call to a growing member. Sorts
   // certain Op member ids to accelerate the annealing algorithm
   void finalize();
+
+  // Precondition: Graph must be finalized.
   bool isSchedulable() const;
 
   // verify that all graph connections are sensible
@@ -315,7 +317,12 @@ private:
   template <typename T>
   ScheduleIndex getExtremaIndexWithNonUniqueSolution() const;
 
+  // kahn will merge any links then call linkless khan.
   void kahn(KahnTieBreaker, uint32_t kahnSeed);
+  void linklessKahn(KahnTieBreaker, uint32_t kahnSeen);
+
+  void setScheduleFromMergedChild(const OpMerged &merged);
+
   void removeConstraint(OpAddress before, OpAddress after);
 
   void confirmShiftAndCost(ScheduleIndex start0,
@@ -532,6 +539,9 @@ private:
   bool constrainParallelChains();
   bool slideLinks();
   void insertStartAttractorsAssert0(uint64_t, uint64_t) const;
+
+  // Implements the isSchedulable algorithm assuming the graph has no links.
+  bool linklessIsSchedulable() const;
 };
 
 std::ostream &operator<<(std::ostream &ost, const Graph &x);

@@ -772,18 +772,23 @@ void Graph::setSchToLiveness() {
 
 bool Graph::isSchedulable() const {
 
-  if (hasAtLeastOneLink()) {
-    auto merged      = getLinkMerged();
-    auto &childGraph = std::get<0>(merged);
-    return childGraph.isSchedulable();
-  }
-
   if (!isFinalized) {
     std::ostringstream oss;
     oss << "Graph not finalized, should call finalize() "
         << "before isSchedulable()";
     throw error(oss.str());
   }
+
+  if (hasAtLeastOneLink()) {
+    const auto merged      = getLinkMerged();
+    const auto &childGraph = std::get<0>(merged);
+    return childGraph.linklessIsSchedulable();
+  } else {
+    return linklessIsSchedulable();
+  }
+}
+
+bool Graph::linklessIsSchedulable() const {
 
   std::vector<OpAddress> outstanding;
   outstanding.reserve(nOps());
@@ -916,24 +921,42 @@ std::vector<std::vector<OpAddress>> Graph::getLinkChains() const {
   return chains;
 }
 
+//
+// Sets `schToOp` from the merged child graph of `merged`.
+//
+// For each op in the child schedule, looks up the ops it was merged from in
+// the parent graph, using `childToParents` from `merged`, and adds them to
+// the parent schedule.
+void Graph::setScheduleFromMergedChild(const OpMerged &merged) {
+  const auto &childGraph     = std::get<0>(merged);
+  const auto &childToParents = std::get<1>(merged);
+
+  for (ScheduleIndex i = 0; i < childGraph.nOps(); ++i) {
+    const auto childAddress = childGraph.scheduleToOp(i);
+    schToOp.insert(schToOp.end(),
+                   childToParents[childAddress].cbegin(),
+                   childToParents[childAddress].cend());
+  }
+}
+
 void Graph::kahn(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
+  if (hasAtLeastOneLink()) {
+    auto merged      = getLinkMerged();
+    auto &childGraph = std::get<0>(merged);
+
+    childGraph.linklessKahn(kahnTie, kahnSeed);
+
+    setScheduleFromMergedChild(merged);
+
+  } else {
+    linklessKahn(kahnTie, kahnSeed);
+  }
+}
+
+void Graph::linklessKahn(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
 
   schToOp.reserve(nOps());
   schToOp.clear();
-
-  if (hasAtLeastOneLink()) {
-    auto merged                = getLinkMerged();
-    auto &childGraph           = std::get<0>(merged);
-    const auto &childToParents = std::get<1>(merged);
-    childGraph.kahn(kahnTie, kahnSeed);
-    for (ScheduleIndex i = 0; i < childGraph.nOps(); ++i) {
-      const auto childAddress = childGraph.scheduleToOp(i);
-      schToOp.insert(schToOp.end(),
-                     childToParents[childAddress].cbegin(),
-                     childToParents[childAddress].cend());
-    }
-    return;
-  }
 
   std::vector<OpAddress> outstanding;
   outstanding.reserve(nOps());
