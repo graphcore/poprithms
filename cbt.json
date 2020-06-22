@@ -1,4 +1,3 @@
 {
-  "dependencies" : [ "boost" ],
-  "superproject_cmake_includes" : [ "SuperProjectConfig.cmake" ]
+  "dependencies" : [ "boost" ]
 }
