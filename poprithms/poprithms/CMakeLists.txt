@@ -1,6 +1,13 @@
 include(GNUInstallDirs)
 
 include(EnableCompilerWarnings)
+option (POPRITHMS_WERROR "C++ compiler warnings become errors" TRUE)
+if (${POPRITHMS_WERROR})
+  message(STATUS "Appending -Werror compiler flag, because POPRITHMS_WERROR=TRUE")
+  add_compile_options(-Werror)
+endif ()
+
+
 
 
 

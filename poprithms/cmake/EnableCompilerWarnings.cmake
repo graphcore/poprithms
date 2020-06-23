@@ -8,7 +8,7 @@ else()
     foreach(COMPILER C CXX)
         set(CMAKE_COMPILER_WARNINGS)
         list(APPEND CMAKE_COMPILER_WARNINGS
-            -Werror
+            # -Werror is handled separately, in a CMakeLists.txt file
             -Wall
             -Wextra
             -Wcomment
