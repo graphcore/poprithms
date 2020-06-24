@@ -15,7 +15,7 @@ int test0() {
   try {
     // OpId of "after" is too large
     g.insertConstraint(op0, op1 + 1);
-  } catch (const poprithms::util::error &e) {
+  } catch (const poprithms::error::error &e) {
     return 1;
   }
   return 0;

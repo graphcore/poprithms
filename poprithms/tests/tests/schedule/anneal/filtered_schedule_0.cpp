@@ -5,7 +5,6 @@
 
 namespace {
 using namespace poprithms::schedule::anneal;
-using namespace poprithms;
 template <typename Filter>
 void test(int c,
           const Graph &g,
@@ -18,10 +17,10 @@ void test(int c,
   if (sched0 != expected) {
     std::ostringstream oss;
     oss << "Failure in test case " << c << ". Expected : ";
-    util::append(oss, expected);
+    poprithms::util::append(oss, expected);
     oss << "   Observed : ";
-    util::append(oss, sched0);
-    throw error(oss.str());
+    poprithms::util::append(oss, sched0);
+    throw poprithms::schedule::anneal::error(oss.str());
   }
 }
 } // namespace

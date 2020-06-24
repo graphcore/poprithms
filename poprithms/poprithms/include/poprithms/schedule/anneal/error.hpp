@@ -2,13 +2,13 @@
 #ifndef POPRITHMS_SCHEDULE_ANNEAL_ERROR_HPP
 #define POPRITHMS_SCHEDULE_ANNEAL_ERROR_HPP
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace poprithms {
 namespace schedule {
 namespace anneal {
 
-poprithms::util::error error(const std::string &what);
+poprithms::error::error error(const std::string &what);
 
 } // namespace anneal
 } // namespace schedule

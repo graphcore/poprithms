@@ -30,7 +30,6 @@ extern template void append<>(std::ostream &, const std::vector<uint64_t> &);
 extern template void append<>(std::ostream &, const std::vector<int> &);
 extern template void append<>(std::ostream &,
                               const std::vector<std::string> &);
-
 } // namespace util
 } // namespace poprithms
 

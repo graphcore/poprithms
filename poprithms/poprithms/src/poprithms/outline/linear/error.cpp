@@ -5,9 +5,9 @@ namespace poprithms {
 namespace outline {
 namespace linear {
 
-poprithms::util::error error(const std::string &what) {
+poprithms::error::error error(const std::string &what) {
   static const std::string linear("outline::linear");
-  return poprithms::util::error(linear, what);
+  return poprithms::error::error(linear, what);
 }
 
 } // namespace linear

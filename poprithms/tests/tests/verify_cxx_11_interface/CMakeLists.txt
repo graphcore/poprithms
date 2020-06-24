@@ -1,6 +1,5 @@
-
 function(add_poprithms_cxx_11_unit_test name source)
-  add_test_executable(${name} ${source})
+  add_full_library_test_executable(${name} ${source})
   set(executable_name ${name})
   add_test(NAME ${name}
            COMMAND ${name} ${ARGN}

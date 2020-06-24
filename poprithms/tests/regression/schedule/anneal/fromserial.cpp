@@ -15,7 +15,6 @@
 
 int main(int argc, char **argv) {
 
-  using namespace poprithms;
   using namespace poprithms::schedule::anneal;
   auto opts = AnnealCommandLineOptions().getCommandLineOptionsMap(
       argc,
@@ -26,9 +25,12 @@ int main(int argc, char **argv) {
        "initialization. If no/0/false : do not apply any "
        "TransitiveClosureOptimizations during initialization."});
 
-  logging::setGlobalLevel(logging::Level::Trace);
-  logging::enableDeltaTime(true);
-  logging::enableTotalTime(true);
+  {
+    using namespace poprithms::logging;
+    setGlobalLevel(Level::Trace);
+    enableDeltaTime(true);
+    enableTotalTime(true);
+  }
 
   const auto optTCO = opts.at("tco");
   bool applyTCOs;

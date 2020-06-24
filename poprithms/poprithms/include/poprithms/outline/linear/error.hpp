@@ -2,13 +2,13 @@
 #ifndef POPRITHMS_OUTLINE_LINEAR_ERROR_HPP
 #define POPRITHMS_OUTLINE_LINEAR_ERROR_HPP
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace poprithms {
 namespace outline {
 namespace linear {
 
-poprithms::util::error error(const std::string &what);
+poprithms::error::error error(const std::string &what);
 
 } // namespace linear
 } // namespace outline

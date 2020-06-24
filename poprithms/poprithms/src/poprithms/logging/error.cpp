@@ -4,9 +4,9 @@
 namespace poprithms {
 namespace logging {
 
-poprithms::util::error error(const std::string &what) {
-  static const std::string logging("logging");
-  return poprithms::util::error(logging, what);
+poprithms::error::error error(const std::string &what) {
+  static const std::string util("logging");
+  return poprithms::error::error(util, what);
 }
 
 } // namespace logging

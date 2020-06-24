@@ -20,6 +20,19 @@ namespace anneal {
 
 namespace {
 
+std::ostream &operator<<(std::ostream &os, const std::vector<uint64_t> &v) {
+  poprithms::util::append(os, v);
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const std::vector<int> &v) {
+  poprithms::util::append(os, v);
+  return os;
+}
+} // namespace
+
+namespace {
+
 // comment-I (cited in code)
 // ------------
 // if it's not possible to move more than nToShift - 1, then all
@@ -547,15 +560,15 @@ std::string Graph::getLivenessString() const {
     const auto &op = getOp(address);
 
     std::ostringstream ossIns;
-    poprithms::util::append(ossIns, opToInSch[address]);
+    ossIns << opToInSch[address];
     std::ostringstream ossLinkTo;
     ossLinkTo << (op.hasForwardLink() ? '+' : ' ');
     std::ostringstream ossName;
     ossName << getOp(address).getDebugString();
     std::ostringstream ossOuts;
-    poprithms::util::append(ossOuts, opToOutSch[address]);
+    ossOuts << opToOutSch[address];
     std::ostringstream ossAllocs;
-    poprithms::util::append(ossAllocs, schToAllocs[i]);
+    ossAllocs << schToAllocs[i];
 
     sIndex.push_back(std::to_string(i));
     sLiveness.push_back(toString(schToLiveness[i]));

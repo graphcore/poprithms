@@ -5,9 +5,9 @@ namespace poprithms {
 namespace schedule {
 namespace transitiveclosure {
 
-poprithms::util::error error(const std::string &what) {
+poprithms::error::error error(const std::string &what) {
   static const std::string transitiveclosure("schedule::transitiveclosure");
-  return poprithms::util::error(transitiveclosure, what);
+  return poprithms::error::error(transitiveclosure, what);
 }
 
 } // namespace transitiveclosure

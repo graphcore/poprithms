@@ -50,7 +50,6 @@ poprithms::schedule::anneal::Graph getBaseGraph(uint64_t N) {
 int main() {
 
   using namespace poprithms::schedule::anneal;
-  using namespace poprithms;
 
   constexpr uint64_t N = 10;
   std::vector<OpAddress> allIds(N);

@@ -1,14 +1,14 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_SCHEDULE_SUPER_ERROR_HPP
-#define POPRITHMS_SCHEDULE_SUPER_ERROR_HPP
+#ifndef POPRITHMS_SCHEDULE_SUPERCON_ERROR_HPP
+#define POPRITHMS_SCHEDULE_SUPERCON_ERROR_HPP
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace poprithms {
 namespace schedule {
 namespace supercon {
 
-poprithms::util::error error(const std::string &what);
+poprithms::error::error error(const std::string &what);
 
 } // namespace supercon
 } // namespace schedule

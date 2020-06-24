@@ -5,9 +5,9 @@ namespace poprithms {
 namespace memory {
 namespace nest {
 
-poprithms::util::error error(const std::string &what) {
+poprithms::error::error error(const std::string &what) {
   static const std::string memory("memory::nest");
-  return poprithms::util::error(memory, what);
+  return poprithms::error::error(memory, what);
 }
 
 } // namespace nest

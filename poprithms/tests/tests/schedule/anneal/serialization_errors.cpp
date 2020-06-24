@@ -52,7 +52,7 @@ void test0() {
   for (auto x : testStrings) {
     try {
       auto g = Graph::fromSerializationString(x);
-    } catch (const poprithms::util::error &e) {
+    } catch (const poprithms::error::error &e) {
       std::cout << "\nTest catch " << i << " : \n" << e.what() << std::endl;
       ++badCatches;
       ++i;

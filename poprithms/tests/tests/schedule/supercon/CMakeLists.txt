@@ -1,1 +1,1 @@
-add_poprithms_unit_test(schedule_supercon_schedule_0 schedule_0.cpp)
+add_schedule_test(schedule_supercon_schedule_0 schedule_0.cpp)

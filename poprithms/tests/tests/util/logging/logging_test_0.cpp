@@ -77,7 +77,7 @@ int main() {
   try {
     // The id "a" has already been used
     Logger E("a");
-  } catch (const poprithms::util::error &e) {
+  } catch (const poprithms::error::error &e) {
     caught = true;
   }
   if (!caught) {

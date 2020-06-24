@@ -65,7 +65,6 @@ std::ostream &operator<<(std::ostream &ost, TypedInteger<T, INT> id) {
   ost << id.get();
   return ost;
 }
-
 } // namespace util
 } // namespace poprithms
 

@@ -1,23 +1,24 @@
-function(add_test_executable name source)
+# Add a test which links to the poprithms shared library. 
+# Most testing in poprithms is done by linking to small
+# sub-project libraries, to accelerate test link times. 
+function(add_full_library_test_executable name source)
   add_executable(${name} ${source})
   target_include_directories(${name}
       PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}
-      $<TARGET_PROPERTY:poprithms,INCLUDE_DIRECTORIES>
-      $<TARGET_PROPERTY:poprithms-test-util,INCLUDE_DIRECTORIES>)
-  target_link_libraries(${name} poprithms poprithms-test-util)
+      $<TARGET_PROPERTY:poprithms,INCLUDE_DIRECTORIES>)
+  target_link_libraries(${name} poprithms)
 endfunction()
 
-function(add_poprithms_unit_test name source)
-  add_test_executable(${name} ${source})
+function(add_full_library_test name source)
+  add_full_library_test_executable(${name} ${source})
   set(executable_name ${name})
   add_test(NAME ${name}
            COMMAND ${name} ${ARGN}
            WORKING_DIRECTORY ${CMAKE_CURRENT_BUILD_DIR})
 endfunction()
 
-
-function(add_poprithms_unit_test_from_params name exe)
+function(add_full_library_test_from_params name exe)
   add_test(NAME ${name}
            COMMAND ${exe} ${ARGN}
            WORKING_DIRECTORY ${CMAKE_CURRENT_BUILD_DIR})
@@ -28,8 +29,6 @@ add_subdirectory(schedule)
 add_subdirectory(memory)
 
 add_subdirectory(outline)
-
-add_subdirectory(logging)
 
 add_subdirectory(util)
 

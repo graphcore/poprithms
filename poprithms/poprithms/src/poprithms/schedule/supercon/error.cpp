@@ -5,9 +5,9 @@ namespace poprithms {
 namespace schedule {
 namespace supercon {
 
-poprithms::util::error error(const std::string &what) {
+poprithms::error::error error(const std::string &what) {
   static const std::string supercon("schedule::supercon");
-  return poprithms::util::error(supercon, what);
+  return poprithms::error::error(supercon, what);
 }
 
 } // namespace supercon

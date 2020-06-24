@@ -2,112 +2,153 @@ include(GNUInstallDirs)
 
 include(EnableCompilerWarnings)
 
-set(sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/logging/error.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/logging/logging.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/memory/nest/error.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/memory/nest/stripe.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/outline/linear/error.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/outline/linear/graph.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/outline/linear/linearusings.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/outline/linear/logging.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/outline/linear/op.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/outline/linear/tensor.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/alloc.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/allocweight.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/annealusings.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/error.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/filteredschedule.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/graph.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/graphserialization.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/logging.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/opalloc.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/op.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/schedulechange.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/shiftandcost.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/trackentry.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/anneal/transitiveclosureoptimizations.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/dfs/dfs.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/dfs/error.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/supercon/error.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/supercon/graph.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/supercon/logging.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/transitiveclosure/error.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/transitiveclosure/logging.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/schedule/transitiveclosure/transitiveclosure.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/util/error.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/util/printiter.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/util/stringutil.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/util/typedinteger.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/poprithms/util/unisort.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/error.cpp
+
+
+# Currently all Boost components used are header only,
+# so no "COMPONENTS foo" is needed when finding Boost.
+find_package(Boost REQUIRED)
+# Moreover, these lines are not needed while all boost deps are header only;
+# set(Boost_USE_STATIC_LIBS ON); set(Boost_USE_STATIC_RUNTIME ON)
+message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
+
+find_package(Threads REQUIRED)
+
+set(logging_sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/logging.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/error.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/stripe.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/error.cpp
+)
+
+set(error_sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/error/error.cpp
+)
+
+set(util_sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/printiter.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/stringutil.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/error.cpp
+)
+
+add_library(poprithms-util-objlib OBJECT 
+  ${util_sources} 
+  ${logging_sources} 
+  ${error_sources}
+)
+# For each sub-project "foo" of poprithms a shared library called
+# poprithms-foo is created and used to improve test link times.
+add_library(poprithms-util SHARED  $<TARGET_OBJECTS:poprithms-util-objlib>)
+
+set(schedule_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule)
+set(anneal_source_dir ${schedule_src_dir}/anneal)
+set(schedule_anneal_sources
+ ${anneal_source_dir}/alloc.cpp
+ ${anneal_source_dir}/allocweight.cpp
+ ${anneal_source_dir}/error.cpp
+ ${anneal_source_dir}/graph.cpp
+ ${anneal_source_dir}/graphserialization.cpp
+ ${anneal_source_dir}/logging.cpp
+ ${anneal_source_dir}/op.cpp
+ ${anneal_source_dir}/trackentry.cpp
+ ${anneal_source_dir}/transitiveclosureoptimizations.cpp
+)
+set(dfs_source_dir ${schedule_src_dir}/dfs)
+set(schedule_dfs_sources
+  ${dfs_source_dir}/dfs.cpp
+  ${dfs_source_dir}/error.cpp
+)
+set(supercon_source_dir ${schedule_src_dir}/supercon)
+set(schedule_supercon_sources
+  ${supercon_source_dir}/error.cpp
+  ${supercon_source_dir}/graph.cpp
+  ${supercon_source_dir}/logging.cpp
+)
+set(transitiveclosure_source_dir ${schedule_src_dir}/transitiveclosure)
+set(schedule_transitive_closure_sources
+  ${transitiveclosure_source_dir}/error.cpp
+  ${transitiveclosure_source_dir}/logging.cpp
+  ${transitiveclosure_source_dir}/transitiveclosure.cpp
+)
+add_library(poprithms-schedule-objlib OBJECT
+  ${schedule_anneal_sources}
+  ${schedule_dfs_sources}
+  ${schedule_supercon_sources}
+  ${schedule_transitive_closure_sources}
+)
+add_library(poprithms-schedule SHARED
+  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
+
+set(outline_linear_sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/error.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/graph.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/linearusings.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/logging.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/op.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/tensor.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/anneal/alloc.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/anneal/allocweight.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/anneal/error.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/anneal/graph.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/anneal/graphserialization.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/anneal/logging.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/anneal/op.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/anneal/trackentry.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/anneal/transitiveclosureoptimizations.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/dfs/dfs.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/dfs/error.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/supercon/error.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/supercon/graph.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/supercon/logging.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/transitiveclosure/error.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/transitiveclosure/logging.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule/transitiveclosure/transitiveclosure.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/error.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/printiter.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/stringutil.cpp
+)
+add_library(poprithms-outline-objlib OBJECT ${outline_linear_sources})
+add_library(poprithms-outline SHARED
+  $<TARGET_OBJECTS:poprithms-outline-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
-find_package (Threads REQUIRED)
 
-# currently all boost components used are header only,
-# and so no "COMPONENTS foo" is needed when finding boost.
-find_package(Boost REQUIRED)
+set(memory_nest_sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/error.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/stripe.cpp
+)
+add_library(poprithms-memory-objlib OBJECT ${memory_nest_sources})
+add_library(poprithms-memory SHARED
+  $<TARGET_OBJECTS:poprithms-memory-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
 
-# Moreover, these lines are not needed while all boost deps are header only:
-# set(Boost_USE_STATIC_LIBS ON)
-# set(Boost_USE_STATIC_RUNTIME ON)
 
-add_library(poprithms-objlib OBJECT ${sources})
-add_library(poprithms SHARED $<TARGET_OBJECTS:poprithms-objlib>)
-add_library(poprithms-static STATIC $<TARGET_OBJECTS:poprithms-objlib>)
-message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
+add_library(poprithms SHARED 
+  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+  $<TARGET_OBJECTS:poprithms-outline-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
+
+add_library(poprithms-static STATIC
+  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+  $<TARGET_OBJECTS:poprithms-outline-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
 
 list(APPEND POPRITHMS_COMMON_INCLUDES ${Boost_INCLUDE_DIR})
 
-set(POPRITHMS_COMMON_LIBRARIES
-  ${Boost_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT}
-)
+set(POPRITHMS_COMMON_LIBRARIES ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 if (${POPRITHMS_USE_STACKTRACE})
   # Boost stacktrace requires linking with libdl
   list(APPEND POPRITHMS_COMMON_LIBRARIES ${CMAKE_DL_LIBS})
 endif()
 
-foreach(tgt IN ITEMS poprithms-objlib poprithms poprithms-static)
+foreach(tgt IN ITEMS
+  poprithms-schedule-objlib
+  poprithms-schedule
+  poprithms-outline-objlib
+  poprithms-outline
+  poprithms-memory-objlib
+  poprithms-memory
+  poprithms-util-objlib
+  poprithms-util
+  poprithms
+  poprithms-static)
+
   target_include_directories (${tgt} SYSTEM PRIVATE ${POPRITHMS_COMMON_INCLUDES})
   target_link_libraries(${tgt} PRIVATE ${POPRITHMS_COMMON_LIBRARIES})
-
-  target_include_directories(${tgt}
-    PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>
-  )
+  target_include_directories(${tgt} PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 endforeach()
 
 install(TARGETS poprithms
@@ -124,11 +165,9 @@ install(DIRECTORY "include/poprithms"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         COMPONENT poprithms)
 
-
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/poprithms-config.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms
         COMPONENT poprithms)
-
 
 install(TARGETS poprithms-static
         EXPORT poprithmsStaticTargets
@@ -147,3 +186,4 @@ install(DIRECTORY "include/poprithms"
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/poprithms-static-config.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms-static
         COMPONENT poprithms-static)
+

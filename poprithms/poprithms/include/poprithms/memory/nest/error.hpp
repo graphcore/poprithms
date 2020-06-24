@@ -2,13 +2,13 @@
 #ifndef POPRITHMS_MEMORY_NEST_ERROR_HPP
 #define POPRITHMS_MEMORY_NEST_ERROR_HPP
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace nest {
 
-poprithms::util::error error(const std::string &what);
+poprithms::error::error error(const std::string &what);
 
 } // namespace nest
 } // namespace memory

@@ -5,9 +5,9 @@ namespace poprithms {
 namespace schedule {
 namespace dfs {
 
-poprithms::util::error error(const std::string &what) {
+poprithms::error::error error(const std::string &what) {
   static const std::string dfs("schedule::dfs");
-  return poprithms::util::error(dfs, what);
+  return poprithms::error::error(dfs, what);
 }
 
 } // namespace dfs
