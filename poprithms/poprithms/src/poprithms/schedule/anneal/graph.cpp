@@ -408,20 +408,49 @@ AllocWeight Graph::getShiftCost(ScheduleIndex start0,
 ScheduleIndex Graph::getLastProducer(ScheduleIndex start,
                                      int nToShift) const {
 
-  //                       ......xxxxxxxxxx......
-  // producers of all xs:   |  | |   |   ||
-  //                            |
-  //                       last producer
+  // Consider a range [start, start + nToShift)  of Ops in a schedule, denoted
+  // by x's below:
+  //
+  //            start
+  //            |     start + nToShift
+  //            |     |
+  //  ..........xxxxxx..........
+  //  0123456789 etc               <-- schedule index.
+  //
+  // Each of the x's has a (possibly empty) set of input (a.k.a. producer)
+  // Ops. Consider the union of the schedule indices of all of these
+  // producers. For example,
+  //
+  //                          0         10        20
+  //                          01234567890123456789012345  <-- schedule index.
+  //                          .............xxxxxxxxxxx.....
+  // all producers of all x's:  |  | |   |   ||  | |
+  //                                     |
+  //                             (last producer)
+  //
+  // The set of indices of producers of all x's in the above example is
+  // {2,4,7,11,15,16,19,21}.
+  //
+  // This function returns the largest schedule index in this set which is
+  // less than "start", which in this example is 11.
+  //
+  // If the set is empty, then -1 is returned.
+  //
 
-  // if there is no producer, this is what is returned:
+  // if there is no producer less than start for any x, this is what is
+  // returned:
   ScheduleIndex lower = -1;
 
   for (ScheduleIndex i = start; i < start + nToShift; ++i) {
     OpAddress opAddress = scheduleToOp(i);
+
     auto firstFromStart =
         custom_lower_bound(opToInSchedule(opAddress).cbegin(),
                            opToInSchedule(opAddress).cend(),
                            start);
+
+    // It is possible that there were no consumers preceding start, in the
+    // case where there was:
     if (firstFromStart != opToInSchedule(opAddress).cbegin()) {
       lower = std::max(lower, *(std::prev(firstFromStart)));
     }
