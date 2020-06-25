@@ -208,7 +208,7 @@ public:
   // seed : the algorithm randomly shuffles op indices in each round
   //
   // filterSusceptible : in each round which follows a round with at least one
-  // shift, only considershifts of ranges if at least one Op in the
+  // shift, only consider shifts of ranges if at least one Op in the
   // range has a constraint to an Op which moved in the previous round.
   // Changing this boolean value may change the final local minimum found
 

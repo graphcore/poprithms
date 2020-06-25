@@ -138,7 +138,8 @@ Graph fromSerializationString(const std::string &serialization) {
   // 3) insert Links, Constrains, Op-Alloc associations
   for (OpAddress add = 0; add < opAddresses.size(); ++add) {
     auto ind = opToInd[add];
-    if (fwdLink_i64s[ind] >= 0 && fwdLink_i64s[ind] < opAddresses.size()) {
+    if (fwdLink_i64s[ind] >= 0 &&
+        static_cast<uint64_t>(fwdLink_i64s[ind]) < opAddresses.size()) {
       graph.insertLink(add, static_cast<OpAddress>(fwdLink_i64s[ind]));
     }
     for (auto o : outs[ind]) {

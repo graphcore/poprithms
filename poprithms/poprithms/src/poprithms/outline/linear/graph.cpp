@@ -174,35 +174,36 @@ std::ostream &operator<<(std::ostream &ost, OutliningAlgorithm a) {
   switch (a) {
   case OutliningAlgorithm::Algo0: {
     ost << "OutliningAlgorithm::Algo0";
-    return ost;
+    break;
   }
 
   case OutliningAlgorithm::Algo1: {
     ost << "OutliningAlgorithm::Algo1";
-    return ost;
+    break;
   }
 
   case OutliningAlgorithm::Algo2: {
     ost << "OutliningAlgorithm::Algo2";
-    return ost;
+    break;
   }
 
   case OutliningAlgorithm::N:
-  default:
-    throw error("Invalid OutliningAlgorithm");
+    throw error("N is not an OutliningAlgorithm");
   }
+
+  return ost;
 }
 
 std::ostream &operator<<(std::ostream &ost, SchedulingAlgorithm a) {
   switch (a) {
   case SchedulingAlgorithm::Filo: {
     ost << "SchedulingAlgorithm::Filo";
-    return ost;
+    break;
   }
   case SchedulingAlgorithm::N:
-  default:
-    throw error("Invalid SchedulingAlgorithm");
+    throw error("N is not a SchedulingAlgorithm");
   }
+  return ost;
 }
 
 uint64_t Graph::nTypes() const {

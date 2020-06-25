@@ -14,20 +14,21 @@ std::ostream &operator<<(std::ostream &ost, DType t) {
   switch (t) {
   case DType::INT32: {
     ost << std::string("INT32");
-    return ost;
+    break;
   }
   case DType::FLOAT32: {
     ost << std::string("FLOAT32");
-    return ost;
+    break;
   }
   case DType::FLOAT16: {
     ost << std::string("FLOAT16");
-    return ost;
+    break;
   }
   case DType::N:
-  default:
-    throw error("Invalid DType");
+    throw error("N is not a DType");
   }
+
+  return ost;
 }
 
 } // namespace linear

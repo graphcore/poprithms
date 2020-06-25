@@ -973,7 +973,7 @@ void Graph::setScheduleFromMergedChild(const OpMerged &merged) {
   const auto &childGraph     = std::get<0>(merged);
   const auto &childToParents = std::get<1>(merged);
 
-  for (ScheduleIndex i = 0; i < childGraph.nOps(); ++i) {
+  for (ScheduleIndex i = 0; i < childGraph.nOps_i32(); ++i) {
     const auto childAddress = childGraph.scheduleToOp(i);
     schToOp.insert(schToOp.end(),
                    childToParents[childAddress].cbegin(),
@@ -1575,7 +1575,7 @@ void Graph::applyTransitiveClosureOptimizations(
       // As Updating a TransitiveClosure takes significantly more time for a
       // large number of edges, we prefer to re-initialize when the number of
       // edges is "large";
-      const uint64_t nLarge = nOps() / 10;
+      const int nLarge = nOps_i32() / 10;
       if (std::accumulate(
               dff.cbegin(), dff.cend(), 0, [](size_t x, const auto &y) {
                 return x + y.size();
@@ -1666,7 +1666,7 @@ void Graph::initialize(KahnTieBreaker kahnTie,
   opToSch.reserve(nOps());
   opToSch.clear();
 
-  for (ScheduleIndex i = 0; i < nOps(); ++i) {
+  for (ScheduleIndex i = 0; i < nOps_i32(); ++i) {
     opToSch[scheduleToOp(i)] = i;
   }
 
@@ -1685,7 +1685,7 @@ void Graph::initialize(KahnTieBreaker kahnTie,
   schToAllocs.reserve(nOps());
   schToAllocs.clear();
 
-  for (ScheduleIndex schedIndex = 0; schedIndex < nOps(); ++schedIndex) {
+  for (ScheduleIndex schedIndex = 0; schedIndex < nOps_i32(); ++schedIndex) {
     auto schedIndex_u64 = static_cast<uint64_t>(schedIndex);
     auto opAddress      = scheduleToOp(schedIndex);
     const auto &op      = getOp(opAddress);
@@ -1850,7 +1850,7 @@ void Graph::assertCorrectness() const {
   // topological constraints
   for (uint64_t i = 0; i < nOps(); ++i) {
     for (auto j : getOp(schToOp[i]).getIns()) {
-      if (opToSch[j] >= i) {
+      if (opToSch[j] >= ScheduleIndex(i)) {
         std::ostringstream oss;
         oss << "\n\nTopological constrains not satisfied. ";
         oss << "Op " << schToOp[i] << " is scheduled at " << i
@@ -1997,10 +1997,8 @@ std::string getMinSumLivenessAlgoString(MinSumLivenessAlgo algo) {
   case (MinSumLivenessAlgo::RIPPLE): {
     return "Ripple";
   }
-  default: {
-    throw error("Unrecognised MinSumLivenessAlgo");
   }
-  }
+  throw error("Unrecognised MinSumLivenessAlgo");
 }
 } // namespace
 
