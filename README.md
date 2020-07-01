@@ -2,6 +2,55 @@
 
 Poprithms is a graph algorithms library used by ML frameworks. Algorithm specific information can be found in the notes sub-directory. 
 
+### Prerequisites for building
+
+* Boost, any version. 
+
+### Configure with cmake 
+
+Create a build directory:
+```
+mkdir build; cd build;
+```
+
+Configure cmake. If boost is installed in a standard location, 
+```
+cmake /path/to/poprithms/root/dir
+```
+
+If boost is installed somewhere unusual, 
+```
+cmake /path/to/poprithms/root/dir -DBOOST_ROOT=/path/to/boost/install 
+```
+
+
+By default, the C++ compiler flag `-Werror` is enabled. To disable `-Werror`, use 
+```
+cmake /path/to/poprithms/root/dir  -DPOPRITHMS_WERROR=OFF
+```
+
+The usual CMake flags can be used to set the install directory and generator:
+
+```
+cmake /path/to/poprithms/root/dir  -DPOPRITHMS_WERROR=OFF -BOOST_ROOT=/path/to/boost/install -DCMAKE_INSTALL_PREFIX=/my/install/dir -DCMAKE_GENERATOR="Ninja"
+```
+
+### Build the library
+
+The library can be built from the build directory. If the generator is Ninja and you have an install directory set, then 
+```
+ninja install
+```
+
+will build and copy the poprithms shared library, header and configuration files into the install directory. 
+
+### Build the documentation 
+
+Currently poprithms does not build documentation. 
+
+### Examples 
+
+Currently the test directory serves as examples. 
 
 ### Prerequisites for building
 
@@ -54,8 +103,6 @@ Currently poprithms does not build documentation.
 Currently the test directory serves as examples. 
 
 ### Using the poprithms library in CMake projects
-
-### Usage
 
 The easiest way to use poprithms in CMake is via `find_package`, specifying on the `CMAKE_PREFIX_PATH` the location of the poprithms install.
 
