@@ -8,9 +8,6 @@ if (${POPRITHMS_WERROR})
 endif ()
 
 
-
-
-
 # Currently all Boost components used are header only,
 # so no "COMPONENTS foo" is needed when finding Boost.
 find_package(Boost REQUIRED)
@@ -105,6 +102,8 @@ add_library(poprithms-outline SHARED
 set(memory_nest_sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/error.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/stripe.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/sett.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/logging.cpp
 )
 add_library(poprithms-memory-objlib OBJECT ${memory_nest_sources})
 add_library(poprithms-memory SHARED

@@ -1,10 +1,8 @@
+include(EnableCompilerWarnings)
+
 function(add_memory_test_executable name source)
   add_executable(${name} ${source})
-  target_include_directories(${name}
-      PRIVATE
-      ${CMAKE_CURRENT_SOURCE_DIR}
-      $<TARGET_PROPERTY:poprithms-memory,INCLUDE_DIRECTORIES>)
-  target_link_libraries(${name} poprithms-memory)
+  target_link_libraries(${name} poprithms-memory memory-test-util)
 endfunction()
 
 function(add_memory_test name source)
