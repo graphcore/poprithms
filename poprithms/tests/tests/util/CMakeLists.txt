@@ -1,3 +1,5 @@
+include(EnableCompilerWarnings)
+
 function(add_util_test_executable name source)
   add_executable(${name} ${source})
   target_include_directories(${name}

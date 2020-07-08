@@ -745,6 +745,10 @@ public:
   const Sett &operator[](size_t i) const { return setts_[i]; }
 
   Sett &operator[](size_t i) { return setts_[i]; }
+
+  bool equivalent(const DisjointSetts &rhs) const;
+
+  int64_t totalOns(int64_t end) const;
 };
 
 std::ostream &operator<<(std::ostream &stream, const Sett &);

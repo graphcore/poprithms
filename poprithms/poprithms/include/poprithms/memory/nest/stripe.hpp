@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_MEMORY_NEST_STRIPE_HPP
 #define POPRITHMS_MEMORY_NEST_STRIPE_HPP
 
+#include <array>
 #include <cstdint>
 #include <sstream>
 
@@ -79,10 +80,28 @@ public:
   bool operator==(const Stripe &rhs) const {
     return on() == rhs.on() && off() == rhs.off() && phase() == rhs.phase();
   }
+
   bool operator!=(const Stripe &rhs) const { return !operator==(rhs); }
+
   Stripe getScaled(int64_t f) const {
     return Stripe(sOn * f, sOff * f, sPhase * f);
   }
+
+  std::array<int64_t, 3> getAsArray() const {
+    return {period(), on(), phase()};
+  }
+
+  bool operator<(const Stripe &rhs) const {
+    return getAsArray() < rhs.getAsArray();
+  }
+
+  bool operator>(const Stripe &rhs) const {
+    return *this != rhs && !(operator<(rhs));
+  }
+
+  bool operator<=(const Stripe &rhs) const { return !(operator>(rhs)); }
+
+  bool operator>=(const Stripe &rhs) const { return !(operator<(rhs)); }
 
   void append(std::ostream &) const;
 

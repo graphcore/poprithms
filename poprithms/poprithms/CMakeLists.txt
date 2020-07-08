@@ -27,8 +27,10 @@ set(error_sources
 )
 
 set(util_sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/permutation.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/printiter.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/stringutil.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/shape.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/error.cpp
 )
 
@@ -101,6 +103,7 @@ add_library(poprithms-outline SHARED
 
 set(memory_nest_sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/error.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/region.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/stripe.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/sett.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/logging.cpp

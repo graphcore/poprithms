@@ -191,6 +191,70 @@ bool Sett::equivalent(const DisjointSetts &rhs) const {
   });
 }
 
+bool DisjointSetts::equivalent(const DisjointSetts &rhs) const {
+
+  // step 1 remove identical Setts in this and rhs, the comparison can be done
+  // without them.
+  auto a         = get();
+  auto b         = rhs.get();
+  const auto cmp = [](const Sett &lhs_, const Sett &rhs_) {
+    return lhs_.getStripes() < rhs_.getStripes();
+  };
+  std::sort(a.begin(), a.end(), cmp);
+  std::sort(b.begin(), b.end(), cmp);
+  std::vector<Sett> aReduced;
+  std::vector<Sett> bReduced;
+  auto aIter = a.cbegin();
+  auto bIter = b.cbegin();
+  while (aIter != a.end() && bIter != b.end()) {
+    if (cmp(*aIter, *bIter)) {
+      aReduced.push_back(*aIter);
+      ++aIter;
+    } else if (cmp(*bIter, *aIter)) {
+      bReduced.push_back(*bIter);
+      ++bIter;
+    }
+    // Identical Stripes in the 2 Setts:
+    else {
+      ++aIter;
+      ++bIter;
+    }
+  }
+  aReduced.insert(aReduced.end(), aIter, a.cend());
+  bReduced.insert(bReduced.end(), bIter, b.cend());
+
+  // Step 2: try to deduce non-equivalence by considering the total number of
+  // ons
+  const auto scm =
+      smallestCommonMultiple_i64(Sett::smallestCommonMultiple_v(aReduced),
+                                 Sett::smallestCommonMultiple_v(bReduced));
+  DisjointSetts lhsReduced(aReduced);
+  DisjointSetts rhsReduced(bReduced);
+  const auto lhsCounts = lhsReduced.totalOns(scm);
+  const auto rhsCounts = rhsReduced.totalOns(scm);
+  if (lhsCounts != rhsCounts) {
+    return false;
+  }
+
+  // Step 3: we have deduced that the that total counts are the same, now just
+  // need to confirm that one is contained in the other:
+  for (const auto &lSett : lhsReduced) {
+    if (!lSett.containedIn(rhsReduced)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+int64_t DisjointSetts::totalOns(int64_t end) const {
+  return std::accumulate(
+      setts_.cbegin(),
+      setts_.cend(),
+      int64_t(0),
+      [end](int64_t c, const auto &sett) { return c + sett.n(0, end); });
+}
+
 void Sett::confirmEquivalent(const Sett &rhs) const {
   confirmEquivalent(DisjointSetts(rhs));
 }

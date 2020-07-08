@@ -1,0 +1,13 @@
+add_memory_test(memory_nest_region_basic_shape_0  basic_shape_0.cpp)
+add_memory_test(memory_nest_region_reshape_0  reshape_0.cpp)
+add_memory_test(memory_nest_region_intersect_0  intersect_0.cpp)
+add_memory_test(memory_nest_region_settsample_0  settsample_0.cpp)
+add_memory_test(memory_nest_region_slice_0  slice_0.cpp)
+add_memory_test(memory_nest_region_reverse_0  reverse_0.cpp)
+add_memory_test(memory_nest_region_permute_0  permute_0.cpp)
+add_memory_test(memory_nest_region_expand_0  expand_0.cpp)
+add_memory_test(memory_nest_region_merge_0  merge_0.cpp)
+add_memory_test(memory_nest_region_equivalent_0  equivalent_0.cpp)
+add_memory_test(memory_nest_region_sett_operations_random_0  sett_operations_random_0.cpp)
+add_memory_test(memory_nest_region_reshape_random_0  reshape_random_0.cpp)
+

@@ -1,5 +1,4 @@
 # Code which is common to tests, but
-
 # does not belong in the main library.
 
 set (schedule_test_util_source_dir
@@ -24,6 +23,7 @@ target_link_libraries(schedule-test-util poprithms-schedule)
 
 set(memory-test-util-sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/memory/nest/randomsett.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/memory/nest/randomregion.cpp
 )
 add_library(memory-test-util SHARED ${memory-test-util-sources})
 target_include_directories(memory-test-util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
