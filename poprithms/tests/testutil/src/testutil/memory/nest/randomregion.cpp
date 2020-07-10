@@ -55,11 +55,17 @@ getRandomRegion(const Shape &sh, uint32_t seed, uint64_t maxSettDepth) {
     stripes.reserve(depth);
     auto maxPeriod = sh.dim(d);
     for (uint64_t s = 0; s < depth; ++s) {
-      auto period = std::max<int64_t>(
+      const auto period = std::max<int64_t>(
           1LL, static_cast<int64_t>(gen() % (maxPeriod + 1)));
-      auto on    = 1 + gen() % (period);
-      auto off   = period - on;
-      auto phase = gen() % (10 * period + 1);
+
+      const auto on_unsigned = 1 + gen() % (period);
+      const auto on          = static_cast<int64_t>(on_unsigned);
+
+      const auto off = period - on;
+
+      const auto phase_unsigned = gen() % (10 * period + 1);
+      const auto phase          = static_cast<int64_t>(phase_unsigned);
+
       stripes.push_back({on, off, phase});
       maxPeriod = on;
     }
