@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <unordered_set>
 
+#include <poprithms/util/error.hpp>
 #include <poprithms/util/typedinteger.hpp>
 
 int main() {
@@ -23,6 +24,11 @@ int main() {
 
   static_assert(std::is_same<decltype(a), decltype(d)>::value,
                 "same char, same int");
+
+  a += 3;
+  if (a != d) {
+    throw error("Failed in typedinteger test : operator +=");
+  }
 
   std::unordered_set<decltype(a)> usesHash;
   usesHash.insert(a);

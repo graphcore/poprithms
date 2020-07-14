@@ -52,6 +52,8 @@ public:
     return get() <= rhs.get();
   }
 
+  void operator+=(INT q) { v += q; }
+
   bool operator!=(const TypedInteger &rhs) const { return !operator==(rhs); }
   bool operator>(const TypedInteger &rhs) const { return !operator<=(rhs); }
   bool operator>=(const TypedInteger &rhs) const { return !operator<(rhs); }
@@ -65,6 +67,12 @@ std::ostream &operator<<(std::ostream &ost, TypedInteger<T, INT> id) {
   ost << id.get();
   return ost;
 }
+
+template <char T, typename INT>
+std::string operator+(const std::string &s, TypedInteger<T, INT> id) {
+  return s + std::to_string(id.get());
+}
+
 } // namespace util
 } // namespace poprithms
 
