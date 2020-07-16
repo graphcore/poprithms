@@ -183,7 +183,9 @@ public:
   static uint32_t defaultKahnSeed() { return 1; }
   static TransitiveClosureOptimizations
   defaultTransitiveClosureOptimizations() {
-    return TransitiveClosureOptimizations::allOn();
+    // TODO(T19732) change to allOn(). Make sure all buildbots are happy with
+    // this before landing.
+    return TransitiveClosureOptimizations::allOff();
   }
 
   // All Ops which thus far do not have any input dependencies
