@@ -8,26 +8,93 @@
 namespace poprithms {
 namespace util {
 
+/**
+ * A class to represent a N-dimensional rectangular volume.
+ * */
 class Shape {
 
 private:
   std::vector<int64_t> shp;
+  using Lower = decltype(shp);
+  using Upper = decltype(shp);
 
 public:
   Shape(const std::vector<int64_t> &s_) : shp(s_) {}
   Shape(const std::initializer_list<int64_t> &s)
       : Shape(std::vector<int64_t>(s)) {}
 
-  template <class T> static Shape fromPartials(const T &t) {
-    std::vector<int64_t> shp_(t.size());
-    for (uint64_t d = 0; d < t.size(); ++d) {
-      shp_[d] = static_cast<int64_t>(t[d].size());
-    }
-    return Shape(shp_);
-  }
+  /**
+   * \param inShapes The Shapes to concatenate.
+   *
+   * \param axis The dimension to concatenate in.
+   *
+   * All Shapes in `inShapes' must be the same rank and can only differ in
+   * dimension `axis'.
+   *
+   * \return The concatenation of `inShapes' along dimension `axis'.
+   *
+   * Example: inShapes=((2,3),(2,4)) and axis=1
+   *          return (2,7).
+   * */
+  static Shape concat(const std::vector<Shape> &inShapes, uint64_t axis);
 
   /**
-   * The number of elements in this Shape. It is the product of the dimension
+   * \return The indices along concatenation dimension `axis' where the input
+   *         Shapes `inShapes' touch. The returned vector of indices is of
+   *         size inShapes.size() + 1, and it is the cumulative sum of the
+   *         sizes of `inShapes' along dimension `axis'.
+   *
+   * Example: inShapes=((2,1),(2,2),(2,3)) and axis=1
+   *          return (0,1,3,6).
+   * */
+  static std::vector<int64_t>
+  concatPartitionPoints(const std::vector<Shape> &inShapes, uint64_t axis);
+
+  /**
+   * This is equivalent to Shape::concat({*this, rhs}, axis).
+   * */
+  Shape concat(const Shape &, uint64_t axis) const;
+
+  /**
+   * \return true iff `rhs' has equal rank to this Shape, and `rhs' and this
+   *         Shape have the same sizes in every dimension which is not `axis'.
+   * */
+  bool concattable(const Shape &rhs, uint64_t axis) const;
+
+  /**
+   * Throws an error if concattable(rhs, axis) is false.
+   * */
+  void assertConcattable(const Shape &rhs, uint64_t axis) const;
+
+  Shape flatten() const { return Shape({nelms()}); }
+
+  /**
+   * \return A Shape which is the same same as this but with all `1's removed.
+   *         Note that `0's are not removed.
+   * */
+  Shape squeeze() const;
+
+  /**
+   * \return A copy of this Shape but wthi a 1 inserted in dimension `d'. The
+   *         returned Shape has rank 1 greater than this Shape's.
+   * */
+  Shape unsqueeze(uint64_t d) const;
+
+  /**
+   * Throw an error if
+   *   l > u or
+   *   l < 0 or
+   *   u > shape().
+   * */
+  void assertBoundsAreValid(const Lower &l, const Upper &u) const;
+
+  /**
+   * \return the Shape "u - l" if assertBoundsAreValid(l,u).
+   * */
+  Shape slice(const Lower &l, const Upper &u) const;
+
+  /**
+   * The number of elements in this Shape. It is the product of dimension
    * sizes.
    * */
   int64_t nelms() const;
@@ -109,6 +176,13 @@ public:
    * */
   std::vector<int64_t> getColMajorPoint(int64_t index) const;
 
+  /**
+   * \return A copy of this Shape but with the size of dimension "dimension"
+   *         larger by a factor "N". The retured Shape has the same rank as
+   *         this Shape.
+   * */
+  Shape broadcast(int64_t N, uint64_t dimension) const;
+
   //
 
   /**
@@ -139,6 +213,8 @@ public:
                                        const std::vector<int64_t> &b);
 
   void assertFlatPoint(int64_t flatPoint) const;
+
+  void assertValidDimension(uint64_t d) const;
 
   bool operator==(const Shape &rhs) const { return shp == rhs.shp; }
   bool operator!=(const Shape &rhs) const { return shp != rhs.shp; }

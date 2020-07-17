@@ -70,8 +70,54 @@ void testRowMajorIndex0() {
 }
 } // namespace
 
+void testConcat() {
+  const Shape a({2, 3, 4});
+  const Shape b({2, 2, 4});
+  const auto c = a.concat(b, 1);
+  if (c != Shape({2, 5, 4})) {
+    throw error("Failed in testConcat (1)");
+  }
+
+  const Shape d({0, 3, 4});
+  const auto e = d.concat(a, 0);
+  if (e != a) {
+    throw error("Failed in testConcat (2)");
+  }
+
+  auto points = Shape::concatPartitionPoints({a, b}, 1);
+  if (points != std::vector<int64_t>({0, 3, 5})) {
+    throw error("Failed in testConcat : incorrect partition points");
+  }
+}
+
+void testSqueeze() {
+  const Shape a({2, 1, 1, 3, 1, 1, 4});
+  auto s = a.squeeze();
+  if (s != Shape({2, 3, 4})) {
+    throw error(
+        "Failed to squeeze correctly in testSqueeze, expected (2,3,4)");
+  }
+
+  const auto foo = s.unsqueeze(0);
+  if (foo != Shape({1, 2, 3, 4})) {
+    throw error(
+        "Failed to unsqueeze correctly in testSqueeze, expected (1,2,3,4)");
+  }
+}
+
+void testSlice() {
+  Shape f({4, 5});
+  auto o = f.slice({0, 1}, {2, 3});
+  if (o != Shape({2, 2})) {
+    throw error("Failed in testSlice");
+  }
+}
+
 int main() {
   testNumpyBinary0();
   testRowMajorIndex0();
+  testConcat();
+  testSqueeze();
+  testSlice();
   return 0;
 }
