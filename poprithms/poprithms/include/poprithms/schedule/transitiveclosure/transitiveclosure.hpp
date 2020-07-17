@@ -43,7 +43,7 @@ public:
   TransitiveClosure(const Edges &forwardEdges);
 
   /**
-   * Insert additional DAG edges. Not that it is much faster to call the
+   * Insert additional DAG edges. Note that it is much faster to call the
    * constructor with the full set of edges than to incrementally call update.
    */
   void update(const Edges &newEdges);
@@ -73,12 +73,12 @@ public:
    * Objects used to select sub-sets of Ops based on constraints with respect
    * to other Ops. Filters are used in get(.) with the following semantics
    *  {IsFirst::Yes, a}
-   *      will be true for all b s.t. a is before b in all schedules,
+   *      will be true for all b s.t. b is before a in all schedules,
    *  {IsFirst::Maybe, a}
-   *      will be true for all b s.t. a is before b in at least 1 schedule,
-   *      and a is after b in at least 1 schedule,
+   *      will be true for all b s.t. b is before a in at least 1 schedule,
+   *      and b is after a in at least 1 schedule,
    *  {IsFirst::No, a}
-   *      will be true for all b s.t. a is after b in all schedules.
+   *      will be true for all b s.t. b is after a in all schedules.
    * */
   using Filter  = std::tuple<IsFirst, OpId>;
   using Filters = std::vector<Filter>;
