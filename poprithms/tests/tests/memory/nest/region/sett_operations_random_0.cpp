@@ -57,7 +57,7 @@ void test() {
     logger.info("test 1");
     for (const auto &x : sampled0.get()) {
       auto foo = x.settFillInto(b);
-      for (const auto &reg : foo) {
+      for (const auto &reg : foo.get()) {
         if (!a.contains(reg)) {
           throw error("failed test 1");
         }

@@ -45,7 +45,8 @@ int main() {
             std::vector<Region> returned;
             for (const auto &x : reshaped.get()) {
               auto y = x.reshape(from);
-              returned.insert(returned.end(), y.cbegin(), y.cend());
+              returned.insert(
+                  returned.end(), y.get().cbegin(), y.get().cend());
             }
             if (!Region::equivalent(DisjointRegions{fromRegion},
                                     DisjointRegions(from, returned))) {

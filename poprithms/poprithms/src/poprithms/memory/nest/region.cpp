@@ -55,58 +55,9 @@ DisjointRegions getOuterProduct(const Shape &shape,
 
 } // namespace
 
-DisjointRegions::DisjointRegions(const Shape &s,
-                                 const std::vector<Region> &rs)
-    : sh_(s), regs_(rs) {
-
-  for (const auto &reg : rs) {
-    if (reg.shape() != s) {
-      std::ostringstream oss;
-      oss << "Expected shape and regions to agree in DisjointRegions "
-          << "constructor. This is not true for regions=" << rs
-          << " and shape=" << s;
-      throw error(oss.str());
-    }
-  }
-}
-
-bool DisjointRegions::isValid() const {
-
-  if (empty()) {
-    return true;
-  }
-
-  for (uint64_t d = 0; d < size(); ++d) {
-    if (at(d).shape() != shape()) {
-      return false;
-    }
-    for (uint64_t d2 = 0; d2 < d; ++d2) {
-      if (!at(d).disjoint(at(d2))) {
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
-void DisjointRegions::confirmValid() const {
-  if (!isValid()) {
-    std::ostringstream oss;
-    oss << *this
-        << " is not valid, failure in DisjoingRegions::confirmValid.";
-    throw error(oss.str());
-  }
-}
-
-std::vector<Region>
-DisjointRegions::regsFromSetts(const Shape &sh,
-                               const std::vector<std::vector<Sett>> &se) {
-  std::vector<Region> rs;
-  rs.reserve(se.size());
-  for (const auto &x : se) {
-    rs.push_back({sh, x});
-  }
-  return rs;
+Region Region::createEmpty(const Shape &sh) {
+  return Region(sh,
+                std::vector<Sett>(sh.rank_u64(), Sett::createAlwaysOff()));
 }
 
 Region Region::createFull(const Shape &sh) {
@@ -238,33 +189,10 @@ DisjointRegions Region::intersect(const Region &rhs) const {
   return getOuterProduct(shape(), partials);
 }
 
-void Region::validateBounds(const std::vector<int64_t> &l,
-                            const std::vector<int64_t> &u) const {
-
-  std::ostringstream ss;
-
-  // same rank for lower and upper
-  if (l.size() != u.size() || u.size() != rank_u64()) {
-    ss << "lower and upper must both be of size "
-       << " " << rank_u64() << ". This ia not true for lower=" << l
-       << " and upper=" << u << '.';
-    throw error(ss.str());
-  }
-
-  // lower less than or equal to upper
-  for (auto i = 0ul; i < rank_u64(); ++i) {
-    if (l[i] > u[i]) {
-      ss << "lower bound cannot excede upper bound. "
-         << "This for lower=" << l << " and upper=" << u << '.';
-      throw error(ss.str());
-    }
-
-    if (dim(i) < u[i]) {
-      ss << "lower bound cannot excede upper bound. "
-         << "This for lower=" << l << " and upper=" << u << '.';
-      throw error(ss.str());
-    }
-  }
+Region &Region::operator=(const Region &rhs) {
+  shape_ = rhs.shape_;
+  setts_ = rhs.setts_;
+  return *this;
 }
 
 Region::Region(const Shape &sh_, const std::vector<Sett> &se_) : shape_(sh_) {
@@ -314,34 +242,6 @@ bool Region::contains(const Region &rhs) const {
 
 bool Region::equivalent(const Region &rhs) const {
   return equivalent({*this}, {rhs});
-}
-
-std::vector<int64_t> DisjointRegions::nelms() const {
-  std::vector<int64_t> ns;
-  ns.reserve(size());
-  for (const auto &reg : get()) {
-    ns.push_back(reg.totalElms());
-  }
-  return ns;
-}
-
-DisjointRegions DisjointRegions::flatten() const {
-  std::vector<Region> flat;
-  flat.reserve(size());
-  for (const auto &reg : get()) {
-    flat.push_back(reg.flatten());
-  }
-  return DisjointRegions(Shape({shape().nelms()}), flat);
-}
-
-DisjointSetts DisjointRegions::flattenToSetts() const {
-  const auto flatRegs = flatten();
-  std::vector<Sett> setts;
-  setts.reserve(size());
-  for (const auto &reg : flatRegs.get()) {
-    setts.push_back(reg.sett(0));
-  }
-  return DisjointSetts(setts);
 }
 
 bool Region::equivalent(const DisjointRegions &lhs,
@@ -506,22 +406,292 @@ bool Region::disjoint(const Region &rhs) const {
   return flat.sett(0).disjoint(rhsFlat.sett(0));
 }
 
-DisjointRegions Region::slice(const std::vector<int64_t> &l,
-                              const std::vector<int64_t> &u) const {
-  validateBounds(l, u);
+Region Region::fromBounds(const Shape &sh,
+                          const std::vector<int64_t> &l,
+                          const std::vector<int64_t> &u) {
+
+  sh.assertBoundsAreValid(l, u);
   std::vector<Sett> slices;
-  slices.reserve(rank_u64());
-  for (uint64_t i = 0; i < rank_u64(); ++i) {
-    slices.push_back(Sett{{{u[i] - l[i], dim(i) + l[i] - u[i], l[i]}}});
+  slices.reserve(sh.rank_u64());
+  for (uint64_t i = 0; i < sh.rank_u64(); ++i) {
+    slices.push_back(Sett{{{u[i] - l[i], sh.dim(i) + l[i] - u[i], l[i]}}});
   }
-  auto sliced = settSample(Region(shape(), slices));
+
+  return Region(sh, slices);
+}
+
+Region Region::fromStripe(const Shape &sh,
+                          uint64_t dimension,
+                          const Stripe &stripe0) {
+  if (dimension >= sh.rank_u64()) {
+    std::ostringstream oss;
+    oss << "Call to Region::fromStripe invalid for shape=" << sh
+        << " and dimension=" << dimension;
+    throw error(oss.str());
+  }
+  std::vector<Sett> setts(sh.rank_u64(), {{{}}});
+  setts[dimension] = Sett({stripe0});
+  return Region(sh, setts);
+}
+
+Region Region::slice(const std::vector<int64_t> &l,
+                     const std::vector<int64_t> &u) const {
+
+  const auto sampleRegion = fromBounds(shape(), l, u);
+  auto sliced             = settSample(sampleRegion);
   if (sliced.size() > 1) {
     std::ostringstream oss;
     oss << "In Region::slice(" << l << ", " << u
         << "), expected 0 or 1 output regions, not " << sliced << '.';
     throw error(oss.str());
   }
-  return sliced;
+
+  if (sliced.size() == 0) {
+    return Region::createEmpty(shape().slice(l, u));
+  }
+  return sliced.at(0);
+}
+
+Region Region::reduce(const Shape &outShape) const {
+  const auto outRank = outShape.rank_u64();
+
+  if (outRank > rank_u64()) {
+    throw error("Cannot reduce to a higher rank");
+  }
+
+  const auto deltaRank = rank_u64() - outRank;
+
+  std::vector<nest::Sett> nxtSetts(outRank, {{}});
+  for (uint64_t d = 0; d < outShape.rank_u64(); ++d) {
+    if (outShape.dim(d) != 1) {
+      if (outShape.dim(d) != dim(d + deltaRank)) {
+        std::ostringstream oss;
+        oss << "Cannot reduce region of shape " << shape() << " to shape "
+            << outShape << " (" << outShape.dim(d)
+            << " != " << dim(d + deltaRank) << " != 1)";
+        throw error(oss.str());
+      }
+      nxtSetts[d] = sett(d + deltaRank);
+    }
+  }
+  return Region{outShape, nxtSetts};
+}
+
+// DisjointRegions //
+// =============== //
+
+DisjointRegions DisjointRegions::reduce(const Shape &outShape) const {
+  // Example:
+  // 11..11..11..     .11..11..11.
+  // ............ and ............
+  // 11..11..11..     .11..11..11.
+  //
+  // should reduce (along vertical axis) to
+  //
+  // 111.111.111.111.111.111
+  //
+  // This requires T23326 to be completed to be fully supported: Currently
+  // Regions must be disjoint in non-reduction axes.
+  //
+  std::vector<Region> oRegs;
+  oRegs.reserve(size());
+  for (const auto &reg : get()) {
+    const auto nxtIn = reg.reduce(outShape);
+    if (!nxtIn.empty()) {
+      bool alreadyPresent = false;
+      for (const auto &alreadyIn : oRegs) {
+        if (alreadyIn.contains(nxtIn)) {
+          alreadyPresent = true;
+          break;
+        }
+        if (!alreadyIn.disjoint(nxtIn)) {
+          throw error("Need sett difference to complete this, see T23326");
+        }
+      }
+      if (!alreadyPresent) {
+        oRegs.push_back(nxtIn);
+      }
+    }
+  }
+  return DisjointRegions(outShape, oRegs);
+}
+
+int64_t DisjointRegions::totalElms() const {
+  const auto counts = nelms();
+  return std::accumulate(counts.cbegin(), counts.cend(), 0LL);
+}
+
+DisjointRegions
+DisjointRegions::slice(const std::vector<int64_t> &lower,
+                       const std::vector<int64_t> &upper) const {
+  std::vector<Region> allOutRegions;
+  for (const auto &reg : get()) {
+    const auto inReg = reg.slice(lower, upper);
+    if (!inReg.empty()) {
+      allOutRegions.push_back(inReg);
+    }
+  }
+  return DisjointRegions(shape().slice(lower, upper), allOutRegions);
+}
+
+DisjointRegions DisjointRegions::settFillInto(const Region &scaffold) const {
+  std::vector<Region> oRegs;
+  oRegs.reserve(size());
+  for (const auto &reg : get()) {
+    auto inRegs = reg.settFillInto(scaffold);
+    for (const auto &inReg : inRegs.get()) {
+      if (!inReg.empty()) {
+        oRegs.push_back(inReg);
+      }
+    }
+  }
+  return DisjointRegions(scaffold.shape(), oRegs);
+}
+
+DisjointRegions
+DisjointRegions::reverse(const std::vector<uint64_t> &dimensions) const {
+  std::vector<Region> oRegs;
+  oRegs.reserve(size());
+  for (const auto &reg : get()) {
+    oRegs.push_back(reg.reverse(dimensions));
+  }
+  return DisjointRegions(shape(), oRegs);
+}
+
+DisjointRegions DisjointRegions::permute(const Permutation &p) const {
+  std::vector<Region> oRegs;
+  oRegs.reserve(size());
+  for (const auto &reg : get()) {
+    const auto inReg = reg.permute(p);
+    oRegs.push_back(reg.permute(p));
+  }
+  return DisjointRegions(p.apply(shape().get()), oRegs);
+}
+
+DisjointRegions DisjointRegions::reshape(const Shape &s) const {
+  std::vector<Region> oRegs;
+  oRegs.reserve(size());
+  for (const auto &reg : get()) {
+    auto inRegs = reg.reshape(s);
+    for (const auto &inReg : inRegs.get()) {
+      if (!inReg.empty()) {
+        oRegs.push_back(inReg);
+      }
+    }
+  }
+  return DisjointRegions(s, oRegs);
+}
+
+DisjointRegions &DisjointRegions::operator=(const DisjointRegions &rhs) {
+  sh_   = rhs.sh_;
+  regs_ = rhs.regs_;
+  return *this;
+}
+
+bool DisjointRegions::disjoint(const DisjointRegions &rhs) const {
+  if (rhs.shape() != shape()) {
+    std::ostringstream oss;
+    oss << "Error in DisjointRegions::disjoint, where this has Shape "
+        << shape() << " and rhs has Shape " << rhs.shape();
+    throw error(oss.str());
+  }
+
+  // using triangle inequality on set sizes:
+  if (shape().nelms() < totalElms() + rhs.totalElms()) {
+    return false;
+  }
+
+  for (const auto &reg0 : get()) {
+    for (const auto &reg1 : rhs.get()) {
+      if (!reg0.disjoint(reg1)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+DisjointRegions::DisjointRegions(const Shape &s,
+                                 const std::vector<Region> &rs)
+    : sh_(s), regs_(rs) {
+
+  for (const auto &reg : rs) {
+    if (reg.shape() != s) {
+      std::ostringstream oss;
+      oss << "Expected shape and regions to agree in DisjointRegions "
+          << "constructor. This is not true for regions=" << rs
+          << " and shape=" << s;
+      throw error(oss.str());
+    }
+  }
+}
+
+bool DisjointRegions::isValid() const {
+
+  if (empty()) {
+    return true;
+  }
+
+  for (uint64_t d = 0; d < size(); ++d) {
+    if (at(d).shape() != shape()) {
+      return false;
+    }
+    for (uint64_t d2 = 0; d2 < d; ++d2) {
+      if (!at(d).disjoint(at(d2))) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+void DisjointRegions::confirmValid() const {
+  if (!isValid()) {
+    std::ostringstream oss;
+    oss << *this
+        << " is not valid, failure in DisjoingRegions::confirmValid.";
+    throw error(oss.str());
+  }
+}
+
+std::vector<Region>
+DisjointRegions::regsFromSetts(const Shape &sh,
+                               const std::vector<std::vector<Sett>> &se) {
+  std::vector<Region> rs;
+  rs.reserve(se.size());
+  for (const auto &x : se) {
+    rs.push_back({sh, x});
+  }
+  return rs;
+}
+
+std::vector<int64_t> DisjointRegions::nelms() const {
+  std::vector<int64_t> ns;
+  ns.reserve(size());
+  for (const auto &reg : get()) {
+    ns.push_back(reg.totalElms());
+  }
+  return ns;
+}
+
+DisjointRegions DisjointRegions::flatten() const {
+  std::vector<Region> flat;
+  flat.reserve(size());
+  for (const auto &reg : get()) {
+    flat.push_back(reg.flatten());
+  }
+  return DisjointRegions(Shape({shape().nelms()}), flat);
+}
+
+DisjointSetts DisjointRegions::flattenToSetts() const {
+  const auto flatRegs = flatten();
+  std::vector<Sett> setts;
+  setts.reserve(size());
+  for (const auto &reg : flatRegs.get()) {
+    setts.push_back(reg.sett(0));
+  }
+  return DisjointSetts(setts);
 }
 
 } // namespace nest

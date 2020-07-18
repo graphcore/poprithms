@@ -28,21 +28,20 @@ using OptionalRegion = poprithms::memory::nest::OptionalSet<1, Region>;
 class DisjointRegions;
 
 /**
- * A set of elements of an n-d array (a Tensor). The set is expressed as the
- * outer-product of Setts in each of the d- dimensions. A Sett (see sett.hpp)
- * is a generalization of an interval, and so Regions can represent
- * non-contiguous areas within Tensors. In general, any striped sub-region of
- * a Tensor is representable.
+ * A set of elements of a Shape. The set is expressed as the outer product of
+ * Setts in each of the dimensions. A Sett (see sett.hpp) is a generalization
+ * of an interval, and Regions can represent non-contiguous areas within a
+ * Shape.
  *
- * A Region is completely defined by 2 class members,
+ * A Region is defined by its 2 class members,
  *
- *   > Shape shape_;
- * defines the n-d array in which the Region is contained.
+ *  1) Shape shape_;
+ * defines the containing rectangular volume.
  *
- *   > std::vector<Sett> setts_;
- * defines which elements of the n-d array are contained in the Region.
+ *  2) std::vector<Sett> setts_;
+ * defines the striping pattern of elements in the volume.
  *
- * Some examples of 2-d Regions, using 1 to denote a contained element:
+ * Examples of 2-d Regions, using 1 to denote a contained element:
  *
  * Example 1:
  * shape_ = (4,7), setts_ = (((2,2,1)), ((2,5,3))):
@@ -51,10 +50,10 @@ class DisjointRegions;
  *  ...11..
  *  .......
  *
- * as described in sett.hpp, Sett=(2,5,3) is used to represent a repeating
+ * As described in sett.hpp, Sett=(2,5,3) is used to represent a repeating
  * pattern of
- *   on for 2, then
- *   off for 5, with a
+ *   on  for  2, then
+ *   off for  5, with a
  *   phase of 3:
  *  ...11.....11.....11.....11.....11.....11.....11
  *
@@ -82,41 +81,61 @@ class DisjointRegions;
  *  ...1.1.1.1..
  *  ............
  *
- * In general, any sub-region which can be expressed independently in each
- * dimension can be expression. A sub-region such as
+ * Any set of elements which can be expressed independently in each dimension
+ * can be expression. A set of elements such as
  *
  * .1.1.1.
  * 1.1.1.1
  * .1.1.1.
  *
- * cannot be expressed by a Region, but can be decomposed into 2 smaller set
- * which can:
+ * cannot be expressed by a Region, but can be by the union of 2 Regions:
  *
  * .1.1.1.       .......
  * .......  and  1.1.1.1
  * .1.1.1.       .......
  *
- * Complex Regions can result from a sequence of slices, concatentations and
- * reshapes of n-d arrays.
+ * Complex Regions result from sequences of slices, concatentations and
+ * reshapes of Shapes.
  * */
 class Region {
 
 public:
   /**
-   * \param shape The Shape of the n-d array which contains this Region
+   * \param shape The rectangular volume which contains this Region
    *
-   * \param setts The elements of the containing n-d array which are in this
+   * \param setts The elements of the containing volume in this
    *              Region are defined by the outer-product of these Setts.
-   *
-   * setts and shape must have the same size.
    * */
   Region(const Shape &shape, const std::vector<Sett> &setts);
 
   /**
-   * Create a Region which contains all elements of the n-d array defined by
-   * shape
+   * Example : shape=(10), lower=(3), upper=(9) is equivalent to
+   *           constructing with setts=((on=6, off=4, phase=3)).
+   *
+   * */
+  static Region fromBounds(const Shape &shape,
+                           const std::vector<int64_t> &lower,
+                           const std::vector<int64_t> &upper);
+
+  /**
+   * Construct a Region with always-on Setts in all dimensions, except in
+   * dimension "dim" which has a depth-1 Sett defined by "st".
+   * */
+  static Region fromStripe(const Shape &, uint64_t dim, const Stripe &st);
+
+  Region(const Region &rhs) = default;
+  Region(Region &&)         = default;
+  Region &operator          =(const Region &);
+
+  /**
+   * \return Region which contains all elements of "shape".
    * */
   static Region createFull(const Shape &shape);
+
+  /**
+   * \return A Region which contains no elements, contained in volume "shape".
+   * */
+  static Region createEmpty(const Shape &shape);
 
   const Shape &shape() const { return shape_; }
 
@@ -125,7 +144,7 @@ public:
   int64_t dim(uint64_t d) const { return shape().dim(d); }
 
   /**
-   * \return The total number of elements in the Region.
+   * \return The total number of elements in this Region.
    * */
   int64_t totalElms() const;
 
@@ -135,7 +154,7 @@ public:
   int64_t nelms(uint64_t dim) const;
 
   /**
-   * \return The number of elements defined by all Setts. The total number of
+   * \return The number of elements defined by each Setts. The total number of
    *         elements in the Region is the product of these values.
    * */
   std::vector<int64_t> nelms() const;
@@ -157,23 +176,23 @@ public:
   /**
    * \param rhs A Region with the same containing Shape as this.
    *
-   * \return The intersection of this Region and rhs. This returned Region has
-   *         the same containing Shape as this.
+   * \return The intersection of this Region and rhs. The returned Regions
+   *         have the same containing Shape as this Region.
    * */
   DisjointRegions intersect(const Region &rhs) const;
 
   /**
-   * A generalization of slice and subSample operations.
+   * A generalization of slicing and sub-sampling.
    *
    * \param where The Region which defines the indices of this Region to
-   *              select. "where" must have the same containing Shape as this
-   *              Region.
+   *              select. It must have the same containing Shape as this.
    *
-   * \return A Region, whose containing Shape is equal to where.nelms().
+   * \return DisjointRegions, whose containing Shape is equal to
+   * where.nelms().
    *
    * Example
    *
-   *  this       where                 returned Region
+   *  this       where                 returned Regions
    * .......    1.1.1.1      . . . .     ....
    * ..1111.    .......   =>             .11.
    * ..1111.    1.1.1.1      . 1 1 .
@@ -191,42 +210,52 @@ public:
    *
    * this    scaffold                   return
    *
-   * 1.1     ..11.1.        --1.-1-     ..1..1.
-   * 1.1     .......   =>   -------     .......
-   * ...     ..11.1.        --1.-1-     ..1..1.
-   *         ..11.1.        --..-.-     .......
+   * 1.1     ..11.1.          1. 1      ..1..1.
+   * 1.1     .......   =>               .......
+   * ...     ..11.1.          1. 1      ..1..1.
+   *         ..11.1.          .. .      .......
    *
-   * As seen in the example, all the '1's in the scaffold are replaced by the
-   * values in this Region. scaffold.nelms() must equal this Region's
-   * containing Shape, in this example it is (3,3).
+   * As seen in the example above, all the '1's in "scaffold" are replaced
+   * by the values in this Region. scaffold.nelms() must equal this Region's
+   * containing Shape, in this example this is (3,3).
    * */
   DisjointRegions settFillInto(const Region &scaffold) const;
 
   /**
    * The reverse of settFillInto, an example is:
    *
-   * ink      this                     return
+   * ink       this                     return
    *
-   * 1.1     ..11.1.        --1.-1-     ..1..1.
-   * 1.1     .......   =>   -------     .......
-   * ...     ..11.1.        --1.-1-     ..1..1.
-   *         ..11.1.        --..-.-     .......
+   * 1.1     ..11.1.          1. 1      ..1..1.
+   * 1.1     .......    =>              .......
+   * ...     ..11.1.          1. 1      ..1..1.
+   *         ..11.1.          .. .      .......
    * */
   DisjointRegions settFillWith(const Region &ink) const;
 
   /**
-   * Slice this Region. The returned DisjointRegions contains 0 Regions if the
-   * slice is empty, and 1 Region otherwise. The Shape of the returned object
-   * is the difference between lower and upper.
+   * Slice this Region. The Shape of the returned Region is "upper - lower"
    * */
-  DisjointRegions slice(const std::vector<int64_t> &lower,
-                        const std::vector<int64_t> &upper) const;
+  Region slice(const std::vector<int64_t> &lower,
+               const std::vector<int64_t> &upper) const;
+
+  /**
+   * The inverse operation expand. Example:
+   *
+   *   2 3 4 5  this Region's Shape
+   *     1 4 1  the output Shape
+   *
+   * If this Region is not empty, the returned Region's Setts are always on
+   * where the output Shape has a singleton dimension, elsewhere they are
+   * unchanged from the input Region's Setts.
+   * */
+  Region reduce(const Shape &outShape) const;
 
   /**
    * Reshape this Region.
    *
-   * Example: If this has shape_=(2,8) and setts_=((),((5,3,0))), and
-   * to=(4,4):
+   * Example: If this Region has
+   * shape=(2,8) and setts=((),((5,3,0))), and to=(4,4):
    *
    *                                     returned
    *                                  DisjointRegions:
@@ -235,11 +264,12 @@ public:
    * 11111...      1111                1111   ....
    *               1...                ....   1...
    *
+   * \param to Shape with the same number of elements as this Region's Shape.
    * */
   DisjointRegions reshape(const Shape &to) const;
 
   /**
-   * Reshape this Region to a rank-1 Tensor
+   * Reshape this Region to rank-1.
    * */
   Region flatten() const;
 
@@ -271,7 +301,7 @@ public:
   void append(std::ostream &ss) const;
 
   /**
-   * \return A debug information.
+   * \return A debug string.
    * */
   std::string str() const;
 
@@ -330,11 +360,12 @@ private:
 
 public:
   const Shape &shape() const { return sh_; }
+  uint64_t rank_u64() const { return shape().rank_u64(); }
 
   /**
-   * \param rs a vector of disjoint Regs of the same Shape. If the Regs in rs
-   * are not all disjoint and of the same shape, the behavior of the object
-   * constructed is undefined.
+   * \param rs a vector of disjoint Regions of the same Shape. If the Regions
+   *           are not all disjoint and of the same shape, the behaviour of
+   *           the object constructed is undefined.
    * */
   explicit DisjointRegions(const Shape &, const std::vector<Region> &rs);
 
@@ -346,17 +377,17 @@ public:
     return DisjointRegions(s, std::vector<Region>{});
   }
 
-  DisjointRegions(DisjointRegions &&regs) = default;
+  static DisjointRegions createFull(const Shape &s) {
+    return DisjointRegions(s, {Region::createFull(s)});
+  }
+
+  DisjointRegions(const DisjointRegions &) = default;
+  DisjointRegions(DisjointRegions &&regs)  = default;
+  DisjointRegions &operator                =(const DisjointRegions &);
+
+  bool disjoint(const DisjointRegions &rhs) const;
 
   DisjointRegions(const Region &s) : sh_(s.shape()), regs_({s}) {}
-
-  decltype(regs_.begin()) begin() { return regs_.begin(); }
-
-  decltype(regs_.cbegin()) cbegin() const { return regs_.cbegin(); }
-
-  decltype(regs_.end()) end() { return regs_.end(); }
-
-  decltype(regs_.cend()) cend() const { return regs_.cend(); }
 
   size_t size() const { return regs_.size(); }
 
@@ -364,12 +395,7 @@ public:
 
   const std::vector<Region> &get() const { return regs_; }
 
-  std::vector<Region> &get() { return regs_; }
-
-  const Region &operator[](size_t i) const { return regs_[i]; }
   const Region &at(size_t i) const { return regs_[i]; }
-
-  Region &operator[](size_t i) { return regs_[i]; }
 
   /**
    * \return true iff The Regions are mutually disjoint and have the same
@@ -378,8 +404,28 @@ public:
   bool isValid() const;
   void confirmValid() const;
 
+  int64_t totalElms() const;
+
+  //  The following methods are the vector extensions of their corresponding
+  //  single Region versions.
+
   std::vector<int64_t> nelms() const;
+
   DisjointRegions flatten() const;
+
+  DisjointRegions reduce(const Shape &) const;
+
+  DisjointRegions slice(const std::vector<int64_t> &lower,
+                        const std::vector<int64_t> &upper) const;
+
+  DisjointRegions settFillInto(const Region &) const;
+
+  DisjointRegions reverse(const std::vector<uint64_t> &dimensions) const;
+
+  DisjointRegions reshape(const Shape &) const;
+
+  DisjointRegions permute(const Permutation &) const;
+
   DisjointSetts flattenToSetts() const;
 };
 

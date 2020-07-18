@@ -11,12 +11,12 @@ void assertNonEmptySlice(const Region &r,
                          const std::vector<int64_t> &l,
                          const std::vector<int64_t> &u,
                          const Region &expected) {
-  const auto sliced = r.slice(l, u);
-  if (sliced.size() != 1) {
-    throw error("expected has different number of Regions");
+  const auto slice = r.slice(l, u);
+  if (slice.empty()) {
+    throw error("expected non-empty slice");
   }
 
-  if (!sliced.at(0).equivalent(expected)) {
+  if (!slice.equivalent(expected)) {
     throw error("Failed in assertSlice comparions");
   }
 }
@@ -27,7 +27,7 @@ void assertEmptySlice(const Region &r,
                       const Shape &expected) {
 
   const auto sliced = r.slice(l, u);
-  if (sliced.size() != 0) {
+  if (!sliced.empty()) {
     std::ostringstream oss;
     oss << "Failed empty slice test, sliced = " << sliced << ".";
     throw error(oss.str());
