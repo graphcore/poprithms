@@ -18,79 +18,115 @@
 #include <poprithms/schedule/anneal/transitiveclosureoptimizations.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 
-// Design of the schedule annealing algorithm
-// -------------------------------------------
-// - store all schedule dependant information in the Graph class, not
-//   the Op or the Alloc classes. With this decision, Ops and Allocs will
-//   never be updated once the annealing begins
-//
-// - make the search algorithm for updates as fast as possible, at the expense
-//   of the update algorithm. This because (1) finding swaps is easily
-//   parallelisable and (2) updates are few and far between, especially at
-//   later iterations of the algorithm, so most time is spent searching for
-//   swaps
-
-// TODO(T14827) Parallelize the search for energy reducing swaps. Suggestions:
-// What the best approach is depends on whether we require the algorithm to be
-// deterministic. Assuming that we do, this is what I propose (for the search)
-// a vector of indices to process, toProcess, and a nextIndex, initialized to
-// 0 Each thread, when ready, gets nextIndex and increments it by 1.
-//
-// It processes its index, and if there an improvement, requests all searching
-// to halt. When all threads are finished their index, take the lowest index
-// improves, call it updateIndex. Apply update, and reset nextIndex to
-// updateIndex
-
 namespace poprithms {
 namespace schedule {
 namespace anneal {
 
-// Algorithms give exactly same results, RIPPLE is just much faster
-enum class MinSumLivenessAlgo { SIMPLE, RIPPLE };
+/// Implementations of the sum-liveness minimizing algorithm. They differ only
+/// in time to solution, the final schedule obtained using these is identical.
+/// RIPPLE is much faster.
+enum class MinSumLivenessAlgo {
+  SIMPLE, ///< A simple implementation, for debugging and understanding
+  RIPPLE  ///< An optimized implementation which eliminates certain redundant
+          ///< computations. It's name derives from the way it re-uses results
+          ///< using dynamic programming across consecutive schedule indices.
+};
 
-// The algorithm is initialized with a single run of Kahn's algorithm, the
-// tie-breaker does not make much difference to overall performance of the
-// algorithm but GREEDY means slightly fewer shifts are required when
-// annealing starts
-enum class KahnTieBreaker { RANDOM = 0, GREEDY, FIFO, N };
+/// The core sum-liveness minimizing algorithm is preceded by a single run of
+/// Kahn's algorithm to obtain an initial, valid schedule. Kahn's algorithm
+/// requires a "tie-breaker" when more than 1 Op is schedulable. Three
+/// tie-breakers are implemented:
+enum class KahnTieBreaker {
+  RANDOM = 0, ///< Choose an Op at random
+  GREEDY, ///< Choose the Op which results in the largest immediate liveness
+          ///< reduction.
+  FIFO,   ///< Choose the Op which became available most recently (this should
+          ///< be called FILO).
+  N ///< Not a tie-breaker: this is the number of tie-breakers listed above.
+};
+
 static constexpr auto NKahnTieBreakers =
     static_cast<uint64_t>(KahnTieBreaker::N);
 std::ostream &operator<<(std::ostream &, KahnTieBreaker);
 KahnTieBreaker kahnTieBreaker(const std::string &);
 
+/**
+ * A minimal Graph representation for Tensor liveness-based scheduling. The
+ * Graph consists of Ops, the topological constraints between them, and the
+ * Allocs which are required to be live when certain Ops execute.
+ *
+ * The core algorithm implemented for this Graph class attempts to minimize
+ * the sum of the livenesses of the Allocs, where an Alloc is live from the
+ * first to last of its Ops' schedule indices.
+ *
+ * For example, if an Alloc 'a' has Ops {'b','c','d'} which require it to be
+ * live, and the schedule indices of 'b','c', and 'd' are 5,8 and 11
+ * respectively, then 'a' is live for a duration of 11 - 5 + 1 = 7. Further
+ * information is available in the notes directory of poprithms.
+ *
+ * A Graph is grown incrementally with functions for inserting Ops, Allocs and
+ * constraints between Ops.
+ * */
+
 class Graph {
 public:
-  // The Graph is grown incrementally with these functions:
-
-  // Create an Alloc
+  /**
+   * Create an Alloc in this Graph.
+   *
+   * \param w The "size" of the Allocation.
+   *
+   * \return An AllocAddress, which uniquely identifies the Alloc created.
+   * */
   AllocAddress insertAlloc(AllocWeight w);
 
   AllocAddress insertAlloc(double w) { return insertAlloc({w, 0}); }
 
-  // Create an Op, return its OpAddress
+  /**
+   * Create an Op in this Graph.
+   *
+   * \param dbString A string used in logging, associated to the Op created.
+   *
+   * \return An OpAddress, which uniquely identifies this Op created.
+   * */
   OpAddress insertOp(const std::string &dbString);
 
-  // Create multiple Ops, return their OpAddresses
+  /**
+   * Create multiple Ops in this Graph.
+   *
+   * \param dbStrings Strings used in logging, one to associate with each Op.
+   *
+   * \return OpAddresses which uniquely identify the Ops created.
+   * */
   std::vector<OpAddress> insertOps(const std::vector<std::string> &dbStrings);
 
-  // Register that "aa" must be live when "oa" executes
+  /** Register that "aa" must be live when "oa" is scheduled */
   void insertOpAlloc(OpAddress oa, AllocAddress aa);
 
-  // Register that "aa" must be live when "oas" execute
+  /** Register that "aa" must be live when each Op in "oas" are scheduled */
   void insertOpAlloc(const std::vector<OpAddress> &oas, AllocAddress aa);
 
-  // Register that "before" must execute before "after"
+  /** Register that "before" must execute before "after" */
   void insertConstraint(OpAddress before, OpAddress after);
 
-  // Register one constraint for each element of "css"
+  /** Register multiple "before" -> "after" constraints */
   using BeforeAndAfter = std::array<OpAddress, 2>;
   void insertConstraints(const std::vector<BeforeAndAfter> &css);
 
-  // Register that "before" must be executed before "after", and that no Ops
-  // can be executed between "before" and "after"
+  /** Register that "before" must execute before "after", and that no other
+   * Ops can be scheduled between "before" and "after". */
   void insertLink(OpAddress before, OpAddress after);
 
-  // The above methods are combined in some convenience methods:
+  /**
+   * Insert an Op, and simultaneously register topological constraints and
+   * liveness conditions.
+   *
+   * \param befores Ops which must appear before the Op being created
+   *
+   * \param allocs Allocs which must be live when the Op being created is
+   *               scheduled
+   *
+   * \param dbString A logging string to associate to the Op being created
+   * */
   template <typename A, typename B>
   OpAddress insertOp(A &&befores, B &&allocs, const std::string &dbString) {
     auto opId = insertOp(dbString);
@@ -103,6 +139,17 @@ public:
     return opId;
   }
 
+  /**
+   * Create an Op from a set of topological constraints, Alloc conditions,
+   * and a debug string.
+   *
+   * \param befores Ops which must appear before the Op being created.
+   *
+   * \param allocs Allocs which are live when the Op being created is
+   *               scheduled.
+   *
+   * \param dbString A logging string to associate to the Op being created.
+   * */
   OpAddress insertOp(std::initializer_list<OpAddress> befores,
                      std::initializer_list<AllocAddress> allocs,
                      const std::string &dbString) {
@@ -111,17 +158,20 @@ public:
                     dbString);
   }
 
-  // A new Graph can be generated by merging groups of Ops in this
-  // Graph into single Ops. The method below does this. The returned tuple
-  // consists of (1) the reduced Graph, containing merged Ops and (2) a
-  // mapping from the Ops in the reduced (child) Graph to Ops in this
-  // (the parent) Graph.
+  /**
+   * Generate a new Graph by merging groups of Ops in this Graph into single
+   * Ops. The returned tuple consists of (1) the reduced Graph, containing
+   * merged Ops and (2) a mapping from the Ops in the reduced (child) Graph to
+   * Ops in this (the parent) Graph.
+   * */
   using ParentGraphOps = std::vector<std::vector<OpAddress>>;
   using OpMerged       = std::tuple<Graph, ParentGraphOps>;
-  OpMerged getMerged(std::vector<std::vector<OpAddress>> chains) const;
+  OpMerged getMerged(const std::vector<std::vector<OpAddress>> &chains) const;
 
-  // Merges all chains formed of Ops with Links
-  // Recall : linked Ops are guarenteed to be scheduled contiguously.
+  /**
+   * Merges all chains formed of Ops with Links. Recall that linked Ops are
+   * guarenteed to be scheduled contiguously.
+   * */
   OpMerged getLinkMerged() const;
 
   // Merges all chains formed of tightly paired Ops
@@ -140,7 +190,7 @@ public:
   uint64_t nOps() const { return allOps.size(); }
   int nOps_i32() const { return static_cast<int>(nOps()); }
 
-  // The total number of constraints
+  /** \return The total number of constraints */
   uint64_t nConstraints() const;
 
   const std::vector<Alloc> &getAllocs() const { return allAllocs; }
@@ -150,22 +200,34 @@ public:
   uint64_t nAllocs() const { return getAllocs().size(); }
   std::string getLivenessString() const;
 
-  // to be called once, when growing of Graph is complete
-  void initialize(KahnTieBreaker    = KahnTieBreaker::GREEDY,
-                  uint32_t kahnSeed = defaultKahnSeed(),
+  /** Initialize the Graph. This method should be called once, after the all
+   * Op and Alloc insertions and associations are complete
+   *
+   * \param ktb The Method by which to choose an Op from a set which are ready
+   *            to be scheduled
+   *
+   * \param kahnSeed For the RANDOM tie-breaker, the initial seed.
+   *
+   * \param tco The set of Optimizations to apply to the Graph, to accelerate
+   *            the min-sum-liveness algorithm. These optimizations insert
+   *            constraints and links between Ops which all sum-liveness
+   *            minimizing schedules satisfy.
+   * */
+  void initialize(KahnTieBreaker ktb = KahnTieBreaker::GREEDY,
+                  uint32_t kahnSeed  = defaultKahnSeed(),
                   TransitiveClosureOptimizations tco =
                       TransitiveClosureOptimizations::allOff());
 
   void initialize(const std::map<std::string, std::string> &);
 
-  // Should be called once after the final call to a growing member. Sorts
-  // certain Op member ids to accelerate the annealing algorithm
+  /** A method to be called once after growing
+   */
   void finalize();
 
-  // Precondition: Graph must be finalized.
+  /** \return false iff there exists a cycle or incompatible Links */
   bool isSchedulable() const;
 
-  // verify that all graph connections are sensible
+  /** verify that all graph connections are valid, if not throw error */
   void assertCorrectness() const;
 
   static bool defaultDebug() { return false; }
@@ -188,30 +250,37 @@ public:
     return TransitiveClosureOptimizations::allOff();
   }
 
-  // All Ops which thus far do not have any input dependencies
+  /**
+   * All Ops which do not have any input dependencies. That is, Ops which
+   * appear first in at least 1 valid schedule */
   std::vector<OpAddress> getInputOps() const;
 
-  // definition of a "round":
-  // one iteration through all Ops to search for,
-  // and possibly apply, improvements
-  //
-  // After each round with at least 1 improvement, the
-  // algorithm runs again with the same nToShift
-  //
-  // Arguments are
-  // algo : RIPPLE (recommended) or SIMPLE (slow) : identical scheduling but
-  // RIPPLE uses techniques to make it fast
-  //
-  // debug : compares "algo" above to SIMPLE to confirm agreement, and checks
-  // state of graph edges at each iteration. This makes execution slow
-  //
-  // seed : the algorithm randomly shuffles op indices in each round
-  //
-  // filterSusceptible : in each round which follows a round with at least one
-  // shift, only consider shifts of ranges if at least one Op in the
-  // range has a constraint to an Op which moved in the previous round.
-  // Changing this boolean value may change the final local minimum found
-
+  /**
+   * The core optimization algorithm of this class. Some preliminaries:
+   *
+   * Definition of sum-liveness: the sum over all schedule indices of the
+   * AllocWeights of the Allocs which are live.
+   *
+   * Definition of a round: One iteration through all Ops to search for, and
+   * possibly apply, sum-liveness reducing improvements.
+   *
+   * After each round with at least 1 improvement, the algorithm runs again
+   * with the same nToShift (see notes directory for definition of nToShift).
+   *
+   * \param algo Implementation to use.
+   *
+   * \param debug Compares algo (above) to SIMPLE to confirm agreement, and
+   *              checks state of graph edges at each iteration. debug=true
+   *              makes execution slow.
+   *
+   * \param seed  This algorithm randomly shuffles Op indices in each round,
+   *              this random seed controls the shuffle permutation.
+   *
+   * \param filterSusceptible If there were shifts at the previous nToShift,
+   *                          only consider shifting ranges that contain at
+   *                          least one Op constrained to an Op that was
+   *                          shifted in that previous round.
+   *   */
   void
   minSumLivenessAnneal(MinSumLivenessAlgo algo = MinSumLivenessAlgo::RIPPLE,
                        bool debug              = defaultDebug(),
@@ -269,15 +338,31 @@ public:
 
   const std::vector<OpAddress> &getScheduleToOp() const { return schToOp; }
 
-  // The following are convenience functions:
-
-  // Ops in "bins" must execute in increasing bin index. For example, if a \in
-  // bins[0] and b \in bins[1], then a must execute before b
+  /**
+   * Convenience function for inserting constraints between groups of Ops.
+   *
+   * \param bins Ops in subsequent elements of bins must be scheduled in
+   *             increasing bin index. For example, if a is in bins[0] and b
+   *             is in bins[1], then a must appear before b in the schedule.
+   *
+   * \param opPrefix The implementation of this method inserts a bottleneck Op
+   *                 between the groups, as this is more efficient than
+   *                 inserting all individual constraints between Ops. This
+   *                 string will be associated to the bottleneck Op(s).
+   * */
   void insertBinConstraints(const std::vector<std::vector<OpAddress>> &bins,
                             const std::string &opPrefix);
 
-  // pairs a,b \in "pairs" should be executed as close to each other as
-  // possible, with "gravitational force" w
+  /**
+   *  \param pairs Pair (a,b) in pairs should appear close to each other in
+   *               the schedule, where the "force of attraction" is determined
+   *               by w.
+   *
+   *  \param w the importance associated to having Ops of a pair close
+   *           each other in the schedule. In particular, for each pair, an
+   *           Alloc is created of size w, and associated to the 2 Ops in the
+   *           pair.
+   *  */
   void insertAttractions(const std::vector<std::array<OpAddress, 2>> &pairs,
                          AllocWeight w);
 
@@ -448,7 +533,7 @@ public:
                              int relativeLexico,
                              double stepSize = 1.0) {
 
-    // For each Op "a" \in opAddresses, the size of the attracting Alloc is
+    // For each Op "a" in opAddresses, the size of the attracting Alloc is
     // determined by the corresponding priority in "priorities"
     insertStartAttractorsAssert0(opAddresses.size(), priorities.size());
 

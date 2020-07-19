@@ -14,6 +14,29 @@
 #include <poprithms/util/stringutil.hpp>
 #include <poprithms/util/unisort.hpp>
 
+// Design of the schedule annealing algorithm
+// -------------------------------------------
+// - store all schedule dependant information in the Graph class, not
+//   the Op or the Alloc classes. With this decision, Ops and Allocs will
+//   never be updated once the annealing begins
+//
+// - make the search algorithm for updates as fast as possible, at the expense
+//   of the update algorithm. This because (1) finding swaps is easily
+//   parallelizable and (2) updates are few and far between, especially at
+//   later iterations of the algorithm, so most time is spent searching for
+//   swaps
+
+// TODO(T14827) Parallelize the search for energy reducing swaps. Suggestions:
+// What the best approach is depends on whether we require the algorithm to be
+// deterministic. Assuming that we do, this is what I propose (for the search)
+// a vector of indices to process, toProcess, and a nextIndex, initialized to
+// 0 Each thread, when ready, gets nextIndex and increments it by 1.
+//
+// It processes its index, and if there an improvement, requests all searching
+// to halt. When all threads are finished their index, take the lowest index
+// improves, call it updateIndex. Apply update, and reset nextIndex to
+// updateIndex
+
 namespace poprithms {
 namespace schedule {
 namespace anneal {
@@ -868,7 +891,7 @@ Graph::OpMerged Graph::getTightMerged() const {
 }
 
 Graph::OpMerged
-Graph::getMerged(std::vector<std::vector<OpAddress>> chains) const {
+Graph::getMerged(const std::vector<std::vector<OpAddress>> &chains) const {
 
   Graph childGraph;
 
