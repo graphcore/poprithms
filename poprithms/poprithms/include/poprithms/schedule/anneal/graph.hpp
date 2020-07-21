@@ -341,9 +341,9 @@ public:
   /**
    * Convenience function for inserting constraints between groups of Ops.
    *
-   * \param bins Ops in subsequent elements of bins must be scheduled in
+   * \param bins Ops in different elements of bins must be scheduled in
    *             increasing bin index. For example, if a is in bins[0] and b
-   *             is in bins[1], then a must appear before b in the schedule.
+   *             is in bins[2], then a must appear before b in the schedule.
    *
    * \param opPrefix The implementation of this method inserts a bottleneck Op
    *                 between the groups, as this is more efficient than

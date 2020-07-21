@@ -166,6 +166,7 @@ void Graph::insertOpAlloc(const std::vector<OpAddress> &oas,
 void Graph::insertBinConstraints(
     const std::vector<std::vector<OpAddress>> &bins,
     const std::string &prefix) {
+  OpAddress prev = insertOp(prefix + std::to_string(0));
   for (uint64_t i = 1; i < bins.size(); ++i) {
     // a "bottleneck" Op, which partitions Ops into different bins.
     auto op = insertOp(prefix + std::to_string(i));
@@ -175,6 +176,8 @@ void Graph::insertBinConstraints(
     for (auto a : bins[i]) {
       insertConstraint(op, a);
     }
+    insertConstraint(prev, op);
+    prev = op;
   }
 }
 
