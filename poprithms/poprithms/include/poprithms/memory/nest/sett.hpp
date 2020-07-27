@@ -280,8 +280,8 @@ public:
   /**
    * \param setts A set of disjoint Setts
    *
-   * \return true if and only if, for all i where this is on, there is
-   *         1 Sett in setts for is in on at i
+   * \return true if and only if, for all i where this is on, there is at
+   * least 1 Sett in setts which is in on at i
    * */
   bool containedIn(const DisjointSetts &setts) const;
 

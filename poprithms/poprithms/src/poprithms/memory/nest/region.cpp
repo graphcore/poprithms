@@ -189,6 +189,47 @@ DisjointRegions Region::intersect(const Region &rhs) const {
   return getOuterProduct(shape(), partials);
 }
 
+// Example:
+//
+// If this is the 2-D region ((1,1,0),(2,2,0)):
+//
+//    xx..xx..xx..
+//    ............
+//    xx..xx..xx..
+//    ............
+//
+// The complement is the union of
+//
+//    ............
+//    xxxxxxxxxxxx
+//    ............
+//    xxxxxxxxxxxx
+//
+// and
+//
+//    ..xx..xx..xx
+//    ............
+//    ..xx..xx..xx
+//    ............
+//
+// The general formulation for the complement of A x B x C x ... Z is the
+// union of
+//
+// !A x  1 x  1 x .... x  1
+//  A x !B x  1 x .... x  1
+//  A x  B x !C x .... x  1
+//  A x  B x  C x .... x  1
+//  .
+//  .
+//  .
+//  A x  B x  C x .... x !Z.
+//
+//  where `1' above is the complete set (always on) in a single dimension.
+//
+//  Using this formulation on the origin 2-D region ((1,1,0),(2,2,0)), we have
+//  the union ((1,1,1),()) and ((1,1,0),(2,2,2)), as illustrated.
+//
+
 DisjointRegions Region::getComplement() const {
   if (full()) {
     return createEmpty(shape());
@@ -196,12 +237,22 @@ DisjointRegions Region::getComplement() const {
   if (empty()) {
     return createFull(shape());
   }
-  std::vector<DisjointSetts> partials;
-  partials.reserve(rank_u64());
+
+  // implementation of above formulation.
+  std::vector<Region> allRegions;
   for (uint64_t d = 0; d < rank_u64(); ++d) {
-    partials.push_back(sett(d).getComplement());
+    std::vector<DisjointSetts> partial;
+    for (uint64_t dp = 0; dp < d; ++dp) {
+      partial.push_back(sett(dp));
+    }
+    partial.push_back(sett(d).getComplement());
+    for (uint64_t dp = d + 1; dp < rank_u64(); ++dp) {
+      partial.push_back({Sett::createAlwaysOn()});
+    }
+    const auto outer = getOuterProduct(shape(), partial).get();
+    allRegions.insert(allRegions.end(), outer.cbegin(), outer.cend());
   }
-  return getOuterProduct(shape(), partials);
+  return DisjointRegions{shape(), allRegions};
 }
 
 DisjointRegions Region::subtract(const Region &rhs) const {
@@ -507,43 +558,60 @@ Region Region::reduce(const Shape &outShape) const {
 
 DisjointRegions DisjointRegions::reduce(const Shape &outShape) const {
   // Example:
-  // 11..11..11..     .11..11..11.
-  // ............ and ............
-  // 11..11..11..     .11..11..11.
   //
-  // should reduce (along vertical axis) to
+  // 11..11..11..   and
+  // .11..11..11.   should reduce to,
+  // 111.111.111.   .
   //
-  // 111.111.111.111.111.111
-  //
-  // This requires T23326 to be completed to be fully supported: Currently
-  // Regions must be disjoint in non-reduction axes.
-  //
-  std::vector<Region> oRegs;
-  oRegs.reserve(size());
-  for (const auto &reg : get()) {
-    const auto nxtIn = reg.reduce(outShape);
-    if (!nxtIn.empty()) {
-      bool alreadyPresent = false;
-      for (const auto &alreadyIn : oRegs) {
-        if (alreadyIn.contains(nxtIn)) {
-          alreadyPresent = true;
-          break;
-        }
-        if (!alreadyIn.disjoint(nxtIn)) {
-          throw error("Need sett difference to complete this, see T23326");
-        }
-      }
-      if (!alreadyPresent) {
-        oRegs.push_back(nxtIn);
-      }
+  // i.e. the reduction is the intersection the the reduced Regions.
+
+  DisjointRegions outRegs(outShape, std::vector<Region>{});
+  for (const auto &toReduce : get()) {
+    const auto reduction = toReduce.reduce(outShape);
+
+    // Add the novel contribution of this Region's reduction make to the
+    // union.
+    const auto toInsert = DisjointRegions(reduction).subtract(outRegs);
+    for (auto r : toInsert.get()) {
+      outRegs.insert(r);
     }
   }
-  return DisjointRegions(outShape, oRegs);
+  return outRegs;
+}
+
+DisjointRegions DisjointRegions::subtract(const DisjointRegions &rhs) const {
+
+  // Iteratively subtract the Regions in rhs from this object's Regions.
+  // Initialize with complete Regions, nothing subtracted yet:
+  std::vector<Region> reduced = get();
+
+  std::vector<Region> nxt;
+
+  for (const auto &toSubtract : rhs.get()) {
+    for (const auto &r : reduced) {
+      const auto smaller = r.subtract(toSubtract).get();
+      nxt.insert(nxt.end(), smaller.cbegin(), smaller.cend());
+    }
+    std::swap(reduced, nxt);
+    nxt.clear();
+  }
+  return DisjointRegions(shape(), reduced);
 }
 
 int64_t DisjointRegions::totalElms() const {
   const auto counts = nelms();
   return std::accumulate(counts.cbegin(), counts.cend(), 0LL);
+}
+
+void DisjointRegions::insert(const Region &r) {
+  if (r.shape() != shape()) {
+    std::ostringstream oss;
+    oss << "Incompatible Shape in DisjointRegions::insert. "
+        << "The DisjointRegions has shape " << shape()
+        << ", the Region being inserted has shape " << r.shape();
+    throw error(oss.str());
+  }
+  regs_.push_back(r);
 }
 
 DisjointRegions

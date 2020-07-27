@@ -59,16 +59,11 @@ void testReduce() {
                            {{{{1, 1, 0}}}, {{{2, 2, 1}}}}  // reg1
                        });
 
-  bool caught = false;
-  try {
-    const auto reduced3 = foo3.reduce({1, 17});
-  } catch (const poprithms::error::error &e) {
-    caught = true;
-  }
-
-  if (!caught) {
-    throw error("Has Region::diff been implemented? If not, support for test "
-                "3 is not valid.");
+  const auto reduced3 = foo3.reduce({1, 17});
+  if (!Region::equivalent(
+          reduced3,
+          DisjointRegions({1, 17}, {{{{{1, 1, 0}}}, {{{3, 1, 0}}}}}))) {
+    throw error("Unexpected result 3");
   }
 }
 

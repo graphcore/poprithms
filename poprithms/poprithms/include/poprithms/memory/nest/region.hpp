@@ -311,6 +311,13 @@ public:
   OptionalRegion merge(const Region &other) const;
 
   /**
+   * \param rhs A set of disjoint Regions
+   *
+   * \return true if all elements in this DisjointRegions are also in rhs.
+   * */
+  bool containedIn(const DisjointRegions &rhs) const;
+
+  /**
    * Append debug information.
    * */
   void append(std::ostream &ss) const;
@@ -421,12 +428,17 @@ public:
 
   int64_t totalElms() const;
 
+  /** Append r to regs_  */
+  void insert(const Region &r);
+
   //  The following methods are the vector extensions of their corresponding
   //  single Region versions.
 
   std::vector<int64_t> nelms() const;
 
   DisjointRegions flatten() const;
+
+  DisjointRegions subtract(const DisjointRegions &) const;
 
   DisjointRegions reduce(const Shape &) const;
 
