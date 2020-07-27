@@ -109,6 +109,15 @@ public:
   uint64_t off_u64() const { return static_cast<uint64_t>(off()); }
   uint64_t period_u64() const { return static_cast<uint64_t>(period()); }
 
+  /**
+   * switch when on `1' and when off `0'.
+   * Example,
+   *  this is 1..111..111..111..111  i.e. (3,2,3)
+   *  return  .11...11...11...11...  i.e. (2,3,1)
+   *
+   * */
+  Stripe getComplement() const { return {off(), on(), phase() + on()}; }
+
 private:
   int64_t sOn;
   int64_t sOff;

@@ -506,9 +506,24 @@ public:
    * 1.11..1.11.11..11.11.1....11.111.1.1 (this)
    * .1..11.1..1..11..1..1.1111..1...1.1. (to return)
    *
-   *  TODO(T23326) implement this.
    * */
   DisjointSetts getComplement() const;
+
+  /**
+   * \param rhs The Sett to subtract from this Sett.
+   *
+   * \return The intersection of this and the complement of rhs.
+   *
+   * Example:
+   * 11111...11111... this
+   * ..11111...11111. rhs
+   * 11.....111.....1 rhs's complement
+   * 11......11...... returned.
+   *
+   * The retured Sett is the set of all indices which are '1' in this and
+   * not '1' in rhs.
+   * */
+  DisjointSetts subtract(const Sett &rhs) const;
 
   /**
    * \return A vector of size smallest-common-multiple of rhs, where element i
@@ -711,6 +726,7 @@ private:
 class DisjointSetts {
 
 private:
+  // This DisjointSetts is represented by the union of these disjoint Setts
   std::vector<Sett> setts_;
 
 public:

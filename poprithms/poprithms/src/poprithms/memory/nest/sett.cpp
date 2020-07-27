@@ -2226,6 +2226,36 @@ Sett::scaledConcat(const std::vector<std::array<Sett, 2>> &unflat,
   return flatteneds;
 }
 
+DisjointSetts Sett::getComplement() const {
+
+  if (!hasStripes()) {
+    return {};
+  }
+  if (alwaysOff()) {
+    return createAlwaysOn();
+  }
+
+  std::vector<Sett> complements;
+  complements.push_back(Sett({atDepth(0).getComplement()}));
+  auto subComplement = fromDepth(1).getComplement();
+  for (auto &sub : subComplement) {
+    sub.prependStripes({atDepth(0)});
+    complements.push_back(sub);
+  }
+
+  return DisjointSetts(complements);
+}
+
+DisjointSetts Sett::subtract(const Sett &rhs) const {
+  const auto rhsCompl = rhs.getComplement();
+  std::vector<Sett> diff;
+  for (const auto &rhsComplElm : rhsCompl.get()) {
+    const auto inter = intersect(rhsComplElm);
+    diff.insert(diff.end(), inter.cbegin(), inter.cend());
+  }
+  return DisjointSetts(diff);
+}
+
 } // namespace nest
 } // namespace memory
 } // namespace poprithms

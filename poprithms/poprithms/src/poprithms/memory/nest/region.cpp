@@ -189,6 +189,31 @@ DisjointRegions Region::intersect(const Region &rhs) const {
   return getOuterProduct(shape(), partials);
 }
 
+DisjointRegions Region::getComplement() const {
+  if (full()) {
+    return createEmpty(shape());
+  }
+  if (empty()) {
+    return createFull(shape());
+  }
+  std::vector<DisjointSetts> partials;
+  partials.reserve(rank_u64());
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+    partials.push_back(sett(d).getComplement());
+  }
+  return getOuterProduct(shape(), partials);
+}
+
+DisjointRegions Region::subtract(const Region &rhs) const {
+  const auto rhsCompl = rhs.getComplement();
+  std::vector<Region> intersection;
+  for (const auto &complElm : rhsCompl.get()) {
+    const auto inter = intersect(complElm).get();
+    intersection.insert(intersection.end(), inter.cbegin(), inter.cend());
+  }
+  return DisjointRegions(shape(), intersection);
+}
+
 Region &Region::operator=(const Region &rhs) {
   shape_ = rhs.shape_;
   setts_ = rhs.setts_;

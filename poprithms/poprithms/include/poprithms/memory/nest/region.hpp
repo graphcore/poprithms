@@ -182,6 +182,21 @@ public:
   DisjointRegions intersect(const Region &rhs) const;
 
   /**
+   * \return The element-wise complement of this Region. The returned
+   *         DisjointRegions and this Region form a partition of the
+   *         containing Shape.
+   * */
+  DisjointRegions getComplement() const;
+
+  /**
+   * \param rhs The Region to subtract from this Region.
+   *
+   * \return All elements in this Region which are not in rhs. It is the
+   *         intersection of this Region and the complement of rhs.
+   * */
+  DisjointRegions subtract(const Region &rhs) const;
+
+  /**
    * A generalization of slicing and sub-sampling.
    *
    * \param where The Region which defines the indices of this Region to
