@@ -169,7 +169,7 @@ public:
   bool empty() const;
 
   /**
-   * \return true iff this Region contains all elements of containg n-d array.
+   * \return true iff this Region contains all elements of containing volume.
    * */
   bool full() const;
 

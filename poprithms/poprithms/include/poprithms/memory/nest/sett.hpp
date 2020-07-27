@@ -98,17 +98,13 @@ int64_t smallestCommonMultiple_i64(int64_t a, int64_t b);
  *
  * More examples can be seen in the test directory.
  *
- * Sett is a useful abstraction for representing regions of nd-arrays
- * (Tensors) which are sliced, reshaped, etc. They server a similar purpose in
+ * Sett is a useful abstraction for representing regions of Tensors
+ * which are sliced, reshaped, etc. They serve a similar purpose in
  * this project to Poplar's Tensor expression trees, and can be thought of as
  * an extension to the boost::intervals used in there. Using
  * a generalised interval such as the Sett means that less interval
  * "shattering" happens, resulting in speed-ups for the higher level
  * Graph transformations encountered at the ML frameworks level.
- *
- * One possible future application of the Sett class: calls such as
- * Tensor::isParallelWriteable() and Tensor::containsAlias(.) can be made
- * fast by replacing boost::intervals with Setts TODO(T23325).
  *
  * Most of the methods of the class are standard set operations, where
  * the set is the '1's described by class member variable, stripes.

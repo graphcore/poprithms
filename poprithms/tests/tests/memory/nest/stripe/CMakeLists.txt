@@ -1,1 +1,2 @@
-add_memory_test(memory_nest_stripe_basic_0 basic_0)
+add_memory_nest_test(memory_nest_stripe_basic_0 basic_0.cpp)
+

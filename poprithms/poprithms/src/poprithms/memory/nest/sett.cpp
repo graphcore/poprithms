@@ -1275,12 +1275,11 @@ std::ostream &operator<<(std::ostream &ost, const OptionalSett1 &rhs) {
 }
 
 std::ostream &operator<<(std::ostream &ost, const std::vector<Sett> &setts) {
-  ost << '{' << ' ';
+  ost << '(';
   for (const auto &x : setts) {
     x.append(ost);
-    ost << ' ';
   }
-  ost << '}';
+  ost << ')';
   return ost;
 }
 

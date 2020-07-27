@@ -1,1 +1,1 @@
-add_memory_test(memory_nest_disjoint_regions_basic_0 basic_0.cpp)
+add_memory_nest_test(memory_nest_disjoint_regions_basic_0 basic_0.cpp)

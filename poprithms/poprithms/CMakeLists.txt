@@ -101,16 +101,18 @@ add_library(poprithms-outline SHARED
 )
 
 
+set(memory_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory)
 set(memory_nest_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/error.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/region.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/stripe.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/sett.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory/nest/logging.cpp
+  ${memory_src_dir}/nest/error.cpp
+  ${memory_src_dir}/nest/logging.cpp
+  ${memory_src_dir}/nest/region.cpp
+  ${memory_src_dir}/nest/stripe.cpp
+  ${memory_src_dir}/nest/sett.cpp
 )
-add_library(poprithms-memory-objlib OBJECT ${memory_nest_sources})
-add_library(poprithms-memory SHARED
-  $<TARGET_OBJECTS:poprithms-memory-objlib>
+
+add_library(poprithms-memory-nest-objlib OBJECT ${memory_nest_sources})
+add_library(poprithms-memory-nest SHARED
+  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -118,7 +120,7 @@ add_library(poprithms-memory SHARED
 add_library(poprithms SHARED 
   $<TARGET_OBJECTS:poprithms-schedule-objlib>
   $<TARGET_OBJECTS:poprithms-outline-objlib>
-  $<TARGET_OBJECTS:poprithms-memory-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -126,7 +128,7 @@ add_library(poprithms SHARED
 add_library(poprithms-static STATIC
   $<TARGET_OBJECTS:poprithms-schedule-objlib>
   $<TARGET_OBJECTS:poprithms-outline-objlib>
-  $<TARGET_OBJECTS:poprithms-memory-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -145,8 +147,8 @@ foreach(tgt IN ITEMS
   poprithms-schedule
   poprithms-outline-objlib
   poprithms-outline
-  poprithms-memory-objlib
-  poprithms-memory
+  poprithms-memory-nest-objlib
+  poprithms-memory-nest
   poprithms-util-objlib
   poprithms-util
   poprithms
