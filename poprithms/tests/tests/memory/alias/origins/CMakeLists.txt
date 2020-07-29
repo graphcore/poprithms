@@ -1,0 +1,2 @@
+add_memory_alias_test(memory_alias_origins_contiguous_0 contiguous_0.cpp)
+add_memory_alias_test(memory_alias_origins_alias_0 alias_0.cpp)

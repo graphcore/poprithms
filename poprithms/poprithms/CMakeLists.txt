@@ -110,17 +110,29 @@ set(memory_nest_sources
   ${memory_src_dir}/nest/sett.cpp
 )
 
+set(memory_alias_sources
+	${memory_src_dir}/alias/error.cpp
+	${memory_src_dir}/alias/logging.cpp
+  ${memory_src_dir}/alias/origins.cpp
+)
 add_library(poprithms-memory-nest-objlib OBJECT ${memory_nest_sources})
 add_library(poprithms-memory-nest SHARED
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
+add_library(poprithms-memory-alias-objlib OBJECT ${memory_alias_sources})
+add_library(poprithms-memory-alias SHARED
+  $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
 
 add_library(poprithms SHARED 
   $<TARGET_OBJECTS:poprithms-schedule-objlib>
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -129,6 +141,7 @@ add_library(poprithms-static STATIC
   $<TARGET_OBJECTS:poprithms-schedule-objlib>
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -149,6 +162,8 @@ foreach(tgt IN ITEMS
   poprithms-outline
   poprithms-memory-nest-objlib
   poprithms-memory-nest
+  poprithms-memory-alias-objlib
+  poprithms-memory-alias
   poprithms-util-objlib
   poprithms-util
   poprithms
