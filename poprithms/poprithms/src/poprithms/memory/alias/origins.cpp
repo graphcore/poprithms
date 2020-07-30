@@ -124,10 +124,6 @@ bool Origins::containsAliases() const {
 }
 
 bool Origins::isRowMajorSetContiguous() const {
-  // If self-aliases, return false.
-  if (containsAliases()) {
-    return false;
-  }
 
   const std::vector<DisjointRegions> *drp{nullptr};
   for (const auto &[id, regions] : oMap) {
@@ -164,6 +160,16 @@ bool Origins::isRowMajorSetContiguous() const {
       }
     }
   }
+
+  if (globalUpp - globalLow < shape.nelms()) {
+    return false;
+  }
+
+  // If self-aliases, return false.
+  if (containsAliases()) {
+    return false;
+  }
+
   if (globalUpp - globalLow != shape.nelms()) {
     std::ostringstream oss;
     oss << "Logic error in Origins::isRowMajorSetContiguous. "

@@ -13,5 +13,7 @@ function(add_memory_alias_test name source)
            WORKING_DIRECTORY ${CMAKE_CURRENT_BUILD_DIR})
 endfunction()
 
+add_subdirectory(graph)
 add_subdirectory(origins)
+add_subdirectory(tensor)
 

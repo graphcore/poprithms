@@ -1,0 +1,3 @@
+add_memory_alias_test(memory_alias_graph_allocate_0 allocate_0.cpp)
+add_memory_alias_test(memory_alias_graph_dimshuffle_0 dimshuffle_0.cpp)
+add_memory_alias_test(memory_alias_graph_constructors_0 constructors_0.cpp)

@@ -112,8 +112,12 @@ set(memory_nest_sources
 
 set(memory_alias_sources
 	${memory_src_dir}/alias/error.cpp
+	${memory_src_dir}/alias/graph.cpp
 	${memory_src_dir}/alias/logging.cpp
+	${memory_src_dir}/alias/node.cpp
+	${memory_src_dir}/alias/nodes.cpp
   ${memory_src_dir}/alias/origins.cpp
+  ${memory_src_dir}/alias/tensor.cpp
 )
 add_library(poprithms-memory-nest-objlib OBJECT ${memory_nest_sources})
 add_library(poprithms-memory-nest SHARED

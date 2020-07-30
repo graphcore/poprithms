@@ -89,7 +89,7 @@ private:
   // many uses of Origins, this is unnecessary and the required information
   // can be obtained without doing the subtraction. Thus taking this lazy/jit
   // approach of keeping a vector of DisjointRegions, the union of which
-  // represents all the addresses of the allocation (the key) aliased. 
+  // represents all the addresses of the allocation (the key) aliased.
   std::map<AllocId, std::vector<DisjointRegions>> oMap;
   const Shape shape;
   uint64_t sumTotalRegionSizes{0};

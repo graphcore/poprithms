@@ -257,7 +257,13 @@ Shape Shape::concat(const std::vector<Shape> &inShapes, uint64_t concatAxis) {
   if (s0.rank_u64() <= concatAxis) {
     std::ostringstream oss;
     oss << "Invalid rank of Tensor (" << s0.rank_u64()
-        << ") in Shape::concat.with concatAxis=" << concatAxis;
+        << ") in Shape::concat.with concatAxis=" << concatAxis
+        << " and shape = \n      { ";
+    for (const auto &x : inShapes) {
+      oss << x << ' ';
+    }
+    oss << '}';
+
     throw error(oss.str());
   }
   auto concatAxisSize = s0.dim(concatAxis);
