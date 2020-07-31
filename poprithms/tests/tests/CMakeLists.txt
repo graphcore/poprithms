@@ -38,7 +38,3 @@ add_subdirectory(boost_free_interface)
 
 #Test(s) where poprithms is linked statically
 add_subdirectory(staticlib)
-
-#Test that tests can use boost test framework
-# Currently disabled due to failing external build, see T19253 to re-enable
-# add_subdirectory(boostsmoke)
