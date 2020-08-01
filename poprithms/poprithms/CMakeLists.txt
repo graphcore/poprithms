@@ -114,11 +114,15 @@ set(memory_alias_sources
 	${memory_src_dir}/alias/error.cpp
 	${memory_src_dir}/alias/graph.cpp
 	${memory_src_dir}/alias/logging.cpp
-	${memory_src_dir}/alias/node.cpp
 	${memory_src_dir}/alias/nodes.cpp
   ${memory_src_dir}/alias/origins.cpp
   ${memory_src_dir}/alias/tensor.cpp
 )
+
+set(memory_gbase_sources
+	${memory_src_dir}/gbase/node.cpp
+)
+
 add_library(poprithms-memory-nest-objlib OBJECT ${memory_nest_sources})
 add_library(poprithms-memory-nest SHARED
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
@@ -129,6 +133,14 @@ add_library(poprithms-memory-alias-objlib OBJECT ${memory_alias_sources})
 add_library(poprithms-memory-alias SHARED
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-gbase-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
+add_library(poprithms-memory-gbase-objlib OBJECT ${memory_gbase_sources})
+add_library(poprithms-memory-gbase SHARED
+  $<TARGET_OBJECTS:poprithms-memory-gbase-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -137,6 +149,7 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-gbase-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -146,6 +159,7 @@ add_library(poprithms-static STATIC
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-gbase-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -168,6 +182,8 @@ foreach(tgt IN ITEMS
   poprithms-memory-nest
   poprithms-memory-alias-objlib
   poprithms-memory-alias
+  poprithms-memory-gbase-objlib
+  poprithms-memory-gbase
   poprithms-util-objlib
   poprithms-util
   poprithms

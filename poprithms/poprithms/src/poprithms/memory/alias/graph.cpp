@@ -50,12 +50,12 @@ TensorId Graph::createNode(const std::vector<TensorId> &ins,
                            const Shape &shape,
                            Args... args) {
   TensorId id(nTensors());
-  const Node::State ob(ins, {}, getShapes(ins), id, shape, Origins(shape));
-  nodes.push_back(UpNode(std::make_unique<T>(ob, args...)));
+  const Node::State ob(ins, {}, getShapes(ins), id, shape);
+  nodes.push_back(UpNode(std::make_unique<T>(ob, Origins(shape), args...)));
+  setOrigins(id.get());
   for (auto inId : node(id).ins()) {
     node(inId).insertOut(id);
   }
-  makeKnownNewStale(id.get());
   return id;
 }
 
@@ -119,8 +119,6 @@ void Graph::appendVerbose(std::ostream &oss) const {
   oss << '\n';
   for (uint64_t i = 0; i < nTensors(); ++i) {
     oss << "\n";
-    // oss << "Origins of Tensor " << i << ":\n";
-    // node(i).origins().append(oss);
     int counter = 0;
     for (auto allocId : node(i).getAllocIds()) {
       if (counter == 0) {
@@ -213,100 +211,71 @@ public:
 };
 } // namespace
 
-void Graph::updateOrigins(TensorId base) const {
-  if (!isStale(base)) {
-    return;
+void Graph::setOrigins(TensorId id) {
+
+  auto &nd = node(id);
+  nd.clearOrigins();
+
+  if (nd.allocates()) {
+    nd.insertOrigin(AllocId(id.get()), {Region::createFull(shape(id))});
   }
 
-  // Collect all stale ancenstors, with the "oldest" ancestor appearing
-  // first.
-  const auto schedule = depthFirstBackStale(base);
+  // `unwind' back to the allocations of the Node samples
+  // (slice/subSample).
+  //
+  // Example:
+  //
+  // allocate(5,7) - dimshuffle({1,0}) - slice((1,2), (3,5))
+  // (5,7)         - (7,5)             - (2,3)
+  //
+  // what region in the allocation does the sliced Tensor of shape (2,3)
+  // map to? Map it back through preceding layers.
+  else if (nd.samples()) {
 
-  for (auto id : schedule) {
-    const auto &nd = node(id);
+    // The Regions to trace back to their allocations.
+    std::vector<ToReverse> toReverse{
+        {id, DisjointRegions::createFull(nd.shape())}};
 
-    // clear the origins in preparation for to reset from scratch.
-    nd.clearOrigins();
-
-    if (nd.allocates()) {
-      nd.insertOrigin(AllocId(id.get()), {Region::createFull(shape(id))});
-    }
-
-    // `unwind' back to the allocations of the Node samples
-    // (slice/subSample).
-    //
-    // Example:
-    //
-    // allocate(5,7) - dimshuffle({1,0}) - slice((1,2), (3,5))
-    // (5,7)         - (7,5)             - (2,3)
-    //
-    // what region in the allocation does the sliced Tensor of shape (2,3)
-    // map to? Map it back through preceding layers.
-    else if (nd.samples()) {
-
-      // The Regions to trace back to their allocations.
-      std::vector<ToReverse> toReverse{
-          {id, DisjointRegions::createFull(nd.shape())}};
-
-      while (!toReverse.empty()) {
-        const auto current = toReverse.back();
-        toReverse.pop_back();
-        const auto &currentNode = node(current.id);
-        if (currentNode.allocates()) {
-          nd.insertOrigin(AllocId(current.id.get()), current.regs);
-        } else {
-          for (uint64_t ind0 = 0; ind0 < currentNode.ins().size(); ++ind0) {
-            const auto regs = currentNode.getInRegions(ind0, current.regs);
-            if (!regs.empty()) {
-              toReverse.push_back({currentNode.in(ind0), regs});
-            }
+    while (!toReverse.empty()) {
+      const auto current = toReverse.back();
+      toReverse.pop_back();
+      const auto &currentNode = node(current.id);
+      if (currentNode.allocates()) {
+        nd.insertOrigin(AllocId(current.id.get()), current.regs);
+      } else {
+        for (uint64_t ind0 = 0; ind0 < currentNode.ins().size(); ++ind0) {
+          const auto regs = currentNode.getInRegions(ind0, current.regs);
+          if (!regs.empty()) {
+            toReverse.push_back({currentNode.in(ind0), regs});
           }
         }
       }
     }
-
-    // For non-sampling Nodes, the origins are the same as the the input
-    // Tensors. The input Tensor origins are guaranteed to by this point in
-    // the code, as we are iterating through the Nodes in topological order.
-    else {
-      for (const auto inId : nd.ins()) {
-        nd.insertOriginsFrom(node(inId));
-      }
-    }
   }
 
-  // We've just refreshed a bunch of stale Nodes, and need to update the set
-  // of stale Nodes. The updated stale_ is the old stale_ with all in the
-  // schedule removed.
-  std::vector<uint64_t> newStale;
-  newStale.reserve(nStale() - std::min<size_t>(nStale(), schedule.size()));
-  for (auto id : stale_) {
-    if (std::find(schedule.cbegin(), schedule.cend(), id) ==
-        schedule.cend()) {
-      newStale.push_back(id);
+  // For non-sampling Nodes, the origins are the same as the the input
+  // Tensors. The input Tensor origins are guaranteed to by this point in
+  // the code, as we are iterating through the Nodes in topological order.
+  else {
+    for (const auto inId : nd.ins()) {
+      nd.insertOriginsFrom(node(inId));
     }
   }
-  stale_ = newStale;
 }
 
 bool Graph::areAliased(TensorId tenId0, TensorId tenId1) const {
-  updateOrigins(tenId0);
-  updateOrigins(tenId1);
   return node(tenId0).isAliasedTo(node(tenId1));
 }
 
 bool Graph::isRowMajorSetContiguous(TensorId id) const {
-  updateOrigins(id);
   return node(id).isRowMajorSetContiguous();
 }
 
 bool Graph::containsAliases(TensorId id) const {
-  updateOrigins(id);
   return node(id).containsAliases();
 }
 
 bool Graph::containsColor(TensorId id, Color c) const {
-  updateOrigins(id);
   const auto allocIds = node(id).getAllocIds();
   for (auto allocId : allocIds) {
     const auto &allo       = node(allocId.get());
@@ -390,10 +359,6 @@ std::vector<TensorId> Graph::depthFirstBack(TensorId x0, F &&f) const {
   return sched;
 }
 
-std::vector<TensorId> Graph::depthFirstBackStale(TensorId x0) const {
-  return depthFirstBack(x0, [this](TensorId id) { return isStale(id); });
-}
-
 std::vector<TensorId> Graph::depthFirstBackAll(TensorId x0) const {
   return depthFirstBack(x0, [](TensorId) { return true; });
 }
@@ -401,21 +366,6 @@ std::vector<TensorId> Graph::depthFirstBackAll(TensorId x0) const {
 std::vector<TensorId> Graph::depthFirstBackAliases(TensorId x0) const {
   return depthFirstBack(
       x0, [this, x0](TensorId id) { return id == x0 || areAliased(x0, id); });
-}
-
-void Graph::makeStaleForwardAliased(TensorId x0) const {
-  std::vector<TensorId> S(1, x0);
-  ensureStale(x0);
-  while (!S.empty()) {
-    auto b = S.back();
-    S.pop_back();
-    for (auto o : node(b).outs()) {
-      if (!isStale(o) && areAliased(o, x0)) {
-        makeKnownNewStale(x0);
-        S.push_back(o);
-      }
-    }
-  }
 }
 
 void Graph::Workspace::clear(const std::vector<TensorId> &sched) {
@@ -477,31 +427,32 @@ Graph::Up<T> &Graph::Up<T>::operator=(const Graph::Up<T> &x) {
 TensorId Graph::clone(TensorId toCloneId) {
   const std::vector<TensorId> oldsToClone = depthFirstBackAll(toCloneId);
 
-  // TODO(jn) could use workspace for this instead of unordered_map
-  std::unordered_map<TensorId, TensorId> oldToNew;
+  auto &oldToNew = wspace.wsUint64_;
+
   for (uint64_t i = 0; i < oldsToClone.size(); ++i) {
-    oldToNew[oldsToClone[i]] = nTensors() + i;
+    oldToNew[oldsToClone[i].get()] = nTensors() + i;
   }
+
   for (auto atc : oldsToClone) {
     const auto &toClone = node(atc);
     std::vector<TensorId> newIns;
+    const TensorId newId(oldToNew[atc.get()]);
+
     for (auto oldIn : toClone.ins()) {
       newIns.push_back(oldToNew[oldIn.get()]);
     }
-    std::vector<TensorId> newOuts;
-    for (auto oldOut : toClone.outs()) {
-      newOuts.push_back(oldToNew[oldOut.get()]);
+    Node::State newState(
+        newIns, {}, toClone.inShapes(), newId, toClone.shape());
+
+    auto newNode = toClone.clone(newState, toClone.origins().remap(oldToNew));
+
+    for (auto inId : newIns) {
+      node(inId).insertOut(newId);
     }
-    Node::State newState(newIns,
-                         newOuts,
-                         toClone.inShapes(),
-                         oldToNew[atc],
-                         toClone.shape(),
-                         Origins(toClone.shape()));
-    auto newNode = toClone.clone(newState);
     nodes.push_back(std::move(newNode));
-    makeKnownNewStale(nTensors() - 1);
   }
+
+  wspace.clear(oldsToClone);
   return nTensors() - 1;
 }
 
@@ -509,10 +460,6 @@ std::string Graph::verboseString() const {
   std::ostringstream oss;
   appendVerbose(oss);
   return oss.str();
-}
-
-bool Graph::isStale(TensorId id) const {
-  return std::find(stale_.cbegin(), stale_.cend(), id.get()) != stale_.cend();
 }
 
 const Shape &Graph::shape(TensorId id) const { return node(id).shape(); }

@@ -1,7 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
-#include <iostream>
-#include <memory>
 
 #include <poprithms/memory/alias/error.hpp>
 #include <poprithms/memory/alias/nodes.hpp>
@@ -37,37 +35,45 @@ std::string SettSample::typeString() const {
 }
 
 SettSample::SettSample(const Node::State &state,
+                       const Origins &oris,
                        const Shape &inShape,
                        const Lower &l,
                        const Upper &u)
-    : Node(state), region_(Region::fromBounds(inShape, l, u)) {}
+    : Node(state, oris), region_(Region::fromBounds(inShape, l, u)) {}
 
-std::unique_ptr<Node> Concat::clone(const State &state) const {
-  return std::make_unique<Concat>(state, axis());
+std::unique_ptr<Node> Concat::clone(const State &state,
+                                    const Origins &oris) const {
+  return std::make_unique<Concat>(state, oris, axis());
 }
 
-std::unique_ptr<Node> Allocate::clone(const State &state) const {
-  return std::make_unique<Allocate>(state, color());
+std::unique_ptr<Node> Allocate::clone(const State &state,
+                                      const Origins &oris) const {
+  return std::make_unique<Allocate>(state, oris, color());
 }
 
-std::unique_ptr<Node> SettSample::clone(const State &state) const {
-  return std::make_unique<SettSample>(state, region());
+std::unique_ptr<Node> SettSample::clone(const State &state,
+                                        const Origins &oris) const {
+  return std::make_unique<SettSample>(state, oris, region());
 }
 
-std::unique_ptr<Node> Reshape::clone(const State &state) const {
-  return std::make_unique<Reshape>(state);
+std::unique_ptr<Node> Reshape::clone(const State &state,
+                                     const Origins &oris) const {
+  return std::make_unique<Reshape>(state, oris);
 }
 
-std::unique_ptr<Node> Permute::clone(const State &state) const {
-  return std::make_unique<Permute>(state, permutation());
+std::unique_ptr<Node> Permute::clone(const State &state,
+                                     const Origins &oris) const {
+  return std::make_unique<Permute>(state, oris, permutation());
 }
 
-std::unique_ptr<Node> Expand::clone(const State &state) const {
-  return std::make_unique<Expand>(state);
+std::unique_ptr<Node> Expand::clone(const State &state,
+                                    const Origins &oris) const {
+  return std::make_unique<Expand>(state, oris);
 }
 
-std::unique_ptr<Node> Reverse::clone(const State &state) const {
-  return std::make_unique<Reverse>(state, dimensions());
+std::unique_ptr<Node> Reverse::clone(const State &state,
+                                     const Origins &oris) const {
+  return std::make_unique<Reverse>(state, oris, dimensions());
 }
 
 DisjointRegions Concat::getInRegions(InIndex inIndex,

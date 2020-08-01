@@ -81,6 +81,9 @@ public:
     sumTotalRegionSizes = 0;
   }
 
+  /** map all keys `k' in oMap, to crt[k]. */
+  Origins remap(const std::vector<uint64_t> &crt) const;
+
 private:
   // A map from AllocId to DisjointRegions. Design decision: We could have
   // std::map<AllocId, DisjointRegions>, that is, a single DisjointRegions

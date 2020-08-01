@@ -1,9 +1,9 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/alias/node.hpp>
+#include <poprithms/memory/gbase/node.hpp>
 
 namespace poprithms {
 namespace memory {
-namespace alias {
+namespace gbase {
 
 void Node::insertOut(TensorId ido) {
   if (std::find(outs_.cbegin(), outs_.cend(), ido) == outs_.cend()) {
@@ -25,6 +25,6 @@ bool Node::operator==(const Node &rhs) const {
          typeString() == rhs.typeString();
 }
 
-} // namespace alias
+} // namespace gbase
 } // namespace memory
 } // namespace poprithms

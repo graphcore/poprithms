@@ -198,49 +198,6 @@ private:
     void reserve(uint64_t);
   } mutable wspace;
 
-  // Recall that the Origins of a Tensor contains all the information about
-  // the allocations/memory which the Tensor aliases.
-  //
-  // The Origins of Tensors are only updated when a user requests
-  // alias-specific information about them. For example, suppose the user
-  // calls:
-  //
-  // Graph g;
-  // auto t0 = g.tensor(g0.allocate({2,3})).slice({0,0},{2,2}).flatten();
-  //
-  // At this point in the code, the Origins of all Tensors in the graph are
-  // unset. If now the user calls
-  //
-  // auto foo = t0.containsAliases();
-  //
-  // The Origins of t0 is required, and so a computation is run to update it
-  // and all other Origins necessary.
-  //
-  // Definition of a "stale Tensor": A Tensor which has not had its Origins
-  // set, or has had its Origins set but they might have changed since last
-  // set.
-  //
-  // All Tensors which have origins which might need to be updated.
-  mutable std::vector<uint64_t> stale_;
-
-  bool isStale(TensorId id) const;
-
-  void makeKnownNewStale(TensorId id) const { stale_.push_back(id.get()); }
-
-  void ensureStale(TensorId id) const {
-    if (!isStale(id)) {
-      makeKnownNewStale(id);
-    }
-  }
-
-  size_t nStale() const { return stale_.size(); }
-
-  // Ensure that the origins of a Tensor are up-to-date.
-  void updateOrigins(TensorId) const;
-
-  // Ensure that the origins of all Tensors are up-to-date.
-  void updateOrigins() const;
-
   template <class T, class... Args>
   TensorId createNode(const std::vector<TensorId> &ins,
                       const Shape &outShape,
@@ -251,17 +208,14 @@ private:
   template <typename F>
   std::vector<TensorId> depthFirstBack(TensorId id, F &&f) const;
 
-  // traverse backwards collecting all stale Tensors
-  std::vector<TensorId> depthFirstBackStale(TensorId id) const;
-
   // traverse back collecting all Tensors aliased to id
   std::vector<TensorId> depthFirstBackAliases(TensorId id) const;
 
   // traverse back collecting all Tensors
   std::vector<TensorId> depthFirstBackAll(TensorId id) const;
 
-  // traverse forwards til either stale or do not intersect
-  void makeStaleForwardAliased(TensorId id) const;
+  // set the Origins of Tensor with id `id'
+  void setOrigins(TensorId id);
 
   std::vector<Shape> getShapes(const std::vector<TensorId> &) const;
 };
