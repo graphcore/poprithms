@@ -28,6 +28,16 @@ Tensor concat(const std::vector<Tensor> &tensors, uint64_t axis) {
   return concat(std::move(tensors_), axis);
 }
 
+void Tensor::toAllocation(Color c) { pgraph->toAllocation(id(), c); }
+
+void Tensor::toIdentityFrom(Tensor src) {
+  if (src.pgraph != pgraph) {
+    throw error(
+        "Cannot call Tensor::toIdentityFrom for Tensors in different Graphs");
+  }
+  pgraph->toIdentity(src.id(), id());
+}
+
 Tensor Tensor::concat(const std::vector<Tensor> &tensors_,
                       uint64_t index,
                       uint64_t axis) const {

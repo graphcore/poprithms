@@ -82,6 +82,8 @@ public:
 
   void insertOut(TensorId id);
 
+  void removeOut(TensorId id);
+
   bool operator==(const Node &rhs) const;
 
   /** Clone this Node with a potentially different State. Attributes in the

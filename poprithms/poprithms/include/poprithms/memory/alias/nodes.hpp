@@ -128,6 +128,19 @@ private:
   const Permutation p;
 };
 
+class Identity : public Node {
+public:
+  Identity(const State &ob, const Origins &oris) : Node(ob, oris) {}
+  std::string typeString() const final { return "Identity"; }
+  std::unique_ptr<Node> clone(const State &, const Origins &) const final;
+  DisjointRegions getInRegions(InIndex,
+                               const DisjointRegions &r) const final {
+    return r;
+  }
+  bool samples() const final { return false; }
+  bool allocates() const final { return false; }
+};
+
 } // namespace alias
 } // namespace memory
 } // namespace poprithms

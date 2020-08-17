@@ -117,6 +117,14 @@ public:
    * */
   const Shape &shape() const;
 
+  /** Make this Tensor an allocation, disconnecting it from all current
+   * inputs. */
+  void toAllocation(Color);
+
+  /** Make this Tensor the output of an identity of src, disconnecting it from
+   * all current inputs.  */
+  void toIdentityFrom(Tensor src);
+
   // We ignore pgraph, so this is not a strong ordering.
   bool operator<(const Tensor &rhs) const { return id() < rhs.id(); }
 

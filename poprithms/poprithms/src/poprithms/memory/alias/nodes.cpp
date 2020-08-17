@@ -46,6 +46,11 @@ std::unique_ptr<Node> Concat::clone(const State &state,
   return std::make_unique<Concat>(state, oris, axis());
 }
 
+std::unique_ptr<Node> Identity::clone(const State &state,
+                                      const Origins &oris) const {
+  return std::make_unique<Identity>(state, oris);
+}
+
 std::unique_ptr<Node> Allocate::clone(const State &state,
                                       const Origins &oris) const {
   return std::make_unique<Allocate>(state, oris, color());

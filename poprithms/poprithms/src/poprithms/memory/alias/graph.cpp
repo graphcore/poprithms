@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <memory>
 #include <numeric>
+#include <sstream>
 #include <unordered_map>
 
 #include <poprithms/memory/alias/aliasusings.hpp>
@@ -31,6 +32,62 @@ TensorId Graph::reshape(TensorId id, const Shape &to) {
 
 TensorId Graph::expand(TensorId id, const Shape &to) {
   return createNode<Expand>({id}, to);
+}
+
+TensorId Graph::identity(TensorId id) {
+  return createNode<Identity>({id}, node(id).shape());
+}
+
+void Graph::toAllocation(TensorId id, Color c) {
+
+  const auto &n = node(id);
+
+  // disconnect current inputs
+  for (auto inId : n.ins()) {
+    node(inId).removeOut(id);
+  }
+
+  auto toUpdate = depthFirstFwdAliases(id);
+  std::reverse(toUpdate.begin(), toUpdate.end());
+
+  nodes[id.get()] = UpNode(std::make_unique<Allocate>(
+      Node::State{{}, n.outs(), {}, n.id(), n.shape()},
+      Origins(n.shape()),
+      c));
+
+  for (auto idToUpdate : toUpdate) {
+    setOrigins(idToUpdate);
+  }
+}
+
+void Graph::toIdentity(TensorId src, TensorId dst) {
+
+  if (shape(src).nelms() != shape(dst).nelms()) {
+    std::ostringstream oss;
+    oss << "Failure in Graph::toIdentity(" << src << ", " << dst
+        << ") as Tensors have different number of elements. Shapes are src:"
+        << shape(src) << " and dst:" << shape(dst);
+    throw error(oss.str());
+  }
+
+  const auto &n = node(dst);
+
+  // disconnect current inputs
+  for (auto inId : n.ins()) {
+    node(inId).removeOut(dst);
+  }
+  node(src).insertOut(dst);
+
+  auto toUpdate = depthFirstFwdAliases(dst);
+  std::reverse(toUpdate.begin(), toUpdate.end());
+
+  nodes[dst.get()] = UpNode(std::make_unique<Identity>(
+      Node::State{{src}, n.outs(), {n.shape()}, n.id(), n.shape()},
+      Origins(n.shape())));
+
+  for (auto idToUpdate : toUpdate) {
+    setOrigins(idToUpdate);
+  }
 }
 
 TensorId Graph::reverse(TensorId id, const std::vector<uint64_t> &dims) {
@@ -323,8 +380,69 @@ std::vector<std::vector<TensorId>> Graph::allAliases() const {
   return x;
 }
 
-template <typename F>
-std::vector<TensorId> Graph::depthFirstBack(TensorId x0, F &&f) const {
+std::map<TensorId, std::set<TensorId>> Graph::allAliasesMap() const {
+  const auto v = allAliases();
+  std::map<TensorId, std::set<TensorId>> m;
+  for (uint64_t i = 0; i < v.size(); ++i) {
+    m.insert({TensorId(i), {v[i].cbegin(), v[i].cend()}});
+  }
+  return m;
+}
+
+void Graph::confirmAllAliasesMap(
+    const std::map<TensorId, std::set<TensorId>> &m) const {
+  const auto baseline = allAliasesMap();
+  if (baseline == m) {
+    return;
+  }
+  std::ostringstream oss;
+  oss << "Different maps in Graph::confirmAllAliasesMap. ";
+
+  // keys which are not in baseline:
+  for (const auto &[k, s] : m) {
+    (void)s;
+    const auto found = baseline.find(k);
+    if (found == baseline.cend()) {
+      oss << "\n    --> No key " << k << " in baseline.";
+    }
+  }
+
+  for (const auto &[k, s] : baseline) {
+    const auto found = m.find(k);
+
+    // keys not in target:
+    if (found == m.cend()) {
+      oss << "\n    --> No key " << k << " in target.";
+    } else {
+      if (found->second != s) {
+        oss << "\n    --> For key " << k << " the baseline has ";
+        util::append(oss, std::vector<TensorId>(s.cbegin(), s.cend()));
+        oss << " and the target has ";
+        util::append(oss,
+                     std::vector<TensorId>(found->second.cbegin(),
+                                           found->second.cend()));
+        oss << ".";
+      }
+    }
+  }
+  throw error(oss.str());
+}
+
+template <Graph::Direction D>
+const std::vector<TensorId> &next(const Node &n);
+
+template <>
+const std::vector<TensorId> &next<Graph::Direction::Fwd>(const Node &n) {
+  return n.outs();
+}
+
+template <>
+const std::vector<TensorId> &next<Graph::Direction::Bwd>(const Node &n) {
+  return n.ins();
+}
+
+template <Graph::Direction D, class F>
+std::vector<TensorId> Graph::depthFirst(TensorId x0, F &&f) const {
 
   wspace.resize(nTensors());
   auto &currentEdge = wspace.wsUint64_;
@@ -340,12 +458,12 @@ std::vector<TensorId> Graph::depthFirstBack(TensorId x0, F &&f) const {
     auto b = S.back();
     // All children explored, so can process this node (post-order
     // traversal).
-    if (currentEdge[b] == node(b).ins().size()) {
+    if (currentEdge[b] == next<D>(node(b)).size()) {
       S.pop_back();
       sched.push_back(b);
       scheduled[b] = true;
     } else {
-      auto to = node(b).ins()[currentEdge[b]];
+      auto to = next<D>(node(b))[currentEdge[b]];
       if (!scheduled[to.get()] && f(to)) {
         S.push_back(to.get());
       }
@@ -359,12 +477,27 @@ std::vector<TensorId> Graph::depthFirstBack(TensorId x0, F &&f) const {
   return sched;
 }
 
-std::vector<TensorId> Graph::depthFirstBackAll(TensorId x0) const {
-  return depthFirstBack(x0, [](TensorId) { return true; });
+template <typename F>
+std::vector<TensorId> Graph::depthFirstBwd(TensorId x0, F &&f) const {
+  return depthFirst<Direction::Bwd>(x0, f);
 }
 
-std::vector<TensorId> Graph::depthFirstBackAliases(TensorId x0) const {
-  return depthFirstBack(
+template <typename F>
+std::vector<TensorId> Graph::depthFirstFwd(TensorId x0, F &&f) const {
+  return depthFirst<Direction::Fwd>(x0, f);
+}
+
+std::vector<TensorId> Graph::depthFirstBwdAll(TensorId x0) const {
+  return depthFirstBwd(x0, [](TensorId) { return true; });
+}
+
+std::vector<TensorId> Graph::depthFirstBwdAliases(TensorId x0) const {
+  return depthFirstBwd(
+      x0, [this, x0](TensorId id) { return id == x0 || areAliased(x0, id); });
+}
+
+std::vector<TensorId> Graph::depthFirstFwdAliases(TensorId x0) const {
+  return depthFirstFwd(
       x0, [this, x0](TensorId id) { return id == x0 || areAliased(x0, id); });
 }
 
@@ -425,7 +558,7 @@ Graph::Up<T> &Graph::Up<T>::operator=(const Graph::Up<T> &x) {
 //  is not enough, as that would leave concat with a "dangling" input.
 //
 TensorId Graph::clone(TensorId toCloneId) {
-  const std::vector<TensorId> oldsToClone = depthFirstBackAll(toCloneId);
+  const std::vector<TensorId> oldsToClone = depthFirstBwdAll(toCloneId);
 
   auto &oldToNew = wspace.wsUint64_;
 

@@ -1,6 +1,8 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_ALIAS_GRAPH_HPP
 #define POPRITHMS_MEMORY_ALIAS_GRAPH_HPP
+#include <map>
+#include <set>
 #include <vector>
 
 #include <poprithms/memory/alias/aliasusings.hpp>
@@ -80,6 +82,9 @@ public:
    * */
   TensorId expand(TensorId, const Shape &);
 
+  /** Create a Tensor in the Graph which is identical to the input Tensor.  */
+  TensorId identity(TensorId);
+
   /** Clone a Tensor.
    *
    * \return The TensorId of the new Tensor. The returned Tensor has
@@ -116,6 +121,62 @@ public:
 
   /** \return All Tensor-Tensor aliased. */
   std::vector<std::vector<TensorId>> allAliases() const;
+  std::map<TensorId, std::set<TensorId>> allAliasesMap() const;
+
+  /** If the input map `m' is different to the map returned by
+   * allAliasesMap(), then throw an error with a descriptive message */
+  void
+  confirmAllAliasesMap(const std::map<TensorId, std::set<TensorId>> &m) const;
+
+  /** Make a Tensor an allocation. Example:
+   *
+   *       bar   out0     .
+   *      /    /          .
+   *  in0 - id - out1     .
+   *  in1 /               .
+   *      \               .
+   *       foo            .
+   *
+   *  calling toAllocation(id, myColor) converts the graph to:
+   *
+   *       bar   out0     .
+   *      /    /          .
+   *  in0   id - out1     .
+   *  in1                 .
+   *      \               .
+   *       foo            .
+   *
+   * If `id' is already an allocation, this has no effect other than to
+   * possibly change its Color.
+   *
+   * \param id Then TensorId of the Tensor to convert to an allocation.
+   *
+   * \param c The Color of the allocation.
+   * */
+  void toAllocation(TensorId id, Color c);
+
+  /** Insert an identity edge into the Graph from `src' to `dst'.
+   * Example:
+   *
+   *  in0 - src - out0       .
+   *                         .
+   *   in1 - dst - out1      .
+   *        /     \          .
+   *    in2 - foo  out2      .
+   *
+   *  calling toIdentity(src, dst), converts the graph to:
+   *
+   *  in0 - src - out0       .
+   *         \               .
+   *  in1    dst - out1      .
+   *            \            .
+   *  in2 - foo  out2        .
+   *
+   *
+   * If `src' and `dst' to not have the same Shape, an error is thrown.
+   *
+   * */
+  void toIdentity(TensorId src, TensorId dst);
 
   /** \return True if the elements of this Tensor
    *          1) are distinct (no self-aliases)
@@ -169,6 +230,8 @@ public:
   bool operator==(const Graph &rhs) const { return nodes == rhs.nodes; }
   bool operator!=(const Graph &rhs) const { return !operator==(rhs); }
 
+  enum class Direction { Fwd = 0, Bwd };
+
 private:
   Node &node(TensorId);
   const Node &node(TensorId) const;
@@ -206,18 +269,26 @@ private:
   // post-order depth-wise backwards search for all TensorIds for which f is
   // true.
   template <typename F>
-  std::vector<TensorId> depthFirstBack(TensorId id, F &&f) const;
+  std::vector<TensorId> depthFirstBwd(TensorId id, F &&f) const;
+
+  template <typename F>
+  std::vector<TensorId> depthFirstFwd(TensorId id, F &&f) const;
 
   // traverse back collecting all Tensors aliased to id
-  std::vector<TensorId> depthFirstBackAliases(TensorId id) const;
+  std::vector<TensorId> depthFirstBwdAliases(TensorId id) const;
+
+  std::vector<TensorId> depthFirstFwdAliases(TensorId id) const;
 
   // traverse back collecting all Tensors
-  std::vector<TensorId> depthFirstBackAll(TensorId id) const;
+  std::vector<TensorId> depthFirstBwdAll(TensorId id) const;
 
   // set the Origins of Tensor with id `id'
   void setOrigins(TensorId id);
 
   std::vector<Shape> getShapes(const std::vector<TensorId> &) const;
+
+  template <Direction D, class F>
+  std::vector<TensorId> depthFirst(TensorId x0, F &&f) const;
 };
 
 std::ostream &operator<<(std::ostream &, const Graph &);

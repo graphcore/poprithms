@@ -11,6 +11,11 @@ void Node::insertOut(TensorId ido) {
   }
 }
 
+void Node::removeOut(TensorId ido) {
+  auto found = std::find(outs_.cbegin(), outs_.cend(), ido);
+  outs_.erase(found);
+}
+
 std::vector<TensorId> Node::insAndOuts() const {
   std::vector<TensorId> insAndOuts_;
   insAndOuts_.reserve(ins_.size() + outs_.size());
