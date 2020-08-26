@@ -89,6 +89,15 @@ public:
   void assertBoundsAreValid(const Lower &l, const Upper &u) const;
 
   /**
+   * Project the Shape into \a u - \a l dimensions, by retaining
+   * dimensions d in the range
+   *  0 <= \a l <= d < \a u <= rank_u64().
+   * */
+  Shape dimRange(uint64_t l, uint64_t u) const {
+    return {{shp.cbegin() + l, shp.cbegin() + u}};
+  }
+
+  /**
    * \return the Shape "u - l" if assertBoundsAreValid(l,u).
    * */
   Shape slice(const Lower &l, const Upper &u) const;
@@ -102,6 +111,7 @@ public:
 
   uint64_t rank_u64() const { return shp.size(); }
   int64_t dim(uint64_t d) const { return shp[d]; }
+  uint64_t dim_u64(uint64_t d) const { return static_cast<uint64_t>(dim(d)); }
 
   const std::vector<int64_t> &get() const { return shp; }
 
@@ -113,6 +123,26 @@ public:
    * Example :  this = (1,3,1) and rhs = (5,1,2), returns (5,3,2).
    * */
   Shape numpyBinary(const Shape &rhs) const;
+
+  /**
+   * Perform Shape reduction using numpy binary broadcasting.
+   *
+   * Example:
+   *  (4,2,1,1) and (1,3,1) and (1,5)  returns (4,2,3,5)
+   * */
+  static Shape numpyVariadic(const std::vector<Shape> &shapes);
+
+  /**
+   * Shape inference for numpy v1.19 matmul. See
+   * https://numpy.org/doc/stable/reference/generated/numpy.matmul.html
+   *
+   * \param arg0 The Shape of the first argument in the matrix multiplication
+   * \param arg1 The Shape of the second argument in the matrix multiplication
+   * \return The Shape of the output of the matrix multiplication
+   *  */
+  static Shape matmul(const Shape &arg0, const Shape &arg1);
+
+  Shape matmul(const Shape &arg1) const { return matmul(*this, arg1); }
 
   /**
    * \param to The Shape to be expanded to. "to" cannot be smaller than this

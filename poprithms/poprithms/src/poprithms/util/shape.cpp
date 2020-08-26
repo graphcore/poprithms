@@ -178,6 +178,17 @@ Shape Shape::numpyBinary(const Shape &rhs) const {
   return numpyBinary(shp, rhs.shp);
 }
 
+Shape Shape::numpyVariadic(const std::vector<Shape> &shapes) {
+  if (shapes.empty()) {
+    throw error("Empty container of shapes not allowed in numpyVariadic");
+  }
+  return std::accumulate(
+      shapes.cbegin(),
+      shapes.cend(),
+      shapes[0],
+      [](const auto &a, const auto &b) { return a.numpyBinary(b); });
+}
+
 void Shape::assertNumpyBroadcastable(const std::vector<int64_t> &a,
                                      const std::vector<int64_t> &b) {
   bool aIsLonger      = a.size() > b.size();
@@ -339,6 +350,61 @@ void Shape::assertBoundsAreValid(const Lower &l, const Upper &u) const {
       throw error(ss.str());
     }
   }
+}
+
+Shape Shape::matmul(const Shape &a, const Shape &b) {
+
+  const auto aRank = a.rank_u64();
+  const auto bRank = b.rank_u64();
+
+  if (aRank == 0 || bRank == 0) {
+    std::ostringstream oss;
+    oss << "rank-0 Shape not allowed in Shape::matmul: "
+        << " a = " << a << ", b = " << b << '.';
+    throw error(oss.str());
+  }
+
+  // If the first argument is 1-D, it is promoted to a matrix by prepending a
+  // 1 to its dimensions. After matrix multiplication the prepended 1 is
+  // removed.
+  if (aRank == 1) {
+    auto o        = matmul({{1, a.dim(0)}}, b).get();
+    const auto bv = o.back();
+    o.pop_back();
+    if (!o.empty()) {
+      o.back() = bv;
+    }
+    return o;
+  }
+
+  //  If the second argument is 1-D, it is promoted to a matrix by appending a
+  //  1 to its dimensions. After matrix multiplication the appended 1 is
+  //  removed.
+  if (bRank == 1) {
+    auto o = matmul(a, {b.dim(0), 1}).get();
+    o.pop_back();
+    return o;
+  }
+
+  //  If either argument is N-D, N > 2, it is treated as a stack of matrices
+  //  residing in the last two indexes and broadcast accordingly.
+  if (a.get().back() != *(b.get().cend() - 2)) {
+    std::ostringstream oss;
+    oss << "Reduction dimension sizes do not agree in matmul, a = " << a
+        << ", b = " << b << " (" << a.get().back()
+        << " != " << *(b.get().cend() - 2) << ").";
+    throw error(oss.str());
+  }
+
+  // numpy shape broadcasting:
+  auto outShape = Shape{{a.get().cbegin(), a.get().cend() - 2}}
+                      .numpyBinary({{b.get().cbegin(), b.get().cend() - 2}})
+                      .get();
+
+  // actual matmul shape:
+  outShape.push_back(*(a.get().cend() - 2));
+  outShape.push_back(b.get().back());
+  return outShape;
 }
 
 } // namespace util
