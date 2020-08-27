@@ -777,6 +777,15 @@ DisjointRegions DisjointRegions::flatten() const {
   return DisjointRegions(Shape({shape().nelms()}), flat);
 }
 
+DisjointRegions DisjointRegions::expand(const Shape &s) const {
+  std::vector<Region> expanded;
+  expanded.reserve(size());
+  for (const auto &reg : get()) {
+    expanded.push_back(reg.expand(s));
+  }
+  return DisjointRegions(s, expanded);
+}
+
 DisjointSetts DisjointRegions::flattenToSetts() const {
   const auto flatRegs = flatten();
   std::vector<Sett> setts;

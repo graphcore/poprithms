@@ -442,6 +442,8 @@ public:
 
   DisjointRegions reduce(const Shape &) const;
 
+  DisjointRegions expand(const Shape &) const;
+
   DisjointRegions slice(const std::vector<int64_t> &lower,
                         const std::vector<int64_t> &upper) const;
 
@@ -454,6 +456,10 @@ public:
   DisjointRegions permute(const Permutation &) const;
 
   DisjointSetts flattenToSetts() const;
+
+  bool equivalent(const DisjointRegions &rhs) const {
+    return Region::equivalent(*this, rhs);
+  }
 };
 
 } // namespace nest
