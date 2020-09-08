@@ -105,11 +105,38 @@ void testSqueeze() {
   }
 }
 
-void testSlice() {
-  Shape f({4, 5});
-  auto o = f.slice({0, 1}, {2, 3});
-  if (o != Shape({2, 2})) {
-    throw error("Failed in testSlice");
+void assertDimProduct(uint64_t x0, uint64_t x1, int64_t expected) {
+  const Shape s0({4, 3});
+  if (s0.dimProduct(x0, x1) != expected) {
+    std::ostringstream oss;
+    oss << "Failure in assertDimProduct, in test of Shape class. "
+        << "For Shape " << s0 << " in call to dimProduct(" << x0 << ", " << x1
+        << "), expected is " << expected << ". Observed is "
+        << s0.dimProduct(x0, x1);
+    throw error(oss.str());
+  }
+}
+
+void testDimProduct() {
+  assertDimProduct(0, 1, 4);
+  assertDimProduct(1, 2, 3);
+  assertDimProduct(0, 2, 12);
+  assertDimProduct(0, 0, 1);
+  assertDimProduct(1, 1, 1);
+}
+
+void testReverse() {
+  const Shape s1({1, 2, 3});
+  if (s1.reverse() != Shape{{3, 2, 1}}) {
+    throw error("Error in test of reverse");
+  }
+}
+
+void testGetRowMajorIndices() {
+  const Shape s1({4, 3});
+  const auto inds = s1.getSlicedRowMajorIndices({1, 1}, {3, 2});
+  if (inds != decltype(inds){4, 7}) {
+    throw error("Error in test of get row major indices (from slice)");
   }
 }
 
@@ -118,6 +145,8 @@ int main() {
   testRowMajorIndex0();
   testConcat();
   testSqueeze();
-  testSlice();
+  testDimProduct();
+  testReverse();
+  testGetRowMajorIndices();
   return 0;
 }

@@ -1,13 +1,19 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <numeric>
+#include <sstream>
 
 #include <poprithms/util/error.hpp>
+#include <poprithms/util/permutation.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/shape.hpp>
 
 namespace poprithms {
 namespace util {
+
+uint64_t Shape::dimProduct_u64(int64_t l, int64_t u) const {
+  return static_cast<uint64_t>(dimProduct(l, u));
+}
 
 void Shape::assertValidDimension(uint64_t d) const {
   if (d >= rank_u64()) {
@@ -16,6 +22,130 @@ void Shape::assertValidDimension(uint64_t d) const {
         << ", failure with invalid dimension= " << d;
     throw error(oss.str());
   }
+}
+
+std::vector<int64_t> Shape::getCustomStridedRowMajorIndices(
+    const std::vector<int64_t> &strides) const {
+  std::vector<int64_t> out(nelms_u64(), 0);
+  uint64_t nToCopy = 1;
+  for (uint64_t d_ = rank_u64(); d_ != 0; --d_) {
+    const auto d      = d_ - 1;
+    const auto stride = strides[d];
+    for (uint64_t copyNumber = 1; copyNumber < dim_u64(d); ++copyNumber) {
+      const auto delta = stride * copyNumber;
+      for (uint64_t localIndex = 0; localIndex < nToCopy; ++localIndex) {
+        out[copyNumber * nToCopy + localIndex] = out[localIndex] + delta;
+      }
+    }
+    nToCopy *= dim(d);
+  }
+  return out;
+}
+
+std::vector<int64_t>
+Shape::getExpandedRowMajorIndices(const Shape &to) const {
+  if (rank_u64() < to.rank_u64()) {
+    auto prepadded = std::vector<int64_t>(to.rank_u64() - rank_u64(), 1);
+    prepadded.insert(prepadded.end(), shp.cbegin(), shp.cend());
+    return Shape(prepadded).getExpandedRowMajorIndices(to);
+  }
+  auto strides     = getRowMajorStrides();
+  const auto where = numpyWhereToExpand(to);
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+    if (where[d]) {
+      strides[d] = 0;
+    }
+  }
+  return to.getCustomStridedRowMajorIndices(strides);
+}
+
+std::vector<int64_t>
+Shape::getDimShuffledRowMajorIndices(const Permutation &p) const {
+  return dimShuffle(p).getCustomStridedRowMajorIndices(
+      p.apply(getRowMajorStrides()));
+}
+
+Shape Shape::dimShuffle(const Permutation &p) const {
+  return {p.apply(get())};
+}
+
+std::vector<Shape::ConcatSource>
+Shape::getRowMajorConcatSources(const Shapes &shapes, uint64_t axis) {
+
+  const auto outShape = concat(shapes, axis);
+  std::vector<Shape::ConcatSource> out(outShape.nelms_u64());
+  const auto axis_i64 = static_cast<int64_t>(axis);
+
+  // The number of times you loop through each source Shape.
+  // This is 1 if the axis of concatenation is 0: each input Shape contributes
+  // to a contiguous region of the output Shape.
+  const auto nCopies = outShape.dimProduct_u64(0, axis_i64);
+
+  std::vector<uint64_t> nContigs;
+  nContigs.reserve(shapes.size());
+  for (const auto &inShape : shapes) {
+    nContigs.push_back(inShape.dimProduct_u64(axis_i64, inShape.rank_i64()));
+  }
+
+  uint64_t outIndex = 0;
+  for (uint64_t i = 0; i < nCopies; ++i) {
+    for (uint64_t shapeIndex = 0; shapeIndex < shapes.size(); ++shapeIndex) {
+      for (uint64_t k = 0; k < nContigs[shapeIndex]; ++k) {
+        auto inRowMajorIndex =
+            static_cast<int64_t>(i * nContigs[shapeIndex] + k);
+        out[outIndex] = {shapeIndex, inRowMajorIndex};
+        ++outIndex;
+      }
+    }
+  }
+  return out;
+}
+
+std::vector<int64_t>
+Shape::getRowMajorBlockOrdered(const Shape &blockShape) const {
+  if (blockShape.rank_u64() != rank_u64()) {
+    std::ostringstream oss;
+    oss << "blockShape has rank " << blockShape.rank_u64()
+        << " but this Shape has rank " << rank_u64()
+        << ". They should be the same. ";
+    throw error(oss.str());
+  }
+
+  for (auto l : blockShape.get()) {
+    if (l < 1) {
+      std::ostringstream oss;
+      oss << "blockShape=" << blockShape;
+      oss << ", all elements must be strictly positive.";
+      throw error(oss.str());
+    }
+  }
+
+  // The number of blocks in each dimension
+  std::vector<int64_t> blocksPerDim;
+  blocksPerDim.reserve(rank_u64());
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+    blocksPerDim.push_back(dim(d) / blockShape.dim(d) +
+                           (dim(d) % blockShape.dim(d) != 0));
+  }
+  const Shape blocks(blocksPerDim);
+
+  std::vector<int64_t> blockOrdered;
+  blockOrdered.reserve(nelms_u64());
+
+  for (int64_t blockId = 0; blockId < blocks.nelms(); ++blockId) {
+    const auto blockCoordinate = blocks.getRowMajorPoint(blockId);
+    std::vector<int64_t> lower;
+    lower.reserve(rank_u64());
+    std::vector<int64_t> upper;
+    upper.reserve(rank_u64());
+    for (uint64_t d_ = 0; d_ < rank_u64(); ++d_) {
+      lower.push_back(blockShape.dim(d_) * blockCoordinate[d_]);
+      upper.push_back(std::min(dim(d_), lower.back() + blockShape.dim(d_)));
+    }
+    const auto nxt = getSlicedRowMajorIndices(lower, upper);
+    blockOrdered.insert(blockOrdered.end(), nxt.cbegin(), nxt.cend());
+  }
+  return blockOrdered;
 }
 
 std::vector<int64_t>
@@ -48,13 +178,20 @@ Shape Shape::broadcast(int64_t N, uint64_t dimension) const {
 Shape Shape::unsqueeze(uint64_t d) const {
   assertValidDimension(d);
   auto s = get();
-  s.insert(std::next(s.begin(), d), 1LL);
+  s.insert(std::next(s.cbegin(), d), 1LL);
   return s;
 }
 
 int64_t Shape::nelms() const {
   return std::accumulate(
-      shp.begin(), shp.end(), int64_t(1), std::multiplies<int64_t>());
+      shp.cbegin(), shp.cend(), int64_t(1), std::multiplies<int64_t>());
+}
+
+int64_t Shape::dimProduct(int64_t l, int64_t u) const {
+  return std::accumulate(shp.cbegin() + l,
+                         shp.cbegin() + u,
+                         int64_t(1),
+                         std::multiplies<int64_t>());
 }
 
 void Shape::assertFlatPoint(int64_t flatPoint) const {
@@ -166,11 +303,50 @@ std::vector<int64_t> Shape::getRowMajorStrides() const {
 }
 
 std::vector<int64_t> Shape::getColMajorStrides() const {
-  auto sh2 = *this;
-  std::reverse(sh2.shp.begin(), sh2.shp.end());
-  auto strides = sh2.getRowMajorStrides();
+  auto strides = reverse().getRowMajorStrides();
   std::reverse(strides.begin(), strides.end());
   return strides;
+}
+
+Shape Shape::reverse() const {
+  auto s = get();
+  std::reverse(s.begin(), s.end());
+  return {std::move(s)};
+}
+
+std::vector<int64_t> Shape::getSlicedRowMajorIndices(const Lower &l,
+                                                     const Upper &u) const {
+
+  const auto outShape  = slice(l, u);
+  const auto rmStrides = getRowMajorStrides();
+
+  std::vector<int64_t> indices{0};
+  indices.reserve(outShape.nelms_u64());
+
+  std::vector<int64_t> nextIndices;
+  nextIndices.reserve(outShape.nelms_u64());
+
+  for (uint64_t d_ = rank_u64(); d_ != 0; --d_) {
+    const auto d = d_ - 1;
+    for (int64_t c = l[d]; c < u[d]; ++c) {
+      const auto delta = c * rmStrides[d];
+      for (auto i : indices) {
+        nextIndices.push_back(i + delta);
+      }
+    }
+    std::swap(indices, nextIndices);
+    nextIndices.clear();
+  }
+  return indices;
+}
+
+std::vector<int64_t> Shape::getSlicedColMajorIndices(const Lower &l,
+                                                     const Upper &u) const {
+  auto l2 = l;
+  std::reverse(l2.begin(), l2.end());
+  auto u2 = u;
+  std::reverse(u2.begin(), u2.end());
+  return reverse().getSlicedRowMajorIndices(l2, u2);
 }
 
 Shape Shape::numpyBinary(const Shape &rhs) const {
@@ -339,14 +515,16 @@ void Shape::assertBoundsAreValid(const Lower &l, const Upper &u) const {
   // lower less than or equal to upper
   for (auto i = 0ul; i < rank_u64(); ++i) {
     if (l[i] > u[i]) {
-      ss << "lower bound cannot excede upper bound. "
+      ss << "lower bound cannot exceed upper bound. "
          << "This for lower=" << l << " and upper=" << u << '.';
       throw error(ss.str());
     }
 
     if (dim(i) < u[i]) {
-      ss << "lower bound cannot excede upper bound. "
-         << "This for lower=" << l << " and upper=" << u << '.';
+      ss << "Upper bound cannot exceed dimension size (in dimension " << i
+         << ") "
+         << "This for Shape = " << *this << ", lower=" << l
+         << " and upper=" << u << '.';
       throw error(ss.str());
     }
   }
