@@ -1,12 +1,16 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <iostream>
 #include <unordered_set>
 
 #include <poprithms/util/error.hpp>
 #include <poprithms/util/typedinteger.hpp>
+#include <poprithms/util/typedvector.hpp>
 
-int main() {
+namespace {
 
-  using namespace poprithms::util;
+using namespace poprithms::util;
+
+void testTypedInteger() {
 
   TypedInteger<'A', int> a(1);
   TypedInteger<'B', int> b(2);
@@ -32,6 +36,29 @@ int main() {
 
   std::unordered_set<decltype(a)> usesHash;
   usesHash.insert(a);
+}
 
+void testTypedVector() {
+
+  using T0 = TypedVector<int, 'T', '0'>;
+  if (T0{1, 2, 3, 4}.size() != 4) {
+    throw error("Incorrect number of elements in T0{1,2,3,4}");
+  }
+  if (T0{5, 5}.size() != 2) {
+    throw error("Incorrect number of elements in T0{5,5}");
+  }
+  if (T0(std::vector(10, 8)).size() != 10) {
+    throw error("Incorrect number of elements in T0(std::vector(10,8))");
+  }
+
+  using T1 = TypedVector<int, 'T', '1'>;
+  static_assert(!std::is_same<T0, T1>::value, "Different types");
+  static_assert(std::is_same<T1, T1>::value, "Different types");
+}
+} // namespace
+
+int main() {
+  testTypedInteger();
+  testTypedVector();
   return 0;
 }
