@@ -8,6 +8,7 @@ namespace poprithms {
 namespace schedule {
 namespace anneal {
 
+// Note: Inserts no internal ops.
 Graph getRandomGraph(uint64_t N, uint64_t E, uint64_t D, int graphSeed);
 
 } // namespace anneal

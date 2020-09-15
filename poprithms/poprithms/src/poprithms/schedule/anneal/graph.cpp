@@ -2537,6 +2537,57 @@ AllocWeight Graph::getSumLiveness() const {
                          [](AllocWeight a, AllocWeight b) { return a + b; });
 }
 
+std::vector<OpAddress>
+Graph::getSubSchedule(const std::vector<OpAddress> &oas) const {
+  // Guard graph not yet initialized
+  if (!isInitialized) {
+    throw error(
+        "Cannot call getSubSchedule before graph has been initialized");
+  }
+
+  // Note, we do not cache the result of this function as the graph could be
+  // mutated after the first call, and keeping track of this would add a lot
+  // of unnecessary complexity to the rest of the code.
+
+  // 1. Subset `schToOp` by setting schedule index `i` to a special (otherwise
+  //    impossible) value iff the op scheduled at `i` is not in the subset of
+  //    ops defined by `oas`.
+
+  const auto unassignedFlag = nOps();
+  std::vector<OpAddress> subSchToOp(nOps(), unassignedFlag);
+
+  for (const auto oa : oas) {
+    // Guard invalid OpAddress.
+    if (oa >= nOps()) {
+      std::ostringstream oss;
+      oss << "Out of range OpAddress " << oa << ". nOps = " << nOps() << ".";
+      throw error(oss.str());
+    }
+
+    auto &schIdx = subSchToOp[opToSch[oa]];
+
+    // Guard duplicates.
+    if (schIdx != unassignedFlag) {
+      throw error("Duplicate OpAddress " + std::to_string(oa));
+    }
+
+    schIdx = oa;
+  }
+
+  // 2. Collect only the assigned schedule indices into one vector.
+
+  std::vector<OpAddress> subSchedule;
+  subSchedule.reserve(oas.size());
+
+  for (const auto oa : subSchToOp) {
+    if (oa != unassignedFlag) {
+      subSchedule.push_back(oa);
+    }
+  }
+
+  return subSchedule;
+}
+
 std::ostream &operator<<(std::ostream &ost, const Graph &x) {
   x.append(ost);
   return ost;

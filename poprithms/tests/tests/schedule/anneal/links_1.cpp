@@ -24,7 +24,7 @@ void test0() {
   g.initialize(
       KahnTieBreaker::RANDOM, 1011, TransitiveClosureOptimizations::allOn());
 
-  if (g.getScheduleToOp() != std::vector<OpAddress>{0, 1, 2}) {
+  if (g.getSubSchedule(ops) != std::vector<OpAddress>{0, 1, 2}) {
     throw error("Expected schedule to be {0,1,2}");
   }
 }
@@ -110,13 +110,15 @@ void test4() {
   auto g1 = g0;
 
   g0.initialize(KahnTieBreaker::RANDOM, seed1);
-  const auto &sched0 = g0.getScheduleToOp();
+
+  // We know the random graph includes no internal ops.
+  const auto sched0 = g0.viewInternalScheduleToOp();
 
   for (ScheduleIndex i = 1; i < sched0.size(); ++i) {
     g1.insertLink(sched0[i - 1], sched0[i]);
   }
   g1.initialize(KahnTieBreaker::RANDOM, seed2);
-  if (g1.getScheduleToOp() != sched0) {
+  if (g1.viewInternalScheduleToOp() != sched0) {
     throw error("Expected that inserting links between all Ops in the "
                 "initial schedule would result in the same schedule");
   }

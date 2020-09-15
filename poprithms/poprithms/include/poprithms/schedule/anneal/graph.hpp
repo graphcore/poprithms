@@ -66,6 +66,15 @@ KahnTieBreaker kahnTieBreaker(const std::string &);
  *
  * A Graph is grown incrementally with functions for inserting Ops, Allocs and
  * constraints between Ops.
+ *
+ * Some helper functions for growing the graph, e.g. for inserting bin
+ * constraints, will also insert extra "internal" Ops to the graph. These
+ * functions should state so in their documentation, and allow the user to
+ * give such ops a debug prefix to their name.
+ *
+ * It is possible to both view the full internal schedule, containing all the
+ * internal Ops, and to get the sub-schedule for only a specified subset of
+ * Ops.
  * */
 
 class Graph {
@@ -336,7 +345,41 @@ public:
     return nCanBwd[static_cast<uint64_t>(i)];
   }
 
-  const std::vector<OpAddress> &getScheduleToOp() const { return schToOp; }
+  /**
+   * View the internal schedule that this class keeps track of. This contains
+   * all ops, included those added internally to implement bin constraints,
+   * etc.
+   *
+   * If you know there were no internal ops added, you can thus use this
+   * method to get a view of the schedule in constant time.
+   *
+   * \return Vector such that position i is the OpAddress of the i^th op in
+   * the internal schedule.
+   */
+  const std::vector<OpAddress> &viewInternalScheduleToOp() const {
+    return schToOp;
+  }
+
+  /**
+   * Equivlant to viewInternalScheduleToOp.
+   *
+   * This function is deprecated. Please use viewInternalScheduleToOp.
+   */
+  const std::vector<OpAddress> &getScheduleToOp() const {
+    return viewInternalScheduleToOp();
+  }
+
+  /**
+   * Get the schedule, containing only the ops with the given OpAddresses.
+   * This method is O(nOps).
+   *
+   * \param oas The OpAddresses to include in the schedule.
+   *
+   * \return Vector such that position i is the OpAddress of the i^th op in
+   * the schedule.
+   */
+  std::vector<OpAddress>
+  getSubSchedule(const std::vector<OpAddress> &oas) const;
 
   /**
    * Convenience function for inserting constraints between groups of Ops.

@@ -166,7 +166,9 @@ void assertGlobalMinimumRecomputeGraph0(const Graph &g) {
     }
   };
 
-  auto schedule = g.getScheduleToOp();
+  // We know the graph has no internal ops.
+  const auto schedule = g.viewInternalScheduleToOp();
+
   std::vector<int> layers;
   layers.reserve(schedule.size());
   std::vector<int> recomps;

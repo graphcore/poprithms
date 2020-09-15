@@ -51,8 +51,10 @@ std::vector<int> getLogNSeries(uint64_t N);
 
 std::vector<int> getSqrtSeries(uint64_t N);
 
+// Note: Returned graph has no internal ops.
 Graph getRecomputeGraph(const std::vector<int> &nTimes);
 
+// Note: Given graph must have no internal ops.
 void assertGlobalMinimumRecomputeGraph0(const Graph &);
 
 } // namespace anneal
