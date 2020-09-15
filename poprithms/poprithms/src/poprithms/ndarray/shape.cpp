@@ -3,13 +3,13 @@
 #include <numeric>
 #include <sstream>
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/ndarray/error.hpp>
+#include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
 #include <poprithms/util/printiter.hpp>
-#include <poprithms/util/shape.hpp>
 
 namespace poprithms {
-namespace util {
+namespace ndarray {
 
 uint64_t Shape::dimProduct_u64(int64_t l, int64_t u) const {
   return static_cast<uint64_t>(dimProduct(l, u));
@@ -22,6 +22,12 @@ void Shape::assertValidDimension(uint64_t d) const {
         << ", failure with invalid dimension= " << d;
     throw error(oss.str());
   }
+}
+
+Shape Shape::prepend(int64_t dim0) const {
+  decltype(shp) prepended{dim0};
+  prepended.insert(prepended.cend(), shp.cbegin(), shp.cend());
+  return prepended;
 }
 
 std::vector<int64_t> Shape::getCustomStridedRowMajorIndices(
@@ -585,5 +591,5 @@ Shape Shape::matmul(const Shape &a, const Shape &b) {
   return outShape;
 }
 
-} // namespace util
+} // namespace ndarray
 } // namespace poprithms

@@ -1,8 +1,3 @@
 add_util_test(util_typedinteger_0 typedinteger_0.cpp)
 add_util_test(util_unisort_0  unisort_0.cpp)
-add_util_test(util_shape_0 shape_0.cpp)
-add_util_test(util_shape_slice_0 shape_slice_0.cpp)
-add_util_test(util_shape_matmul_0 shape_matmul_0.cpp)
-add_util_test(util_shape_strides_0 shape_strides_0.cpp)
-add_util_test(util_shape_block_0 shape_block_0.cpp)
 add_util_test(util_permutation_0 permutation_0.cpp)

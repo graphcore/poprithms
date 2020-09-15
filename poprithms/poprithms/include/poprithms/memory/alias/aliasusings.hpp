@@ -7,8 +7,10 @@
 #include <poprithms/util/typedinteger.hpp>
 
 namespace poprithms {
-namespace util {
+namespace ndarray {
 class Shape;
+}
+namespace util {
 class Permutation;
 } // namespace util
 } // namespace poprithms
@@ -30,7 +32,7 @@ using InIndex  = poprithms::util::TypedInteger<'i', uint64_t>;
 using OutIndex = poprithms::util::TypedInteger<'o', uint64_t>;
 using TensorId = poprithms::util::TypedInteger<'t', uint32_t>;
 
-using Shape           = poprithms::util::Shape;
+using Shape           = poprithms::ndarray::Shape;
 using Permutation     = poprithms::util::Permutation;
 using Region          = poprithms::memory::nest::Region;
 using DisjointRegions = poprithms::memory::nest::DisjointRegions;

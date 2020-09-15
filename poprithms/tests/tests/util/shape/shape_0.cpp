@@ -1,9 +1,9 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/util/error.hpp>
-#include <poprithms/util/shape.hpp>
+#include <poprithms/ndarray/error.hpp>
+#include <poprithms/ndarray/shape.hpp>
 
 namespace {
-using namespace poprithms::util;
+using namespace poprithms::ndarray;
 
 void assertNumpyBroadcast(const std::vector<int64_t> &a,
                           const std::vector<int64_t> &b,
@@ -140,8 +140,22 @@ void testGetRowMajorIndices() {
   }
 }
 
+void testPrepend() {
+  Shape s0({});
+  s0 = s0.prepend(4);
+  s0 = s0.prepend(3);
+  s0 = s0.prepend(2);
+  if (s0 != Shape{2, 3, 4}) {
+    std::ostringstream oss;
+    oss << "Failure in prepend test. Result is " << s0
+        << ". Prepending 4, then 3, then 2, should produce (2,3,4).";
+    throw error(oss.str());
+  }
+}
+
 int main() {
   testNumpyBinary0();
+  testPrepend();
   testRowMajorIndex0();
   testConcat();
   testSqueeze();

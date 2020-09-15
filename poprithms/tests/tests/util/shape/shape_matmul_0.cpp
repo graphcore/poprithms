@@ -1,11 +1,11 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <array>
 
-#include <poprithms/util/error.hpp>
-#include <poprithms/util/shape.hpp>
+#include <poprithms/ndarray/error.hpp>
+#include <poprithms/ndarray/shape.hpp>
 
 namespace {
-using namespace poprithms::util;
+using namespace poprithms::ndarray;
 
 void confirmMatmulShape(const Shape &a, const Shape &b, const Shape &c) {
 

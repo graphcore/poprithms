@@ -24,4 +24,6 @@ function(add_util_test_from_params name exe)
 endfunction()
 
 add_subdirectory(misc)
+add_subdirectory(shape)
+add_subdirectory(dtype)
 add_subdirectory(logging)

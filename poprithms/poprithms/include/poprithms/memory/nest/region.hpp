@@ -7,11 +7,14 @@
 
 #include <poprithms/memory/nest/optionalset.hpp>
 #include <poprithms/memory/nest/sett.hpp>
-#include <poprithms/util/shape.hpp>
+#include <poprithms/ndarray/shape.hpp>
 
 namespace poprithms {
 namespace util {
 class Permutation;
+}
+namespace ndarray {
+class Shape;
 }
 } // namespace poprithms
 
@@ -19,7 +22,7 @@ namespace poprithms {
 namespace memory {
 namespace nest {
 
-using Shape       = poprithms::util::Shape;
+using Shape       = poprithms::ndarray::Shape;
 using Permutation = poprithms::util::Permutation;
 
 class Region;

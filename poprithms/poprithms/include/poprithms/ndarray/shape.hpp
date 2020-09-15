@@ -1,14 +1,19 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_UTIL_SHAPE_HPP
-#define POPRITHMS_UTIL_SHAPE_HPP
+#ifndef POPRITHMS_NDARRAY_SHAPE_HPP
+#define POPRITHMS_NDARRAY_SHAPE_HPP
 
 #include <ostream>
 #include <vector>
 
 namespace poprithms {
-namespace util {
 
+namespace util {
 class Permutation;
+}
+
+namespace ndarray {
+
+using poprithms::util::Permutation;
 
 /**
  * A class to represent a N-dimensional rectangular volume.
@@ -86,6 +91,13 @@ public:
    *         returned Shape has rank 1 greater than this Shape's rank.
    * */
   Shape unsqueeze(uint64_t d) const;
+
+  /**
+   * \return A copy of this Shape but with \a dim0 prepended.
+   *
+   * Example: if this is (3,4), then calling prepend(2) returns (2,3,4).
+   * */
+  Shape prepend(int64_t dim0) const;
 
   /**
    * Throw an error if the size of \a l or size of \a u is not the same as the
@@ -423,7 +435,7 @@ public:
 
 std::ostream &operator<<(std::ostream &, const Shape &);
 
-} // namespace util
+} // namespace ndarray
 } // namespace poprithms
 
 #endif

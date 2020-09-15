@@ -30,13 +30,20 @@ set(util_sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/permutation.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/printiter.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/stringutil.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/shape.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/error.cpp
 )
 
+set(ndarray_sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/shape.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/dtype.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/error.cpp
+)
+
+
 add_library(poprithms-util-objlib OBJECT 
-  ${util_sources} 
-  ${logging_sources} 
+  ${util_sources}
+  ${ndarray_sources}
+  ${logging_sources}
   ${error_sources}
 )
 # For each sub-project "foo" of poprithms a shared library called
@@ -120,6 +127,7 @@ set(memory_alias_sources
   ${memory_src_dir}/alias/tensor.cpp
 )
 
+
 add_library(poprithms-memory-nest-objlib OBJECT ${memory_nest_sources})
 add_library(poprithms-memory-nest SHARED
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
@@ -142,7 +150,6 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
-
 add_library(poprithms-static STATIC
   $<TARGET_OBJECTS:poprithms-schedule-objlib>
   $<TARGET_OBJECTS:poprithms-outline-objlib>
@@ -150,7 +157,6 @@ add_library(poprithms-static STATIC
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
-
 
 list(APPEND POPRITHMS_COMMON_INCLUDES ${Boost_INCLUDE_DIR})
 

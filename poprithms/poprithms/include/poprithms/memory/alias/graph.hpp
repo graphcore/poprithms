@@ -8,8 +8,8 @@
 #include <poprithms/memory/alias/aliasusings.hpp>
 #include <poprithms/memory/alias/tensor.hpp>
 #include <poprithms/memory/nest/region.hpp>
+#include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
-#include <poprithms/util/shape.hpp>
 
 namespace poprithms {
 namespace memory {

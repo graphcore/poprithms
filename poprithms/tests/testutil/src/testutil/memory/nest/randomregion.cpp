@@ -5,8 +5,8 @@
 
 #include <poprithms/logging/logging.hpp>
 #include <poprithms/memory/nest/error.hpp>
+#include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/printiter.hpp>
-#include <poprithms/util/shape.hpp>
 #include <testutil/memory/nest/randomregion.hpp>
 
 namespace poprithms {

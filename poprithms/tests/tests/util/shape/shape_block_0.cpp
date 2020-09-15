@@ -1,14 +1,14 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/ndarray/error.hpp>
+#include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
 #include <poprithms/util/printiter.hpp>
-#include <poprithms/util/shape.hpp>
 
 namespace {
 
-using namespace poprithms::util;
+using namespace poprithms::ndarray;
 
 void assertBlockOrder(const Shape &shape,
                       const Shape &block,

@@ -2,11 +2,11 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/util/error.hpp>
-#include <poprithms/util/shape.hpp>
+#include <poprithms/ndarray/error.hpp>
+#include <poprithms/ndarray/shape.hpp>
 
 namespace {
-using namespace poprithms::util;
+using namespace poprithms::ndarray;
 using Lower = Shape::Lower;
 using Upper = Shape::Upper;
 

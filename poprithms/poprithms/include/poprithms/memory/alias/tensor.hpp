@@ -6,7 +6,7 @@
 #include <vector>
 
 #include <poprithms/memory/alias/aliasusings.hpp>
-#include <poprithms/util/shape.hpp>
+#include <poprithms/ndarray/shape.hpp>
 
 namespace poprithms {
 namespace memory {
