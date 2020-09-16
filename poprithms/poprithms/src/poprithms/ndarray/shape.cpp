@@ -174,6 +174,39 @@ Shape Shape::squeeze() const {
   return squeezed;
 }
 
+Shape Shape::squeeze(const std::vector<uint64_t> &dims) const {
+
+  std::vector<bool> retain(rank_u64(), true);
+
+  for (auto d : dims) {
+    if (d >= rank_u64()) {
+      std::ostringstream oss;
+      oss << "Error in squeezing Shape " << *this << ". Dimension " << d
+          << " exceeds permissible range end.";
+      throw error(oss.str());
+    }
+    if (dim(d) != 1) {
+      std::ostringstream oss;
+      oss << "Error in squeezing Shape " << *this
+          << ". The size of dimension " << d << " is " << dim(d)
+          << ", but you can only squeeze on size-1 dimensions.";
+      throw error(oss.str());
+    }
+    retain[d] = false;
+  }
+  std::vector<int64_t> squeezed;
+
+  // There may be duplicates in dims. We reserve to optimize the case where
+  // there are no duplicates.
+  squeezed.reserve(rank_u64() - std::min<size_t>(dims.size(), rank_u64()));
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    if (retain[i]) {
+      squeezed.push_back(dim(i));
+    }
+  }
+  return squeezed;
+}
+
 Shape Shape::broadcast(int64_t N, uint64_t dimension) const {
   assertValidDimension(dimension);
   auto s = get();

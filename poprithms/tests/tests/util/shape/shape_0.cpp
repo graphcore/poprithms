@@ -105,6 +105,16 @@ void testSqueeze() {
   }
 }
 
+void testSqueeze2() {
+  //            x           x
+  const Shape s{1, 2, 1, 3, 1};
+  const std::vector<uint64_t> dims{4, 0, 0, 0, 0, 0, 0, 0};
+  const auto out = s.squeeze(dims);
+  if (out != Shape{2, 1, 3}) {
+    throw error("Failed in testUnsqueeze2, expected {2,1,3}");
+  }
+}
+
 void assertDimProduct(uint64_t x0, uint64_t x1, int64_t expected) {
   const Shape s0({4, 3});
   if (s0.dimProduct(x0, x1) != expected) {
@@ -159,6 +169,7 @@ int main() {
   testRowMajorIndex0();
   testConcat();
   testSqueeze();
+  testSqueeze2();
   testDimProduct();
   testReverse();
   testGetRowMajorIndices();

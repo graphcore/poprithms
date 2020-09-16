@@ -87,6 +87,18 @@ public:
   Shape squeeze() const;
 
   /**
+   * Squeeze out 1's in certain dimensions.
+   *
+   * \return A Shape which is the same as this, but with `1's in dimensions \a
+   *         dims removed. If the dimension size of any dimension \in dims is
+   *         not 1, an error is thrown.
+   *
+   * Example:
+   *   If this is (1,4,1,5,1) and dims is (0,4), then (4,1,5) is returned.
+   * */
+  Shape squeeze(const std::vector<uint64_t> &dims) const;
+
+  /**
    * \return A copy of this Shape but wth a 1 inserted in dimension \a d. The
    *         returned Shape has rank 1 greater than this Shape's rank.
    * */
