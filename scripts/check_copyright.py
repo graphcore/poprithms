@@ -1,3 +1,4 @@
+# Copyright (c) 2019 Graphcore Ltd. All rights reserved.
 from pathlib import Path
 files = list(Path("../poprithms").rglob("*.[ch][p][p]"))
 bad_files = []

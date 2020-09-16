@@ -1,3 +1,5 @@
+# Copyright (c) 2019 Graphcore Ltd. All rights reserved.
+
 #how to format recursively with clang-format, from
 # https://stackoverflow.com/questions/28896909
 

@@ -1,3 +1,4 @@
+# Copyright (c) 2019 Graphcore Ltd. All rights reserved.
 """
 A Python program to print the major version of clang-format
 """
