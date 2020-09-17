@@ -361,15 +361,6 @@ public:
   }
 
   /**
-   * Equivlant to viewInternalScheduleToOp.
-   *
-   * This function is deprecated. Please use viewInternalScheduleToOp.
-   */
-  const std::vector<OpAddress> &getScheduleToOp() const {
-    return viewInternalScheduleToOp();
-  }
-
-  /**
    * Get the schedule, containing only the ops with the given OpAddresses.
    * This method is O(nOps).
    *
