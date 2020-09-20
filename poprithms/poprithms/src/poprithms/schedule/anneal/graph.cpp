@@ -2201,6 +2201,8 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
 
   std::vector<OpAddress> allOpAddresses(nOps());
   std::iota(allOpAddresses.begin(), allOpAddresses.end(), 0UL);
+  // Randomize the order in which indices are processed:
+  std::shuffle(allOpAddresses.begin(), allOpAddresses.end(), g);
 
   auto startCurrentShift = std::chrono::high_resolution_clock::now();
 
@@ -2217,12 +2219,6 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
     resetSusceptibleFalse();
 
     auto startCurrentRound = std::chrono::high_resolution_clock::now();
-
-    // in each round. the order in which the indices are considered is
-    // different. The idea is that this prevents bad cases analogous to bad
-    // hash functions, although these haven't been obsereved at time of
-    // commenting
-    std::shuffle(allOpAddresses.begin(), allOpAddresses.end(), g);
 
     nChangesInCurrentRound  = 0;
     deltaWeightCurrentRound = AllocWeight::zero();
@@ -2354,7 +2350,6 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
   auto relErr = absErr / (1.0 + absolute(totalDeltaSumLiveness));
   for (auto x : relErr.get()) {
     if (x > 1e-5) {
-      // if (finalSumLiveness - initSumLiveness != totalDeltaSumLiveness) {
       std::ostringstream oss2;
       oss2 << "An error might have occurred in minSumLivenessAnneal. "
            << "The running accumulation of calculated improvements is "
