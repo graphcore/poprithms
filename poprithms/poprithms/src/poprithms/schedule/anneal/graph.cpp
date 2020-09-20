@@ -2461,7 +2461,7 @@ std::vector<AllocWeight> Graph::getRippleCosts(ScheduleIndex start0,
 
     // for all allocations at the new final position of "o", check if seen
     // in "x" or existing "o" and remove all record on w and toIncrement
-    auto start1Allocs = scheduleToAllocs(start1 + dirOffset);
+    const auto &start1Allocs = scheduleToAllocs(start1 + dirOffset);
     for (auto a : start1Allocs) {
       if (rippleScratch[a].live) {
         auto record = rippleScratch[a];
