@@ -11,12 +11,24 @@ namespace anneal {
 
 class TrackEntry {
 public:
-  TrackEntry(ScheduleIndex, AllocWeight, AllocWeight, bool);
+  TrackEntry(ScheduleIndex a, AllocWeight b, AllocWeight c, bool d)
+      : entryTime(a), entryWeight(b), incrWeight(c), live(d) {}
 
-  ScheduleIndex entryTime; // when registered
-  AllocWeight entryWeight; // cost when registered
-  AllocWeight
-      incrWeight; // amount to increment cumulative cost at each iteration
+  TrackEntry(const TrackEntry &) = default;
+  TrackEntry(TrackEntry &&)      = default;
+
+  TrackEntry &operator=(const TrackEntry &) = default;
+  TrackEntry &operator=(TrackEntry &&) = default;
+
+  // when registered
+  ScheduleIndex entryTime;
+
+  // cost when registered
+  AllocWeight entryWeight;
+
+  // amount to increment cumulative cost at each iteration
+  AllocWeight incrWeight;
+
   bool live;
 };
 

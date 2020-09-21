@@ -60,7 +60,6 @@ set(schedule_anneal_sources
  ${anneal_source_dir}/graphserialization.cpp
  ${anneal_source_dir}/logging.cpp
  ${anneal_source_dir}/op.cpp
- ${anneal_source_dir}/trackentry.cpp
  ${anneal_source_dir}/transitiveclosureoptimizations.cpp
 )
 set(dfs_source_dir ${schedule_src_dir}/dfs)
