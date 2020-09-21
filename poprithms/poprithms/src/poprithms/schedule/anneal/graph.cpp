@@ -554,35 +554,6 @@ ShiftAndCost Graph::getBestShiftRippleAlgo(const ScheduleIndex start,
   return best;
 }
 
-std::vector<AllocAddress> Graph::getAllocAddresses(ScheduleIndex start,
-                                                   ScheduleIndex end) const {
-  std::vector<AllocAddress> addresses;
-  auto nAddressEstimate = static_cast<uint64_t>(2 * (end - start));
-  addresses.reserve(nAddressEstimate);
-  for (ScheduleIndex scheduleIndex = start; scheduleIndex < end;
-       ++scheduleIndex) {
-    for (AllocAddress allocAddress : scheduleToAllocs(scheduleIndex)) {
-      addresses.push_back(allocAddress);
-    }
-  }
-  std::sort(addresses.begin(), addresses.end());
-
-  // profiling reveals this is faster than the map -> vector approach
-  auto last = std::unique(addresses.begin(), addresses.end());
-  addresses.erase(last, addresses.cend());
-  return addresses;
-}
-
-std::vector<OpAddress> Graph::getInputOps() const {
-  std::vector<OpAddress> inputs;
-  for (const auto &op : allOps) {
-    if (op.nIns() == 0) {
-      inputs.push_back(op.getAddress());
-    }
-  }
-  return inputs;
-}
-
 std::string Graph::getLivenessString() const {
 
   std::vector<std::string> sIndex{"Index", "====="};
@@ -721,30 +692,8 @@ void Graph::applyChange(const ScheduleChange &scheduleChange) {
   // 3 schToAllocs
   rotate(schToAllocs, x0, o0, o1);
 
-  std::vector<OpAddress> consumersTouched;
-  auto estimateOfNEdges = static_cast<uint64_t>(2 * (o1 - x0));
-  consumersTouched.reserve(estimateOfNEdges);
-  for (ScheduleIndex i = x0; i < o1; ++i) {
-    for (auto outAddress : getOp(scheduleToOp(i)).getOuts()) {
-      consumersTouched.push_back(outAddress);
-    }
-  }
-  std::sort(consumersTouched.begin(), consumersTouched.end());
-  auto lastConsumer =
-      std::unique(consumersTouched.begin(), consumersTouched.end());
-  consumersTouched.erase(lastConsumer, consumersTouched.end());
-
-  std::vector<OpAddress> producersTouched;
-  producersTouched.reserve(estimateOfNEdges);
-  for (ScheduleIndex i = x0; i < o1; ++i) {
-    for (auto inAddress : getOp(scheduleToOp(i)).getIns()) {
-      producersTouched.push_back(inAddress);
-    }
-  }
-  std::sort(producersTouched.begin(), producersTouched.end());
-  auto lastProducer =
-      std::unique(producersTouched.begin(), producersTouched.end());
-  producersTouched.erase(lastProducer, producersTouched.end());
+  const std::vector<OpAddress> consumersTouched = getAllOutsInRange(x0, o1);
+  const std::vector<OpAddress> producersTouched = getAllInsInRange(x0, o1);
 
   // 4 opToInSch
   for (OpAddress consumerAddress : consumersTouched) {
@@ -2666,6 +2615,159 @@ Graph::constraintDiff(const std::vector<std::vector<OpAddress>> &rhs) const {
     uniqueToThis[x0] = util::unisorted(uniqueToThis[x0]);
   }
   return uniqueToThis;
+}
+
+namespace {
+// 1) For all indices i in [start, end),
+//    append f(i) to an output vector. Then,
+// 2) Sort the output element vector, using std::sort. Then,
+// 3) Remove duplicates.
+//
+//   F f maps a ScheduleIndex to a container of A's
+//   A is some address type (AllocAddress or OpAddress)
+template <typename A, class F>
+std::vector<A>
+getInRangeStdSort(const ScheduleIndex start, const ScheduleIndex end, F &&f) {
+
+  std::vector<A> addresses;
+  // No obvious size to reserve for addresses, so not performing a reserve.
+
+  for (ScheduleIndex i = start; i < end; ++i) {
+    for (A a : f(i)) {
+      addresses.push_back(a);
+    }
+  }
+
+  // At this point, addresses is not sorted and may contain duplicated.
+  // Options are to 1) insert into std::set and return set's range, or 2)
+  // std::sort and the use std::unique. Some experiments showed that 2 is
+  // faster.
+
+  std::sort(addresses.begin(), addresses.end());
+  auto last = std::unique(addresses.begin(), addresses.end());
+  addresses.erase(last, addresses.cend());
+  return addresses;
+}
+
+// Equivalent to getInRangeStdSort, but faster in certain cases.
+// 1) Create a bool vector of size nBuckets, all false.
+// 2) For all indices i in [start, end), set all bools at indices in
+//    f(i) to true.
+// 3) return all indices which are true.
+template <typename A, class F>
+std::vector<A> getInRangeBucketSort(const ScheduleIndex start,
+                                    const ScheduleIndex end,
+                                    const uint64_t nBuckets,
+                                    F &&f) {
+  // Example:
+  //
+  // start    = 2
+  // end      = 6
+  // nBuckets = 5
+  //
+  //
+  // 0 1 2 3 4 5 6 7     (schedule indices)
+  //     [       )       [start, end) range to iterate over
+  //     | | | |
+  //     v v v v
+  //     0 3 0 0         (values from call to f)
+  //     1   3
+  //
+  //                           0     1      2     3      4
+  //                           x
+  //                           x                  x
+  //                           x     x            x
+  // buckets after filling : [true, true, false, true, false]
+  //
+
+  std::vector<bool> bins(nBuckets, false);
+  uint64_t nFullBins{0};
+  for (ScheduleIndex i = start; i < end; ++i) {
+    for (auto a : f(i)) {
+      if (!bins[a]) {
+        ++nFullBins;
+      }
+      bins[a] = true;
+    }
+  }
+  std::vector<A> addresses;
+  addresses.reserve(nFullBins);
+  for (uint64_t i = 0; i < bins.size(); ++i) {
+    if (bins[i]) {
+      addresses.push_back(i);
+    }
+  }
+  return addresses;
+}
+
+// where:
+//   F f maps a ScheduleIndex to a container of A's
+//   A is some address type (AllocAddress or OpAddress)
+template <typename A, class F>
+std::vector<A> getInRange(const ScheduleIndex start,
+                          const ScheduleIndex end,
+                          const uint64_t nBuckets,
+                          F &&f) {
+
+  // Choose between std::sort and bucket sort:
+  //
+  // Let K be the expected number of elements returned from calling f.
+  // Let S = K*(end - start).
+  // Complexity of bucket     = O(nBuckets + S)
+  // Complexity of std::sort  = O(S*log(S)).
+  //
+  // So we use bucket if,
+  //   O(nBuckets + S) < O(S*log(S))
+  //
+  // Ignoring complexity constants,
+  //   nBuckets < S*log(S)
+
+  const auto S          = 2 * (end - start + 1);
+  const auto SlogS      = S * log2(S);
+  const auto useBuckets = nBuckets < SlogS;
+  if (useBuckets) {
+    return getInRangeBucketSort<A>(start, end, nBuckets, f);
+  } else {
+    return getInRangeStdSort<A>(start, end, f);
+  }
+}
+} // namespace
+
+std::vector<AllocAddress>
+Graph::getAllocAddresses(const ScheduleIndex start,
+                         const ScheduleIndex end) const {
+  const auto f = [this](ScheduleIndex i) -> auto & {
+    return scheduleToAllocs(i);
+  };
+  return getInRange<AllocAddress>(start, end, nAllocs(), f);
+}
+
+std::vector<OpAddress>
+Graph::getAllInsInRange(const ScheduleIndex start,
+                        const ScheduleIndex end) const {
+  const auto f = [this](ScheduleIndex i) -> auto & {
+    return getOp(scheduleToOp(i)).getIns();
+  };
+  return getInRange<OpAddress>(start, end, nOps(), f);
+}
+
+std::vector<OpAddress>
+Graph::getAllOutsInRange(const ScheduleIndex start,
+                         const ScheduleIndex end) const {
+  const auto f = [this](ScheduleIndex i) -> auto & {
+    return getOp(scheduleToOp(i)).getOuts();
+  };
+  return getInRange<OpAddress>(start, end, nOps(), f);
+}
+
+std::vector<OpAddress> Graph::getInputOps() const {
+  std::vector<OpAddress> inputs;
+  for (const auto &op : allOps) {
+    if (op.nIns() == 0) {
+      inputs.push_back(op.getAddress());
+    }
+  }
+  return inputs;
 }
 
 } // namespace anneal

@@ -513,6 +513,16 @@ private:
   std::vector<AllocAddress> getAllocAddresses(ScheduleIndex start,
                                               ScheduleIndex end) const;
 
+  // collect, sort, and make unique, all outputs of Ops with ScheduleIndices
+  // in [start, end).
+  std::vector<OpAddress> getAllOutsInRange(ScheduleIndex start,
+                                           ScheduleIndex end) const;
+
+  // collect, sort, and make unique, all inputs of Ops with ScheduleIndices
+  // in [start, end).
+  std::vector<OpAddress> getAllInsInRange(ScheduleIndex start,
+                                          ScheduleIndex end) const;
+
   std::vector<AllocWeight> getDeltaLiveness() const;
 
   void setSchToLiveness();
