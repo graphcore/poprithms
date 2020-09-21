@@ -42,13 +42,18 @@ public:
   // comparisons
   AllocWeight(double _v_, int relativeLexico);
 
+  template <int rl>
+  explicit AllocWeight(double _v_) : v{0, 0, 0, 0, 0, 0, 0} {
+    v[static_cast<uint64_t>((NAW - 1) / 2 + rl)] = _v_;
+  }
+
   // by default, the centre position is used.
-  explicit AllocWeight(double _v_) : AllocWeight(_v_, 0) {}
+  explicit AllocWeight(double _v_) : v{0, 0, 0, _v_, 0, 0, 0} {}
 
   AllocWeight(const std::array<double, NAW> &_v_) : v(_v_) {}
 
-  static AllocWeight zero() { return AllocWeight(0.0, 0); }
-  static AllocWeight negativeOne() { return AllocWeight(-1.0, 0); }
+  static AllocWeight zero() { return AllocWeight(0.0); }
+  static AllocWeight negativeOne() { return AllocWeight(-1.0); }
   static AllocWeight numericMaxLimit() {
     AllocWeight w(0.0);
     std::fill(w.v.begin(), w.v.end(), std::numeric_limits<double>::max());
