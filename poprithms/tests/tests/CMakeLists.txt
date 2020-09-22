@@ -26,6 +26,8 @@ endfunction()
 
 add_subdirectory(schedule)
 
+add_subdirectory(compute)
+
 add_subdirectory(memory)
 
 add_subdirectory(outline)

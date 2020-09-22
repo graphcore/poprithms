@@ -107,6 +107,19 @@ add_library(poprithms-outline SHARED
 )
 
 
+set(compute_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/compute)
+set(compute_host_sources
+  ${compute_src_dir}/host/error.cpp
+  ${compute_src_dir}/host/viewchange.cpp
+)
+add_library(poprithms-compute-host-objlib OBJECT ${compute_host_sources})
+add_library(poprithms-compute-host SHARED
+  $<TARGET_OBJECTS:poprithms-compute-host-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
+
+
 set(memory_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory)
 set(memory_nest_sources
   ${memory_src_dir}/nest/error.cpp
@@ -142,6 +155,7 @@ add_library(poprithms-memory-alias SHARED
 
 
 add_library(poprithms SHARED 
+  $<TARGET_OBJECTS:poprithms-compute-host-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-objlib>
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
@@ -150,12 +164,14 @@ add_library(poprithms SHARED
 )
 
 add_library(poprithms-static STATIC
+  $<TARGET_OBJECTS:poprithms-compute-host-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-objlib>
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
+
 
 list(APPEND POPRITHMS_COMMON_INCLUDES ${Boost_INCLUDE_DIR})
 
@@ -167,6 +183,8 @@ if (${POPRITHMS_USE_STACKTRACE})
 endif()
 
 foreach(tgt IN ITEMS
+  poprithms-compute-host-objlib
+  poprithms-compute-host
   poprithms-schedule-objlib
   poprithms-schedule
   poprithms-outline-objlib
