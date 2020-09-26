@@ -62,6 +62,7 @@ std::array<NumericTypeInfo, NTypes> initInfoArray() {
   registerInfo(DType::Int32, 4, true, "Int32");
   registerInfo(DType::Int64, 8, true, "Int64");
 
+  registerInfo(DType::Boolean, sizeof(bool), true, "Boolean");
   registerInfo(DType::Unsigned8, 1, true, "Unsigned8");
   registerInfo(DType::Unsigned16, 2, true, "Unsigned16");
   registerInfo(DType::Unsigned32, 4, true, "Unsigned32");

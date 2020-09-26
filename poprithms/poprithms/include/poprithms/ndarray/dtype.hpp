@@ -23,6 +23,7 @@ enum class DType {
   Int64,
 
   // Unsigned integers
+  Boolean,
   Unsigned8,
   Unsigned16,
   Unsigned32,
@@ -107,6 +108,12 @@ template <> DType get<uint8_t>();
 template <> class ToType<DType::Unsigned8> {
 public:
   using Type = uint8_t;
+};
+
+template <> DType get<bool>();
+template <> class ToType<DType::Boolean> {
+public:
+  using Type = bool;
 };
 
 template <> DType get<uint16_t>();
