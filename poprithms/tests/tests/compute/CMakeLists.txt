@@ -18,3 +18,4 @@ function(add_compute_host_test name source)
 endfunction()
 
 add_subdirectory(viewchange)
+add_subdirectory(internal)

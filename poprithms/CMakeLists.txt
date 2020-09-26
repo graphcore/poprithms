@@ -29,5 +29,13 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/poprithms/cmake)
 # Tests path
 set(INSTALL_TESTS ${CMAKE_INSTALL_PREFIX}/tests)
 
+set(poprithms_src_dir ${PROJECT_SOURCE_DIR}/poprithms/poprithms/src)
+
 add_subdirectory(poprithms)
+
+# Non-installed .hpp files which need testing (for "compute" namespace)
+list(APPEND internal_compute_include_dir
+          ${poprithms_src_dir}/poprithms/compute/host/include)
+
 add_subdirectory(tests)
+
