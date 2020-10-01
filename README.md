@@ -23,63 +23,18 @@ If boost is installed somewhere unusual,
 cmake /path/to/poprithms/root/dir -DBOOST_ROOT=/path/to/boost/install 
 ```
 
-
 By default, the C++ compiler flag `-Werror` is enabled. To disable `-Werror`, use 
 ```
 cmake /path/to/poprithms/root/dir  -DPOPRITHMS_WERROR=OFF
 ```
 
-The usual CMake flags can be used to set the install directory and generator:
-
+By default, Boost Stacktrace is used to improve error messages. To disable it,
 ```
-cmake /path/to/poprithms/root/dir  -DPOPRITHMS_WERROR=OFF -BOOST_ROOT=/path/to/boost/install -DCMAKE_INSTALL_PREFIX=/my/install/dir -DCMAKE_GENERATOR="Ninja"
-```
-
-### Build the library
-
-The library can be built from the build directory. If the generator is Ninja and you have an install directory set, then 
-```
-ninja install
+cmake /path/to/poprithms/root/dir  -DPOPRITHMS_USE_STACKTRACE=OFF
 ```
 
-will build and copy the poprithms shared library, header and configuration files into the install directory. 
-
-### Build the documentation 
-
-Currently poprithms does not build documentation. 
-
-### Examples 
-
-Currently the test directory serves as examples. 
-
-### Prerequisites for building
-
-* Boost, any version. 
-
-### Configure with cmake 
-
-Create a build directory:
-```
-mkdir build; cd build;
-```
-
-Configure cmake. If boost is installed in a standard location, 
-```
-cmake /path/to/poprithms/root/dir
-```
-
-If boost is installed somewhere unusual, 
-```
-cmake /path/to/poprithms/root/dir -DBOOST_ROOT=/path/to/boost/install 
-```
-
-
-By default, the C++ compiler flag `-Werror` is enabled. To disable `-Werror`, use 
-```
-cmake /path/to/poprithms/root/dir  -DPOPRITHMS_WERROR=OFF
-```
-
-The usual CMake flags can be used to set the install directory and generator:
+The usual CMake flags can be used to set the install directory `CMAKE_INSTALL_PREFIX` 
+and the generator `CMAKE_GENERATOR`. A complete configuration command might be:
 
 ```
 cmake /path/to/poprithms/root/dir  -DPOPRITHMS_WERROR=OFF -BOOST_ROOT=/path/to/boost/install -DCMAKE_INSTALL_PREFIX=/my/install/dir -DCMAKE_GENERATOR="Ninja"
