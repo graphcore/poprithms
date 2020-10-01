@@ -42,7 +42,7 @@ uint64_t nbytes_u64(DType);
 /** A lowercase string representation of data type \a t */
 const std::string &lcase(DType t);
 
-/** An PascalCase string representation of data type \a t */
+/** A PascalCase string representation of data type \a t */
 const std::string &pcase(DType);
 
 /** \return true iff data type \a t is fixed point. In other words, if \a t is
@@ -135,7 +135,7 @@ public:
 };
 
 template <typename T> const std::string &lcase() { return lcase(get<T>()); }
-template <typename T> const std::string &ucase() { return ucase(get<T>()); }
+template <typename T> const std::string &pcase() { return pcase(get<T>()); }
 
 } // namespace ndarray
 } // namespace poprithms

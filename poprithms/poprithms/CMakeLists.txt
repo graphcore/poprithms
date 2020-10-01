@@ -112,6 +112,7 @@ set(compute_host_sources
   ${compute_src_dir}/host/error.cpp
   ${compute_src_dir}/host/viewchange.cpp
   ${compute_src_dir}/host/ieeehalf.cpp
+  ${compute_src_dir}/host/types/boolimpl.cpp
 )
 add_library(poprithms-compute-host-objlib OBJECT ${compute_host_sources})
 add_library(poprithms-compute-host SHARED
