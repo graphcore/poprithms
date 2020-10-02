@@ -2,7 +2,6 @@
 #ifndef POPRITHMS_COMPUTE_HOST_BASEOPERATORS_HPP
 #define POPRITHMS_COMPUTE_HOST_BASEOPERATORS_HPP
 
-#include "boolimpl.hpp"
 #include "ieeehalf.hpp"
 
 #include <cmath>
@@ -50,10 +49,10 @@ public:
 };
 
 // abs(x) = x for all bools.
-template <> class Abs<BoolImpl> {
+template <> class Abs<bool> {
 public:
-  BoolImpl operator()(BoolImpl a) const { return a; }
-  static std::string name() { return name_<BoolImpl>("Abs"); }
+  bool operator()(bool a) const { return a; }
+  static std::string name() { return name_<bool>("Abs"); }
 };
 
 template <typename T> class Identity {
@@ -90,9 +89,7 @@ public:
 };
 
 template <class T>
-class Ceil<T,
-           typename std::enable_if_t<std::is_integral_v<T> ||
-                                     std::is_same<T, BoolImpl>::value>> {
+class Ceil<T, typename std::enable_if_t<std::is_integral_v<T>>> {
 public:
   T operator()(T a) const { return a; }
   static std::string name() { return name_<T>("Ceil"); }
@@ -108,9 +105,7 @@ public:
 };
 
 template <class T>
-class Floor<T,
-            typename std::enable_if_t<std::is_integral_v<T> ||
-                                      std::is_same<T, BoolImpl>::value>> {
+class Floor<T, typename std::enable_if_t<std::is_integral_v<T>>> {
 public:
   T operator()(T a) const { return a; }
   static std::string name() { return name_<T>("Floor"); }
@@ -140,21 +135,33 @@ public:
   static std::string name() { return name_<T>("Subtracter"); }
 };
 
-// numpy throws an error when bools are subtracted, we do the same.
-template <> class Subtracter<BoolImpl> {
+template <> class Adder<bool> {
 public:
-  [[noreturn]] BoolImpl operator()(BoolImpl, BoolImpl) const {
-    throw error("No Subtraction defined for BoolImpl");
-  }
-  static std::string name() { return name_<BoolImpl>("Subtracter"); }
+  bool operator()(bool a, bool b) const { return a || b; }
+  static std::string name() { return name_<bool>("Adder"); }
 };
 
-template <> class Divider<BoolImpl> {
+template <> class Multiplier<bool> {
 public:
-  [[noreturn]] BoolImpl operator()(BoolImpl, BoolImpl) const {
-    throw error("No Division defined for BoolImpl");
+  bool operator()(bool a, bool b) const { return a && b; }
+  static std::string name() { return name_<bool>("Multiplier"); }
+};
+
+// numpy throws an error when bools are subtracted, we do the same.
+template <> class Subtracter<bool> {
+public:
+  [[noreturn]] bool operator()(bool, bool) const {
+    throw error("No Subtraction defined for bool");
   }
-  static std::string name() { return name_<BoolImpl>("Divider"); }
+  static std::string name() { return name_<bool>("Subtracter"); }
+};
+
+template <> class Divider<bool> {
+public:
+  [[noreturn]] bool operator()(bool, bool) const {
+    throw error("No Division defined for bool");
+  }
+  static std::string name() { return name_<bool>("Divider"); }
 };
 
 template <typename T> class GreaterThan {
@@ -195,7 +202,6 @@ public:
 template <class T>
 class EqualTo<T,
               typename std::enable_if_t<std::is_integral_v<T> ||
-                                        std::is_same<T, BoolImpl>::value ||
                                         std::is_same<T, IeeeHalf>::value>> {
 
 public:
@@ -222,10 +228,10 @@ template <> inline IeeeHalf fromDouble(double t) {
 }
 
 // sqrt(x) = x for all bools.
-template <> class Sqrt<BoolImpl> {
+template <> class Sqrt<bool> {
 public:
-  BoolImpl operator()(BoolImpl a) const { return a; }
-  static std::string name() { return name_<BoolImpl>("Sqrt"); }
+  bool operator()(bool a) const { return a; }
+  static std::string name() { return name_<bool>("Sqrt"); }
 };
 
 } // namespace host

@@ -154,5 +154,8 @@ template void verify<int32_t>(DType);
 template <> DType get<int64_t>() { return DType::Int64; }
 template void verify<int64_t>(DType);
 
+template <> DType get<bool>() { return DType::Boolean; }
+template void verify<bool>(DType);
+
 } // namespace ndarray
 } // namespace poprithms

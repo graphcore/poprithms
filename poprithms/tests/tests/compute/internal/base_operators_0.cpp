@@ -10,19 +10,6 @@ namespace {
 
 using namespace poprithms::compute::host;
 
-void confirmBoolUnary(BoolImpl in_,
-                      BoolImpl out_,
-                      BoolImpl expected_,
-                      const std::string &name) {
-  if (out_ != expected_) {
-    std::ostringstream oss;
-    oss << "Error for the base bool unary operator " << name
-        << ". In = " << in_ << ", expected = " << expected_
-        << ", out = " << out_;
-    throw error(oss.str());
-  }
-}
-
 template <typename T>
 void confirmUnary(T in_, T out_, T expected_, const std::string &name) {
   if (std::isnan(out_) || !(out_ - expected_ == T(0))) {
@@ -135,12 +122,12 @@ void test0() {
 }
 
 void test_bool_0() {
-  const auto t = BoolImpl(true);
-  const auto f = BoolImpl(false);
-  confirmBoolUnary(t, Abs<BoolImpl>()(t), t, "Abs(true)");
-  confirmBoolUnary(f, Abs<BoolImpl>()(f), f, "Abs(false)");
-  confirmBoolUnary(f, Ceil<BoolImpl>()(f), f, "Ceil(false)");
-  confirmBoolUnary(t, Sqrt<BoolImpl>()(t), t, "Sqrt(true)");
+  const auto t = true;
+  const auto f = false;
+  confirmUnary<bool>(t, Abs<bool>()(t), t, "Abs(true)");
+  confirmUnary<bool>(f, Abs<bool>()(f), f, "Abs(false)");
+  confirmUnary<bool>(f, Ceil<bool>()(f), f, "Ceil(false)");
+  confirmUnary<bool>(t, Sqrt<bool>()(t), t, "Sqrt(true)");
 }
 
 int main() {
