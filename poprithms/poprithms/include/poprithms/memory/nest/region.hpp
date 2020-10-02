@@ -103,6 +103,14 @@ class DisjointRegions;
 class Region {
 
 public:
+  Region() = delete;
+
+  Region(const Region &rhs) = default;
+  Region(Region &&)         = default;
+
+  Region &operator=(const Region &) = default;
+  Region &operator=(Region &&) = default;
+
   /**
    * \param shape The rectangular volume which contains this Region
    *
@@ -125,10 +133,6 @@ public:
    * dimension "dim" which has a depth-1 Sett defined by "st".
    * */
   static Region fromStripe(const Shape &, uint64_t dim, const Stripe &st);
-
-  Region(const Region &rhs) = default;
-  Region(Region &&)         = default;
-  Region &operator          =(const Region &);
 
   /**
    * \return Region which contains all elements of "shape".
@@ -408,7 +412,9 @@ public:
 
   DisjointRegions(const DisjointRegions &) = default;
   DisjointRegions(DisjointRegions &&regs)  = default;
-  DisjointRegions &operator                =(const DisjointRegions &);
+
+  DisjointRegions &operator=(const DisjointRegions &) = default;
+  DisjointRegions &operator=(DisjointRegions &&) = default;
 
   bool disjoint(const DisjointRegions &rhs) const;
 

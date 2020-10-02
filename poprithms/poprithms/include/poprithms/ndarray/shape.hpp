@@ -31,6 +31,12 @@ public:
   Shape(const std::vector<int64_t> &s_) : shp(s_) {}
   Shape(std::vector<int64_t> &&s_) : shp(std::move(s_)) {}
 
+  Shape(const Shape &) = default;
+  Shape(Shape &&)      = default;
+
+  Shape &operator=(const Shape &) = default;
+  Shape &operator=(Shape &&) = default;
+
   Shape(const std::initializer_list<int64_t> &s)
       : Shape(std::vector<int64_t>(s)) {}
 

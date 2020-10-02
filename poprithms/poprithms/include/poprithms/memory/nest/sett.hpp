@@ -112,11 +112,14 @@ int64_t smallestCommonMultiple_i64(int64_t a, int64_t b);
 class Sett {
 
 public:
-  Sett()             = delete;
-  ~Sett()            = default;
+  Sett()  = delete;
+  ~Sett() = default;
+
   Sett(const Sett &) = default;
   Sett(Sett &&)      = default;
+
   Sett &operator=(const Sett &) = default;
+  Sett &operator=(Sett &&) = default;
 
   /**
    * Construct a Sett from a sequence of Stripes

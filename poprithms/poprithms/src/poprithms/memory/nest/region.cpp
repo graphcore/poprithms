@@ -265,12 +265,6 @@ DisjointRegions Region::subtract(const Region &rhs) const {
   return DisjointRegions(shape(), intersection);
 }
 
-Region &Region::operator=(const Region &rhs) {
-  shape_ = rhs.shape_;
-  setts_ = rhs.setts_;
-  return *this;
-}
-
 Region::Region(const Shape &sh_, const std::vector<Sett> &se_) : shape_(sh_) {
 
   if (sh_.rank_u64() != se_.size()) {
@@ -673,12 +667,6 @@ DisjointRegions DisjointRegions::reshape(const Shape &s) const {
     }
   }
   return DisjointRegions(s, oRegs);
-}
-
-DisjointRegions &DisjointRegions::operator=(const DisjointRegions &rhs) {
-  sh_   = rhs.sh_;
-  regs_ = rhs.regs_;
-  return *this;
 }
 
 bool DisjointRegions::disjoint(const DisjointRegions &rhs) const {
