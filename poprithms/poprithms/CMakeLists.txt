@@ -111,6 +111,7 @@ set(compute_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/compute)
 set(compute_host_sources
   ${compute_src_dir}/host/error.cpp
   ${compute_src_dir}/host/viewchange.cpp
+  ${compute_src_dir}/host/numpyformatter.cpp
   ${compute_src_dir}/host/ieeehalf.cpp
 )
 add_library(poprithms-compute-host-objlib OBJECT ${compute_host_sources})
