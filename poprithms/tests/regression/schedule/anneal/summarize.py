@@ -1,3 +1,4 @@
+# Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 import matplotlib.pyplot as mpl
 import matplotlib.gridspec as gridspec
 import numpy as np

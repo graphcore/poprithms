@@ -1,6 +1,9 @@
 # Copyright (c) 2019 Graphcore Ltd. All rights reserved.
 from pathlib import Path
-files = list(Path("../poprithms").rglob("*.[ch][p][p]"))
+cppfiles = list(Path("../poprithms").rglob("*.[ch][p][p]"))
+pyfiles = list(Path("../poprithms").rglob("*.py"))
+shfiles = list(Path("../poprithms").rglob("*.sh"))
+files = cppfiles + pyfiles + shfiles
 bad_files = []
 for fl in files:
     with open(fl) as f:
