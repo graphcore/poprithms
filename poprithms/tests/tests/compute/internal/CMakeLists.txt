@@ -19,3 +19,4 @@ endfunction()
 
 add_compute_host_internal_test(compute_host_internal_base_operators_0 base_operators_0.cpp)
 add_compute_host_internal_test(compute_host_internal_numpy_string_formatter_0 numpy_string_formatter_0.cpp)
+add_compute_host_internal_test(compute_host_internal_gridpointhelper_0 gridpointhelper_0.cpp)
