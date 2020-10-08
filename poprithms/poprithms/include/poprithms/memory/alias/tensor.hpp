@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_MEMORY_ALIAS_ARRID_HPP
-#define POPRITHMS_MEMORY_ALIAS_ARRID_HPP
+#ifndef POPRITHMS_MEMORY_ALIAS_TENSOR_HPP
+#define POPRITHMS_MEMORY_ALIAS_TENSOR_HPP
 
 #include <string>
 #include <vector>
@@ -15,15 +15,42 @@ namespace alias {
 class Graph;
 
 /**
- * A class to represent memory allocations of a set of elements of an n-d
- * array. This class cannot be used for doing any computation, it is
- * useful for answering set-based questions, such as
  *
- * - "Do elements in Tensor A intersect in memory with elements in Tensor B ?"
+ * A set based representation of memory addresses of an N-dimensional
+ * array.
  *
- * - "Are the elements in Tensor A have distinct addresses in memory ?"
+ * It is useful for answering set based questions such as:
  *
- * etc.
+ * 1) Do 2 Tensors intersect?
+ *
+ * 2) Are all elements in a Tensor unique?
+ *
+ * 3) Do any/all elements in a Tensor have property X (X = constness)
+ *
+ *
+ * Certain questions cannot be framed in terms of sets. For example, the
+ * question
+ *
+ * Are the elements in a Tensor contiguous?
+ *
+ * requires an ordering of elements. The similar question,
+ *
+ * Are the elements in a Tensor setwise contiguous?
+ *                              -------
+ *
+ * can be answered efficiently by this class.
+ *
+ * How is a Tensor represented? The three important classes in the hierarchy
+ * are
+ *
+ *  - Stripe: 3 integers: "on", "off", and "phase".
+ *
+ *  - Sett: nested Stripes.
+ *
+ *  - Region : outer product of Setts.
+ *
+ * more information on these classes in their respective headers. A Tensor is
+ * represented as the union of Regions and the allocation of its elements.
  *
  * In the method comments, we use {a,b} to denote a Tensor with shape (a,b).
  * */

@@ -325,9 +325,17 @@ public:
   bool containedIn(const DisjointRegions &rhs) const;
 
   /**
-   * Append debug information.
+   * Append debug information about this Region, by printing the Setts in each
+   * dimension.
    * */
   void append(std::ostream &ss) const;
+
+  /**
+   * Append debug information about this Region, by printing the expansion of
+   * Setts in each dimension into `1' (on) and `0' (off).
+   * */
+  void appendBitwise(std::ostream &ss) const;
+  std::string getBitwiseString() const;
 
   /**
    * \return A debug string.
@@ -469,6 +477,12 @@ public:
   bool equivalent(const DisjointRegions &rhs) const {
     return Region::equivalent(*this, rhs);
   }
+
+  /**
+   * Append debug information.
+   * */
+  void append(std::ostream &ss) const;
+  void appendBitwise(std::ostream &ss) const;
 };
 
 } // namespace nest

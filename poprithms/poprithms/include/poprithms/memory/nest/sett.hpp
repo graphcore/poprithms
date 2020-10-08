@@ -360,6 +360,13 @@ public:
   std::vector<int64_t> getOns(int64_t start, int64_t end) const;
 
   /**
+   * \return A boolean vector of length \p end - \p start. The value at index
+   *         i is `true' if this Sett is on at position start + i, otherwise
+   *         it is `false'.
+   * */
+  std::vector<bool> getBoolOns(int64_t start, int64_t end) const;
+
+  /**
    * Number of '1's (ons) in a contiguous range.
    * */
   int64_t n(int64_t start, int64_t end) const;

@@ -164,8 +164,7 @@ template <typename T> std::string getStr(const std::vector<T> &X) {
 }
 } // namespace
 
-void Graph::appendVerbose(std::ostream &oss) const {
-  append(oss);
+void Graph::appendOrigins(std::ostream &oss, bool bitwise) const {
   std::string spc(7, ' ');
 
   oss << "\n\n"
@@ -187,7 +186,11 @@ void Graph::appendVerbose(std::ostream &oss) const {
       ++counter;
       oss << " [" << allocId << "]:(";
       for (const auto &regs : node(i).origins().at(allocId)) {
-        oss << regs;
+        if (!bitwise) {
+          regs.append(oss);
+        } else {
+          regs.appendBitwise(oss);
+        }
       }
       oss << ")\n";
     }
@@ -591,7 +594,8 @@ TensorId Graph::clone(TensorId toCloneId) {
 
 std::string Graph::verboseString() const {
   std::ostringstream oss;
-  appendVerbose(oss);
+  append(oss);
+  appendSettwiseOrigins(oss);
   return oss.str();
 }
 

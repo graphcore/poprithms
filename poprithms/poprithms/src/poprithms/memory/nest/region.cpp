@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <numeric>
+#include <ostream>
 #include <sstream>
 
 #include <poprithms/memory/nest/error.hpp>
@@ -332,12 +333,30 @@ std::ostream &operator<<(std::ostream &ost, const Region &r) {
 }
 
 std::ostream &operator<<(std::ostream &ost, const DisjointRegions &regs) {
-  if (regs.empty()) {
-    ost << "(empty" << regs.shape() << ")";
-  } else {
-    ost << regs.get();
-  }
+  regs.append(ost);
   return ost;
+}
+
+void DisjointRegions::append(std::ostream &ost) const {
+  if (empty()) {
+    ost << "(empty" << shape() << ")";
+  } else {
+    ost << get();
+  }
+}
+
+void DisjointRegions::appendBitwise(std::ostream &ost) const {
+  std::vector<std::string> regStrings;
+  for (const auto &r : get()) {
+    regStrings.push_back(r.getBitwiseString());
+  }
+  poprithms::util::append(ost, regStrings);
+}
+
+std::string Region::getBitwiseString() const {
+  std::ostringstream oss;
+  appendBitwise(oss);
+  return oss.str();
 }
 
 std::ostream &operator<<(std::ostream &ost, const std::vector<Region> &regs) {
@@ -349,6 +368,28 @@ void Region::append(std::ostream &ost) const {
   ost << "(shape=" << shape() << ",setts=";
   poprithms::util::append(ost, setts());
   ost << ")";
+}
+
+namespace {
+
+void appendBoolOns(std::ostream &ost, const std::vector<bool> &vs) {
+  util::append(ost, vs);
+}
+
+} // namespace
+
+void Region::appendBitwise(std::ostream &ost) const {
+  if (rank_u64() == 0) {
+    ost << "()";
+    return;
+  }
+  ost << '(';
+  appendBoolOns(ost, sett(0).getBoolOns(0, dim(0)));
+  for (uint64_t i = 1; i < rank_u64(); ++i) {
+    ost << "  x  ";
+    appendBoolOns(ost, sett(i).getBoolOns(0, dim(i)));
+  }
+  ost << ')';
 }
 
 DisjointRegions Region::settSample(const Region &where) const {

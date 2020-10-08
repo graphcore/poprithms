@@ -710,6 +710,17 @@ void Sett::append(std::ostream &ost) const {
   ost << ')';
 }
 
+std::vector<bool> Sett::getBoolOns(int64_t start, int64_t end) const {
+  const auto onIndices     = getOns(start, end);
+  const uint64_t start_u64 = static_cast<uint64_t>(start);
+  const uint64_t end_u64   = static_cast<uint64_t>(end);
+  std::vector<bool> bitmap(end_u64 - start_u64, false);
+  for (auto i : onIndices) {
+    bitmap[i - start_u64] = true;
+  }
+  return bitmap;
+}
+
 Sett Sett::fromDepth(int d) const {
   if (d > recursiveDepth()) {
     std::ostringstream oss;

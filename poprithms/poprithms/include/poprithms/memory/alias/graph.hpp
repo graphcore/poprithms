@@ -220,7 +220,13 @@ public:
   /**
    * Append verbose origins information
    * */
-  void appendVerbose(std::ostream &) const;
+  void appendSettwiseOrigins(std::ostream &ost) const {
+    appendOrigins(ost, false);
+  }
+  void appendBitwiseOrigins(std::ostream &ost) const {
+    appendOrigins(ost, true);
+  }
+
   std::string verboseString() const;
 
   uint64_t nTensors() const { return nodes.size(); }
@@ -235,6 +241,17 @@ public:
 private:
   Node &node(TensorId);
   const Node &node(TensorId) const;
+
+  /**
+   * There are two formats for printing the Origins, controlled by \a bitwise.
+   *
+   * If bitwise = true, the compact Sett representation is used.
+   *
+   * If bitwise = false, the more verbose and complete representation is used,
+   * where for for every dimension, Setts are expanded into  strings of '1'
+   * and '0'.
+   * */
+  void appendOrigins(std::ostream &, bool bitwise) const;
 
   // A wrapper around a unique pointer to make it copyable.
   template <class T> class Up {

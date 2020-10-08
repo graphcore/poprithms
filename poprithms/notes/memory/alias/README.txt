@@ -8,7 +8,7 @@ related information.
 
 The most significant difference is the building block used to store a
 set of Tensor elements. In Poplar, it is a contiguous interval. In
-poprithms::memory::alias, it is a Sett, which is generalization of an
+poprithms::memory::alias, it is a Sett, which is a generalization of an
 interval which allows for striding, and nested striding. Setts have all the
 usual set operations such as intersection.
 
