@@ -110,10 +110,22 @@ add_library(poprithms-outline SHARED
 set(compute_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/compute)
 set(compute_host_sources
   ${compute_src_dir}/host/error.cpp
+  ${compute_src_dir}/host/tensor.cpp
   ${compute_src_dir}/host/viewchange.cpp
   ${compute_src_dir}/host/numpyformatter.cpp
   ${compute_src_dir}/host/gridpointhelper.cpp
   ${compute_src_dir}/host/ieeehalf.cpp
+  ${compute_src_dir}/host/origindata.cpp
+  ${compute_src_dir}/host/basedata.cpp
+  # instantiating templates on separate translation units
+  # to parallelize their compilations.
+  ${compute_src_dir}/host/types/float32float64.cpp
+  ${compute_src_dir}/host/types/float16.cpp
+  ${compute_src_dir}/host/types/int64uint64.cpp
+  ${compute_src_dir}/host/types/int32uint32.cpp
+  ${compute_src_dir}/host/types/int16uint16.cpp
+  ${compute_src_dir}/host/types/int8uint8.cpp
+  ${compute_src_dir}/host/types/bool.cpp
 )
 add_library(poprithms-compute-host-objlib OBJECT ${compute_host_sources})
 add_library(poprithms-compute-host SHARED

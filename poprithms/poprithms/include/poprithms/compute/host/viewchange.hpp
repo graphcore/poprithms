@@ -177,16 +177,18 @@ public:
                   uint64_t d,
                   uint64_t n) {
 
-    const auto d_i64   = static_cast<int64_t>(d);
-    const auto nCopies = shape.dimProduct(0, d_i64);
-    const auto nToCopy = shape.dimProduct(d_i64, shape.rank_i64());
+    const auto d_i64           = static_cast<int64_t>(d);
+    const auto nCopies         = shape.dimProduct(0, d_i64);
+    const auto nToCopy         = shape.dimProduct(d_i64, shape.rank_i64());
+    const uint64_t nToCopy_u64 = static_cast<uint64_t>(nToCopy);
     std::vector<Number> vOut(shape.nelms_u64() * n);
     uint64_t src = 0;
     uint64_t dst = 0;
     for (int64_t i = 0; i < nCopies; ++i) {
       for (uint64_t j = 0; j < n; ++j) {
-        std::memcpy(
-            vOut.data() + dst, values.data() + src, sizeof(Number) * nToCopy);
+        for (uint64_t k = 0; k < nToCopy_u64; ++k) {
+          vOut[dst + k] = values[src + k];
+        }
         dst += nToCopy;
       }
       src += nToCopy;

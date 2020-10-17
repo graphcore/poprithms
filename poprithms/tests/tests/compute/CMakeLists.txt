@@ -19,3 +19,5 @@ endfunction()
 
 add_subdirectory(viewchange)
 add_subdirectory(internal)
+add_subdirectory(tensor)
+

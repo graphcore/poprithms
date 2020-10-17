@@ -19,6 +19,9 @@ using Lower       = Shape::Lower;
 using Upper       = Shape::Upper;
 using Shapes      = std::vector<Shape>;
 
+class Tensor;
+using Tensors = std::vector<Tensor>;
+
 } // namespace host
 } // namespace compute
 } // namespace poprithms
