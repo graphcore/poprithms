@@ -28,9 +28,12 @@ namespace poprithms {
 namespace memory {
 namespace alias {
 
-using InIndex  = poprithms::util::TypedInteger<'i', uint64_t>;
-using OutIndex = poprithms::util::TypedInteger<'o', uint64_t>;
-using TensorId = poprithms::util::TypedInteger<'t', uint32_t>;
+class Graph;
+
+using InIndex   = poprithms::util::TypedInteger<'i', uint64_t>;
+using OutIndex  = poprithms::util::TypedInteger<'o', uint64_t>;
+using TensorId  = poprithms::util::TypedInteger<'t', uint32_t>;
+using TensorIds = std::vector<TensorId>;
 
 using Shape           = poprithms::ndarray::Shape;
 using Permutation     = poprithms::util::Permutation;

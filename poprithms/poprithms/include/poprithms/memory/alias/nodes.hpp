@@ -65,7 +65,7 @@ class Allocate : public Node {
 public:
   Allocate(const State &ob, const Origins &oris, Color color)
       : Node(ob, oris), color_(color) {}
-  std::string typeString() const final { return "Allocate"; }
+  std::string typeString() const final;
   std::unique_ptr<Node> clone(const State &, const Origins &) const final;
   DisjointRegions getInRegions(InIndex, const DisjointRegions &) const final;
   bool samples() const final { return false; }

@@ -42,7 +42,7 @@ void test1() {
   const auto alloc1 = g.tensor(g.allocate({1}));
   const auto alloc2 = g.tensor(g.allocate({1}));
   const auto cat    = alloc1.concat({alloc2}, 0, 0);
-  const auto exp    = cat.expand({2, 3, 4});
+  const auto exp    = cat.expand({4, 3, 2});
   if (!exp.intersectsWith(alloc1) || !exp.intersectsWith(alloc2) ||
       !exp.containsAliases()) {
     throw error("Failure in test1");

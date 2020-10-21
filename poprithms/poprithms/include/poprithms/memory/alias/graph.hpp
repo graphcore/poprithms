@@ -5,8 +5,8 @@
 #include <set>
 #include <vector>
 
-#include <poprithms/memory/alias/aliasusings.hpp>
 #include <poprithms/memory/alias/tensor.hpp>
+#include <poprithms/memory/alias/usings.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
@@ -43,7 +43,7 @@ public:
    *
    * \return The TensorId of the new Tensor.
    * */
-  TensorId concat(const std::vector<TensorId> &, uint64_t axis);
+  TensorId concat(const TensorIds &, uint64_t axis);
 
   /** Permute the dimensions of a Tensor.
    *
@@ -117,10 +117,19 @@ public:
   bool containsColor(TensorId, Color c) const;
 
   /** \return Ids of all Tensors which are aliased to the argument Tensor. */
-  std::vector<TensorId> allAliases(TensorId) const;
+  TensorIds allAliases(TensorId) const;
+
+  /** \return A vector of TensorIds, where each element contains all aliases
+   *          of a Tensor in \a inIds
+   *
+   * The i'th TensorIds in the returned vector corresponds to the i'th Tensor
+   * in \a inIds.
+   *          */
+  std::vector<TensorIds> allAliases(const TensorIds &inIds) const;
 
   /** \return All Tensor-Tensor aliased. */
-  std::vector<std::vector<TensorId>> allAliases() const;
+  std::vector<TensorIds> allAliases() const;
+
   std::map<TensorId, std::set<TensorId>> allAliasesMap() const;
 
   /** If the input map `m' is different to the map returned by
@@ -154,6 +163,69 @@ public:
    * \param c The Color of the allocation.
    * */
   void toAllocation(TensorId id, Color c);
+
+  /**
+   * Modify the Graph, converting the Tensor allocation with TensorId \a
+   * allocId into the concatenation of the Tensors in \a inIds, along
+   * dimension \a axis.  Example:
+   *
+   * Before                     After
+   * ------                     -----
+   * in0                     .    in0
+   *        allocId - foo    .        \  allocId - foo
+   *                         .        /
+   * in1                     .    in1
+   *    \                    .       \
+   *     bar                 .        bar
+   *
+   *
+   * If the Shape resulting from concatenating in0 and in1 along dimension
+   * axis is not the same as the shape of allocId, an error is thrown.
+   * */
+  void
+  allocationToConcat(const TensorIds &inIds, uint64_t axis, TensorId allocId);
+
+  /**
+   * Modify the Graph, converting the allocation \a allocId into a Settsample
+   *
+   * \param inTensor The Tensor which is sampled (sliced, etc)
+   *
+   * \param r The Region sampled
+   *
+   * \param allocId The output of the sample, which must be an allocation
+   *                before this method is called.
+   * */
+  void
+  allocationToSettsample(TensorId inTensor, const Region &, TensorId allocId);
+
+  /**
+   * Modify the Graph, converting the allocation \a allocId into the
+   * dimShuffle of Tensor \a inTensor
+   * */
+  void allocationToDimshuffle(TensorId inTensor,
+                              const Permutation &,
+                              TensorId allocId);
+
+  /**
+   * Modify the Graph, converting the allocation \a allocId into the
+   * Reshape of Tensor \a inTensor. If the number of elements of the 2 Tensors
+   * are not the same, an error is thrown.
+   * */
+  void allocationToReshape(TensorId inTensor, TensorId allocId);
+
+  /**
+   * Modify the Graph, converting the allocation \a allocId into the
+   * expansion of Tensor \a inTensor.
+   * */
+  void allocationToExpand(TensorId inTensor, TensorId allocId);
+
+  /**
+   * Modify the Graph, converting the allocation \a allocId into the
+   * reversal of Tensor \a inTensor, along axes \a dimensions.
+   * */
+  void allocationToReverse(TensorId inTensor,
+                           const std::vector<uint64_t> &dimensions,
+                           TensorId allocId);
 
   /** Insert an identity edge into the Graph from `src' to `dst'.
    * Example:
@@ -238,6 +310,24 @@ public:
 
   enum class Direction { Fwd = 0, Bwd };
 
+  /**
+   * A string representation of the transformation resulting in Tensor \a id
+   */
+  std::string typeString(TensorId id) const;
+
+  /** The inputs of Tensor \a id. These are all of the Tensors of which Tensor
+   * \a id is composed. For Tensors created with Reshape, DimShuffle, etc,
+   * this is a singleton vector. For Tensors created with Concat, it is all
+   * the Tensors concatenated. For allocations, it is empty. */
+  const TensorIds &ins(TensorId id) const;
+
+  /** All the Tensors which are composed with Tensor \a id. If "a" is in
+   * outs("b") then "b" is in ins("a").  */
+  const TensorIds &outs(TensorId id) const;
+
+  /** Return true iff Tensor \a id is an allocation */
+  bool allocates(TensorId id) const;
+
 private:
   Node &node(TensorId);
   const Node &node(TensorId) const;
@@ -274,38 +364,52 @@ private:
     std::vector<uint64_t> wsUint64_;
     void resize(uint64_t);
     uint64_t size() const { return wsBool_.size(); }
-    void clear(const std::vector<TensorId> &);
+    void clear(const TensorIds &);
     void reserve(uint64_t);
   } mutable wspace;
 
   template <class T, class... Args>
-  TensorId createNode(const std::vector<TensorId> &ins,
-                      const Shape &outShape,
-                      Args... args);
+  TensorId
+  createNode(const TensorIds &ins, const Shape &outShape, Args... args);
+
+  template <class T, class... Args>
+  std::unique_ptr<T> createNodeWithOutsAndId(const TensorIds &ins,
+                                             const TensorIds &outs,
+                                             const Shape &outShape,
+                                             TensorId id,
+                                             Args... args);
+
+  template <class T, class... Args>
+  void completeInputlessReplacement(TensorId beingTransformed,
+                                    const TensorIds &newIns,
+                                    Args... args);
 
   // post-order depth-wise backwards search for all TensorIds for which f is
   // true.
-  template <typename F>
-  std::vector<TensorId> depthFirstBwd(TensorId id, F &&f) const;
+  template <typename F> TensorIds depthFirstBwd(TensorId id, F &&f) const;
 
-  template <typename F>
-  std::vector<TensorId> depthFirstFwd(TensorId id, F &&f) const;
+  template <typename F> TensorIds depthFirstFwd(TensorId id, F &&f) const;
 
   // traverse back collecting all Tensors aliased to id
-  std::vector<TensorId> depthFirstBwdAliases(TensorId id) const;
+  TensorIds depthFirstBwdAliases(TensorId id) const;
 
-  std::vector<TensorId> depthFirstFwdAliases(TensorId id) const;
+  TensorIds depthFirstFwdAliases(TensorId id) const;
 
   // traverse back collecting all Tensors
-  std::vector<TensorId> depthFirstBwdAll(TensorId id) const;
+  TensorIds depthFirstBwdAll(TensorId id) const;
 
   // set the Origins of Tensor with id `id'
   void setOrigins(TensorId id);
 
-  std::vector<Shape> getShapes(const std::vector<TensorId> &) const;
+  std::vector<Shape> getShapes(const TensorIds &) const;
 
   template <Direction D, class F>
-  std::vector<TensorId> depthFirst(TensorId x0, F &&f) const;
+  TensorIds depthFirst(TensorId x0, F &&f) const;
+
+  /** A method used when converting allocations to view changes. It tests that
+   * \a id is an allocation, and that it has Shape \a expectedShape. If either
+   * conditition is not satisified, a clear error is thrown. */
+  void assertFromAllocation(TensorId id, const Shape &expectedShape) const;
 };
 
 std::ostream &operator<<(std::ostream &, const Graph &);

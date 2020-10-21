@@ -4,7 +4,7 @@
 
 #include <map>
 
-#include <poprithms/memory/alias/aliasusings.hpp>
+#include <poprithms/memory/alias/usings.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/ndarray/shape.hpp>
 

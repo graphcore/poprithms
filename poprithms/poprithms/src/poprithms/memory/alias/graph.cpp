@@ -5,18 +5,18 @@
 #include <sstream>
 #include <unordered_map>
 
-#include <poprithms/memory/alias/aliasusings.hpp>
 #include <poprithms/memory/alias/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/alias/nodes.hpp>
 #include <poprithms/memory/alias/origins.hpp>
+#include <poprithms/memory/alias/usings.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace alias {
 
-TensorId Graph::concat(const std::vector<TensorId> &ids, uint64_t axis) {
+TensorId Graph::concat(const TensorIds &ids, uint64_t axis) {
   const auto arrShapes = getShapes(ids);
   auto outShape        = Shape::concat(arrShapes, axis);
   return createNode<Concat>(ids, outShape, axis);
@@ -27,10 +27,12 @@ TensorId Graph::allocate(const Shape &sh, Color color) {
 }
 
 TensorId Graph::reshape(TensorId id, const Shape &to) {
+  node(id).shape().assertSameNumberOfElements(to);
   return createNode<Reshape>({id}, to);
 }
 
 TensorId Graph::expand(TensorId id, const Shape &to) {
+  node(id).shape().assertCanExpandTo(to);
   return createNode<Expand>({id}, to);
 }
 
@@ -47,28 +49,103 @@ void Graph::toAllocation(TensorId id, Color c) {
     node(inId).removeOut(id);
   }
 
-  auto toUpdate = depthFirstFwdAliases(id);
+  const TensorIds newInputs{};
+  completeInputlessReplacement<Allocate>(id, newInputs, c);
+}
+
+template <class T, class... Args>
+void Graph::completeInputlessReplacement(TensorId beingTransformed,
+                                         const TensorIds &newIns,
+                                         Args... args) {
+
+  const auto &n = node(beingTransformed);
+
+  auto toUpdate = depthFirstFwdAliases(beingTransformed);
   std::reverse(toUpdate.begin(), toUpdate.end());
 
-  nodes[id.get()] = UpNode(std::make_unique<Allocate>(
-      Node::State{{}, n.outs(), {}, n.id(), n.shape()},
-      Origins(n.shape()),
-      c));
+  nodes[beingTransformed.get()] = UpNode(createNodeWithOutsAndId<T>(
+      newIns, n.outs(), n.shape(), n.id(), args...));
 
   for (auto idToUpdate : toUpdate) {
     setOrigins(idToUpdate);
   }
 }
 
-void Graph::toIdentity(TensorId src, TensorId dst) {
+const TensorIds &Graph::ins(TensorId id) const { return node(id).ins(); }
 
-  if (shape(src).nelms() != shape(dst).nelms()) {
+const TensorIds &Graph::outs(TensorId id) const { return node(id).outs(); }
+
+bool Graph::allocates(TensorId id) const { return node(id).allocates(); }
+
+void Graph::allocationToConcat(const TensorIds &ins,
+                               uint64_t axis,
+                               TensorId allocId) {
+  assertFromAllocation(allocId, Shape::concat(getShapes(ins), axis));
+  completeInputlessReplacement<Concat>(allocId, ins, axis);
+}
+
+void Graph::assertFromAllocation(TensorId allocId,
+                                 const Shape &expectedOut) const {
+  const auto &n = node(allocId);
+  if (n.nIns_i32() != 0) {
     std::ostringstream oss;
-    oss << "Failure in Graph::toIdentity(" << src << ", " << dst
-        << ") as Tensors have different number of elements. Shapes are src:"
-        << shape(src) << " and dst:" << shape(dst);
+    oss << "Failed in assertFromAllocation(" << allocId << ", " << expectedOut
+        << "). The number of inputs is not 0, but " << n.nIns_i32()
+        << ", so the Tensor is not an allocation. ";
     throw error(oss.str());
   }
+
+  if (expectedOut != n.shape()) {
+    std::ostringstream oss;
+    oss << "Failed in assertFromAllocation(" << allocId << ", " << expectedOut
+        << "). The current output shape is " << n.shape()
+        << ", shapes must match.";
+    throw error(oss.str());
+  }
+}
+
+void Graph::allocationToSettsample(TensorId inTensor,
+                                   const Region &r,
+                                   TensorId allocId) {
+  assertFromAllocation(allocId, r.nelms());
+  completeInputlessReplacement<SettSample>(allocId, {inTensor}, r);
+}
+
+void Graph::allocationToDimshuffle(TensorId inTensor,
+                                   const Permutation &p,
+                                   TensorId allocId) {
+  assertFromAllocation(allocId, shape(inTensor).dimShuffle(p));
+  completeInputlessReplacement<Permute>(allocId, {inTensor}, p);
+}
+
+void Graph::allocationToReshape(TensorId inTensor, TensorId allocId) {
+  shape(inTensor).assertSameNumberOfElements(shape(allocId));
+  assertFromAllocation(allocId, shape(allocId));
+  completeInputlessReplacement<Reshape>(allocId, {inTensor});
+}
+
+void Graph::allocationToExpand(TensorId inTensor, TensorId allocId) {
+  shape(inTensor).assertCanExpandTo(shape(allocId));
+  assertFromAllocation(allocId, shape(allocId));
+  completeInputlessReplacement<Expand>(allocId, {inTensor});
+}
+
+void Graph::allocationToReverse(TensorId inTensor,
+                                const std::vector<uint64_t> &dimensions,
+                                TensorId allocId) {
+  if (shape(inTensor) != shape(allocId)) {
+    std::ostringstream oss;
+    oss << "Failure in allocationToReverse, can only perform if "
+        << "input and output shapes agree. " << shape(inTensor)
+        << " != " << shape(allocId);
+    throw error(oss.str());
+  }
+  assertFromAllocation(allocId, shape(allocId));
+  completeInputlessReplacement<Reverse>(allocId, {inTensor}, dimensions);
+}
+
+void Graph::toIdentity(TensorId src, TensorId dst) {
+  shape(src).assertSameNumberOfElements(shape(dst));
 
   const auto &n = node(dst);
 
@@ -78,16 +155,7 @@ void Graph::toIdentity(TensorId src, TensorId dst) {
   }
   node(src).insertOut(dst);
 
-  auto toUpdate = depthFirstFwdAliases(dst);
-  std::reverse(toUpdate.begin(), toUpdate.end());
-
-  nodes[dst.get()] = UpNode(std::make_unique<Identity>(
-      Node::State{{src}, n.outs(), {n.shape()}, n.id(), n.shape()},
-      Origins(n.shape())));
-
-  for (auto idToUpdate : toUpdate) {
-    setOrigins(idToUpdate);
-  }
+  completeInputlessReplacement<Identity>(dst, {src});
 }
 
 TensorId Graph::reverse(TensorId id, const std::vector<uint64_t> &dims) {
@@ -103,17 +171,27 @@ TensorId Graph::dimshuffle(TensorId id, const Permutation &perm) {
 }
 
 template <class T, class... Args>
-TensorId Graph::createNode(const std::vector<TensorId> &ins,
-                           const Shape &shape,
-                           Args... args) {
+TensorId
+Graph::createNode(const TensorIds &ins, const Shape &shape, Args... args) {
   TensorId id(nTensors());
-  const Node::State ob(ins, {}, getShapes(ins), id, shape);
-  nodes.push_back(UpNode(std::make_unique<T>(ob, Origins(shape), args...)));
+  nodes.push_back(UpNode(
+      createNodeWithOutsAndId<T, Args...>(ins, {}, shape, id, args...)));
   setOrigins(id.get());
-  for (auto inId : node(id).ins()) {
+  return id;
+}
+
+template <class T, class... Args>
+std::unique_ptr<T> Graph::createNodeWithOutsAndId(const TensorIds &ins,
+                                                  const TensorIds &outs,
+                                                  const Shape &shape,
+                                                  TensorId id,
+                                                  Args... args) {
+  const Node::State ob(ins, outs, getShapes(ins), id, shape);
+  auto newNode = std::make_unique<T>(ob, Origins(shape), args...);
+  for (auto inId : newNode->ins()) {
     node(inId).insertOut(id);
   }
-  return id;
+  return newNode;
 }
 
 void Graph::Workspace::resize(uint64_t s) {
@@ -136,8 +214,7 @@ Node &Graph::node(TensorId id) {
   return const_cast<Node &>(static_cast<const Graph &>(*this).node(id));
 }
 
-std::vector<Shape>
-Graph::getShapes(const std::vector<TensorId> &tenIds) const {
+std::vector<Shape> Graph::getShapes(const TensorIds &tenIds) const {
   std::vector<Shape> shapes;
   shapes.reserve(tenIds.size());
   for (const auto &id : tenIds) {
@@ -262,6 +339,10 @@ void Graph::append(std::ostream &oss) const {
   }
 }
 
+std::string Graph::typeString(TensorId id) const {
+  return node(id).typeString();
+}
+
 namespace {
 struct ToReverse {
 public:
@@ -350,10 +431,10 @@ bool Graph::containsColor(TensorId id, Color c) const {
 // edge case: what about the empty Tensor, does it alias itself? No, by
 // definition of set intersection. A aliases B iff there exists at least 1
 // element in both.
-std::vector<TensorId> Graph::allAliases(TensorId id) const {
-  std::vector<TensorId> allAliased;
+TensorIds Graph::allAliases(TensorId id) const {
+  TensorIds allAliased;
 
-  std::vector<TensorId> toProcess{id};
+  TensorIds toProcess{id};
   auto seen = toProcess;
 
   // perform breadth first search in both DAG directions.
@@ -375,8 +456,8 @@ std::vector<TensorId> Graph::allAliases(TensorId id) const {
   return allAliased;
 }
 
-std::vector<std::vector<TensorId>> Graph::allAliases() const {
-  std::vector<std::vector<TensorId>> x(nTensors());
+std::vector<TensorIds> Graph::allAliases() const {
+  std::vector<TensorIds> x(nTensors());
   for (uint64_t i = 0; i < nTensors(); ++i) {
     x[i] = allAliases(i);
   }
@@ -419,11 +500,10 @@ void Graph::confirmAllAliasesMap(
     } else {
       if (found->second != s) {
         oss << "\n    --> For key " << k << " the baseline has ";
-        util::append(oss, std::vector<TensorId>(s.cbegin(), s.cend()));
+        util::append(oss, TensorIds(s.cbegin(), s.cend()));
         oss << " and the target has ";
         util::append(oss,
-                     std::vector<TensorId>(found->second.cbegin(),
-                                           found->second.cend()));
+                     TensorIds(found->second.cbegin(), found->second.cend()));
         oss << ".";
       }
     }
@@ -431,21 +511,18 @@ void Graph::confirmAllAliasesMap(
   throw error(oss.str());
 }
 
-template <Graph::Direction D>
-const std::vector<TensorId> &next(const Node &n);
+template <Graph::Direction D> const TensorIds &next(const Node &n);
 
-template <>
-const std::vector<TensorId> &next<Graph::Direction::Fwd>(const Node &n) {
+template <> const TensorIds &next<Graph::Direction::Fwd>(const Node &n) {
   return n.outs();
 }
 
-template <>
-const std::vector<TensorId> &next<Graph::Direction::Bwd>(const Node &n) {
+template <> const TensorIds &next<Graph::Direction::Bwd>(const Node &n) {
   return n.ins();
 }
 
 template <Graph::Direction D, class F>
-std::vector<TensorId> Graph::depthFirst(TensorId x0, F &&f) const {
+TensorIds Graph::depthFirst(TensorId x0, F &&f) const {
 
   wspace.resize(nTensors());
   auto &currentEdge = wspace.wsUint64_;
@@ -454,7 +531,7 @@ std::vector<TensorId> Graph::depthFirst(TensorId x0, F &&f) const {
   if (!f(x0)) {
     return {};
   }
-  std::vector<TensorId> sched;
+  TensorIds sched;
   std::vector<uint64_t> S(1, x0.get());
 
   while (!S.empty()) {
@@ -481,30 +558,30 @@ std::vector<TensorId> Graph::depthFirst(TensorId x0, F &&f) const {
 }
 
 template <typename F>
-std::vector<TensorId> Graph::depthFirstBwd(TensorId x0, F &&f) const {
+TensorIds Graph::depthFirstBwd(TensorId x0, F &&f) const {
   return depthFirst<Direction::Bwd>(x0, f);
 }
 
 template <typename F>
-std::vector<TensorId> Graph::depthFirstFwd(TensorId x0, F &&f) const {
+TensorIds Graph::depthFirstFwd(TensorId x0, F &&f) const {
   return depthFirst<Direction::Fwd>(x0, f);
 }
 
-std::vector<TensorId> Graph::depthFirstBwdAll(TensorId x0) const {
+TensorIds Graph::depthFirstBwdAll(TensorId x0) const {
   return depthFirstBwd(x0, [](TensorId) { return true; });
 }
 
-std::vector<TensorId> Graph::depthFirstBwdAliases(TensorId x0) const {
+TensorIds Graph::depthFirstBwdAliases(TensorId x0) const {
   return depthFirstBwd(
       x0, [this, x0](TensorId id) { return id == x0 || areAliased(x0, id); });
 }
 
-std::vector<TensorId> Graph::depthFirstFwdAliases(TensorId x0) const {
+TensorIds Graph::depthFirstFwdAliases(TensorId x0) const {
   return depthFirstFwd(
       x0, [this, x0](TensorId id) { return id == x0 || areAliased(x0, id); });
 }
 
-void Graph::Workspace::clear(const std::vector<TensorId> &sched) {
+void Graph::Workspace::clear(const TensorIds &sched) {
   // clean-up
   for (auto x : sched) {
     wsBool_[x.get()]   = false;
@@ -561,7 +638,7 @@ Graph::Up<T> &Graph::Up<T>::operator=(const Graph::Up<T> &x) {
 //  is not enough, as that would leave concat with a "dangling" input.
 //
 TensorId Graph::clone(TensorId toCloneId) {
-  const std::vector<TensorId> oldsToClone = depthFirstBwdAll(toCloneId);
+  const TensorIds oldsToClone = depthFirstBwdAll(toCloneId);
 
   auto &oldToNew = wspace.wsUint64_;
 
@@ -571,7 +648,7 @@ TensorId Graph::clone(TensorId toCloneId) {
 
   for (auto atc : oldsToClone) {
     const auto &toClone = node(atc);
-    std::vector<TensorId> newIns;
+    TensorIds newIns;
     const TensorId newId(oldToNew[atc.get()]);
 
     for (auto oldIn : toClone.ins()) {

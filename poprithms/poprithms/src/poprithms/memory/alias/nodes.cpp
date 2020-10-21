@@ -27,6 +27,10 @@ std::string Reverse::typeString() const {
   return oss.str();
 }
 
+std::string Allocate::typeString() const {
+  return "Allocate(" + std::to_string(color_.get()) + ")";
+}
+
 std::string SettSample::typeString() const {
   std::ostringstream oss;
   oss << "SettSample " << region().setts();
