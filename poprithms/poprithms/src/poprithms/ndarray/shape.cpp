@@ -462,6 +462,24 @@ std::vector<bool> Shape::numpyWhereToExpand(const Shape &targetShape) const {
   return wh;
 }
 
+void Shape::assertCanExpandTo(const Shape &to) const {
+  // This call does all the work required to generate a clean error message if
+  // this Shape cannot be expanded to "to".
+  const auto indices = numpyWhereToExpand(to);
+  (void)indices;
+}
+
+void Shape::assertSameNumberOfElements(const Shape &rhs) const {
+  if (nelms_u64() != rhs.nelms_u64()) {
+    std::ostringstream oss;
+    oss << "Failed in Shape::assertSameNumberOfElements, "
+        << "where this Shape is " << *this << " with " << nelms_u64()
+        << " elements, and rhs is " << rhs << ", with " << rhs.nelms_u64()
+        << " elements. ";
+    throw error(oss.str());
+  }
+}
+
 void Shape::append(std::ostream &os) const {
   poprithms::util::append(os, shp);
 }
