@@ -72,6 +72,11 @@ set(schedule_scc_sources
   ${scc_source_dir}/scc.cpp
   ${scc_source_dir}/error.cpp
 )
+set(schedule_vanilla_source_dir ${schedule_src_dir}/vanilla)
+set(schedule_vanilla_sources
+  ${schedule_vanilla_source_dir}/vanilla.cpp
+  ${schedule_vanilla_source_dir}/error.cpp
+)
 set(supercon_source_dir ${schedule_src_dir}/supercon)
 set(schedule_supercon_sources
   ${supercon_source_dir}/error.cpp
@@ -88,6 +93,7 @@ add_library(poprithms-schedule-objlib OBJECT
   ${schedule_anneal_sources}
   ${schedule_dfs_sources}
   ${schedule_scc_sources}
+  ${schedule_vanilla_sources}
   ${schedule_supercon_sources}
   ${schedule_transitive_closure_sources}
 )

@@ -1,0 +1,1 @@
+add_schedule_test(schedule_vanilla_vanilla_0 vanilla_0.cpp)
