@@ -58,7 +58,7 @@ void test1() {
 
   Graph g;
   for (uint64_t i = 0; i < 12; ++i) {
-    auto op = g.insertOp("Op" + std::to_string(i));
+    g.insertOp("Op" + std::to_string(i));
   }
   for (OpAddress i : {2, 3, 5, 6, 7, 10}) {
     g.insertConstraint(i, i + 1);

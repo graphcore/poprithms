@@ -1,5 +1,3 @@
-include(EnableCompilerWarnings)
-
 function(add_compute_host_test_executable name source)
   add_executable(${name} ${source})
   set(LIB_DEPS  poprithms-compute-host poprithms-util )

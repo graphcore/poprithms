@@ -11,17 +11,6 @@ namespace {
 
 using namespace poprithms::schedule::anneal;
 
-std::string concatStr(const std::vector<std::string> &v) {
-
-  if (v.empty()) {
-    return {};
-  }
-  return std::accumulate(
-      std::next(v.begin()), v.end(), v[0], [](std::string a, std::string b) {
-        return std::move(a) + b;
-      });
-}
-
 void test0() {
 
   // Cases where strings are not valid serialization strings:
@@ -66,7 +55,6 @@ void test0() {
 
 void test1() {
   for (auto x : std::vector<char>{'\"'}) {
-    bool caught{false};
     Graph g;
     g.insertOp(std::string("ab") + std::string(1, x) + "cd");
     auto seriez = g.getSerializationString();

@@ -56,7 +56,7 @@ int main() {
   std::iota(allIds.begin(), allIds.end(), 0);
 
   // get a schedule with proxy attraction Ops removed.
-  auto getFilteredSchedule = [N](const Graph &g) {
+  auto getFilteredSchedule = [](const Graph &g) {
     std::vector<std::tuple<ScheduleIndex, OpAddress>> filtered;
     // The first N Ops are always the N true Ops:
     for (OpAddress a = 0; a < N; ++a) {
@@ -77,7 +77,7 @@ int main() {
   std::vector<OpAddress> expected(N);
   std::iota(expected.begin(), expected.end(), 0);
   auto scheduled = getFilteredSchedule(g);
-  for (ScheduleIndex i = 0; i < N; ++i) {
+  for (uint64_t i = 0; i < N; ++i) {
     if (scheduled[i] != expected[i]) {
       throw error("Failure in Test 1, schedule not as expected");
     }
@@ -89,7 +89,7 @@ int main() {
   g.initialize();
   g.minSumLivenessAnneal();
   scheduled = getFilteredSchedule(g);
-  for (ScheduleIndex i = 0; i < N; ++i) {
+  for (uint64_t i = 0; i < N; ++i) {
     if (scheduled[i] != expected[i]) {
       throw error("Failure in Test 2, schedule not as expected");
     }
@@ -106,7 +106,7 @@ int main() {
   std::iota(expected.rbegin(), expected.rend(), 0);
   expected[0]     = 0;
   expected.back() = N - 1;
-  for (ScheduleIndex i = 0; i < N; ++i) {
+  for (uint64_t i = 0; i < N; ++i) {
     if (scheduled[i] != expected[i]) {
       throw error("Failure in Test 3, schedule not as expected");
     }
@@ -149,7 +149,7 @@ int main() {
   g.initialize();
   g.minSumLivenessAnneal();
   scheduled = getFilteredSchedule(g);
-  for (ScheduleIndex i = 0; i < N; ++i) {
+  for (uint64_t i = 0; i < N; ++i) {
     if (scheduled[i] != expected[i]) {
       throw error("Failure in Test 4, schedule not as expected");
     }
@@ -167,7 +167,7 @@ int main() {
   g.initialize();
   g.minSumLivenessAnneal();
   scheduled = getFilteredSchedule(g);
-  for (ScheduleIndex i = 0; i < N; ++i) {
+  for (uint64_t i = 0; i < N; ++i) {
     if (scheduled[i] != expected[i]) {
       throw error("Failure in Test 5, schedule not as expected");
     }

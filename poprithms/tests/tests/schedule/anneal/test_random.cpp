@@ -72,14 +72,14 @@ int main() {
     }
 
     Graph g;
-    for (int k = 0; k < K; ++k) {
-      auto allocId = g.insertAlloc(1);
+    for (uint64_t k = 0; k < K; ++k) {
+      g.insertAlloc(1);
     }
 
-    for (int n = 0; n < N; ++n) {
+    for (uint64_t n = 0; n < N; ++n) {
       std::vector<OpAddress> producers;
       for (const auto &edge : edges) {
-        if (std::get<1>(edge) == n) {
+        if (static_cast<uint64_t>(std::get<1>(edge)) == n) {
           producers.push_back(static_cast<OpAddress>(std::get<0>(edge)));
         }
       }
@@ -92,8 +92,7 @@ int main() {
         }
         ++allocAddress;
       }
-      auto opId =
-          g.insertOp(producers, opToAllocs, "op_" + std::to_string(n));
+      g.insertOp(producers, opToAllocs, "op_" + std::to_string(n));
     }
 
     return g;
@@ -122,7 +121,7 @@ int main() {
     std::vector<AllocWeight> lBefore;
     auto totalBefore = AllocWeight::zero();
     auto maxBefore   = AllocWeight::zero();
-    for (ScheduleIndex i = 0; i < nOps; ++i) {
+    for (uint64_t i = 0; i < nOps; ++i) {
       auto x = g.scheduleToLiveness(i);
       totalBefore += x;
       maxBefore = std::max(maxBefore, x);
@@ -133,7 +132,7 @@ int main() {
     std::vector<AllocWeight> lAfter;
     AllocWeight maxAfter   = AllocWeight::zero();
     AllocWeight totalAfter = AllocWeight::zero();
-    for (ScheduleIndex i = 0; i < nOps; ++i) {
+    for (uint64_t i = 0; i < nOps; ++i) {
       auto x = g.scheduleToLiveness(i);
       totalAfter += x;
       maxAfter = std::max(maxAfter, x);

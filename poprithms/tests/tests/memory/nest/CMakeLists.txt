@@ -1,5 +1,3 @@
-include(EnableCompilerWarnings)
-
 function(add_memory_nest_test_executable name source)
   add_executable(${name} ${source})
   target_link_libraries(${name} poprithms-memory-nest memory-nest-test-util)

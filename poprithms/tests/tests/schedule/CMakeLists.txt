@@ -1,5 +1,3 @@
-# for a rainy day: include(EnableCompilerWarnings)
-
 function(add_schedule_test_executable name source)
   add_executable(${name} ${source})
   target_link_libraries(${name} poprithms-schedule schedule-test-util)

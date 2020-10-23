@@ -49,7 +49,7 @@ enum class ThrowingTestResult { DidNotThrow = 0, DidThrow };
 ThrowingTestResult testGetSubScheduleBeforeGraphInitialized() {
   Graph g;
   const auto op0 = g.insertOp("Op0");
-  const auto op1 = g.insertOp("Op1");
+  g.insertOp("Op1");
 
   try {
     g.getSubSchedule({op0});
@@ -63,7 +63,7 @@ ThrowingTestResult testGetSubScheduleBeforeGraphInitialized() {
 ThrowingTestResult testGetSubScheduleAfterGraphInitializedBeforeAnnealing() {
   Graph g;
   const auto op0 = g.insertOp("Op0");
-  const auto op1 = g.insertOp("Op1");
+  g.insertOp("Op1");
   g.initialize();
 
   try {

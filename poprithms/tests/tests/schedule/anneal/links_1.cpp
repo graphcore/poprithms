@@ -114,7 +114,7 @@ void test4() {
   // We know the random graph includes no internal ops.
   const auto sched0 = g0.viewInternalScheduleToOp();
 
-  for (ScheduleIndex i = 1; i < sched0.size(); ++i) {
+  for (uint64_t i = 1; i < sched0.size(); ++i) {
     g1.insertLink(sched0[i - 1], sched0[i]);
   }
   g1.initialize(KahnTieBreaker::RANDOM, seed2);

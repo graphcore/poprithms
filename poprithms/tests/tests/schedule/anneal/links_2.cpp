@@ -31,7 +31,7 @@ void test0() {
 
   // Allocs want to go against the links:
   auto alloc0 = g.insertAlloc(100.0f);
-  auto alloc1 = g.insertAlloc(100.0f);
+  g.insertAlloc(100.0f);
   g.insertOpAlloc({ops[0], ops[2]}, alloc0);
   g.insertOpAlloc({ops[1], ops[3]}, alloc0);
 

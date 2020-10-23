@@ -24,6 +24,8 @@ function(add_full_library_test_from_params name exe)
            WORKING_DIRECTORY ${CMAKE_CURRENT_BUILD_DIR})
 endfunction()
 
+include(EnableCompilerWarnings)
+
 add_subdirectory(schedule)
 
 add_subdirectory(compute)

@@ -46,7 +46,7 @@ void test3() {
   auto op1 = g.insertOp("op1");
   auto op2 = g.insertOp("op2");
   auto op3 = g.insertOp("op3");
-  auto op4 = g.insertOp("operator_four  [[[((({{{ \" \\ ");
+  g.insertOp("operator_four  [[[((({{{ \" \\ ");
   auto op5 = g.insertOp("operator_five");
   auto op6 = g.insertOp("operator_six");
   g.insertConstraint(op0, op1);
@@ -59,9 +59,9 @@ void test3() {
   // serialization is lossless;
   auto alloc0 = g.insertAlloc(123.0);
   auto alloc1 = g.insertAlloc(AllocWeight::numericMaxLimit());
-  auto alloc2 = g.insertAlloc(std::numeric_limits<double>::lowest());
+  g.insertAlloc(std::numeric_limits<double>::lowest());
   auto alloc3 = g.insertAlloc(std::numeric_limits<double>::min());
-  auto alloc4 = g.insertAlloc(std::numeric_limits<double>::max());
+  g.insertAlloc(std::numeric_limits<double>::max());
 
   //              .
   // 7.7777... (7.7)
@@ -69,9 +69,9 @@ void test3() {
   sevens[1]      = '.';
   double dSevens = std::stod(std::string{sevens.cbegin(), sevens.cend()});
 
-  auto alloc5 = g.insertAlloc(dSevens);
-  auto alloc6 = g.insertAlloc(AllocWeight(dSevens * 1e-19, -1));
-  auto alloc7 = g.insertAlloc(-1.0);
+  g.insertAlloc(dSevens);
+  g.insertAlloc(AllocWeight(dSevens * 1e-19, -1));
+  g.insertAlloc(-1.0);
   auto alloc8 = g.insertAlloc(-0.0);
 
   g.insertOpAlloc({op0, op1}, alloc0);

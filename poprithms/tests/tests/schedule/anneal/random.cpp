@@ -52,8 +52,8 @@ int main(int argc, char **argv) {
   // nothing specific to test, we'll verify the sum liveness;
   std::vector<std::vector<ScheduleIndex>> allocToSched(g.nAllocs());
   for (ScheduleIndex i = 0; i < g.nOps_i32(); ++i) {
-    OpAddress a = g.scheduleToOp(i);
-    for (AllocAddress a : g.getOp(a).getAllocs()) {
+    OpAddress opAdd = g.scheduleToOp(i);
+    for (AllocAddress a : g.getOp(opAdd).getAllocs()) {
       allocToSched[a].push_back(i);
     }
   }

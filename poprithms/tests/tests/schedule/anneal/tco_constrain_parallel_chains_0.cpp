@@ -32,7 +32,7 @@ graph0(const std::array<double, nOps0> &weights, double w06) {
   //
 
   for (uint64_t i = 0; i < nOps0; ++i) {
-    auto op = g.insertOp("Op" + std::to_string(i));
+    g.insertOp("Op" + std::to_string(i));
   }
   g.insertConstraint(0, 1);
   g.insertConstraint(1, 3);

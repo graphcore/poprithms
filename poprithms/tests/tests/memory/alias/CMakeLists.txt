@@ -1,5 +1,3 @@
-include(EnableCompilerWarnings)
-
 function(add_memory_alias_test_executable name source)
   add_executable(${name} ${source})
   target_link_libraries(${name} poprithms-memory-alias)

@@ -54,7 +54,7 @@ getGraph(const std::vector<std::vector<uint64_t>> &tiers) {
 
   Graph g;
   for (uint64_t i = 0; i < nOps; ++i) {
-    auto op = g.insertOp("op" + std::to_string(i));
+    g.insertOp("op" + std::to_string(i));
   }
   for (uint64_t i : {0, 1, 2, 4, 5, 6, 8}) {
     g.insertConstraint(i, i + 1);

@@ -13,7 +13,7 @@ template <uint64_t NBits> void count(uint64_t repeat) {
   std::bitset<NBits> x0;
   auto start = std::chrono::high_resolution_clock::now();
   uint64_t sum{0};
-  for (int i = 0; i < repeat; ++i) {
+  for (uint64_t i = 0; i < repeat; ++i) {
     sum += x0.count();
   }
   auto stop = std::chrono::high_resolution_clock::now();
@@ -25,7 +25,7 @@ template <uint64_t NBits> void count(uint64_t repeat) {
 void simpleLoop(uint64_t repeat) {
   int j      = 0;
   auto start = std::chrono::high_resolution_clock::now();
-  for (int i = 0; i < repeat; ++i) {
+  for (uint64_t i = 0; i < repeat; ++i) {
     j += 1;
   }
   auto stop = std::chrono::high_resolution_clock::now();
@@ -37,7 +37,7 @@ template <uint64_t NBits> void add(uint64_t repeat) {
   std::bitset<NBits> x0;
   std::bitset<NBits> x1;
   auto start = std::chrono::high_resolution_clock::now();
-  for (int i = 0; i < repeat; ++i) {
+  for (uint64_t i = 0; i < repeat; ++i) {
     x0 &= x1;
   }
   auto stop = std::chrono::high_resolution_clock::now();
