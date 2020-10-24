@@ -1,0 +1,1 @@
+add_schedule_test(schedule_anneal_scc_scc_0 scc_0.cpp)
