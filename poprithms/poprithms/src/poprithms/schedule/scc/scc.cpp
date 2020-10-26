@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <numeric>
 #include <sstream>
 
 #include <poprithms/schedule/dfs/dfs.hpp>
@@ -120,6 +121,69 @@ SCCs getStronglyConnectedComponents(const FwdEdges &edges) {
   }
   return sccs;
 }
+
+namespace {
+
+uint64_t maxLength(const std::vector<std::string> &strs) {
+  return std::accumulate(
+      strs.cbegin(), strs.cend(), 0, [](uint64_t v, const std::string &x) {
+        return std::max<uint64_t>(v, x.size());
+      });
+}
+
+} // namespace
+
+// Example:
+//
+// >  Strongly Connected Component #2:
+// >    Op (from)  from  to
+// >    ---------- ----- ---
+// >    30_gamma   2     (3)
+// >    31_delta   3     (4)
+// >    32_epsilon 4     (2)
+//
+std::string getSummary(const FwdEdges &edges,
+                       std::vector<std::string> &dbs,
+                       IncludeSingletons singletons) {
+  if (dbs.size() != edges.size()) {
+    std::ostringstream oss;
+    oss << "FwdEdges of size " << edges.size() << ", dbs of size "
+        << dbs.size() << ". They must be equal. ";
+  }
+
+  const auto components = getStronglyConnectedComponents(edges);
+
+  std::ostringstream oss;
+
+  for (uint64_t ci = 0; ci < components.size(); ++ci) {
+    const auto &component = components[ci];
+    if (singletons == IncludeSingletons::Yes || component.size() > 1) {
+      oss << "\n\nStrongly Connected Component #" << ci << ": ";
+      std::vector<std::string> dbsFrags{"Op (from)", "----------"};
+      std::vector<std::string> fromFrags{"from", "-----"};
+      std::vector<std::string> toFrags{"to", "---"};
+      for (auto opAddress : component) {
+        fromFrags.push_back(std::to_string(opAddress));
+        dbsFrags.push_back(dbs[opAddress]);
+        std::ostringstream oss2;
+        poprithms::util::append(oss2, edges[opAddress]);
+        toFrags.push_back(oss2.str());
+      }
+      const auto maxDbs  = maxLength(dbsFrags);
+      const auto maxFrom = maxLength(fromFrags);
+
+      for (uint64_t i = 0; i < fromFrags.size(); ++i) {
+        oss << "\n  " << dbsFrags[i]
+            << std::string(maxDbs + 1 - dbsFrags[i].size(), ' ')
+            << fromFrags[i]
+            << std::string(maxFrom + 1 - fromFrags[i].size(), ' ')
+            << toFrags[i];
+      }
+    }
+  }
+  return oss.str();
+}
+
 } // namespace scc
 } // namespace schedule
 } // namespace poprithms

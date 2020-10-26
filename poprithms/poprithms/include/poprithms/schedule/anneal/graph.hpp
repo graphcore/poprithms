@@ -671,6 +671,9 @@ private:
 
   // Implements the isSchedulable algorithm assuming the graph has no links.
   bool linklessIsSchedulable() const;
+
+  // extract all forward edges from the Ops.
+  std::vector<std::vector<uint64_t>> getFwdEdges_u64() const;
 };
 
 std::ostream &operator<<(std::ostream &ost, const Graph &x);

@@ -32,7 +32,8 @@ add_schedule_test(schedule_anneal_serialization_errors serialization_errors.cpp)
 add_schedule_test(schedule_anneal_is_schedulable schedulable.cpp)
 add_schedule_test(schedule_anneal_is_search_limits searchlimits.cpp)
 add_schedule_test(schedule_anneal_diamond_0 diamond_0.cpp N 19)
-add_schedule_test(schedule_bin_constraints bin_constraints.cpp)
+add_schedule_test(schedule_anneal_bin_constraints bin_constraints.cpp)
+add_schedule_test(schedule_anneal_bin_cycle cycle_0.cpp)
 
 add_schedule_test(schedule_anneal_tco_link_close_tight_pairs_0
                                         tco_link_close_tight_pairs_0.cpp)

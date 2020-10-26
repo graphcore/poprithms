@@ -74,7 +74,7 @@ std::vector<T> kahn(const std::vector<std::vector<T>> &fwdEdges,
   if (eic == ErrorIfCycle::Yes && schedule.size() != N) {
     std::ostringstream oss;
     oss << "Only " << schedule.size() << " nodes of " << N
-        << " scheduled, there is a cycle in the Graph";
+        << " scheduled, there is a cycle in the Graph. ";
     throw error(oss.str());
   }
   return schedule;

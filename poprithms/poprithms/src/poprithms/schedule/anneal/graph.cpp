@@ -3,6 +3,7 @@
 #include <chrono>
 #include <iterator>
 #include <limits>
+#include <numeric>
 #include <random>
 
 #include <poprithms/schedule/anneal/error.hpp>
@@ -10,6 +11,7 @@
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <poprithms/schedule/anneal/graphserialization.hpp>
 #include <poprithms/schedule/anneal/logging.hpp>
+#include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 #include <poprithms/util/unisort.hpp>
@@ -970,6 +972,14 @@ void Graph::kahn(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
   }
 }
 
+std::vector<std::vector<uint64_t>> Graph::getFwdEdges_u64() const {
+  std::vector<std::vector<uint64_t>> edges(nOps());
+  for (uint64_t from = 0; from < nOps(); ++from) {
+    edges[from] = getOp(from).getOuts();
+  }
+  return edges;
+}
+
 void Graph::linklessKahn(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
 
   schToOp.reserve(nOps());
@@ -1078,21 +1088,22 @@ void Graph::linklessKahn(KahnTieBreaker kahnTie, uint32_t kahnSeed) {
   }
 
   if (schToOp.size() != allOps.size()) {
-    std::ostringstream oss;
-    oss << "Failed to schedule Ops in Graph::initializeSchedule, "
-        << " only managed to schedule " << schToOp.size() << " of "
-        << allOps.size() << ". Failed to schedule:\n";
+    log().info("Failed to schedule all Ops, obtaining summary.");
 
+    std::vector<std::string> dbs;
+    dbs.reserve(nOps());
     for (const auto &op : allOps) {
-      if (std::find(schToOp.cbegin(), schToOp.cend(), op.getAddress()) ==
-          schToOp.cend()) {
-        oss << "     " << op.getAddress() << " <- { ";
-        for (auto x : op.getIns()) {
-          oss << x << ' ';
-        }
-        oss << "}   [  " << op << "  ] \n";
-      }
+      dbs.push_back(op.getDebugString());
     }
+
+    std::ostringstream oss;
+    oss << "Only " << schToOp.size() << " of " << allOps.size()
+        << " were scheduled, there is a cycle in the Graph."
+        << " The non-singleton strongly connected components, "
+        << "in topological order, are:"
+        << scc::getSummary(
+               getFwdEdges_u64(), dbs, scc::IncludeSingletons::No);
+
     throw error(oss.str());
   }
 }

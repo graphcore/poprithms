@@ -3,6 +3,7 @@
 #define POPRITHMS_SCHEDULE_SCC_SCC_HPP
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace poprithms {
@@ -24,6 +25,24 @@ using FwdEdges = std::vector<std::vector<uint64_t>>;
  * et al, in Algorithms (2006).
  * */
 SCCs getStronglyConnectedComponents(const FwdEdges &edges);
+
+enum class IncludeSingletons { No = 0, Yes };
+
+/**
+ * Summarize the Connected Components of a graph.
+ *
+ * \param edges The edges of the graph being summarized.
+ *
+ * \param debugStrings String assocated with nodes in the graph. In
+ *                     particular, debugStrings[i] corresponds to the source
+ *                     node of edges[i].
+ *
+ * \param sings Defines whether components with a single node should be
+ *              included in the summary.
+ * */
+std::string getSummary(const FwdEdges &edges,
+                       std::vector<std::string> &debugStrings,
+                       IncludeSingletons sings);
 
 } // namespace scc
 } // namespace schedule
