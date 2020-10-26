@@ -367,6 +367,9 @@ public:
   DType dtype() const { return dtype_; }
   const Shape &shape() const { return shape_; }
   uint64_t nelms_u64() const { return shape().nelms_u64(); }
+  uint64_t nbytes() const {
+    return nelms_u64() * ndarray::nbytes_u64(dtype());
+  }
 
   /**
    * \return false if and only if (iff) all elements of this Tensor correspond
@@ -509,6 +512,26 @@ public:
   bool implIsView() const;
   bool implIsOrigin() const { return !implIsView(); }
 
+  /**
+   * Construct a Tensor from a const void pointer
+   *
+   * \param t The numerical type of the Tensor
+   *
+   * \param shape The Shape of the Tensor
+   *
+   * \param data The data to copy into an internal buffer for the Tensor
+   *
+   * \see The safer constructors which take typed pointers.
+   * */
+  static Tensor copy(DType t, const Shape &shape, const void *data);
+
+  /**
+   * Return the row-major contiguous data of this Tensor, as a char vector
+   *
+   * \see The methods which return vectors of specific numerical types.
+   * */
+  std::vector<char> getNativeCharVector() const;
+
 private:
   // get the BaseData for each Tensor in tIns.
   static std::vector<const BaseData *> getBaseDataPtrs(const Tensors &tIns);
@@ -523,12 +546,12 @@ private:
   static Tensor tRandomUniform(T low, T upp, const Shape &, uint32_t seed);
   template <typename T> static Tensor tArange(T x0, T x1, T step);
   template <typename T> static Tensor tScalar(T);
-  template <typename T> static Tensor tCopyData(const Shape &, const T *);
 
   template <typename T>
-  static Tensor tCopyVector(const Shape &, const std::vector<T> &);
-  template <typename T>
   static Tensor tMoveVector(const Shape &, std::vector<T> &&);
+  template <typename T>
+  static Tensor tCopyVector(const Shape &, const std::vector<T> &);
+  template <typename T> static Tensor tCopyData(const Shape &, const T *);
   template <typename T> static Tensor tRefData(const Shape &, T *);
   template <typename T> Tensor binary(const Tensor &) const;
 
@@ -537,6 +560,8 @@ private:
   std::shared_ptr<BaseData> tData_;
 
   void confirmValidReshape(const Shape &) const;
+
+  class Caster;
 };
 
 class OptionalTensor {

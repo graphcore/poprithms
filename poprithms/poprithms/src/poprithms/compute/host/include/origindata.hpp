@@ -4,7 +4,7 @@
 #include "ieeehalf.hpp"
 #include "typeddata.hpp"
 
-#include <iostream>
+#include <cstring>
 #include <memory>
 
 #include <poprithms/compute/host/tensor.hpp>
@@ -56,6 +56,12 @@ public:
   virtual T *dataPtr() const = 0;
   bool isOriginData() const final { return true; }
   bool containsAliases() const final { return false; }
+
+  std::vector<char> getNativeCharVector() const final {
+    std::vector<char> chars(nelms_u64() * sizeof(T));
+    std::memcpy(chars.data(), dataPtr(), chars.size());
+    return chars;
+  }
 
   BaseDataSP expand(const Shape &from, const Shape &to) const final {
     return std::make_shared<AllocData<T>>(

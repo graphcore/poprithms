@@ -4,6 +4,7 @@
 #include "./include/externdecl.hpp"
 #include "./include/ieeehalf.hpp"
 #include "./include/pointerdata.hpp"
+#include "./include/typeswitch.hpp"
 #include "./include/viewdata.hpp"
 #include "poprithms/ndarray/dtype.hpp"
 
@@ -18,6 +19,10 @@ namespace poprithms {
 namespace compute {
 namespace host {
 
+std::vector<char> Tensor::getNativeCharVector() const {
+  return tData().getNativeCharVector();
+}
+
 Shapes Tensor::getShapes(const Tensors &tensors) {
   Shapes shapes_;
   shapes_.reserve(tensors.size());
@@ -25,6 +30,32 @@ Shapes Tensor::getShapes(const Tensors &tensors) {
     shapes_.push_back(t.shape());
   }
   return shapes_;
+}
+
+template <typename T> Tensor Tensor::tCopyData(const Shape &s, const T *d) {
+  const auto nElms = s.nelms_u64();
+  std::vector<T> vData_(nElms);
+  std::memcpy(vData_.data(), d, sizeof(T) * nElms);
+  return Tensor(s,
+                ndarray::get<T>(),
+                std::make_shared<AllocData<T>>(std::move(vData_)));
+}
+
+class Tensor::Caster {
+public:
+  template <typename T> static Tensor go(const Shape &s, const void *vp) {
+    return Tensor::tCopyData<T>(s, reinterpret_cast<const T *>(vp));
+  }
+};
+
+template <>
+Tensor Tensor::Caster::go<IeeeHalf>(const Shape &s, const void *vp) {
+  const auto asu16 = static_cast<const uint16_t *>(vp);
+  return Tensor::float16(s, asu16);
+}
+
+Tensor Tensor::copy(DType t, const Shape &s, const void *vp) {
+  return typeSwitch<Caster, Tensor>(t, s, vp);
 }
 
 Tensor concat(const Tensors &ts, uint64_t axis) {
@@ -291,11 +322,9 @@ bool Tensor::allClose(const Tensor &b, double relTol, double absTol) const {
   const auto diff    = this->toFloat64() - b.toFloat64();
   const auto absDiff = diff.abs();
   const auto absB    = b.toFloat64().abs();
-  std::cout << "absB = " << absB << std::endl;
   const auto threshold =
       Tensor::float64(absTol) + Tensor::float64(relTol) * absB;
 
-  std::cout << "threshold =  " << threshold << std::endl;
   auto reslt = (absDiff <= threshold).allNonZero();
   return reslt;
 }
@@ -323,15 +352,6 @@ Tensor operator/(const Tensor &a, const Tensor &b) { return a.divide(b); }
 
 template <typename T> Tensor Tensor::tScalar(T f) {
   return Tensor({}, ndarray::get<T>(), std::make_shared<AllocData<T>>(f));
-}
-
-template <typename T> Tensor Tensor::tCopyData(const Shape &s, const T *d) {
-  const auto nElms = s.nelms_u64();
-  std::vector<T> vData_(nElms);
-  std::memcpy(vData_.data(), d, sizeof(T) * nElms);
-  return Tensor(s,
-                ndarray::get<T>(),
-                std::make_shared<AllocData<T>>(std::move(vData_)));
 }
 
 template <typename T> Tensor Tensor::tRefData(const Shape &s, T *d) {
@@ -476,9 +496,9 @@ Tensor Tensor::toFloat16() const {
 }
 Tensor Tensor::float16(const Shape &s, const uint16_t *v) {
   std::vector<IeeeHalf> halfs;
-  halfs.reserve(s.nelms_u64());
-  for (uint64_t i = 0; i < s.nelms_u64(); ++i) {
-    halfs.push_back(v[i]);
+  halfs.resize(s.nelms_u64());
+  for (uint64_t i = 0; i < halfs.size(); ++i) {
+    halfs[i] = IeeeHalf::fromBits(v[i]);
   }
   return {s,
           DType::Float16,

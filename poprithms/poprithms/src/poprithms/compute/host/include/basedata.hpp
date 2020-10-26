@@ -234,6 +234,8 @@ public:
   virtual std::vector<bool> getBoolVector() const         = 0;
   virtual std::shared_ptr<AllocData<bool>> toBool() const = 0;
 
+  virtual std::vector<char> getNativeCharVector() const = 0;
+
   static void assertSameTypes(const ConstDataPtrs &);
   static void assertForConcat(const ConstDataPtrs &, const Shapes &inShapes);
 };

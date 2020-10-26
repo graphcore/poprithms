@@ -209,6 +209,10 @@ public:
     return toOriginData()->getFloat16Vector_u16();
   }
 
+  std::vector<char> getNativeCharVector() const final {
+    return toOriginData()->getNativeCharVector();
+  }
+
   std::vector<double> getFloat64Vector() const final {
     return getVector<double>();
   }
