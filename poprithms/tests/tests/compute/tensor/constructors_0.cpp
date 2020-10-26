@@ -60,11 +60,19 @@ void testBoolConstructor() {
   }
 }
 
+void testScalarConstructors() {
+  const auto a = Tensor::scalar(DType::Float16, 1.03);
+  const auto b = Tensor::scalar(DType::Float64, 1.03);
+  const auto c = a - b.toFloat16();
+  c.assertAllEquivalent(Tensor::scalar(DType::Float16, 0.0));
+}
+
 } // namespace
 
 int main() {
   testBasicConstructors();
   testRefConstructor();
   testBoolConstructor();
+  testScalarConstructors();
   return 0;
 }

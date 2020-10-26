@@ -58,6 +58,18 @@ Tensor Tensor::copy(DType t, const Shape &s, const void *vp) {
   return typeSwitch<Caster, Tensor>(t, s, vp);
 }
 
+class Tensor::ScalarCaster {
+public:
+  template <typename T> static Tensor go(const double v) {
+    const T v_ = static_cast<T>(v);
+    return tScalar<T>(v_);
+  }
+};
+
+Tensor Tensor::scalar(DType type, const double v) {
+  return typeSwitch<ScalarCaster, Tensor>(type, v);
+}
+
 Tensor concat(const Tensors &ts, uint64_t axis) {
   return Tensor::concat(ts, axis);
 }

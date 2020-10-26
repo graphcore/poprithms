@@ -526,6 +526,12 @@ public:
   static Tensor copy(DType t, const Shape &shape, const void *data);
 
   /**
+   * Construct a Tensor from a scalar value. The Tensor will be of type \a
+   * type, constructed from casting \a v.
+   * */
+  static Tensor scalar(DType type, double v);
+
+  /**
    * Return the row-major contiguous data of this Tensor, as a char vector
    *
    * \see The methods which return vectors of specific numerical types.
@@ -562,6 +568,7 @@ private:
   void confirmValidReshape(const Shape &) const;
 
   class Caster;
+  class ScalarCaster;
 };
 
 class OptionalTensor {
