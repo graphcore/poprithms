@@ -14,7 +14,7 @@ std::ostream &operator<<(std::ostream &oss, const Tensor &x) {
   return oss;
 }
 
-Tensor concat(std::vector<Tensor> &&tensors, uint64_t axis) {
+Tensor concat(Tensors &&tensors, uint64_t axis) {
   if (tensors.size() == 0) {
     throw error("Cannot concatenate an empty vector of Tensors");
   }
@@ -23,9 +23,23 @@ Tensor concat(std::vector<Tensor> &&tensors, uint64_t axis) {
   return b.concat(tensors, tensors.size(), axis);
 }
 
-Tensor concat(const std::vector<Tensor> &tensors, uint64_t axis) {
+Tensor concat(const Tensors &tensors, uint64_t axis) {
   auto tensors_ = tensors;
   return concat(std::move(tensors_), axis);
+}
+
+Tensor settfill(Tensors &&tensors, const DisjointRegions &regions) {
+  if (tensors.size() == 0) {
+    throw error("Cannot settfill an empty vector of Tensors");
+  }
+  const auto b = tensors.back();
+  tensors.pop_back();
+  return b.settfill(tensors, tensors.size(), regions);
+}
+
+Tensor settfill(const Tensors &tensors, const DisjointRegions &regions) {
+  auto tensors_ = tensors;
+  return settfill(std::move(tensors_), regions);
 }
 
 void Tensor::toAllocation(Color c) { pgraph->toAllocation(id(), c); }
@@ -38,18 +52,15 @@ void Tensor::toIdentityFrom(Tensor src) {
   pgraph->toIdentity(src.id(), id());
 }
 
-Tensor Tensor::concat(const std::vector<Tensor> &tensors_,
-                      uint64_t index,
-                      uint64_t axis) const {
+namespace {
 
-  if (tensors_.empty()) {
-    return *this;
-  }
+std::vector<TensorId>
+getAllIds(const Tensors &tensors_, const Tensor &toInsert, uint64_t index) {
   if (index > tensors_.size()) {
     std::ostringstream oss;
-    oss << "Failure in \n    Tensor::concat(tensors_ of size "
-        << tensors_.size() << ", index = " << index << " axis = " << axis
-        << "): argument 'index' cannot excede the size of tensors_. ";
+    oss << "Failure in \n    getAllIds(tensors_ of size " << tensors_.size()
+        << ", index = " << index
+        << "): argument 'index' cannot exceed the size of tensors_. ";
     throw error(oss.str());
   }
   std::vector<TensorId> allIds;
@@ -58,16 +69,35 @@ Tensor Tensor::concat(const std::vector<Tensor> &tensors_,
   for (auto iter = tensors_.cbegin(); iter != insertionIter; ++iter) {
     allIds.push_back(iter->id());
   }
-  allIds.push_back(id());
+  allIds.push_back(toInsert.id());
   for (auto iter = insertionIter; iter != tensors_.cend(); ++iter) {
     allIds.push_back(iter->id());
   }
-  return {pgraph->concat(allIds, axis), pgraph};
+  return allIds;
+}
+} // namespace
+
+Tensor
+Tensor::concat(const Tensors &tensors_, uint64_t index, uint64_t axis) const {
+  if (tensors_.empty()) {
+    return *this;
+  }
+  return {pgraph->concat(getAllIds(tensors_, *this, index), axis), pgraph};
 }
 
-std::vector<Tensor> Tensor::getNonDisjoint() const {
+Tensor Tensor::settfill(const Tensors &tensors_,
+                        uint64_t index,
+                        const DisjointRegions &regions) const {
+  if (tensors_.empty()) {
+    return *this;
+  }
+  return {pgraph->settfill(getAllIds(tensors_, *this, index), regions),
+          pgraph};
+}
+
+Tensors Tensor::getNonDisjoint() const {
   const auto dj = pgraph->allAliases(id());
-  std::vector<Tensor> tens;
+  Tensors tens;
   tens.reserve(dj.size());
   for (auto id : dj) {
     tens.push_back({id, pgraph});
@@ -77,8 +107,7 @@ std::vector<Tensor> Tensor::getNonDisjoint() const {
 
 const Shape &Tensor::shape() const { return pgraph->shape(id()); }
 
-Tensor Tensor::hstack(const std::vector<Tensor> &tensors_,
-                      uint64_t index) const {
+Tensor Tensor::hstack(const Tensors &tensors_, uint64_t index) const {
   return concat(tensors_, index, 0);
 }
 
@@ -161,8 +190,7 @@ Tensor Tensor::dimshuffle(const Permutation &perm) const {
 
 Tensor Tensor::clone() const { return {pgraph->clone(id()), pgraph}; }
 
-Tensor Tensor::vstack(const std::vector<Tensor> &tensors_,
-                      uint64_t index) const {
+Tensor Tensor::vstack(const Tensors &tensors_, uint64_t index) const {
   if (tensors_.empty()) {
     return *this;
   }

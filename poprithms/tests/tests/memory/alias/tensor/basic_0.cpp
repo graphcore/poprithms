@@ -14,7 +14,7 @@ int main() {
 
   //                alloc \.
   //                alloc - concat - broadcast
-  //                alloc /              \.
+  //                alloc /.              \.
   //  alloc                              subsample ---- flatten
   //    \                   .                                  \.
   //   slice                             settsample ---------  cat
@@ -87,6 +87,10 @@ int main() {
   if (g.tensor(out).numElements() != 800) {
     throw error("Expected 800 elements in final Tensor (see log)");
   }
+
+  const auto r0 = Region::fromBounds({4, 3, 4}, {0, 0, 0}, {2, 3, 4});
+  const auto r1 = Region::fromBounds({4, 3, 4}, {2, 0, 0}, {4, 3, 4});
+  g.settfill({alloc0, alloc0}, DisjointRegions{Shape({4, 3, 4}), {r0, r1}});
 
   std::cout << g << std::endl;
 

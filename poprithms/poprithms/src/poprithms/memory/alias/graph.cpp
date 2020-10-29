@@ -22,6 +22,15 @@ TensorId Graph::concat(const TensorIds &ids, uint64_t axis) {
   return createNode<Concat>(ids, outShape, axis);
 }
 
+TensorId Graph::settfill(const TensorIds &ids,
+                         const DisjointRegions &regions) {
+  if (ids.size() == 0 || regions.size() == 0) {
+    throw error("settfill requires more than 0 inputs");
+  }
+  const auto outShape = regions.at(0).shape();
+  return createNode<SettFill>(ids, outShape, regions);
+}
+
 TensorId Graph::allocate(const Shape &sh, Color color) {
   return createNode<Allocate>({}, sh, color);
 }
@@ -145,7 +154,12 @@ void Graph::allocationToReverse(TensorId inTensor,
 }
 
 void Graph::toIdentity(TensorId src, TensorId dst) {
-  shape(src).assertSameNumberOfElements(shape(dst));
+  if (shape(src) != shape(dst)) {
+    std::ostringstream oss;
+    oss << "Incompatible Shapes in toIdentity: " << shape(src)
+        << " != " << shape(dst) << ". Shapes must be identical. ";
+    throw error(oss.str());
+  }
 
   const auto &n = node(dst);
 
@@ -156,6 +170,55 @@ void Graph::toIdentity(TensorId src, TensorId dst) {
   node(src).insertOut(dst);
 
   completeInputlessReplacement<Identity>(dst, {src});
+}
+namespace {
+std::ostream &operator<<(std::ostream &ost, const std::vector<uint64_t> &x) {
+  util::append(ost, x);
+  return ost;
+}
+
+} // namespace
+
+TensorId Graph::pad(const TensorId &id,
+                    const std::vector<uint64_t> &l,
+                    const std::vector<uint64_t> &u,
+                    Color padColor,
+                    SinglePadElement singlePadElement) {
+  const auto R0 = rank_u64(id);
+  if (l.size() != rank_u64(id) || u.size() != R0) {
+    std::ostringstream oss;
+    oss << "Tensor " << id << " has Shape " << shape(id)
+        << ", and is of rank " << R0
+        << ". The lower and upper paddings must be of the same rank. "
+        << "But l = " << l << " has size " << l.size() << ", and u = " << u
+        << " has size " << u.size() << '.';
+    throw error(oss.str());
+  }
+
+  TensorId singlePadAlloc;
+  if (singlePadElement == SinglePadElement::Yes) {
+    singlePadAlloc = allocate({}, padColor);
+  }
+
+  auto getPadElement =
+      [this, padColor, singlePadElement, singlePadAlloc](const Shape &s) {
+        if (singlePadElement == SinglePadElement::Yes) {
+          return expand(singlePadAlloc, s);
+        }
+        return allocate(s, padColor);
+      };
+
+  TensorId current = id;
+  for (uint64_t d = 0; d < R0; ++d) {
+    auto lowerShape = shape(current).get();
+    auto upperShape = lowerShape;
+    lowerShape[d]   = l[d];
+    upperShape[d]   = u[d];
+    TensorIds toCat{
+        getPadElement(lowerShape), current, getPadElement(upperShape)};
+    current = concat(toCat, d);
+  }
+  return current;
 }
 
 TensorId Graph::reverse(TensorId id, const std::vector<uint64_t> &dims) {
@@ -356,6 +419,10 @@ void Graph::setOrigins(TensorId id) {
 
   auto &nd = node(id);
   nd.clearOrigins();
+
+  if (shape(id).nelms_u64() == 0) {
+    return;
+  }
 
   if (nd.allocates()) {
     nd.insertOrigin(AllocId(id.get()), {Region::createFull(shape(id))});

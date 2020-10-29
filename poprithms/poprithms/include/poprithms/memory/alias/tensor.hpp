@@ -54,13 +54,16 @@ class Graph;
  *
  * In the method comments, we use {a,b} to denote a Tensor with shape (a,b).
  * */
+class Tensor;
+using Tensors = std::vector<Tensor>;
+
 class Tensor {
 
 public:
   TensorId id() const { return id_; }
 
   /** \return All Tensors which intersect with this Tensor. */
-  std::vector<Tensor> getNonDisjoint() const;
+  Tensors getNonDisjoint() const;
 
   /** \return true if this Tensor intersects with `rhs'. */
   bool intersectsWith(const Tensor &rhs) const;
@@ -125,19 +128,35 @@ public:
    * at index "index". Example of how elements are mapped: this = [1,2] others
    * = ([3], [4,5], [6]) index = 1, axis = 0 returns [3,1,2,4,5,6].
    * */
-  Tensor concat(const std::vector<Tensor> &others,
-                uint64_t index,
-                uint64_t axis) const;
+  Tensor concat(const Tensors &others, uint64_t index, uint64_t axis) const;
 
   /**
    * Concatenate on axis = rank - 1
    * */
-  Tensor vstack(const std::vector<Tensor> &ids, uint64_t index) const;
+  Tensor vstack(const Tensors &, uint64_t index) const;
 
   /**
    * Concatenate on axis = 0
    * */
-  Tensor hstack(const std::vector<Tensor> &ids, uint64_t index) const;
+  Tensor hstack(const Tensors &, uint64_t index) const;
+
+  /**
+   * A generalization of concatenation, where the input Tensors map to
+   * aribtrary Regions in the output Tensor.
+   *
+   * \param others The Tensors which, along with this Tensor, will compose
+   *               the output Tensor. If there are N Regions in \a regions,
+   *               then there must be N - 1 Tensors in \a others.
+   *
+   * \param thisIndex This Tensor will map to the Region in \a regions at
+   *                  index \a thisIndex, of the output Tensor.
+   *
+   * \see concat
+   * \see Graph
+   * */
+  Tensor settfill(const Tensors &others,
+                  uint64_t thisIndex,
+                  const DisjointRegions &regions) const;
 
   /**
    * The Shape of this Tensor.
@@ -176,8 +195,12 @@ private:
   Tensor() = delete;
 };
 
-Tensor concat(const std::vector<Tensor> &, uint64_t axis);
-Tensor concat(std::vector<Tensor> &&, uint64_t axis);
+Tensor concat(const Tensors &, uint64_t axis);
+Tensor concat(Tensors &&, uint64_t axis);
+
+/** Generalized concatenation */
+Tensor settfill(const Tensors &, const DisjointRegions &);
+Tensor settfill(Tensors &&, const DisjointRegions &);
 
 std::ostream &operator<<(std::ostream &, const Tensor &);
 

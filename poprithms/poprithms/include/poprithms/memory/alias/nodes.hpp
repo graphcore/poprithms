@@ -38,6 +38,42 @@ private:
   std::vector<int64_t> getUpperSlice(InIndex) const;
 };
 
+/**
+ * A generalization of Concat.
+ * */
+class SettFill : public Node {
+public:
+  SettFill(const State &ob,
+           const Origins &oris,
+           const DisjointRegions &regions__);
+
+  /** \return The Regions which each of input Tensors will occupy in
+   *          the output Tensor */
+  const DisjointRegions &regions() const { return regions_; }
+
+  /** \return Then Region which the i'th input Tensor will occupy in the
+   *          output Tensor */
+  const Region &region(InIndex i) const { return regions_.at(i.get()); }
+
+  std::string typeString() const final;
+  std::unique_ptr<Node> clone(const State &, const Origins &) const final;
+
+  /**  \return The Regions of the i'th input Tensor which \a outRegions in the
+   *           output Tensor correspond to. */
+  DisjointRegions getInRegions(InIndex i,
+                               const DisjointRegions &outRegions) const final;
+
+  /** \return false as all inputs are aliased */
+  bool samples() const final { return false; }
+
+  /** \return false as the output is just a view into the inputs, there are no
+   *          new allocations/variables created. */
+  bool allocates() const final { return false; }
+
+private:
+  const DisjointRegions regions_;
+};
+
 class SettSample : public Node {
 public:
   SettSample(const State &,

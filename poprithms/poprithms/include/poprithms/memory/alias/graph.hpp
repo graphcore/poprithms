@@ -45,6 +45,29 @@ public:
    * */
   TensorId concat(const TensorIds &, uint64_t axis);
 
+  /** A generalized concatenation of Tensors.
+   *
+   * settfill allows for interleaving Tensors. For example, suppose there are
+   * 2 input Tensors, Tensor "0" of Shape (2,3) and Tensor "1" of Shape (2,2).
+   * There is only 1 way to concatenate these Tensors, along axis 1;
+   *
+   * 00011
+   * 00011.
+   *
+   * With settfill, the output Tensor could be
+   *
+   * 01010
+   * 01010.
+   *
+   * \param ids The Tensors which will be combined to form the output Tensor.
+   *
+   * \param regions The Regions which each of the Tensors will occupy in the
+   *                output Tensor. The number of elements in the i'th Region
+   *                must be the same as in the i'th Tensor. The Regions must
+   *                partition the output Shape.
+   * */
+  TensorId settfill(const TensorIds &ids, const DisjointRegions &regions);
+
   /** Permute the dimensions of a Tensor.
    *
    * \return The TensorId of the new Tensor.
@@ -75,7 +98,8 @@ public:
    * */
   TensorId reshape(TensorId, const Shape &);
 
-  /** Expand a Tensor, broadcasting it along singleton dimensions. This is
+  /**
+   * Expand a Tensor, broadcasting it along singleton dimensions. This is
    * equivalent to numpy.broadcast_to.
    *
    * \return The TensorId of the new Tensor.
@@ -94,10 +118,37 @@ public:
    * */
   TensorId clone(TensorId);
 
+  /**
+   * Pad a Tensor.
+   *
+   * \param id The Tensor to pad.
+   *
+   * \param lowerPadding The amount of padding to apply at the start of each
+   *                     dimension
+   *
+   * \param upperPadding The amount of padding to apply at the end of each
+   *                     dimension
+   *
+   * \param padColor The color of the padding. This can be used, for example,
+   *                 to distinguish between constant and non-constant padding.
+   *
+   * \param singlePadElement If true, the a single scalar Tensor will be
+   *                         broadcast and used for all padding. If false, the
+   *                         padding will not contain any self-aliases.
+   * */
+  enum class SinglePadElement { Yes, No };
+  TensorId pad(const TensorId &id,
+               const std::vector<uint64_t> &lowerPadding,
+               const std::vector<uint64_t> &upperPadding,
+               Color padColor,
+               SinglePadElement singlePadElement);
+
   Tensor tensor(TensorId id) { return {id, this}; }
 
   /** \return The Shape of a Tensor in this Graph */
   const Shape &shape(TensorId id) const;
+
+  uint64_t rank_u64(TensorId id) const { return shape(id).rank_u64(); }
 
   /** \return true if the two argument Tensors intersect */
   bool areAliased(TensorId, TensorId) const;
@@ -124,7 +175,7 @@ public:
    *
    * The i'th TensorIds in the returned vector corresponds to the i'th Tensor
    * in \a inIds.
-   *          */
+   * */
   std::vector<TensorIds> allAliases(const TensorIds &inIds) const;
 
   /** \return All Tensor-Tensor aliased. */

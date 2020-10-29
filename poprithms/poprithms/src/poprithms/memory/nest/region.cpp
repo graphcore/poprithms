@@ -341,7 +341,14 @@ void DisjointRegions::append(std::ostream &ost) const {
   if (empty()) {
     ost << "(empty" << shape() << ")";
   } else {
-    ost << get();
+    ost << "(shape=" << shape() << ",(";
+    for (uint64_t i = 0; i < regs_.size(); ++i) {
+      ost << at(i).setts();
+      if (i + 1 < regs_.size()) {
+        ost << ',';
+      }
+    }
+    ost << "))";
   }
 }
 
@@ -406,6 +413,15 @@ DisjointRegions Region::settSample(const Region &where) const {
     partials.push_back(sett(d).sampleAt(where.sett(d)));
   }
   return getOuterProduct(where.nelms(), partials);
+}
+
+DisjointRegions DisjointRegions::settSample(const Region &where) const {
+  std::vector<Region> outs;
+  for (const Region &r : get()) {
+    const auto partOuts = r.settSample(where).get();
+    outs.insert(outs.end(), partOuts.cbegin(), partOuts.cend());
+  }
+  return DisjointRegions(where.nelms(), outs);
 }
 
 DisjointRegions Region::settFillInto(const Region &scaffold) const {

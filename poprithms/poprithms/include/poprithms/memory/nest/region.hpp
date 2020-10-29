@@ -466,6 +466,8 @@ public:
 
   DisjointRegions settFillInto(const Region &) const;
 
+  DisjointRegions settSample(const Region &where) const;
+
   DisjointRegions reverse(const std::vector<uint64_t> &dimensions) const;
 
   DisjointRegions reshape(const Shape &) const;

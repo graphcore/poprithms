@@ -38,6 +38,12 @@ std::string SettSample::typeString() const {
   return oss.str();
 }
 
+std::string SettFill::typeString() const {
+  std::ostringstream oss;
+  oss << "SettFill(" << regions() << ')';
+  return oss.str();
+}
+
 SettSample::SettSample(const Node::State &state,
                        const Origins &oris,
                        const Shape &inShape,
@@ -48,6 +54,11 @@ SettSample::SettSample(const Node::State &state,
 std::unique_ptr<Node> Concat::clone(const State &state,
                                     const Origins &oris) const {
   return std::make_unique<Concat>(state, oris, axis());
+}
+
+std::unique_ptr<Node> SettFill::clone(const State &state,
+                                      const Origins &oris) const {
+  return std::make_unique<SettFill>(state, oris, regions());
 }
 
 std::unique_ptr<Node> Identity::clone(const State &state,
@@ -88,6 +99,56 @@ std::unique_ptr<Node> Reverse::clone(const State &state,
 DisjointRegions Concat::getInRegions(InIndex inIndex,
                                      const DisjointRegions &outRegs) const {
   return outRegs.slice(getLowerSlice(inIndex), getUpperSlice(inIndex));
+}
+
+DisjointRegions SettFill::getInRegions(InIndex inIndex,
+                                       const DisjointRegions &outRegs) const {
+  return outRegs.settSample(region(inIndex));
+}
+
+SettFill::SettFill(const State &ob,
+                   const Origins &oris,
+                   const DisjointRegions &regions__)
+    : Node(ob, oris), regions_(regions__) {
+
+  // confirm number of input Tensors is the same as the number of Regions:
+  if (ob.ins.size() != regions_.size()) {
+    std::ostringstream oss;
+    oss << "ids and regions of different sizes in SettFill constructor. ";
+    oss << "ids = ";
+    util::append(oss, ob.ins);
+    oss << ", and regions = " << regions_;
+    throw error(oss.str());
+  }
+
+  // confirm no intersections between Regions:
+  regions_.confirmValid();
+
+  // confirm a complete partition:
+  if (regions_.totalElms() != regions_.shape().nelms()) {
+    std::ostringstream oss;
+    oss << "The SettFills region must pack together to cover the full Shape."
+        << "This for regions = " << regions() << ", which has "
+        << regions_.totalElms() << ". The containing Shape has "
+        << regions_.shape().nelms() << ". The respective regions shapes [ ";
+    for (const auto &r : regions_.get()) {
+      oss << r.totalElms() << ' ';
+    }
+    oss << "] . ";
+    throw error(oss.str());
+  }
+
+  // confirm Shapes match exactly:
+  for (uint64_t i = 0; i < ob.ins.size(); ++i) {
+    if (ob.inShapes[i].get() != region(i).nelms()) {
+      std::ostringstream oss;
+      oss << "The " << i << "'th input Tensor has Shape " << ob.inShapes[i]
+          << ", which cannot map to Region " << region(i)
+          << " as it has number of elements (in each dimension) of ";
+      util::append(oss, region(i).nelms());
+      throw error(oss.str());
+    }
+  }
 }
 
 std::vector<int64_t> Concat::getLowerSlice(InIndex i) const {

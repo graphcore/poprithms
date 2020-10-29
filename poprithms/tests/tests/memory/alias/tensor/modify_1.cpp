@@ -28,7 +28,7 @@ void testToIdentity0() {
 
   Graph g;
   const auto in0_  = g.tensor(g.allocate({4, 8}));
-  const auto src_  = in0_.dimshuffle({{1, 0}});
+  const auto src_  = in0_.reverse(1);
   const auto out0_ = src_.flatten();
   const auto in1_  = g.tensor(g.allocate({4, 5}));
   const auto in2_  = g.tensor(g.allocate({4, 3}));
@@ -64,18 +64,6 @@ void testToIdentity0() {
   //         /     \          .
   //     in2 - foo  out2      .
   //
-  //  id type                      ins     shape   outs   aliases
-  //
-  //  0  Allocate                  ()     (3,4)   (1)    no    (0,1,2)
-  //  1  Permute (1,0)             (0)    (4,3)   (2)    no    (0,1,2)
-  //  2  Reshape                   (1)    (12)    ()     no    (0,1,2)
-  //  3  Allocate                  ()     (4,5)   (5)    no    (3,5,6,8)
-  //  4  Allocate                  ()     (4,11)  (5,7)  no    (4,5,6,7,8)
-  //  5  Concat                    (3,4)  (4,16)  (6,8)  no    (3,4,5,6,7,8)
-  //  6  Reshape                   (5)    (32,2)  ()     no    (3,4,5,6,7,8)
-  //  7  SettSample (()((2,9,0)))  (4)    (4,2)   ()     no    (4,5,6,7,8)
-  //  8  Reverse (1)               (5)    (4,16)  ()     no    (3,4,5,6,7,8)
-  //
 
   std::cout << g << std::endl;
   g.confirmAllAliasesMap(expectedAliases0);
@@ -88,17 +76,6 @@ void testToIdentity0() {
   //             \               .
   //   in2 - foo  out2           .
   //
-  // id  type                      ins  shape  outs   aliases  aliased to
-  // --- ------------------------- ---- ------ ------ -------- --------------
-  // 0   Allocate                  ()   (4,8)  (1)    no       (0,1,2,5,6,8)
-  // 1   Permute (1,0)             (0)  (8,4)  (2,5)  no       (0,1,2,5,6,8)
-  // 2   Reshape                   (1)  (32)   ()     no       (0,1,2,5,6,8)
-  // 3   Allocate                  ()   (4,5)  ()     no       (3)
-  // 4   Allocate                  ()   (4,3)  (7)    no       (4,7)
-  // 5   Reverse ()                (1)  (4,8)  (6,8)  no       (0,1,2,5,6,8)
-  // 6   Reshape                   (5)  (32)   ()     no       (0,1,2,5,6,8)
-  // 7   SettSample (()((2,1,0)))  (4)  (4,2)  ()     no       (4,7)
-  // 8   Reverse (1)               (5)  (4,8)  ()     no       (0,1,2,5,6,8)
 
   std::cout << g << std::endl;
   std::map<TensorId, std::set<TensorId>> expectedAliases1{
