@@ -177,8 +177,23 @@ void multiOutTests() {
                    "multi2");
 }
 
+void fillEmptyTest() {
+
+  // Always off:
+  Sett scaffold{{{0, 100, 0}}};
+
+  // Sometimes on:
+  Sett ink{{{3, 6, 2}}};
+
+  const auto filled = scaffold.fillWith(ink);
+  if (!filled.empty()) {
+    throw error("Filling an empty Sett results in an empty Sett");
+  }
+}
+
 int main() {
   singletonTests();
   multiOutTests();
+  fillEmptyTest();
   return 0;
 }

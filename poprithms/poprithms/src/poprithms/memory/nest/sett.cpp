@@ -1302,6 +1302,11 @@ std::ostream &operator<<(std::ostream &ost, const DisjointSetts &setts) {
 DisjointSetts Sett::fill(const Sett &scaffold, const Sett &ink) {
 
   const auto nOnScaffold = scaffold.n(0, scaffold.period());
+
+  if (nOnScaffold == 0) {
+    return {};
+  }
+
   const auto scm      = smallestCommonMultiple_i64(nOnScaffold, ink.period());
   const auto nRepls   = scm / nOnScaffold;
   int64_t scaffoldUpp = scaffold.period() * nRepls;
