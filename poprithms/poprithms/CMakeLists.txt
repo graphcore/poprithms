@@ -166,6 +166,13 @@ set(memory_alias_sources
   ${memory_src_dir}/alias/tensor.cpp
 )
 
+set(memory_inplace_sources
+       ${memory_src_dir}/inplace/aliastype.cpp
+       ${memory_src_dir}/inplace/error.cpp
+       ${memory_src_dir}/inplace/logging.cpp
+)
+
+
 
 add_library(poprithms-memory-nest-objlib OBJECT ${memory_nest_sources})
 add_library(poprithms-memory-nest SHARED
@@ -180,6 +187,15 @@ add_library(poprithms-memory-alias SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
+add_library(poprithms-memory-inplace-objlib OBJECT ${memory_inplace_sources})
+add_library(poprithms-memory-inplace SHARED
+  $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
 
 add_library(poprithms SHARED 
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
@@ -187,6 +203,7 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -196,6 +213,7 @@ add_library(poprithms-static STATIC
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -220,6 +238,8 @@ foreach(tgt IN ITEMS
   poprithms-memory-nest
   poprithms-memory-alias-objlib
   poprithms-memory-alias
+  poprithms-memory-inplace-objlib
+  poprithms-memory-inplace
   poprithms-util-objlib
   poprithms-util
   poprithms
