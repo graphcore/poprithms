@@ -18,12 +18,10 @@ echo "Clang-format version should be 8.0.0 or greater."
 exit
 fi
 
+PROC_COUNT=9
+printf "  -->  Inplace clang-formatting all .cpp and .hpp files\n"
+find ../poprithms -iname *.[ch]pp | xargs -n 1 -P ${PROC_COUNT} clang-format -i -verbose
 
-printf "  -->  Inplace clang-formatting all .cpp files\n"
-find ../poprithms -iname *.cpp | xargs clang-format -i -verbose
-
-printf "  -->  Inplace clang-formatting all .hpp files\n"
-find ../poprithms -iname *.hpp | xargs clang-format -i -verbose
 
 printf "\nFormatting complete.\n"
 
