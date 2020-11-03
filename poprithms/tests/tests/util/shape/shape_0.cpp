@@ -1,6 +1,9 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <sstream>
+
 #include <poprithms/ndarray/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
+#include <poprithms/util/printiter.hpp>
 
 namespace {
 using namespace poprithms::ndarray;
@@ -163,6 +166,70 @@ void testPrepend() {
   }
 }
 
+void assertUnsqueeze(const Shape &a,
+                     const std::vector<uint64_t> &dims,
+                     const Shape &b) {
+  if (a.unsqueeze(dims) != b) {
+    std::ostringstream oss;
+    oss << "Error in testing unsqueeze. Expected " << a << ".unsqueeze(";
+    poprithms::util::append(oss, dims);
+    oss << ") to be " << b << ", not " << a.unsqueeze(dims);
+    throw error(oss.str());
+  }
+}
+
+void testUnsqueeze0() {
+  assertUnsqueeze({}, {}, {});
+  assertUnsqueeze({}, {0, 1}, {1, 1});
+  assertUnsqueeze({2, 3}, {}, {2, 3});
+  assertUnsqueeze({2, 3}, {0}, {1, 2, 3});
+  assertUnsqueeze({2, 3}, {0, 3}, {1, 2, 3, 1});
+  assertUnsqueeze({2, 3}, {0, 2, 4}, {1, 2, 1, 3, 1});
+  assertUnsqueeze({2, 3}, {0, 4, 3}, {1, 2, 3, 1, 1});
+}
+
+void testPadShapes0() {
+  const auto padShapes = Shape({1, 2}).getPadShapes({0, 1}, {2, 3});
+
+  // Where "xx" is the Shape being padded:
+  //
+  //  100111
+  //  100111
+  //  1xx111.
+  //
+  std::vector<std::array<Shape, 2>> expected;
+  expected.push_back({{{0, 2}, {2, 2}}});
+  expected.push_back({{{3, 1}, {3, 3}}});
+  if (padShapes != expected) {
+    std::ostringstream oss;
+    oss << "Unexpected result in testPadShapes ";
+    oss << '(';
+    for (auto padShape : padShapes) {
+      poprithms::util::append(oss, std::get<0>(padShape).get());
+      poprithms::util::append(oss, std::get<1>(padShape).get());
+    }
+    oss << ')';
+    throw error(oss.str());
+  }
+}
+
+void assertFlatten2d(const Shape &inShape, uint64_t axis, const Shape &out) {
+  if (inShape.flattenTo2d(axis) != out) {
+    std::ostringstream oss;
+    oss << "Error in assertFlatten2d. Expected " << inShape << ".flattenTo2d("
+        << axis << ") to be " << out << ", not " << inShape.flattenTo2d(axis)
+        << ".";
+    throw error(oss.str());
+  }
+}
+
+void testFlatten2d() {
+  assertFlatten2d({2, 3, 4}, 0, {1, 24});
+  assertFlatten2d({2, 3, 4}, 1, {2, 12});
+  assertFlatten2d({2, 3, 4}, 2, {6, 4});
+  assertFlatten2d({2, 3, 4}, 3, {24, 1});
+}
+
 int main() {
   testNumpyBinary0();
   testPrepend();
@@ -173,5 +240,8 @@ int main() {
   testDimProduct();
   testReverse();
   testGetRowMajorIndices();
+  testUnsqueeze0();
+  testPadShapes0();
+  testFlatten2d();
   return 0;
 }

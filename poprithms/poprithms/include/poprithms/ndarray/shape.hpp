@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_NDARRAY_SHAPE_HPP
 #define POPRITHMS_NDARRAY_SHAPE_HPP
 
+#include <array>
 #include <ostream>
 #include <vector>
 
@@ -87,6 +88,14 @@ public:
   Shape flatten() const { return Shape({nelms()}); }
 
   /**
+   * Reshape to a rank-2 Shape, where the size of the first dimension is the
+   * product of dimensions in [0, axis). Specifically, if axis = 0, the
+   * returned Shape is (1,nelms) and if axis = rank, the returned Shape is
+   * (nelms, 1).
+   * */
+  Shape flattenTo2d(uint64_t axis) const;
+
+  /**
    * \return A Shape which is the same as this, but with all `1's removed.
    *         Note that `0's are not removed.
    * */
@@ -109,6 +118,19 @@ public:
    *         returned Shape has rank 1 greater than this Shape's rank.
    * */
   Shape unsqueeze(uint64_t d) const;
+
+  /**
+   * A copy of this Shape but with 1's inserted in specific dimension.
+   *
+   * \param dims The dimensions where the output Shape will have 1's inserted.
+   *             \a dims must not contain duplicates.
+   *
+   * Example: If this is (3,4) and dims=(0,2,3) then (1,2,1,1,3,4) is returned
+   *
+   * Example: If this is (3,4) and dims=(2,3) then (3,4,1,1) is returned.
+   *
+   * */
+  Shape unsqueeze(const std::vector<uint64_t> &dims) const;
 
   /**
    * \return A copy of this Shape but with \a dim0 prepended.
@@ -328,6 +350,26 @@ public:
    * */
   std::vector<int64_t>
   getDimShuffledRowMajorIndices(const Permutation &p) const;
+
+  /**
+   * Return the Shapes of which are required to sequentially wrap
+   * this Tensor in padding, starting from from dimension 0.
+   *
+   * Example. If this Shape is (1,2), lower=(0,1),upper=(2,3), then the
+   *          return Shapes are (((0,2),(2,2)),((3,1),(3,3))). These are
+   *          illustrated below, where the 'xx' denotes this Shape.
+   *
+   *                100111
+   *                100111
+   *                1xx111.
+   *
+   * Example. If this Shape is (10,20), lower=(1,2), upper=(3,4), then the
+   *          returned Shapes are (((1,20),(3,20)),((14,2),(14,4)))
+   *
+   * */
+  std::vector<std::array<Shape, 2>>
+  getPadShapes(const std::vector<uint64_t> &lower,
+               const std::vector<uint64_t> &upper) const;
 
   /**
    * \return The row major indices in Shape resulting from expanding this

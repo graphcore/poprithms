@@ -11,8 +11,51 @@
 namespace poprithms {
 namespace ndarray {
 
+namespace {
+std::ostream &operator<<(std::ostream &ost, const std::vector<uint64_t> &x) {
+  util::append(ost, x);
+  return ost;
+}
+} // namespace
+
 uint64_t Shape::dimProduct_u64(int64_t l, int64_t u) const {
   return static_cast<uint64_t>(dimProduct(l, u));
+}
+
+Shape Shape::unsqueeze(const std::vector<uint64_t> &dims) const {
+  const auto R0 = dims.size() + rank_u64();
+  std::vector<int64_t> outShape(R0, -1);
+
+  // Set outShape to be 1 in all dimensions in dims.
+  for (auto oneDim : dims) {
+    if (oneDim >= R0) {
+      std::ostringstream oss;
+      oss << "Invalid dimensions, " << *this << ".unsqueeze(dims=" << dims
+          << "). The output shape has rank_u64() + dims.size() = "
+          << rank_u64() << " + " << dims.size() << " = " << R0
+          << ". Therefore, the dimension " << oneDim << "is too large. ";
+      throw error(oss.str());
+    }
+    if (outShape[oneDim] == 1) {
+      std::ostringstream oss;
+      oss << "Invalid dimensions, " << *this << ".unsqueeze(dims=" << dims
+          << "). Dimensions must be unique. ";
+      throw error(oss.str());
+    }
+    outShape[oneDim] = 1;
+  }
+
+  // Fill in the dimensions from this Shape
+  uint64_t index{0};
+  for (auto d : get()) {
+    while (outShape[index] == 1) {
+      ++index;
+    }
+    outShape[index] = d;
+    ++index;
+  }
+
+  return Shape(outShape);
 }
 
 void Shape::assertValidDimension(uint64_t d) const {
@@ -46,6 +89,36 @@ std::vector<int64_t> Shape::getCustomStridedRowMajorIndices(
     nToCopy *= dim(d);
   }
   return out;
+}
+
+std::vector<std::array<Shape, 2>>
+Shape::getPadShapes(const std::vector<uint64_t> &l,
+                    const std::vector<uint64_t> &u) const {
+
+  const auto R0 = rank_u64();
+
+  if (l.size() != R0 || u.size() != R0) {
+    std::ostringstream oss;
+    oss << "In getPadShapes for Shape " << *this << ", which is of rank "
+        << R0 << ". The lower and upper paddings must "
+        << "be of the same rank. But l=" << l << " has size " << l.size()
+        << ", and u=" << u << " has size " << u.size() << '.';
+    throw error(oss.str());
+  }
+
+  std::vector<std::array<Shape, 2>> shapes;
+  shapes.reserve(R0);
+  auto current = get();
+  for (uint64_t d = 0; d < R0; ++d) {
+    auto lowPad = current;
+    lowPad[d]   = l[d];
+    auto uppPad = current;
+    uppPad[d]   = u[d];
+    shapes.push_back({lowPad, uppPad});
+    current[d] = current[d] + l[d] + u[d];
+  }
+
+  return shapes;
 }
 
 std::vector<int64_t>
@@ -640,6 +713,17 @@ Shape Shape::matmul(const Shape &a, const Shape &b) {
   outShape.push_back(*(a.get().cend() - 2));
   outShape.push_back(b.get().back());
   return outShape;
+}
+
+Shape Shape::flattenTo2d(uint64_t axis) const {
+  if (axis > rank_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid axis (" << axis << ") in flattenTo2d, for Shape " << *this
+        << " which is of rank " << rank_u64() << ". "
+        << "axis must in range [0, " << axis << "].";
+    throw error(oss.str());
+  }
+  return {dimProduct(0, axis), dimProduct(axis, rank_u64())};
 }
 
 } // namespace ndarray
