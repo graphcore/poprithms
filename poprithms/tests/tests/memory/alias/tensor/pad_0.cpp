@@ -39,10 +39,8 @@ void test0() {
 
   Graph g;
   const auto alloc = g.allocate({5, 5}, /* Color = */ black);
-  const auto p0 =
-      g.pad(alloc, {1, 1}, {2, 3}, red, Graph::SinglePadElement::No);
-  const auto p1 =
-      g.pad(alloc, {0, 0}, {3, 4}, white, Graph::SinglePadElement::Yes);
+  const auto p0    = g.pad(alloc, {1, 1}, {2, 3}, red, BroadcastPadding::No);
+  const auto p1 = g.pad(alloc, {0, 0}, {3, 4}, white, BroadcastPadding::Yes);
 
   if (g.containsAliases(p0)) {
     throw error("p0 was created with no alias padding");

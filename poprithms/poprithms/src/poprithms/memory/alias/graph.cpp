@@ -1,5 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <numeric>
 #include <sstream>
@@ -15,6 +16,21 @@
 namespace poprithms {
 namespace memory {
 namespace alias {
+
+std::ostream &operator<<(std::ostream &ost, BroadcastPadding single) {
+  switch (single) {
+  case BroadcastPadding::Yes: {
+    ost << "BroadcastPadding::Yes";
+    break;
+  }
+
+  case BroadcastPadding::No: {
+    ost << "BroadcastPadding::No";
+    break;
+  }
+  }
+  return ost;
+}
 
 TensorId Graph::concat(const TensorIds &ids, uint64_t axis) {
   const auto arrShapes = getShapes(ids);
@@ -171,52 +187,49 @@ void Graph::toIdentity(TensorId src, TensorId dst) {
 
   completeInputlessReplacement<Identity>(dst, {src});
 }
-namespace {
-std::ostream &operator<<(std::ostream &ost, const std::vector<uint64_t> &x) {
-  util::append(ost, x);
-  return ost;
+
+std::vector<std::array<TensorId, 2>>
+Graph::createBroadcastPadElements(const Shape &s,
+                                  const std::vector<uint64_t> &l,
+                                  const std::vector<uint64_t> &u,
+                                  Color padColor) {
+  const auto alloc     = allocate({}, padColor);
+  const auto padShapes = s.getPadShapes(l, u);
+  std::vector<std::array<TensorId, 2>> paddings;
+  paddings.reserve(s.rank_u64());
+  for (auto [l_, u_] : padShapes) {
+    paddings.push_back({expand(alloc, l_), expand(alloc, u_)});
+  }
+  return paddings;
 }
 
-} // namespace
+std::vector<std::array<TensorId, 2>>
+Graph::createNonAliasedPadElements(const Shape &s,
+                                   const std::vector<uint64_t> &l,
+                                   const std::vector<uint64_t> &u,
+                                   Color padColor) {
+  std::vector<std::array<TensorId, 2>> paddings;
+  paddings.reserve(s.rank_u64());
+  for (auto [l_, u_] : s.getPadShapes(l, u)) {
+    paddings.push_back({allocate(l_, padColor), allocate(u_, padColor)});
+  }
+  return paddings;
+}
 
-TensorId Graph::pad(const TensorId &id,
+TensorId Graph::pad(TensorId id,
                     const std::vector<uint64_t> &l,
                     const std::vector<uint64_t> &u,
                     Color padColor,
-                    SinglePadElement singlePadElement) {
-  const auto R0 = rank_u64(id);
-  if (l.size() != rank_u64(id) || u.size() != R0) {
-    std::ostringstream oss;
-    oss << "Tensor " << id << " has Shape " << shape(id)
-        << ", and is of rank " << R0
-        << ". The lower and upper paddings must be of the same rank. "
-        << "But l = " << l << " has size " << l.size() << ", and u = " << u
-        << " has size " << u.size() << '.';
-    throw error(oss.str());
-  }
-
-  TensorId singlePadAlloc;
-  if (singlePadElement == SinglePadElement::Yes) {
-    singlePadAlloc = allocate({}, padColor);
-  }
-
-  auto getPadElement =
-      [this, padColor, singlePadElement, singlePadAlloc](const Shape &s) {
-        if (singlePadElement == SinglePadElement::Yes) {
-          return expand(singlePadAlloc, s);
-        }
-        return allocate(s, padColor);
-      };
+                    BroadcastPadding singlePadElement) {
+  auto paddingIds =
+      (singlePadElement == BroadcastPadding::Yes)
+          ? createBroadcastPadElements(shape(id), l, u, padColor)
+          : createNonAliasedPadElements(shape(id), l, u, padColor);
 
   TensorId current = id;
-  for (uint64_t d = 0; d < R0; ++d) {
-    auto lowerShape = shape(current).get();
-    auto upperShape = lowerShape;
-    lowerShape[d]   = l[d];
-    upperShape[d]   = u[d];
-    TensorIds toCat{
-        getPadElement(lowerShape), current, getPadElement(upperShape)};
-    current = concat(toCat, d);
+  for (uint64_t d = 0; d < rank_u64(id); ++d) {
+    current = concat(
+        {std::get<0>(paddingIds[d]), current, std::get<1>(paddingIds[d])}, d);
   }
   return current;
 }
@@ -461,7 +474,7 @@ void Graph::setOrigins(TensorId id) {
     }
   }
 
-  // For non-sampling Nodes, the origins are the same as the the input
+  // For non-sampling Nodes, the origins are the same as the input
   // Tensors. The input Tensor origins are guaranteed to by this point in
   // the code, as we are iterating through the Nodes in topological order.
   else {

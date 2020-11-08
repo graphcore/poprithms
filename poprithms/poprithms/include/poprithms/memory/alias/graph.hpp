@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_ALIAS_GRAPH_HPP
 #define POPRITHMS_MEMORY_ALIAS_GRAPH_HPP
+#include <array>
 #include <map>
 #include <set>
 #include <vector>
@@ -16,6 +17,17 @@ namespace memory {
 namespace alias {
 
 class Node;
+
+/// Defines whether the padding is a single, scalar Tensor, broadcast across
+/// edges, or if the padding elements are all distinct and don't contain any
+/// aliases between each other.
+/// \see Graph::pad
+enum class BroadcastPadding {
+  No = 0, ///< All elements in the padding are distinct allocations
+  Yes     ///< All elements in the padding are aliases of a single scalar
+};
+
+std::ostream &operator<<(std::ostream &, BroadcastPadding);
 
 /**
  * A directed acyclic graph (DAG) where the nodes represent Tensors, and the
@@ -131,17 +143,12 @@ public:
    *
    * \param padColor The color of the padding. This can be used, for example,
    *                 to distinguish between constant and non-constant padding.
-   *
-   * \param singlePadElement If true, the a single scalar Tensor will be
-   *                         broadcast and used for all padding. If false, the
-   *                         padding will not contain any self-aliases.
    * */
-  enum class SinglePadElement { Yes, No };
-  TensorId pad(const TensorId &id,
+  TensorId pad(TensorId id,
                const std::vector<uint64_t> &lowerPadding,
                const std::vector<uint64_t> &upperPadding,
                Color padColor,
-               SinglePadElement singlePadElement);
+               BroadcastPadding);
 
   Tensor tensor(TensorId id) { return {id, this}; }
 
@@ -453,6 +460,18 @@ private:
   void setOrigins(TensorId id);
 
   std::vector<Shape> getShapes(const TensorIds &) const;
+
+  std::vector<std::array<TensorId, 2>>
+  createBroadcastPadElements(const Shape &,
+                             const std::vector<uint64_t> &lowers,
+                             const std::vector<uint64_t> &uppers,
+                             Color padColor);
+
+  std::vector<std::array<TensorId, 2>>
+  createNonAliasedPadElements(const Shape &,
+                              const std::vector<uint64_t> &lowers,
+                              const std::vector<uint64_t> &uppers,
+                              Color padColor);
 
   template <Direction D, class F>
   TensorIds depthFirst(TensorId x0, F &&f) const;
