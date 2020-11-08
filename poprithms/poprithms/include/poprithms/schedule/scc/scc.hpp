@@ -41,8 +41,18 @@ enum class IncludeSingletons { No = 0, Yes };
  *              included in the summary.
  * */
 std::string getSummary(const FwdEdges &edges,
-                       std::vector<std::string> &debugStrings,
+                       const std::vector<std::string> &debugStrings,
                        IncludeSingletons sings);
+
+/**
+ * Same as getSummary, but the node ids are int64_t.
+ *
+ * \sa getSummary
+ * */
+using FwdEdges_i64 = std::vector<std::vector<int64_t>>;
+std::string getSummary_i64(const FwdEdges_i64 &,
+                           const std::vector<std::string> &debugStrings,
+                           IncludeSingletons);
 
 } // namespace scc
 } // namespace schedule

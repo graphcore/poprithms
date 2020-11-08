@@ -143,7 +143,7 @@ uint64_t maxLength(const std::vector<std::string> &strs) {
 // >    32_epsilon 4     (2)
 //
 std::string getSummary(const FwdEdges &edges,
-                       std::vector<std::string> &dbs,
+                       const std::vector<std::string> &dbs,
                        IncludeSingletons singletons) {
   if (dbs.size() != edges.size()) {
     std::ostringstream oss;
@@ -182,6 +182,22 @@ std::string getSummary(const FwdEdges &edges,
     }
   }
   return oss.str();
+}
+
+template <typename F, typename T>
+std::vector<std::vector<T>> translate(const std::vector<std::vector<F>> &f) {
+  std::vector<std::vector<T>> t;
+  t.reserve(f.size());
+  for (const auto &v : f) {
+    t.push_back({v.cbegin(), v.cend()});
+  }
+  return t;
+}
+
+std::string getSummary_i64(const FwdEdges_i64 &edges_i64,
+                           const std::vector<std::string> &dbs,
+                           IncludeSingletons singletons) {
+  return getSummary(translate<int64_t, uint64_t>(edges_i64), dbs, singletons);
 }
 
 } // namespace scc
