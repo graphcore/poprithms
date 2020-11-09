@@ -452,6 +452,52 @@ std::vector<int64_t> Shape::getSlicedRowMajorIndices(const Lower &l,
   return indices;
 }
 
+std::vector<int64_t>
+Shape::gatherRowMajorIndices(uint64_t dimension,
+                             const std::vector<int64_t> &where) const {
+  if (dimension >= rank_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid dimension (" << dimension << ") for Shape " << *this
+        << ", dimension must be less than rank (" << rank_u64() << ").";
+    throw error(oss.str());
+  }
+
+  for (auto w : where) {
+    if (w >= dim(dimension)) {
+      std::ostringstream oss;
+      oss << "Invalid gather index (" << w << ") along dimension "
+          << dimension << ", for Shape " << *this << ", which has size "
+          << dim(dimension) << " along dimension " << dimension
+          << ". Gather indices must be less than this, but " << w
+          << " >= " << dim(dimension) << ". ";
+      throw error(oss.str());
+    }
+  }
+
+  const auto outerSize = dimProduct(0, dimension);
+  const auto innerSize = dimProduct(dimension + 1, rank_u64());
+
+  std::vector<int64_t> indices;
+  indices.reserve(outerSize * innerSize * dim(dimension));
+
+  for (int64_t outerIndex = 0; outerIndex < outerSize; ++outerIndex) {
+    for (auto w : where) {
+      int64_t baseIndex = (w + dim(dimension) * outerIndex) * innerSize;
+      for (int64_t innerIndex = 0; innerIndex < innerSize; ++innerIndex) {
+        indices.push_back(baseIndex + innerIndex);
+      }
+    }
+  }
+
+  return indices;
+}
+
+std::vector<int64_t>
+Shape::gatherColMajorIndices(uint64_t dimension,
+                             const std::vector<int64_t> &where) const {
+  return reverse().gatherRowMajorIndices(rank_u64() - dimension - 1, where);
+}
+
 std::vector<int64_t> Shape::getSlicedColMajorIndices(const Lower &l,
                                                      const Upper &u) const {
   auto l2 = l;

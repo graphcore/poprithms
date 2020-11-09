@@ -337,6 +337,43 @@ public:
                                                 const Upper &u) const;
 
   /**
+   * Gather slices of the row major indices of this Shape
+   *
+   * The slices are of width 1 on axis \a dimension, at positions \a where.
+   *
+   * The indices returned correspond to the Shape which is identical to this
+   * Shape, except in axis \a dimension where it has a size equal to the
+   * number of indices in \a where. As an example, if this Shape is (3,5),
+   * dimension is 1, and where is {2,2,1,4}, the returned indices is of size
+   * equal to 3 * 4 = 12.
+   *
+   * As another example, if this=(3,3), axis = 1, where = {0,2}, then the
+   * returned indices are (0,2,3,5,6,8), corresponding to the slices:
+   *
+   *   +-----+   +-----+
+   *   |  0  | 1 |  2  |
+   *   |     |   |     |
+   *   |  3  | 4 |  5  |
+   *   |     |   |     |
+   *   |  6  | 7 |  8  |
+   *   +-----+   +-----+
+   *
+   * The indices in \a where may be duplicated and do not need to be ordered.
+   * */
+  std::vector<int64_t>
+  gatherRowMajorIndices(uint64_t dimension,
+                        const std::vector<int64_t> &where) const;
+
+  /**
+   * Gather slices of the column major indices of this Shape
+   *
+   * \sa Shape::gatherColMajorIndices
+   * */
+  std::vector<int64_t>
+  gatherColMajorIndices(uint64_t dimension,
+                        const std::vector<int64_t> &where) const;
+
+  /**
    * \return The row major indices in the Shape resulting from applying
    *         Permutation \a p to this Shape.
    *
