@@ -58,6 +58,40 @@ Tensor Tensor::copy(DType t, const Shape &s, const void *vp) {
   return typeSwitch<Caster, Tensor>(t, s, vp);
 }
 
+Tensor Tensor::to(DType t) const {
+  switch (t) {
+  case DType::Boolean:
+    return toBoolean();
+  case DType::Int8:
+    return toInt8();
+  case DType::Unsigned8:
+    return toUnsigned8();
+  case DType::Int16:
+    return toInt16();
+  case DType::Unsigned16:
+    return toUnsigned16();
+  case DType::Int32:
+    return toInt32();
+  case DType::Unsigned32:
+    return toUnsigned32();
+  case DType::Int64:
+    return toInt64();
+  case DType::Unsigned64:
+    return toUnsigned64();
+  case DType::Float16:
+    return toFloat16();
+  case DType::Float32:
+    return toFloat32();
+  case DType::Float64:
+    return toFloat64();
+  case DType::N: {
+    throw error("\"N\" is not a valid DType to cast to");
+  }
+  default:
+    throw error("unrecognised DType");
+  }
+}
+
 class Tensor::ScalarCaster {
 public:
   template <typename T> static Tensor go(const double v) {

@@ -538,6 +538,11 @@ public:
    * */
   std::vector<char> getNativeCharVector() const;
 
+  /**
+   * Cast this Tensor to one of DType \a type
+   * */
+  Tensor to(DType type) const;
+
 private:
   // get the BaseData for each Tensor in tIns.
   static std::vector<const BaseData *> getBaseDataPtrs(const Tensors &tIns);
