@@ -172,6 +172,12 @@ public:
     return toOriginData()->slice(from, l, u);
   }
 
+  BaseDataSP gather(const Shape &from,
+                    uint64_t dimension,
+                    const std::vector<int64_t> &where) const final {
+    return toOriginData()->gather(from, dimension, where);
+  }
+
   BaseDataSP
   slice_(const Shape &from, const Lower &l, const Upper &u) const final {
     return std::make_shared<ViewData<T>>(
@@ -180,6 +186,17 @@ public:
             {from, rowMajorOriginDataIndices.data()}, l, u),
         ViewChange<int64_t>::slice(
             {from, rowMajorOriginDataOffsets.data()}, l, u));
+  }
+
+  BaseDataSP gather_(const Shape &from,
+                     uint64_t dimension,
+                     const std::vector<int64_t> &where) const final {
+    return std::make_shared<ViewData<T>>(
+        origins(),
+        ViewChange<uint64_t>::gather(
+            {from, rowMajorOriginDataIndices.data()}, dimension, where),
+        ViewChange<int64_t>::gather(
+            {from, rowMajorOriginDataOffsets.data()}, dimension, where));
   }
 
   BaseDataSP expand_(const Shape &from, const Shape &to) const final {

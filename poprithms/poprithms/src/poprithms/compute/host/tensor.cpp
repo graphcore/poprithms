@@ -328,6 +328,19 @@ Tensor Tensor::slice_(const Lower &l, const Upper &u) const {
   return {shape().slice(l, u), dtype(), tData().slice_(shape(), l, u)};
 }
 
+Tensor Tensor::gather(uint64_t dimension,
+                      const std::vector<int64_t> &where) const {
+  return {shape().resizeSingleDim(where.size(), dimension),
+          dtype(),
+          tData().gather(shape(), dimension, where)};
+}
+Tensor Tensor::gather_(uint64_t dimension,
+                       const std::vector<int64_t> &where) const {
+  return {shape().resizeSingleDim(where.size(), dimension),
+          dtype(),
+          tData().gather_(shape(), dimension, where)};
+}
+
 bool Tensor::containsAliases() const { return tData().containsAliases(); }
 
 // get the BaseData for each Tensor in tIns.

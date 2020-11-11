@@ -31,10 +31,19 @@ void dimShuffleTest1() {
   diff.assertAllEquivalent(Tensor::int32(0));
 }
 
+void gatherTest0() {
+  const auto t0 = Tensor::arangeInt16(0, 2 * 3 * 5, 1);
+  const auto r0 = t0.reshape({2, 3, 5});
+  // 20 22 22
+  const auto g0 = r0.gather(1, {1}).gather(2, {0, 2, 2}).gather(0, {1});
+  g0.assertAllEquivalent(Tensor::int16({3}, {20, 22, 22}));
+}
+
 } // namespace
 
 int main() {
   dimShuffleTest0();
   dimShuffleTest1();
+  gatherTest0();
   return 0;
 }

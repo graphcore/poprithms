@@ -134,14 +134,17 @@ public:
    *          the bounds \a u and \a l. */
   static std::vector<Number>
   slice(const Data &input, const Lower &l, const Upper &u) {
+    return fromIndices(input, input.shape.getSlicedRowMajorIndices(l, u));
+  }
 
-    auto indices = input.shape.getSlicedRowMajorIndices(l, u);
-    std::vector<Number> out;
-    out.reserve(indices.size());
-    for (auto i : indices) {
-      out.push_back(input.data[static_cast<uint64_t>(i)]);
-    }
-    return out;
+  /** \return values in row-major order obtained by gathering and
+   *          concatenating all slices in dimension \a dimension at indices \a
+   *          where */
+  static std::vector<Number> gather(const Data &input,
+                                    uint64_t dimension,
+                                    const std::vector<int64_t> &where) {
+    return fromIndices(input,
+                       input.shape.gatherRowMajorIndices(dimension, where));
   }
 
   /** \return values in row-major order obtained by concatenating arrays with
@@ -194,6 +197,17 @@ public:
       src += nToCopy;
     }
     return vOut;
+  }
+
+private:
+  static std::vector<Number>
+  fromIndices(const Data &input, const std::vector<int64_t> &indices) {
+    std::vector<Number> out;
+    out.reserve(indices.size());
+    for (auto i : indices) {
+      out.push_back(input.data[static_cast<uint64_t>(i)]);
+    }
+    return out;
   }
 };
 

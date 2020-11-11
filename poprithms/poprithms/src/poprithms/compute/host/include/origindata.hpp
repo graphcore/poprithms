@@ -79,10 +79,25 @@ public:
         ViewChange<T>::slice({from, dataPtr()}, l, u));
   }
 
+  BaseDataSP gather(const Shape &from,
+                    uint64_t dimension,
+                    const std::vector<int64_t> &where) const final {
+    return std::make_shared<AllocData<T>>(
+        ViewChange<T>::gather({from, dataPtr()}, dimension, where));
+  }
+
   BaseDataSP
   slice_(const Shape &from, const Lower &l, const Upper &u) const final {
     return std::make_shared<ViewData<T>>(this->shared_from_this(),
                                          from.getSlicedRowMajorIndices(l, u));
+  }
+
+  BaseDataSP gather_(const Shape &from,
+                     uint64_t dimension,
+                     const std::vector<int64_t> &indices) const final {
+    return std::make_shared<ViewData<T>>(
+        this->shared_from_this(),
+        from.gatherRowMajorIndices(dimension, indices));
   }
 
   BaseDataSP dimShuffle(const Shape &from, const Permutation &p) const final {

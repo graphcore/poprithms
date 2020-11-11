@@ -287,6 +287,13 @@ Shape Shape::broadcast(int64_t N, uint64_t dimension) const {
   return s;
 }
 
+Shape Shape::resizeSingleDim(int64_t N, uint64_t dimension) const {
+  assertValidDimension(dimension);
+  auto s       = get();
+  s[dimension] = N;
+  return s;
+}
+
 Shape Shape::unsqueeze(uint64_t d) const {
   assertValidDimension(d);
   auto s = get();

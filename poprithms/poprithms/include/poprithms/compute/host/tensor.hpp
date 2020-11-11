@@ -440,6 +440,22 @@ public:
   Tensor slice(const Lower &l, const Upper &u) const;
   Tensor slice_(const Lower &l, const Upper &u) const;
 
+  /**
+   * Slice and concatenate this Tensor along axis \a dimension, and at indices
+   * \a where. For example, if this Tensor is
+   *
+   *   [[ 0 1
+   *      2 3 ]]
+   *
+   * then gathering along dimension=1 at indices where={0,0,1,0}, creates
+   * Tensor,
+   *
+   *   [[ 0 0 1 0
+   *      2 2 3 2 ]].
+   * */
+  Tensor gather(uint64_t dimension, const std::vector<int64_t> &where) const;
+  Tensor gather_(uint64_t dimension, const std::vector<int64_t> &where) const;
+
   /** A generalization of a matrix transpose. */
   Tensor dimShuffle(const Permutation &) const;
   Tensor dimShuffle_(const Permutation &) const;
