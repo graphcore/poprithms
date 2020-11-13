@@ -13,12 +13,12 @@ std::ostream &operator<<(std::ostream &ost, AliasType t) {
 
 void AliasType::append(std::ostream &ost) const {
   switch (type_) {
-  case TypeEnum::Out: {
+  case TypeEnum::Outplace: {
     ost << "Outplace";
     break;
   }
-  case TypeEnum::All: {
-    ost << "All";
+  case TypeEnum::AllInplace: {
+    ost << "AllInplace";
     break;
   }
   case TypeEnum::Binary0: {
@@ -29,6 +29,18 @@ void AliasType::append(std::ostream &ost) const {
     ost << "Binary1";
     break;
   }
+  case TypeEnum::None: {
+    ost << "None";
+    break;
+  }
+  }
+}
+
+void AliasType::assertZeroOrOne(uint64_t index) {
+  if (index != 0 && index != 1) {
+    std::ostringstream oss;
+    oss << "index=" << index << " is not valid, expected 0 or 1.";
+    throw error(oss.str());
   }
 }
 

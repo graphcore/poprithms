@@ -55,7 +55,7 @@ int64_t smallestCommonMultiple_i64(int64_t a, int64_t b);
  *
  * stripes = {{on=5,off=3,phase=1},     2 nested Stripes. The second Stripe is
  *            {on=2,off=1,phase=0}.     nested within the first, and its
- * .11.11...11.11...11.11...11.11       phase is relative the the first's.
+ * .11.11...11.11...11.11...11.11       phase is relative to the first's.
  *
  * Note that nesting of Stripes is not intersection of Stripes. The second
  * Stripe above is "restarted" every time the first (nesting Stripe

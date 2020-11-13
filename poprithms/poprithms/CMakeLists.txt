@@ -168,8 +168,16 @@ set(memory_alias_sources
 
 set(memory_inplace_sources
        ${memory_src_dir}/inplace/aliastype.cpp
+       ${memory_src_dir}/inplace/consumer.cpp
        ${memory_src_dir}/inplace/error.cpp
+       ${memory_src_dir}/inplace/graph.cpp
        ${memory_src_dir}/inplace/logging.cpp
+       ${memory_src_dir}/inplace/op.cpp
+       ${memory_src_dir}/inplace/ops.cpp
+       ${memory_src_dir}/inplace/proposal.cpp
+       ${memory_src_dir}/inplace/result.cpp
+       ${memory_src_dir}/inplace/tensorid.cpp
+       ${memory_src_dir}/inplace/tensormap.cpp
 )
 
 

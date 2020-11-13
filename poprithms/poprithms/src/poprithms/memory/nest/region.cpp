@@ -614,7 +614,7 @@ DisjointRegions DisjointRegions::reduce(const Shape &outShape) const {
   // .11..11..11.   should reduce to,
   // 111.111.111.   .
   //
-  // i.e. the reduction is the intersection the the reduced Regions.
+  // i.e. the reduction is the intersection of the reduced Regions.
 
   DisjointRegions outRegs(outShape, std::vector<Region>{});
   for (const auto &toReduce : get()) {
