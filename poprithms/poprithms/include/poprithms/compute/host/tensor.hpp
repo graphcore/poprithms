@@ -478,6 +478,9 @@ public:
   Tensor divide(const Tensor &rhs) const;
   Tensor divide_(const Tensor &rhs) const;
 
+  Tensor mod(const Tensor &rhs) const;
+  Tensor mod_(const Tensor &rhs) const;
+
   /** These elementwise binary operations return Tensors of type Boolean. */
   Tensor operator<(const Tensor &rhs) const;
   Tensor operator<=(const Tensor &rhs) const;
@@ -495,6 +498,9 @@ public:
 
   Tensor floor() const;
   Tensor floor_() const;
+
+  Tensor mod(int64_t modulo) const;
+  Tensor mod_(int64_t modulo) const;
 
   Tensor sqrt() const;
   Tensor sqrt_() const;
@@ -620,6 +626,7 @@ Tensor operator+(const Tensor &a, const Tensor &b);
 Tensor operator-(const Tensor &a, const Tensor &b);
 Tensor operator*(const Tensor &a, const Tensor &b);
 Tensor operator/(const Tensor &a, const Tensor &b);
+Tensor operator%(const Tensor &a, const Tensor &b);
 
 Tensor concat_(const std::vector<Tensor> &, uint64_t axis);
 Tensor concat(const std::vector<Tensor> &, uint64_t axis);

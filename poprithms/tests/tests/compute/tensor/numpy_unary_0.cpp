@@ -38,6 +38,10 @@ void testFloor() {
       Tensor::int64(3).ceil().ceil_().ceil());
 }
 
+void testMod() {
+  Tensor::float16(6.5f).mod(3).assertAllEquivalent(Tensor::float32(0.5));
+}
+
 } // namespace
 
 int main() {
@@ -46,6 +50,7 @@ int main() {
   testAbs();
   testCeil();
   testFloor();
+  testMod();
 
   return 0;
 }

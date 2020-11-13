@@ -84,6 +84,7 @@ public:
   virtual BaseDataSP add(const BaseData &) const      = 0;
   virtual BaseDataSP mul(const BaseData &) const      = 0;
   virtual BaseDataSP divide(const BaseData &) const   = 0;
+  virtual BaseDataSP mod(const BaseData &) const      = 0;
   virtual BaseDataSP subtract(const BaseData &) const = 0;
 
   /**
@@ -101,6 +102,7 @@ public:
    * The argument must be of the same size and type as this BaseData.
    * */
   virtual void divide_(const BaseData &) const   = 0;
+  virtual void mod_(const BaseData &) const      = 0;
   virtual void subtract_(const BaseData &) const = 0;
   virtual void add_(const BaseData &) const      = 0;
   virtual void mul_(const BaseData &) const      = 0;

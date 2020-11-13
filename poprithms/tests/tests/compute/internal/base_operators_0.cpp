@@ -5,6 +5,7 @@
 // found at compile time because we have explicitly set the path to its
 // directory in a parent CMakeLists.txt file.
 #include "baseoperators.hpp"
+#include "ieeehalf.hpp"
 
 namespace {
 
@@ -56,6 +57,16 @@ void test0() {
   // Sqrt
   confirmUnary(9.0, Sqrt<double>()(9.0), 3.0, "Sqrt");
   confirmUnary(5, Sqrt<int>()(5), 2, "Sqrt");
+
+  // Modder
+  confirmUnary(7.5, Modder<double>()(7.5, 3), 1.5, "Mod");
+  confirmUnary(7, Modder<int>()(7, 3), 1, "Mod");
+  confirmUnary(true, Modder<bool>()(true, true), false, "Mod");
+  confirmUnary(6., Modder<double>()(6, 3), 0., "Mod");
+  confirmUnary(6, Modder<int>()(6, 3), 0, "Mod");
+  confirmUnary(-8.5, Modder<double>()(-8.5, 3), -2.5, "Mod");
+  confirmUnary(-9.5, Modder<double>()(-9.5, 3), -0.5, "Mod");
+  confirmUnary(-7, Modder<int>()(-7, 3), -1, "Mod");
 
   // Ceil
   confirmUnary(9.01, Ceil<double>()(9.01), 10.0, "Ceil");

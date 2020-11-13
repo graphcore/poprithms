@@ -234,6 +234,25 @@ public:
   static std::string name() { return name_<bool>("Sqrt"); }
 };
 
+template <typename T, class Enable = void> class Modder {};
+
+template <class T>
+class Modder<T,
+             typename std::enable_if_t<std::is_floating_point_v<T> ||
+                                       std::is_same<T, IeeeHalf>::value>> {
+public:
+  Modder() {}
+  T operator()(T a, T b) const { return std::fmod(a, b); }
+  static std::string name() { return name_<T>("Modder"); }
+};
+
+template <class T>
+class Modder<T, typename std::enable_if_t<std::is_integral_v<T>>> {
+public:
+  T operator()(T a, T b) const { return a % b; }
+  static std::string name() { return name_<T>("Modder"); }
+};
+
 } // namespace host
 } // namespace compute
 } // namespace poprithms

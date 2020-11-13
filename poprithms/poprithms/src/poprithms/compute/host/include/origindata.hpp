@@ -192,6 +192,9 @@ public:
   BaseDataSP divide(const BaseData &rhs) const final {
     return binary<Divider<T>>(rhs);
   }
+  BaseDataSP mod(const BaseData &rhs) const final {
+    return binary<Modder<T>>(rhs);
+  }
   BaseDataSP subtract(const BaseData &rhs) const final {
     return binary<Subtracter<T>>(rhs);
   }
@@ -217,6 +220,7 @@ public:
     binary_<Subtracter<T>>(rhs);
   }
   void divide_(const BaseData &rhs) const final { binary_<Divider<T>>(rhs); }
+  void mod_(const BaseData &rhs) const final { binary_<Modder<T>>(rhs); }
   void mul_(const BaseData &rhs) const final { binary_<Multiplier<T>>(rhs); }
 
   bool allZero() const final {
@@ -240,8 +244,9 @@ public:
   }
 
 private:
-  template <class UnaryOp> BaseDataSP unary() const {
-    const UnaryOp op;
+  template <class UnaryOp, class... Args>
+  BaseDataSP unary(Args... args) const {
+    const UnaryOp op(args...);
     Vec out(nelms_u64());
 
     const auto *srcBegin = dataPtr();
@@ -252,8 +257,8 @@ private:
     return std::make_shared<AllocData<T>>(std::move(out));
   }
 
-  template <class UnaryOp> void unary_() const {
-    const UnaryOp op;
+  template <class UnaryOp, class... Args> void unary_(Args... args) const {
+    const UnaryOp op(args...);
     std::for_each(
         dataPtr(), dataPtr() + nelms_u64(), [op](auto &x) { x = op(x); });
   }

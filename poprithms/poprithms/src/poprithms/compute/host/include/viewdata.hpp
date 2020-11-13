@@ -300,6 +300,9 @@ public:
   BaseDataSP divide(const BaseData &rhs) const final {
     return toOriginData()->divide(rhs);
   }
+  BaseDataSP mod(const BaseData &rhs) const final {
+    return toOriginData()->mod(rhs);
+  }
   BaseDataSP subtract(const BaseData &rhs) const final {
     return toOriginData()->subtract(rhs);
   }
@@ -343,6 +346,8 @@ public:
 
   void divide_(const BaseData &rhs) const final { binary_<Divider<T>>(rhs); }
 
+  void mod_(const BaseData &rhs) const final { binary_<Modder<T>>(rhs); }
+
   void mul_(const BaseData &rhs) const final { binary_<Multiplier<T>>(rhs); }
 
   bool containsAliases() const final {
@@ -350,14 +355,13 @@ public:
   }
 
 private:
-  template <class UnaryOp> void unary_() const {
+  template <class UnaryOp, class... Args> void unary_(Args... args) const {
 
     // get all unique elements (remove duplicates) in origins, and apply the
     // UnaryOp to them. Note that this behaviour is unlike poplar, where an
     // error is thrown if a Tensor contains aliases.
-    const UnaryOp op;
-    const auto singles =
-        GridPointHelper::getUnique(indices(), offsets()); // nOriginDatas());
+    const UnaryOp op(args...);
+    const auto singles = GridPointHelper::getUnique(indices(), offsets());
 
     std::for_each(singles.cbegin(), singles.cend(), [this, op](auto single) {
       auto index  = std::get<0>(single);
@@ -387,8 +391,9 @@ private:
     }
   }
 
-  template <class UnaryOp> std::vector<T> unaryVector() const {
-    const UnaryOp op;
+  template <class UnaryOp, class... Args>
+  std::vector<T> unaryVector(Args... args) const {
+    const UnaryOp op(args...);
     std::vector<T> out(nelms_u64());
     for (uint64_t i = 0; i < out.size(); ++i) {
       out[i] = op(*dataPtr(i));
@@ -396,8 +401,9 @@ private:
     return out;
   }
 
-  template <class UnaryOp> BaseDataSP unary() const {
-    return std::make_shared<AllocData<T>>(unaryVector<UnaryOp>());
+  template <class UnaryOp, class... Args>
+  BaseDataSP unary(Args... args) const {
+    return std::make_shared<AllocData<T>>(unaryVector<UnaryOp>(args...));
   }
 
   template <typename To> std::vector<To> getVector() const {

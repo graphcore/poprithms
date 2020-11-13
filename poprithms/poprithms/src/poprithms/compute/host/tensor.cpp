@@ -229,6 +229,15 @@ Tensor Tensor::divide_(const Tensor &rhs) const {
   return *this;
 }
 
+Tensor Tensor::mod(const Tensor &rhs) const {
+  auto co = getRowMajorPair(*this, rhs);
+  return {co.shape, dtype(), co.arg0.tData().mod(co.arg1.tData())};
+}
+Tensor Tensor::mod_(const Tensor &rhs) const {
+  tData().mod_(getArg1InplaceTarget(rhs, shape()).tData());
+  return *this;
+}
+
 Tensor Tensor::operator<=(const Tensor &rhs) const {
   auto co = getRowMajorPair(*this, rhs);
   return {co.shape,
@@ -271,9 +280,15 @@ Tensor Tensor::abs_() const {
 
 Tensor Tensor::sqrt() const { return {shape(), dtype(), tData().sqrt()}; }
 Tensor Tensor::sqrt_() const {
-
   tData().sqrt_();
   return *this;
+}
+
+Tensor Tensor::mod(int64_t modulo) const {
+  return mod(Tensor::int64(modulo).to(dtype()));
+}
+Tensor Tensor::mod_(int64_t modulo) const {
+  return mod_(Tensor::int64(modulo).to(dtype()));
 }
 
 Tensor Tensor::ceil() const { return {shape(), dtype(), tData().ceil()}; }
@@ -406,6 +421,7 @@ Tensor operator+(const Tensor &a, const Tensor &b) { return a.add(b); }
 Tensor operator-(const Tensor &a, const Tensor &b) { return a.subtract(b); }
 Tensor operator*(const Tensor &a, const Tensor &b) { return a.mul(b); }
 Tensor operator/(const Tensor &a, const Tensor &b) { return a.divide(b); }
+Tensor operator%(const Tensor &a, const Tensor &b) { return a.mod(b); }
 
 // numerical type specific templates:
 
