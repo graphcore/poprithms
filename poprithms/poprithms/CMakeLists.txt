@@ -215,17 +215,6 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
-add_library(poprithms-static STATIC
-  $<TARGET_OBJECTS:poprithms-compute-host-objlib>
-  $<TARGET_OBJECTS:poprithms-schedule-objlib>
-  $<TARGET_OBJECTS:poprithms-outline-objlib>
-  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
-  $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
-  $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
-  $<TARGET_OBJECTS:poprithms-util-objlib>
-)
-
-
 list(APPEND POPRITHMS_COMMON_INCLUDES ${Boost_INCLUDE_DIR})
 
 set(POPRITHMS_COMMON_LIBRARIES ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
@@ -250,8 +239,7 @@ foreach(tgt IN ITEMS
   poprithms-memory-inplace
   poprithms-util-objlib
   poprithms-util
-  poprithms
-  poprithms-static)
+  poprithms)
 
   target_include_directories (${tgt} SYSTEM PRIVATE ${POPRITHMS_COMMON_INCLUDES})
   target_link_libraries(${tgt} PRIVATE ${POPRITHMS_COMMON_LIBRARIES})
@@ -278,22 +266,3 @@ install(DIRECTORY "include/poprithms"
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/poprithms-config.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms
         COMPONENT poprithms)
-
-install(TARGETS poprithms-static
-        EXPORT poprithmsStaticTargets
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        COMPONENT poprithms-static)
-
-install(EXPORT poprithmsStaticTargets
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms-static
-        FILE poprithms-static-targets.cmake
-        COMPONENT poprithms-static)
-
-install(DIRECTORY "include/poprithms"
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        COMPONENT poprithms-static)
-
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/poprithms-static-config.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms-static
-        COMPONENT poprithms-static)
-

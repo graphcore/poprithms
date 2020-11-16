@@ -40,5 +40,3 @@ add_subdirectory(verify_cxx_11_interface)
 
 add_subdirectory(boost_free_interface)
 
-#Test(s) where poprithms is linked statically
-add_subdirectory(staticlib)
