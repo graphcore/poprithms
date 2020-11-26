@@ -6,14 +6,17 @@
 #include "./include/pointerdata.hpp"
 #include "./include/typeswitch.hpp"
 #include "./include/viewdata.hpp"
-#include "poprithms/ndarray/dtype.hpp"
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <random>
+#include <sstream>
 
 #include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/ndarray/dtype.hpp>
+#include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace compute {
@@ -30,6 +33,13 @@ Shapes Tensor::getShapes(const Tensors &tensors) {
     shapes_.push_back(t.shape());
   }
   return shapes_;
+}
+
+Tensor Tensor::flattenTo2d(uint64_t axis) const {
+  return reshape({shape().flattenTo2d(axis)});
+}
+Tensor Tensor::flattenTo2d_(uint64_t axis) const {
+  return reshape_({shape().flattenTo2d(axis)});
 }
 
 Tensor Tensor::squeeze(const std::vector<uint64_t> &dims) const {
@@ -917,6 +927,175 @@ Tensor Tensor::boolean(bool f) { return boolean({}, {f}); }
 
 std::vector<bool> Tensor::getBooleanVector() const {
   return tData().getBoolVector();
+}
+
+namespace {
+
+enum class BinaryType {
+  Div = 0,
+  Add,
+  Sub,
+  Mod,
+  Mul,
+  Pow,
+  /* number of types in this enum: */ N
+};
+constexpr auto NBinaryTypes = static_cast<uint64_t>(BinaryType::N);
+
+const std::map<std::string, BinaryType> &getBinaryTypes() {
+  const static std::map<std::string, BinaryType> types{
+      {"mul", BinaryType::Mul},
+      {"div", BinaryType::Div},
+      {"sub", BinaryType::Sub},
+      {"add", BinaryType::Add},
+      {"pow", BinaryType::Pow},
+      {"mod", BinaryType::Mod}};
+
+  // Logic check to catch obvious errors.
+  if (types.size() != NBinaryTypes) {
+    std::ostringstream oss;
+    oss << "There are " << NBinaryTypes << " types in the BinaryType enum. "
+        << "But the number of entries os the map from them to strings is "
+        << types.size() << ". They should match.";
+    throw error(oss.str());
+  }
+
+  return types;
+}
+
+using BinaryNames =
+    std::array<std::string, static_cast<uint64_t>(BinaryType::N)>;
+
+BinaryNames createBinaryNames() {
+  BinaryNames names;
+
+  const std::string unset = "none";
+
+  for (auto &n : names) {
+    n = unset;
+  }
+  const auto &types = getBinaryTypes();
+  for (const auto &[name, type] : types) {
+    names[static_cast<uint64_t>(type)] = name;
+  }
+
+  // Confirm that all BinaryTypes have a name now:
+  for (const auto &n : names) {
+    if (n == unset) {
+      std::ostringstream oss;
+      oss << "Failed to give all types in BinaryType a corresponding string. "
+          << "Incomplete implementation. ";
+      throw error(oss.str());
+    }
+  }
+  return names;
+}
+
+const BinaryNames &getBinaryNames() {
+  const static auto names = createBinaryNames();
+  return names;
+}
+
+std::string getString(BinaryType t) {
+  const auto &names = getBinaryNames();
+  return names[static_cast<uint64_t>(t)];
+}
+std::ostream &operator<<(std::ostream &ost, BinaryType t) {
+  ost << getString(t);
+  return ost;
+}
+
+std::string getCanonical(const std::string &x) {
+  // make the name lower case:
+  auto l = poprithms::util::lowercase(x);
+  if (l == "multiply") {
+    l = "mul";
+  }
+  if (l == "divide") {
+    l = "div";
+  }
+  if (l == "subtract") {
+    l = "sub";
+  }
+  return l;
+}
+BinaryType getBinaryType(const std::string &x) {
+  const auto l      = getCanonical(x);
+  const auto &names = getBinaryNames();
+  const auto &types = getBinaryTypes();
+  const auto found  = types.find(l);
+  if (found == types.cend()) {
+    std::ostringstream oss;
+    oss << "Failed to find " << x << " (or canonical form, " << l << ")"
+        << " in the map of supported binary types: ";
+    util::append(oss, std::vector{names.cbegin(), names.cend()});
+    throw error(oss.str());
+  }
+  return found->second;
+}
+
+} // namespace
+
+Tensor Tensor::binary(const std::string &opType, const Tensor &b) const {
+  const auto ot = getBinaryType(opType);
+  switch (ot) {
+  case BinaryType::Mul:
+    return mul(b);
+  case BinaryType::Div:
+    return divide(b);
+  case BinaryType::Add:
+    return add(b);
+  case BinaryType::Sub:
+    return subtract(b);
+  case BinaryType::Mod:
+    return mod(b);
+  case BinaryType::Pow:
+    return pow(b);
+  default: {
+    std::ostringstream oss;
+    oss << "Failed to map BinaryType::" << ot
+        << " to a host Tensor API call in binary. ";
+    throw error(oss.str());
+  }
+  }
+}
+
+Tensor Tensor::binary_(const std::string &opType, const Tensor &b) const {
+  const auto ot = getBinaryType(opType);
+  switch (ot) {
+  case BinaryType::Mul:
+    return mul_(b);
+  case BinaryType::Div:
+    return divide_(b);
+  case BinaryType::Add:
+    return add_(b);
+  case BinaryType::Sub:
+    return subtract_(b);
+  case BinaryType::Mod:
+    return mod_(b);
+  case BinaryType::Pow:
+    return pow_(b);
+  default: {
+    std::ostringstream oss;
+    oss << "Failed to map BinaryType::" << ot
+        << " to a host Tensor API call in binary_. ";
+    throw error(oss.str());
+  }
+  }
+}
+
+bool Tensor::isBinary(const std::string &x) {
+  const auto &types = getBinaryTypes();
+  const auto found  = types.find(getCanonical(x));
+  return found != types.cend();
+}
+
+void Tensor::assertIsBinary(const std::string &x) {
+  if (!isBinary(x)) {
+    std::ostringstream oss;
+    oss << "Failed in assertIsBinary(" << x << "). ";
+    throw error(oss.str());
+  }
 }
 
 } // namespace host

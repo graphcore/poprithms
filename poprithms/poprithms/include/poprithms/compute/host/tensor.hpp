@@ -597,6 +597,28 @@ public:
   Tensor pow(const Tensor &rhs) const;
   Tensor pow_(const Tensor &rhs) const;
 
+  /** \return True for all of strings [Pow, Mod, Add, Sub, Subtract, Div,
+   *          Divide, Mul, Multiply] and for of their case variants (pow and
+   *          POW are valid too, for example).
+   **/
+  static bool isBinary(const std::string &);
+  static void assertIsBinary(const std::string &);
+
+  /**
+   * Perform the binary operation described by \a type. For example, if type
+   * is "Add", then this Tensor will be added to \a arg1.
+   *
+   * \param type The binary operation to perform. It must have isBinary(type)
+   *             true.
+   *
+   * \param arg1 The right hand side argument of the binary operation.
+   * */
+
+  Tensor binary(const std::string &type, const Tensor &arg1) const;
+
+  /** Inplace version of binary */
+  Tensor binary_(const std::string &, const Tensor &arg1) const;
+
   /** These elementwise binary operations return Tensors of type Boolean. */
   Tensor operator<(const Tensor &rhs) const;
   Tensor operator<=(const Tensor &rhs) const;

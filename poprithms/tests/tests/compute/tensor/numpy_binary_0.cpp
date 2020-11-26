@@ -98,6 +98,21 @@ void testPower0() {
       .assertAllEquivalent(Tensor::boolean(true));
 }
 
+void testFromString() {
+  const auto a = Tensor::float32(5.);
+  const auto b = Tensor::float32(2.);
+  a.binary("Add", b).assertAllEquivalent(Tensor::float32(7.));
+  a.binary("subtract", b).assertAllEquivalent(Tensor::float32(3.));
+  a.binary("multiply", b).assertAllEquivalent(Tensor::float32(10.));
+  a.binary("DIVIDE", b).assertAllEquivalent(Tensor::float32(2.5));
+  a.binary("Mod", b).assertAllEquivalent(Tensor::float32(1.0));
+  a.binary("pow", b).assertAllEquivalent(Tensor::float32(25.));
+  Tensor::assertIsBinary("Pow");
+  if (Tensor::isBinary("zip")) {
+    throw error("There should not have been a binary op 'zip' detected");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -106,4 +121,5 @@ int main() {
   test3();
   test4();
   testPower0();
+  testFromString();
 }

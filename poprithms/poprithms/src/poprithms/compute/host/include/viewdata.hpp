@@ -383,7 +383,9 @@ public:
 
   void mul_(const BaseData &rhs) const final { binary_<Multiplier<T>>(rhs); }
 
-  void pow_(const BaseData &rhs) const final { binary_<Exponentiater<T>>(rhs); }
+  void pow_(const BaseData &rhs) const final {
+    binary_<Exponentiater<T>>(rhs);
+  }
 
   bool containsAliases() const final {
     return !GridPointHelper::allUnique(indices(), offsets());

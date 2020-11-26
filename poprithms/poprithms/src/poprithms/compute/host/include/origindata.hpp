@@ -249,7 +249,9 @@ public:
   void divide_(const BaseData &rhs) const final { binary_<Divider<T>>(rhs); }
   void mod_(const BaseData &rhs) const final { binary_<Modder<T>>(rhs); }
   void mul_(const BaseData &rhs) const final { binary_<Multiplier<T>>(rhs); }
-  void pow_(const BaseData &rhs) const final { binary_<Exponentiater<T>>(rhs); }
+  void pow_(const BaseData &rhs) const final {
+    binary_<Exponentiater<T>>(rhs);
+  }
 
   bool allZero() const final {
     const auto x0 = dataPtr();
