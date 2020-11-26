@@ -222,6 +222,36 @@ public:
             {from, rowMajorOriginDataOffsets.data()}, p));
   }
 
+  BaseDataSP reverse(const Shape &from,
+                     const std::vector<uint64_t> &dims) const final {
+    return toOriginData()->reverse(from, dims);
+  }
+
+  BaseDataSP reverse_(const Shape &from,
+                      const std::vector<uint64_t> &dims) const final {
+    return std::make_shared<ViewData<T>>(
+        origins(),
+        ViewChange<uint64_t>::reverse(
+            {from, rowMajorOriginDataIndices.data()}, dims),
+        ViewChange<int64_t>::reverse({from, rowMajorOriginDataOffsets.data()},
+                                     dims));
+  }
+
+  BaseDataSP subSample(const Shape &from,
+                       const std::vector<uint64_t> &strides) const final {
+    return toOriginData()->subSample(from, strides);
+  }
+
+  BaseDataSP subSample_(const Shape &from,
+                        const std::vector<uint64_t> &strides) const final {
+    return std::make_shared<ViewData<T>>(
+        origins(),
+        ViewChange<uint64_t>::subSample(
+            {from, rowMajorOriginDataIndices.data()}, strides),
+        ViewChange<int64_t>::subSample(
+            {from, rowMajorOriginDataOffsets.data()}, strides));
+  }
+
   std::vector<uint16_t> getFloat16Vector_u16() const final {
     return toOriginData()->getFloat16Vector_u16();
   }
@@ -297,6 +327,9 @@ public:
   BaseDataSP mul(const BaseData &rhs) const final {
     return toOriginData()->mul(rhs);
   }
+  BaseDataSP pow(const BaseData &rhs) const final {
+    return toOriginData()->pow(rhs);
+  }
   BaseDataSP divide(const BaseData &rhs) const final {
     return toOriginData()->divide(rhs);
   }
@@ -349,6 +382,8 @@ public:
   void mod_(const BaseData &rhs) const final { binary_<Modder<T>>(rhs); }
 
   void mul_(const BaseData &rhs) const final { binary_<Multiplier<T>>(rhs); }
+
+  void pow_(const BaseData &rhs) const final { binary_<Exponentiater<T>>(rhs); }
 
   bool containsAliases() const final {
     return !GridPointHelper::allUnique(indices(), offsets());

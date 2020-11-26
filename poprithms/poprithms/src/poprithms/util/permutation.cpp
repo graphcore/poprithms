@@ -1,4 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <algorithm>
 #include <numeric>
 
 #include <poprithms/util/error.hpp>
@@ -19,6 +20,13 @@ Permutation::Permutation(const std::vector<uint64_t> &p_) : permutation(p_) {
     }
     seen[i] = true;
   }
+}
+
+Permutation Permutation::reverse(uint64_t r) {
+  std::vector<uint64_t> p_(r, 0);
+  std::iota(p_.begin(), p_.end(), 0);
+  std::reverse(p_.begin(), p_.end());
+  return Permutation(p_);
 }
 
 std::vector<uint32_t> Permutation::get_u32() const {

@@ -32,6 +32,20 @@ Shapes Tensor::getShapes(const Tensors &tensors) {
   return shapes_;
 }
 
+Tensor Tensor::squeeze(const std::vector<uint64_t> &dims) const {
+  return reshape(shape().squeeze(dims));
+}
+Tensor Tensor::squeeze_(const std::vector<uint64_t> &dims) const {
+  return reshape_(shape().squeeze(dims));
+}
+
+Tensor Tensor::unsqueeze(const std::vector<uint64_t> &dims) const {
+  return reshape(shape().unsqueeze(dims));
+}
+Tensor Tensor::unsqueeze_(const std::vector<uint64_t> &dims) const {
+  return reshape_(shape().unsqueeze(dims));
+}
+
 template <typename T> Tensor Tensor::tCopyData(const Shape &s, const T *d) {
   const auto nElms = s.nelms_u64();
   std::vector<T> vData_(nElms);
@@ -211,6 +225,15 @@ Tensor Tensor::mul_(const Tensor &rhs) const {
   return *this;
 }
 
+Tensor Tensor::pow(const Tensor &rhs) const {
+  auto co = getRowMajorPair(*this, rhs);
+  return {co.shape, dtype(), co.arg0.tData().pow(co.arg1.tData())};
+}
+Tensor Tensor::pow_(const Tensor &rhs) const {
+  tData().pow_(getArg1InplaceTarget(rhs, shape()).tData());
+  return *this;
+}
+
 Tensor Tensor::subtract(const Tensor &rhs) const {
   auto co = getRowMajorPair(*this, rhs);
   return {co.shape, dtype(), co.arg0.tData().subtract(co.arg1.tData())};
@@ -243,6 +266,16 @@ Tensor Tensor::operator<=(const Tensor &rhs) const {
   return {co.shape,
           DType::Boolean,
           co.arg0.tData().lessThanOrEqualTo(co.arg1.tData())};
+}
+
+Tensor Tensor::relu() const {
+  auto positive = (*this > scalar(dtype(), 0.)).to(dtype());
+  return mul(positive);
+}
+
+Tensor Tensor::relu_() const {
+  auto positive = (*this > scalar(dtype(), 0.)).to(dtype());
+  return mul_(positive);
 }
 
 Tensor Tensor::operator<(const Tensor &rhs) const {
@@ -333,6 +366,98 @@ Tensor Tensor::dimShuffle(const Permutation &p) const {
 
 Tensor Tensor::dimShuffle_(const Permutation &p) const {
   return {shape().dimShuffle(p), dtype(), tData().dimShuffle_(shape(), p)};
+}
+
+Tensor Tensor::dimShuffle() const {
+  return dimShuffle(Permutation::reverse(rank_u64()));
+}
+
+Tensor Tensor::dimShuffle_() const {
+  return dimShuffle_(Permutation::reverse(rank_u64()));
+}
+
+namespace {
+std::vector<uint64_t> getCanonicalDims(const std::vector<uint64_t> &dims,
+                                       const Shape &s0) {
+
+  // Number of times (mod(2)) that a dimension appears in dims.
+  std::vector<bool> dims_(s0.rank_u64(), false);
+  for (auto d : dims) {
+    if (d >= s0.rank_u64()) {
+      std::ostringstream oss;
+      oss << "Error in getCanonicalDims(dims=";
+      util::append(oss, dims);
+      oss << ", Shape s0=" << s0 << "). "
+          << "s0 is of rank " << s0.rank_u64()
+          << ", which is not greater than " << d << " : invalid dimension. ";
+
+      throw error(oss.str());
+    }
+    dims_[d] = !dims_[d];
+  }
+
+  std::vector<uint64_t> canon;
+  for (uint64_t d = 0; d < s0.rank_u64(); ++d) {
+    if (dims_[d]) {
+      canon.push_back(d);
+    }
+  }
+  return canon;
+}
+} // namespace
+
+Tensor Tensor::reverse(const std::vector<uint64_t> &dims) const {
+  return {shape(),
+          dtype(),
+          tData().reverse(shape(), getCanonicalDims(dims, shape()))};
+}
+
+Tensor Tensor::reverse_(const std::vector<uint64_t> &dims) const {
+  return {shape(),
+          dtype(),
+          tData().reverse_(shape(), getCanonicalDims(dims, shape()))};
+}
+
+Tensor Tensor::reverse(uint64_t d) const {
+  return reverse(std::vector<uint64_t>{d});
+}
+Tensor Tensor::reverse_(uint64_t d) const {
+  return reverse_(std::vector<uint64_t>{d});
+}
+
+Tensor Tensor::subSample(const std::vector<uint64_t> &strides) const {
+  return {shape().subSample(strides),
+          dtype(),
+          tData().subSample(shape(), strides)};
+}
+Tensor Tensor::subSample_(const std::vector<uint64_t> &strides) const {
+  return {shape().subSample(strides),
+          dtype(),
+          tData().subSample_(shape(), strides)};
+}
+
+namespace {
+std::vector<uint64_t>
+getStrides(uint64_t stride, uint64_t dimension, const Shape &s0) {
+  std::vector<uint64_t> strides(s0.rank_u64(), 1);
+  if (dimension >= s0.rank_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid dimension (" << dimension
+        << ") in getStrides, where shape (" << s0 << ") is only of rank "
+        << s0.rank_u64() << ". Expected dimension to be less than rank. ";
+    throw error(oss.str());
+  }
+  strides[dimension] = stride;
+  return strides;
+}
+} // namespace
+
+Tensor Tensor::subSample(Stride stride, Dimension dimension) const {
+  return subSample(getStrides(stride.s, dimension.d, shape()));
+}
+
+Tensor Tensor::subSample_(Stride stride, Dimension dimension) const {
+  return subSample_(getStrides(stride.s, dimension.d, shape()));
 }
 
 Tensor Tensor::slice(const Lower &l, const Upper &u) const {

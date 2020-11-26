@@ -130,6 +130,17 @@ public:
     return out;
   }
 
+  static std::vector<Number> reverse(const Data &input,
+                                     const std::vector<uint64_t> &dims) {
+    return fromIndices(input, input.shape.getReversedRowMajorIndices(dims));
+  }
+
+  static std::vector<Number> subSample(const Data &input,
+                                       const std::vector<uint64_t> &strides) {
+    return fromIndices(input,
+                       input.shape.getSubSampledRowMajorIndices(strides));
+  }
+
   /** \return values in row-major order obtained by slicing \a input between
    *          the bounds \a u and \a l. */
   static std::vector<Number>

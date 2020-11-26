@@ -67,6 +67,71 @@ void concatTest0() {
   }
 }
 
+void reverseTest(const std::vector<int> &input,
+                 const std::vector<int> &expectedOut,
+                 const Shape &shape,
+                 const std::vector<uint64_t> &dims) {
+  const auto out = ViewChange<int>::reverse({shape, input.data()}, dims);
+  if (out != expectedOut) {
+    std::ostringstream oss;
+    oss << "Error detected in reverseTest. "
+        << "This with \ninput=";
+    poprithms::util::append(oss, input);
+    oss << "\nobserved output=";
+    poprithms::util::append(oss, out);
+    oss << "\nexpected output=";
+    poprithms::util::append(oss, expectedOut);
+    oss << "\nShape=" << shape << "\ndimensions=";
+    poprithms::util::append(oss, dims);
+    throw error(oss.str());
+  }
+}
+
+void reverseTest0() {
+  reverseTest({0, 1, 2, 3, 4, 5}, {5, 4, 3, 2, 1, 0}, Shape{2, 3}, {0, 1});
+  reverseTest({0, 1, 2, 3, 4, 5}, {0, 1, 2, 3, 4, 5}, Shape{2, 3}, {0, 0});
+  reverseTest({0, 1, 2, 3, 4, 5}, {3, 4, 5, 0, 1, 2}, Shape{2, 3}, {0});
+  reverseTest({0, 1, 2, 3, 4, 5}, {2, 1, 0, 5, 4, 3}, Shape{2, 3}, {1});
+  reverseTest({0, 1, 2, 3, 4, 5, 6, 7},
+              {1, 0, 3, 2, 5, 4, 7, 6},
+              Shape{2, 2, 2},
+              {2});
+  reverseTest({0, 1, 2, 3, 4, 5, 6, 7},
+              {5, 4, 7, 6, 1, 0, 3, 2},
+              Shape{2, 2, 2},
+              {0, 2});
+}
+
+void subsampleTest(const std::vector<int> &input,
+                   const std::vector<int> &expectedOut,
+                   const Shape &inShape,
+                   const std::vector<uint64_t> &strides) {
+  const auto out =
+      ViewChange<int>::subSample({inShape, input.data()}, strides);
+  if (out != expectedOut) {
+    std::ostringstream oss;
+    oss << "Error detected in reverseTest. "
+        << "This with \ninput=";
+    poprithms::util::append(oss, input);
+    oss << "\nobserved output=";
+    poprithms::util::append(oss, out);
+    oss << "\nexpected output=";
+    poprithms::util::append(oss, expectedOut);
+    oss << "\ninShape=" << inShape << "\nstrides=";
+    poprithms::util::append(oss, strides);
+    throw error(oss.str());
+  }
+}
+
+void subSampleTest0() {
+  subsampleTest({0, 1, 2, 3}, {0, 1, 2, 3}, Shape{2, 2}, {1, 1});
+  subsampleTest({0, 1, 2, 3}, {0}, Shape{2, 2}, {2, 2});
+  subsampleTest({0, 1, 2, 3}, {0, 1}, Shape{2, 2}, {2, 1});
+  subsampleTest({0, 1, 2, 3}, {0, 2}, Shape{2, 2}, {1, 2});
+  subsampleTest(
+      {0, 1, 2, 3, 4, 5}, {0}, Shape{1, 3, 2, 1, 1}, {10, 11, 12, 13, 14});
+}
+
 } // namespace
 
 int main() {
@@ -74,5 +139,7 @@ int main() {
   dimShuffleTest0();
   sliceTest0();
   concatTest0();
+  reverseTest0();
+  subSampleTest0();
   return 0;
 }

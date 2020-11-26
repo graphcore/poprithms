@@ -83,6 +83,7 @@ public:
    * */
   virtual BaseDataSP add(const BaseData &) const      = 0;
   virtual BaseDataSP mul(const BaseData &) const      = 0;
+  virtual BaseDataSP pow(const BaseData &) const      = 0;
   virtual BaseDataSP divide(const BaseData &) const   = 0;
   virtual BaseDataSP mod(const BaseData &) const      = 0;
   virtual BaseDataSP subtract(const BaseData &) const = 0;
@@ -106,6 +107,7 @@ public:
   virtual void subtract_(const BaseData &) const = 0;
   virtual void add_(const BaseData &) const      = 0;
   virtual void mul_(const BaseData &) const      = 0;
+  virtual void pow_(const BaseData &) const      = 0;
 
   /**
    * Unary operators.
@@ -137,6 +139,10 @@ public:
                             const std::vector<int64_t> &where) const      = 0;
   virtual BaseDataSP expand(const Shape &from, const Shape &to) const     = 0;
   virtual BaseDataSP dimShuffle(const Shape &, const Permutation &) const = 0;
+  virtual BaseDataSP
+  reverse(const Shape &, const std::vector<uint64_t> &dimensions) const = 0;
+  virtual BaseDataSP
+  subSample(const Shape &, const std::vector<uint64_t> &strides) const = 0;
 
   /**
    * Aliasing, view-changing operators.
@@ -152,6 +158,10 @@ public:
   virtual BaseDataSP dimShuffle_(const Shape &,
                                  const Permutation &) const            = 0;
   virtual BaseDataSP toViewData_() const                               = 0;
+  virtual BaseDataSP
+  reverse_(const Shape &, const std::vector<uint64_t> &dimensions) const = 0;
+  virtual BaseDataSP
+  subSample_(const Shape &, const std::vector<uint64_t> &strides) const = 0;
 
   /**
    * \return The number of elements in this BaseData.

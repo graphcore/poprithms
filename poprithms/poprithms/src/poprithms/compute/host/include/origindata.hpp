@@ -111,6 +111,30 @@ public:
         this->shared_from_this(), from.getDimShuffledRowMajorIndices(p));
   }
 
+  BaseDataSP reverse(const Shape &from,
+                     const std::vector<uint64_t> &dims) const final {
+    return std::make_shared<AllocData<T>>(
+        ViewChange<T>::reverse({from, dataPtr()}, dims));
+  }
+
+  BaseDataSP reverse_(const Shape &from,
+                      const std::vector<uint64_t> &dims) const final {
+    return std::make_shared<ViewData<T>>(
+        this->shared_from_this(), from.getReversedRowMajorIndices(dims));
+  }
+
+  BaseDataSP subSample(const Shape &from,
+                       const std::vector<uint64_t> &strides) const final {
+    return std::make_shared<AllocData<T>>(
+        ViewChange<T>::subSample({from, dataPtr()}, strides));
+  }
+
+  BaseDataSP subSample_(const Shape &from,
+                        const std::vector<uint64_t> &strides) const final {
+    return std::make_shared<ViewData<T>>(
+        this->shared_from_this(), from.getSubSampledRowMajorIndices(strides));
+  }
+
   BaseDataSP toViewData_() const final {
     return std::make_shared<ViewData<T>>(
         this->shared_from_this(), OriginDataHelper::getIota_i64(nelms_u64()));
@@ -189,6 +213,9 @@ public:
   BaseDataSP mul(const BaseData &rhs) const final {
     return binary<Multiplier<T>>(rhs);
   }
+  BaseDataSP pow(const BaseData &rhs) const final {
+    return binary<Exponentiater<T>>(rhs);
+  }
   BaseDataSP divide(const BaseData &rhs) const final {
     return binary<Divider<T>>(rhs);
   }
@@ -222,6 +249,7 @@ public:
   void divide_(const BaseData &rhs) const final { binary_<Divider<T>>(rhs); }
   void mod_(const BaseData &rhs) const final { binary_<Modder<T>>(rhs); }
   void mul_(const BaseData &rhs) const final { binary_<Multiplier<T>>(rhs); }
+  void pow_(const BaseData &rhs) const final { binary_<Exponentiater<T>>(rhs); }
 
   bool allZero() const final {
     const auto x0 = dataPtr();

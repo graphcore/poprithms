@@ -31,6 +31,29 @@ void dimShuffleTest1() {
   diff.assertAllEquivalent(Tensor::int32(0));
 }
 
+void subSampleTest0() {
+  auto t0 = Tensor::arangeInt64(0, 2 * 3 * 5, 1).reshape({2, 3, 5});
+  t0.subSample({2, 2, 2}).assertAllEquivalent(
+      Tensor::int64({1, 2, 3}, {0, 2, 4, 10, 12, 14}));
+}
+
+void subSampleTest1() {
+  auto t0 = Tensor::arangeInt64(0, 3 * 3, 1).reshape({3, 3});
+  t0.subSample_({2, 2}).pow_(Tensor::int64(2));
+  t0.assertAllEquivalent(
+      Tensor::int64({3, 3}, {0, 1, 2 * 2, 3, 4, 5, 6 * 6, 7, 8 * 8}));
+}
+
+void reverseTest0() {
+  // [[0 1 2]
+  //  [3 4 5]]
+  auto t0 = Tensor::arangeInt64(0, 2 * 3, 1).reshape({2, 3});
+  t0.reverse(0).assertAllEquivalent(
+      Tensor::int64({2, 3}, {3, 4, 5, 0, 1, 2}));
+  t0.reverse_(0).slice_({0, 0}, {1, 3}).mul_(Tensor::int64(0));
+  t0.assertAllEquivalent(Tensor::int64({2, 3}, {0, 1, 2, 0, 0, 0}));
+}
+
 void gatherTest0() {
   const auto t0 = Tensor::arangeInt16(0, 2 * 3 * 5, 1);
   const auto r0 = t0.reshape({2, 3, 5});
@@ -45,5 +68,8 @@ int main() {
   dimShuffleTest0();
   dimShuffleTest1();
   gatherTest0();
+  subSampleTest0();
+  subSampleTest1();
+  reverseTest0();
   return 0;
 }

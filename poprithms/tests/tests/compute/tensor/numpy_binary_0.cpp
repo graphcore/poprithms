@@ -80,6 +80,24 @@ void test4() {
   x1.assertAllEquivalent(s0);
 }
 
+void testPower0() {
+  Tensor::float16(0.25)
+      .pow(Tensor::float16(0.5))
+      .assertAllEquivalent(Tensor::float16(0.5));
+
+  Tensor::float32(0.5)
+      .pow(Tensor::float32(2.0))
+      .assertAllEquivalent(Tensor::float32(0.25));
+
+  Tensor::int16(3)
+      .pow(Tensor::int16(4))
+      .assertAllEquivalent(Tensor::int16(81));
+
+  Tensor::boolean(true)
+      .pow(Tensor::boolean(false))
+      .assertAllEquivalent(Tensor::boolean(true));
+}
+
 } // namespace
 
 int main() {
@@ -87,4 +105,5 @@ int main() {
   test2();
   test3();
   test4();
+  testPower0();
 }

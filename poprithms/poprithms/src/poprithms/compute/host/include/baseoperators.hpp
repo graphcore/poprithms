@@ -123,6 +123,19 @@ public:
   static std::string name() { return name_<T>("Multiplier"); }
 };
 
+template <typename T> class Exponentiater {
+public:
+  T operator()(T a, T b) const { return static_cast<T>(std::pow(a, b)); }
+  static std::string name() { return name_<T>("Exponentiater"); }
+};
+
+template <> class Exponentiater<bool> {
+public:
+  // Ignoring the case of pow(false, false).
+  bool operator()(bool a, bool) const { return a; }
+  static std::string name() { return name_<bool>("Exponentiater"); }
+};
+
 template <typename T> class Divider {
 public:
   T operator()(T a, T b) const { return a / b; }

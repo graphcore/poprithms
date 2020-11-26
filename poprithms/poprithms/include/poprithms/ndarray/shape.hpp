@@ -105,8 +105,8 @@ public:
    * Squeeze out 1's in certain dimensions.
    *
    * \return A Shape which is the same as this, but with `1's in dimensions \a
-   *         dims removed. If the dimension size of any dimension \in dims is
-   *         not 1, an error is thrown.
+   *         dims removed. If the dimension size of any dimension in \a dims
+   *         is not 1, an error is thrown.
    *
    * Example:
    *   If this is (1,4,1,5,1) and dims is (0,4), then (4,1,5) is returned.
@@ -300,9 +300,22 @@ public:
    * Permute the dimensions of this Shape.
    *
    * Example: If this is (2,3,5) and \a p is (1,2,0), then (3,5,2) is
-   *returned.
+   *          returned.
    **/
   Shape dimShuffle(const Permutation &p) const;
+
+  /**
+   * Subsample elements from this Shape.
+   *
+   * \param strides The interval in each dimension between the elements to
+   *                sample. Values in \a strides must be strictly positive.
+   *
+   * Example: if this is (12,5) and strides=(6,2), then the returned Shape is
+   *          (ceil(12/6)=2, ceil(5/2)=3)
+   *
+   * Subsampling starts at element 0 in each dimension.
+   * */
+  Shape subSample(const std::vector<uint64_t> &strides) const;
 
   /**
    * \return The row major indices for all points in the outer product of
@@ -392,6 +405,34 @@ public:
    * */
   std::vector<int64_t>
   getDimShuffledRowMajorIndices(const Permutation &p) const;
+
+  /**
+   * \return The row major indices of a Shape which is this Shape, reversed
+   *         along the dimensions \a dims.
+   *
+   * Example. If this is (2,3) and dims=(1), then the returned vector is
+   *          {3,4,5,0,1,2}.
+   *
+   *  [[0 1 2]     [[3 4 5]
+   *   [3 4 5]] ->  [0 1 2]]
+   * */
+  std::vector<int64_t>
+  getReversedRowMajorIndices(const std::vector<uint64_t> &dims) const;
+
+  /**
+   * \return The row major indices of a Shape which is a subsampling of (the
+   *         elements in) this Shape, with independent strides in each
+   *        dimension.
+   *
+   * Example. If this is (2,3) and strides=(1,2), then the returned vector is
+   *          {0,2,3,5}.
+   *
+   *  [[0 1 2]     [[0 2]
+   *   [3 4 5]] ->  [3 5]]
+   *   */
+
+  std::vector<int64_t>
+  getSubSampledRowMajorIndices(const std::vector<uint64_t> &strides) const;
 
   /**
    * Return the Shapes of which are required to sequentially wrap

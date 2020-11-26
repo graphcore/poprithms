@@ -366,6 +366,7 @@ public:
 
   DType dtype() const { return dtype_; }
   const Shape &shape() const { return shape_; }
+  uint64_t rank_u64() const { return shape().rank_u64(); }
   uint64_t nelms_u64() const { return shape().nelms_u64(); }
   uint64_t nbytes() const {
     return nelms_u64() * ndarray::nbytes_u64(dtype());
@@ -422,8 +423,56 @@ public:
   Tensor reshape(const Shape &to) const;
   Tensor reshape_(const Shape &) const;
 
+  /**
+   * Reshape to a rank-2 Tensor, where the size of the first dimension is the
+   * product of dimensions in [0, axis). Specifically, if axis = 0, the
+   * returned Shape is (1,nelms) and if axis = rank, the returned Shape is
+   * (nelms, 1).
+   * */
+  Tensor flattenTo2d(uint64_t axis) const;
+  Tensor flattenTo2d_(uint64_t axis) const;
+
+  /**
+   * Reshape to a rank-1 Tensor.
+   * */
   Tensor flatten() const { return reshape({shape().nelms()}); }
   Tensor flatten_() const { return reshape_({shape().nelms()}); }
+
+  /**
+   * \return Reshape this Tensor by removing all dimensions which have size
+   *         `1'. Note that `0's are not removed.
+   * */
+  Tensor squeeze() const { return reshape(shape().squeeze()); }
+  Tensor squeeze_() const { return reshape_(shape().squeeze()); }
+
+  /**
+   * Reshape this Tensor by removing 1's in certain dimensions.
+   *
+   * \return This Tensor, with dimensions in \a removed. If the dimension
+   *         size of any dimension \in dims is not 1, an error is thrown.
+   *
+   * Example:
+   *   If this Tensor has Shape (1,4,1,5,1) and dims is (0,4), then the
+   *   returned Tensor has Shape (4,1,5).
+   * */
+  Tensor squeeze(const std::vector<uint64_t> &dims) const;
+  Tensor squeeze_(const std::vector<uint64_t> &dims) const;
+
+  /**
+   * Reshape this Tensor by inserting singleton dimensions.
+   *
+   * \param dims The dimensions where the output Shape will have 1's inserted.
+   *
+   * Example: If this Tensor has Shape (3,4) and dims=(0,2,3), then the
+   *          returned Tensor has Shape (1,2,1,1,3,4).
+   * */
+  Tensor unsqueeze(const std::vector<uint64_t> &dims) const;
+  Tensor unsqueeze_(const std::vector<uint64_t> &dims) const;
+
+  Tensor unsqueeze(uint64_t d) const { return reshape(shape().unsqueeze(d)); }
+  Tensor unsqueeze_(uint64_t d) const {
+    return reshape_(shape().unsqueeze(d));
+  }
 
   /**
    * Expand the Tensor using numpy broadcasting rules.
@@ -439,6 +488,60 @@ public:
    * */
   Tensor slice(const Lower &l, const Upper &u) const;
   Tensor slice_(const Lower &l, const Upper &u) const;
+
+  /**
+   * Reverse this Tensor along certain dimensions
+   *
+   * \param dimensions The dimensions along which to reverse the Tensor.
+   *                   Dimensions may appear multiple times, in wich case the
+   *                   reversal is repeated once for every appearance.
+   * */
+
+  Tensor reverse(const std::vector<uint64_t> &dimensions) const;
+  Tensor reverse_(const std::vector<uint64_t> &dimensions) const;
+
+  /**
+   * Reverse along a single dimension */
+  Tensor reverse(uint64_t) const;
+  Tensor reverse_(uint64_t) const;
+
+  /**
+   * Subsample elements from this Tensor.
+   *
+   * \param strides The interval in each dimension between the elements to
+   *                sample The elements of strides must be strictly positive.
+   *
+   * Example: if this Tensor has Shape (12,5) and strides is (6,2), then the
+   *          returned Tensor has Shape (ceil(12/6)=2, ceil(5/2)=3)
+   *
+   * Subsampling starts at element 0 in each dimension.
+   *
+   * Example: If this Tensor is
+   *             [[ 0 1 2 3 4 ]
+   *              [ 5 6 7 8 9 ]]
+   *
+   * and strides=(2,2), then the returned Tensor is [[ 0 2 4 ]]
+   * */
+  Tensor subSample(const std::vector<uint64_t> &strides) const;
+  Tensor subSample_(const std::vector<uint64_t> &strides) const;
+
+  /** A stride, which must be explicitly constructed to avoid muddling with
+   * Dimension, etc. */
+  struct Stride {
+    explicit Stride(uint64_t s_) : s(s_) {}
+    uint64_t s;
+  };
+
+  /** A dimension, which must be explicitly constructed to avoid muddling with
+   * Stride, etc. */
+  struct Dimension {
+    explicit Dimension(uint64_t d_) : d(d_) {}
+    uint64_t d;
+  };
+
+  /** Subsample along a single dimension  */
+  Tensor subSample(Stride, Dimension) const;
+  Tensor subSample_(Stride, Dimension) const;
 
   /**
    * Slice and concatenate this Tensor along axis \a dimension, and at indices
@@ -460,6 +563,16 @@ public:
   Tensor dimShuffle(const Permutation &) const;
   Tensor dimShuffle_(const Permutation &) const;
 
+  /** Reverse the dimensions of this Tensor.
+   *
+   * For rank-2 Tensors, this is equivalent to a matrix transpose.
+   *
+   * If this Tensor has Shape (2,3,5), then the returned Tensor has Shape
+   * (5,3,2).
+   * */
+  Tensor dimShuffle() const;
+  Tensor dimShuffle_() const;
+
   /**
    * Elementwise binary operations, which use numpy-style broadcasting rules.
    * The versions with the suffix _ are inplace on this Tensor. Note that
@@ -480,6 +593,9 @@ public:
 
   Tensor mod(const Tensor &rhs) const;
   Tensor mod_(const Tensor &rhs) const;
+
+  Tensor pow(const Tensor &rhs) const;
+  Tensor pow_(const Tensor &rhs) const;
 
   /** These elementwise binary operations return Tensors of type Boolean. */
   Tensor operator<(const Tensor &rhs) const;
@@ -504,6 +620,12 @@ public:
 
   Tensor sqrt() const;
   Tensor sqrt_() const;
+
+  /**
+   * relu(x) = x*(x > 0)
+   * */
+  Tensor relu() const;
+  Tensor relu_() const;
 
   /**
    * \return true: if and only if (iff) this and \a rhs have the same shape,
@@ -628,8 +750,8 @@ Tensor operator*(const Tensor &a, const Tensor &b);
 Tensor operator/(const Tensor &a, const Tensor &b);
 Tensor operator%(const Tensor &a, const Tensor &b);
 
-Tensor concat_(const std::vector<Tensor> &, uint64_t axis);
 Tensor concat(const std::vector<Tensor> &, uint64_t axis);
+Tensor concat_(const std::vector<Tensor> &, uint64_t axis);
 
 } // namespace host
 } // namespace compute

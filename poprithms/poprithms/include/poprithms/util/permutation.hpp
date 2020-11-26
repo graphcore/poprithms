@@ -20,6 +20,13 @@ public:
    * */
   Permutation(const std::vector<uint64_t> &p_);
 
+  /**
+   * \return A Permutation which reverses the order of dimensions.
+   *
+   * \param r The rank of the Permutation.
+   * */
+  static Permutation reverse(uint64_t r);
+
   const std::vector<uint64_t> &get() const { return permutation; }
   std::vector<uint32_t> get_u32() const;
   uint64_t get(uint64_t d) const { return permutation[d]; }
@@ -57,7 +64,7 @@ public:
   bool operator!=(const Permutation &rhs) const { return !operator==(rhs); }
 
 private:
-  const std::vector<uint64_t> permutation;
+  std::vector<uint64_t> permutation;
   void confirmInSize(uint64_t) const;
 };
 

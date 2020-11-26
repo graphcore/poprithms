@@ -433,22 +433,21 @@ Shape Shape::reverse() const {
   return {std::move(s)};
 }
 
-std::vector<int64_t> Shape::getSlicedRowMajorIndices(const Lower &l,
-                                                     const Upper &u) const {
+namespace {
+std::vector<int64_t> getIndices(int64_t start,
+                                const std::vector<int64_t> &strides,
+                                const Shape &outShape) {
 
-  const auto outShape  = slice(l, u);
-  const auto rmStrides = getRowMajorStrides();
-
-  std::vector<int64_t> indices{0};
+  std::vector<int64_t> indices{start};
   indices.reserve(outShape.nelms_u64());
 
   std::vector<int64_t> nextIndices;
   nextIndices.reserve(outShape.nelms_u64());
 
-  for (uint64_t d_ = rank_u64(); d_ != 0; --d_) {
+  for (uint64_t d_ = outShape.rank_u64(); d_ != 0; --d_) {
     const auto d = d_ - 1;
-    for (int64_t c = l[d]; c < u[d]; ++c) {
-      const auto delta = c * rmStrides[d];
+    for (uint64_t c = 0; c < outShape.dim_u64(d); ++c) {
+      const auto delta = c * strides[d];
       for (auto i : indices) {
         nextIndices.push_back(i + delta);
       }
@@ -457,6 +456,91 @@ std::vector<int64_t> Shape::getSlicedRowMajorIndices(const Lower &l,
     nextIndices.clear();
   }
   return indices;
+}
+} // namespace
+
+std::vector<int64_t> Shape::getSlicedRowMajorIndices(const Lower &l,
+                                                     const Upper &u) const {
+  assertBoundsAreValid(l, u);
+  int64_t start{0};
+  auto strides = getRowMajorStrides();
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    start += strides[i] * l[i];
+  }
+  return getIndices(start, strides, slice(l, u));
+}
+
+std::vector<int64_t> Shape::getSubSampledRowMajorIndices(
+    const std::vector<uint64_t> &strides) const {
+  const auto outShape = subSample(strides);
+  auto rms            = getRowMajorStrides();
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    rms[i] *= strides[i];
+  }
+  const auto indices = getIndices(0, rms, outShape);
+  return indices;
+}
+
+std::vector<int64_t>
+Shape::getReversedRowMajorIndices(const std::vector<uint64_t> &dims) const {
+  auto strides = getRowMajorStrides();
+  std::vector<bool> mustReverse(rank_u64(), false);
+  for (auto d : dims) {
+    if (d >= rank_u64()) {
+      std::ostringstream oss;
+      oss << "Invalid dimension '" << d
+          << "' in getReversedRowMajorIndices for Shape " << *this
+          << ". Expected all dimensions to be less than the rank, "
+          << rank_u64() << ". Invalid call " << *this
+          << ".getReversedRowMajorIndices(dims=";
+      poprithms::util::append(oss, dims);
+      oss << ").";
+      throw error(oss.str());
+    }
+    mustReverse[d] = !mustReverse[d];
+  }
+
+  if (nelms() == 0) {
+    return {};
+  }
+
+  int64_t start{0};
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    if (mustReverse[i]) {
+      start += (dim(i) - 1) * strides[i];
+      strides[i] *= -1;
+    }
+  }
+  return getIndices(start, strides, *this);
+}
+
+Shape Shape::subSample(const std::vector<uint64_t> &strides) const {
+
+  if (strides.size() != rank_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid call in Shape::subSample, " << *this
+        << ".subSample(strides = ";
+    util::append(oss, strides);
+    oss << "). strides' length should be the same as the rank of this Shape, "
+        << strides.size() << " != " << rank_u64() << '.';
+    throw error(oss.str());
+  }
+
+  auto inShape = get();
+  decltype(inShape) outShape;
+  outShape.reserve(rank_u64());
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+    if (strides[d] < 1) {
+      std::ostringstream oss;
+      oss << "Invalid strides in " << *this << ".subSample(strides = ";
+      util::append(oss, strides);
+      oss << "). All stride values must be strictly greater than 0. ";
+      throw error(oss.str());
+    }
+    outShape.push_back(inShape[d] / strides[d] +
+                       (inShape[d] % strides[d] != 0));
+  }
+  return outShape;
 }
 
 std::vector<int64_t>
