@@ -26,8 +26,8 @@ std::vector<std::vector<uint64_t>> Graph::getEdges_u64() const {
 }
 
 // order couples of Graph, with raw uint64_t instead of OpIds
-std::vector<std::array<uint64_t, 4>> Graph::getOrderCouples_u64() const {
-  std::vector<std::array<uint64_t, 4>> orderCouples_u64;
+schedule::supercon::Couples Graph::getOrderCouples_u64() const {
+  schedule::supercon::Couples orderCouples_u64;
   orderCouples_u64.reserve(orderCouples.size());
   for (const auto &x : orderCouples) {
     std::array<uint64_t, 4> x_u64{

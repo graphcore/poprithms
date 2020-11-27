@@ -10,6 +10,7 @@
 #include <poprithms/outline/linear/linearusings.hpp>
 #include <poprithms/outline/linear/op.hpp>
 #include <poprithms/outline/linear/tensor.hpp>
+#include <poprithms/schedule/supercon/graph.hpp>
 
 namespace poprithms {
 namespace outline {
@@ -199,7 +200,7 @@ private:
   std::vector<std::array<OpId, 4>> orderCouples;
 
   std::vector<std::vector<uint64_t>> getEdges_u64() const;
-  std::vector<std::array<uint64_t, 4>> getOrderCouples_u64() const;
+  schedule::supercon::Couples getOrderCouples_u64() const;
 
   // TODO(T19636) : canonical color and type
   bool isFinalized{false};
