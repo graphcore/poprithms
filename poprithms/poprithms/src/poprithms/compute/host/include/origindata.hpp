@@ -79,6 +79,12 @@ public:
         ViewChange<T>::slice({from, dataPtr()}, l, u));
   }
 
+  BaseDataSP slice(const Shape &from,
+                   const NormalizedSliceParams &n) const final {
+    return std::make_shared<AllocData<T>>(
+        ViewChange<T>::slice({from, dataPtr()}, n));
+  }
+
   BaseDataSP gather(const Shape &from,
                     uint64_t dimension,
                     const std::vector<int64_t> &where) const final {
@@ -90,6 +96,12 @@ public:
   slice_(const Shape &from, const Lower &l, const Upper &u) const final {
     return std::make_shared<ViewData<T>>(this->shared_from_this(),
                                          from.getSlicedRowMajorIndices(l, u));
+  }
+
+  BaseDataSP slice_(const Shape &from,
+                    const NormalizedSliceParams &n) const final {
+    return std::make_shared<ViewData<T>>(this->shared_from_this(),
+                                         from.getSlicedRowMajorIndices(n));
   }
 
   BaseDataSP gather_(const Shape &from,

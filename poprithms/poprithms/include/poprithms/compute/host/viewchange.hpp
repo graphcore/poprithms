@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_VIEWCHANGE_HPP
 #define POPRITHMS_COMPUTE_HOST_VIEWCHANGE_HPP
+
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -146,6 +147,26 @@ public:
   static std::vector<Number>
   slice(const Data &input, const Lower &l, const Upper &u) {
     return fromIndices(input, input.shape.getSlicedRowMajorIndices(l, u));
+  }
+
+  static std::vector<Number> slice(const Data &input,
+                                   const NormalizedSliceParams &n) {
+    return fromIndices(input, input.shape.getSlicedRowMajorIndices(n));
+  }
+
+  /** \return values in row-major order obtained by numpy-slicing \a input
+   *          between \a starts and \a ends with step sizes \a steps, in
+   *          dimensions \a dims. Negative indices are fully supported, see
+   *          https://numpy.org/doc/stable/reference/arrays.indexing.html
+   * */
+  static std::vector<Number> slice(const Data &input,
+                                   const Starts &starts,
+                                   const Ends &ends,
+                                   const Steps &steps,
+                                   const Dims &dims) {
+    return slice(
+        input,
+        input.shape.getNormalizedSliceParams(starts, ends, steps, dims));
   }
 
   /** \return values in row-major order obtained by gathering and

@@ -20,7 +20,7 @@ void constructors() {
   const Tensor t0 = Tensor::float32(shape2x2, vDataF32);
 
   // copy from pointer:
-  const Tensor t1 = Tensor::float32(shape2x2, vDataF32.data());
+  const Tensor t1 = Tensor::copyFloat32(shape2x2, vDataF32.data());
 
   // Store a pointer (memory management not done by Tensor):
   const Tensor t2 = Tensor::refFloat32(shape2x2, vDataF32.data());

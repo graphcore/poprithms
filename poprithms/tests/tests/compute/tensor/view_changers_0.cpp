@@ -17,7 +17,7 @@ void dimShuffleTest0() {
   std::vector<int16_t> expected{0,  15, 1,  16, 2,  17, 3,  18, 4,  19,
                                 5,  20, 6,  21, 7,  22, 8,  23, 9,  24,
                                 10, 25, 11, 26, 12, 27, 13, 28, 14, 29};
-  d0.assertAllEquivalent(Tensor::int16({3, 5, 2}, expected.data()));
+  d0.assertAllEquivalent(Tensor::copyInt16({3, 5, 2}, expected.data()));
 }
 
 void dimShuffleTest1() {

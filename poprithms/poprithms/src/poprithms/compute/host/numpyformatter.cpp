@@ -26,6 +26,11 @@ void NumpyFormatter::append(const std::vector<std::string> &stringElements1d,
     throw error(oss.str());
   }
 
+  if (stringElements1d.size() == 0) {
+    outStream << "()";
+    return;
+  }
+
   if (shape.rank_u64() == 0) {
     outStream << "scalar(" << stringElements1d[0] << ")";
     return;

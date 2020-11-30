@@ -170,6 +170,95 @@ public:
   Shape slice(const Lower &l, const Upper &u) const;
 
   /**
+   * Starting indices of a numpy-slice
+   * */
+  struct Starts {
+    explicit Starts(const std::vector<int64_t> &s) : starts(s) {}
+    std::vector<int64_t> starts;
+  };
+
+  /**
+   * Ending (exclusive) indices of a numpy-slice
+   * */
+  struct Ends {
+    explicit Ends(const std::vector<int64_t> &e) : ends(e) {}
+    std::vector<int64_t> ends;
+  };
+
+  /**
+   * numpy-slice step sizes, which may be negative but must be non-zero
+   * */
+  struct Steps {
+    explicit Steps(const std::vector<int64_t> &s) : steps(s) {}
+    Steps() : steps({}) {}
+    std::vector<int64_t> steps;
+  };
+
+  /**
+   * numpy-slice dimensions
+   * */
+  struct Dims {
+    explicit Dims(const std::vector<int64_t> &d) : dims(d) {}
+    Dims() : dims({}) {}
+    std::vector<int64_t> dims;
+  };
+
+  /**
+   * Canonicalized/normalized slice parameters.
+   * */
+  struct NormalizedSliceParams {
+    NormalizedSliceParams(const Starts &,
+                          const Ends &,
+                          const Steps &,
+                          const Dims &,
+                          const Shape &);
+
+    /** \return index, where 0 <= index < shape.dim(d) */
+    int64_t start(uint64_t d) const { return starts[d]; }
+
+    /** \return index, where -1 <= index < shape.dim(d) + 1 */
+    int64_t end(uint64_t d) const { return ends[d]; }
+
+    /** \return non-zero step size in dimension d */
+    int64_t step(uint64_t d) const { return steps[d]; }
+
+    uint64_t size() const { return starts.size(); }
+    void append(std::ostream &) const;
+
+  private:
+    // canonicalized versions of constructor arguments, all vectors of size
+    // shape.rank_u64()
+    std::vector<int64_t> starts;
+    std::vector<int64_t> ends;
+    std::vector<int64_t> steps;
+  };
+
+  NormalizedSliceParams getNormalizedSliceParams(const Starts &,
+                                                 const Ends &,
+                                                 const Steps &,
+                                                 const Dims &) const;
+
+  /** Verify the correctness of \a n, with respect to this Shape. */
+  void validateNormalizedSliceParams(const NormalizedSliceParams &n) const;
+
+  /**
+   * Numpy-style [start:stop:step] slicing,
+   * https://numpy.org/doc/stable/reference/arrays.indexing.html
+   *
+   * \sa compute::host::Tensor::slice
+   * */
+  Shape slice(const NormalizedSliceParams &) const;
+
+  /**
+   * Numpy-style [start:stop:step] slicing,
+   * https://numpy.org/doc/stable/reference/arrays.indexing.html
+   *
+   * \sa compute::host::Tensor::slice
+   * */
+  Shape
+  slice(const Starts &, const Ends &, const Steps &, const Dims &) const;
+
+  /**
    * \return The number of elements in this Shape. It is the product of
    *        dimension sizes.
    * */
@@ -183,6 +272,7 @@ public:
   uint64_t dim_u64(uint64_t d) const { return static_cast<uint64_t>(dim(d)); }
 
   const std::vector<int64_t> &get() const { return shp; }
+  std::vector<uint64_t> get_u64() const { return {shp.cbegin(), shp.cend()}; }
 
   /**
    * Perform numpy binary broadcasting between this Shape and \a rhs. See
@@ -345,6 +435,20 @@ public:
    * */
   std::vector<int64_t> getSlicedRowMajorIndices(const Lower &l,
                                                 const Upper &u) const;
+
+  /**
+   * \return The row major indices of performing a numpy-style slice of this
+   *         Shape. The numpy-style slice is a combination of poplar-style
+   *         slice, dimShuffle, and reverse.
+   *         See https://numpy.org/doc/stable/reference/arrays.indexing.html
+   *  */
+  std::vector<int64_t> getSlicedRowMajorIndices(const Starts &,
+                                                const Ends &,
+                                                const Steps &,
+                                                const Dims &) const;
+
+  std::vector<int64_t>
+  getSlicedRowMajorIndices(const NormalizedSliceParams &n) const;
 
   /**
    * \return The column major indices in this Shape obtained by slicing
@@ -581,6 +685,8 @@ public:
 };
 
 std::ostream &operator<<(std::ostream &, const Shape &);
+std::ostream &operator<<(std::ostream &ost,
+                         const Shape::NormalizedSliceParams &);
 
 } // namespace ndarray
 } // namespace poprithms

@@ -16,11 +16,20 @@
 #include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/ndarray/dtype.hpp>
+#include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace compute {
 namespace host {
+
+namespace {
+template <typename T>
+std::ostream &operator<<(std::ostream &ost, const std::vector<T> &vs) {
+  util::append(ost, vs);
+  return ost;
+}
+} // namespace
 
 std::vector<char> Tensor::getNativeCharVector() const {
   return tData().getNativeCharVector();
@@ -57,6 +66,12 @@ Tensor Tensor::unsqueeze_(const std::vector<uint64_t> &dims) const {
 }
 
 template <typename T> Tensor Tensor::tCopyData(const Shape &s, const T *d) {
+  if (d == nullptr && s.nelms() != 0) {
+    std::ostringstream oss;
+    oss << "Invalid call to Tensor::tCopyData(shape = " << s
+        << " d = nullptr). ";
+    throw error(oss.str());
+  }
   const auto nElms = s.nelms_u64();
   std::vector<T> vData_(nElms);
   std::memcpy(vData_.data(), d, sizeof(T) * nElms);
@@ -75,7 +90,7 @@ public:
 template <>
 Tensor Tensor::Caster::go<IeeeHalf>(const Shape &s, const void *vp) {
   const auto asu16 = static_cast<const uint16_t *>(vp);
-  return Tensor::float16(s, asu16);
+  return Tensor::copyFloat16(s, asu16);
 }
 
 Tensor Tensor::copy(DType t, const Shape &s, const void *vp) {
@@ -491,6 +506,26 @@ Tensor Tensor::gather_(uint64_t dimension,
           tData().gather_(shape(), dimension, where)};
 }
 
+Tensor Tensor::slice(const Starts &starts,
+                     const Ends &ends,
+                     const Steps &steps,
+                     const Dims &dims) const {
+  const auto normalized =
+      shape().getNormalizedSliceParams(starts, ends, steps, dims);
+  return {
+      shape().slice(normalized), dtype(), tData().slice(shape(), normalized)};
+}
+
+Tensor Tensor::slice_(const Starts &starts,
+                      const Ends &ends,
+                      const Steps &steps,
+                      const Dims &dims) const {
+  const auto normalized =
+      shape().getNormalizedSliceParams(starts, ends, steps, dims);
+  return {
+      shape().slice(normalized), dtype(), tData().slice(shape(), normalized)};
+}
+
 bool Tensor::containsAliases() const { return tData().containsAliases(); }
 
 // get the BaseData for each Tensor in tIns.
@@ -666,7 +701,7 @@ Tensor Tensor::toFloat64() const {
 Tensor Tensor::refFloat64(const Shape &s, double *p) {
   return tRefData(s, p);
 }
-Tensor Tensor::float64(const Shape &s, const double *v) {
+Tensor Tensor::copyFloat64(const Shape &s, const double *v) {
   return Tensor::tCopyData<double>(s, v);
 }
 Tensor Tensor::arangeFloat64(double x0, double x1, double step) {
@@ -690,7 +725,7 @@ Tensor Tensor::arangeFloat32(float x0, float x1, float step) {
 std::vector<float> Tensor::getFloat32Vector() const {
   return tData().getFloat32Vector();
 }
-Tensor Tensor::float32(const Shape &s, const float *v) {
+Tensor Tensor::copyFloat32(const Shape &s, const float *v) {
   return Tensor::tCopyData<float>(s, v);
 }
 Tensor Tensor::toFloat32() const {
@@ -704,7 +739,7 @@ Tensor Tensor::float16(float f) { return tScalar<IeeeHalf>(f); }
 Tensor Tensor::toFloat16() const {
   return Tensor(shape(), DType::Float16, tData().toFloat16());
 }
-Tensor Tensor::float16(const Shape &s, const uint16_t *v) {
+Tensor Tensor::copyFloat16(const Shape &s, const uint16_t *v) {
   std::vector<IeeeHalf> halfs;
   halfs.resize(s.nelms_u64());
   for (uint64_t i = 0; i < halfs.size(); ++i) {
@@ -722,7 +757,7 @@ Tensor Tensor::float16(const Shape &s, const std::vector<uint16_t> &vs) {
   if (s.nelms_u64() != vs.size()) {
     throw error(getBadSizeString(s, "float16", vs.size()));
   }
-  return float16(s, vs.data());
+  return copyFloat16(s, vs.data());
 }
 
 Tensor Tensor::arangeFloat16(float x0, float x1, float step) {
@@ -733,7 +768,7 @@ std::vector<uint16_t> Tensor::getFloat16Vector_u16() const {
 }
 
 // Int64:
-Tensor Tensor::int64(const Shape &s, const int64_t *v) {
+Tensor Tensor::copyInt64(const Shape &s, const int64_t *v) {
   return Tensor::tCopyData<int64_t>(s, v);
 }
 Tensor Tensor::int64(const Shape &s, std::vector<int64_t> &&vs) {
@@ -755,7 +790,7 @@ std::vector<int64_t> Tensor::getInt64Vector() const {
 Tensor Tensor::int64(int64_t f) { return tScalar<int64_t>(f); }
 
 // Unsigned64:
-Tensor Tensor::unsigned64(const Shape &s, const uint64_t *v) {
+Tensor Tensor::copyUnsigned64(const Shape &s, const uint64_t *v) {
   return Tensor::tCopyData<uint64_t>(s, v);
 }
 Tensor Tensor::unsigned64(const Shape &s, std::vector<uint64_t> &&vs) {
@@ -779,7 +814,7 @@ std::vector<uint64_t> Tensor::getUnsigned64Vector() const {
 Tensor Tensor::unsigned64(uint64_t f) { return tScalar<uint64_t>(f); }
 
 // Int32:
-Tensor Tensor::int32(const Shape &s, const int32_t *v) {
+Tensor Tensor::copyInt32(const Shape &s, const int32_t *v) {
   return Tensor::tCopyData<int32_t>(s, v);
 }
 Tensor Tensor::int32(const Shape &s, std::vector<int32_t> &&vs) {
@@ -801,7 +836,7 @@ std::vector<int32_t> Tensor::getInt32Vector() const {
 Tensor Tensor::int32(int32_t f) { return tScalar<int32_t>(f); }
 
 // Unsigned32:
-Tensor Tensor::unsigned32(const Shape &s, const uint32_t *v) {
+Tensor Tensor::copyUnsigned32(const Shape &s, const uint32_t *v) {
   return Tensor::tCopyData<uint32_t>(s, v);
 }
 Tensor Tensor::unsigned32(const Shape &s, std::vector<uint32_t> &&vs) {
@@ -825,7 +860,7 @@ std::vector<uint32_t> Tensor::getUnsigned32Vector() const {
 Tensor Tensor::unsigned32(uint32_t f) { return tScalar<uint32_t>(f); }
 
 // Int16:
-Tensor Tensor::int16(const Shape &s, const int16_t *v) {
+Tensor Tensor::copyInt16(const Shape &s, const int16_t *v) {
   return Tensor::tCopyData<int16_t>(s, v);
 }
 Tensor Tensor::int16(const Shape &s, std::vector<int16_t> &&vs) {
@@ -847,7 +882,7 @@ std::vector<int16_t> Tensor::getInt16Vector() const {
 Tensor Tensor::int16(int16_t f) { return tScalar<int16_t>(f); }
 
 // Unsigned16:
-Tensor Tensor::unsigned16(const Shape &s, const uint16_t *v) {
+Tensor Tensor::copyUnsigned16(const Shape &s, const uint16_t *v) {
   return Tensor::tCopyData<uint16_t>(s, v);
 }
 Tensor Tensor::unsigned16(const Shape &s, std::vector<uint16_t> &&vs) {
@@ -871,7 +906,7 @@ std::vector<uint16_t> Tensor::getUnsigned16Vector() const {
 Tensor Tensor::unsigned16(uint16_t f) { return tScalar<uint16_t>(f); }
 
 // Int8:
-Tensor Tensor::int8(const Shape &s, const int8_t *v) {
+Tensor Tensor::copyInt8(const Shape &s, const int8_t *v) {
   return Tensor::tCopyData<int8_t>(s, v);
 }
 Tensor Tensor::int8(const Shape &s, std::vector<int8_t> &&vs) {
@@ -893,7 +928,7 @@ std::vector<int8_t> Tensor::getInt8Vector() const {
 Tensor Tensor::int8(int8_t f) { return tScalar<int8_t>(f); }
 
 // Unsigned8:
-Tensor Tensor::unsigned8(const Shape &s, const uint8_t *v) {
+Tensor Tensor::copyUnsigned8(const Shape &s, const uint8_t *v) {
   return Tensor::tCopyData<uint8_t>(s, v);
 }
 Tensor Tensor::unsigned8(const Shape &s, std::vector<uint8_t> &&vs) {

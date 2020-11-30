@@ -59,7 +59,7 @@ int main() {
 
   // Create the operation (greaterThan) which we know will never create
   // aliases.
-  const auto noAlias0 = g.noAlias({unary0, unary1}, {{7}});
+  g.noAlias({unary0, unary1}, {{7}});
 
   std::cout << g << std::endl;
   // clang-format off

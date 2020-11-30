@@ -12,12 +12,17 @@ namespace poprithms {
 namespace compute {
 namespace host {
 
-using Shape       = poprithms::ndarray::Shape;
-using DType       = poprithms::ndarray::DType;
-using Permutation = poprithms::util::Permutation;
-using Lower       = Shape::Lower;
-using Upper       = Shape::Upper;
-using Shapes      = std::vector<Shape>;
+using Shape                 = poprithms::ndarray::Shape;
+using DType                 = poprithms::ndarray::DType;
+using Permutation           = poprithms::util::Permutation;
+using Lower                 = Shape::Lower;
+using Upper                 = Shape::Upper;
+using Starts                = Shape::Starts;
+using Ends                  = Shape::Ends;
+using Steps                 = Shape::Steps;
+using Dims                  = Shape::Dims;
+using NormalizedSliceParams = Shape::NormalizedSliceParams;
+using Shapes                = std::vector<Shape>;
 
 class Tensor;
 using Tensors = std::vector<Tensor>;

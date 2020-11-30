@@ -89,7 +89,7 @@ public:
    * Behaviour is undefined if the number of contiguous doubles starting
    * from \a element0 is less than the number of elements in \a shape.
    * */
-  static Tensor float64(const Shape &shape, const double *element0);
+  static Tensor copyFloat64(const Shape &shape, const double *element0);
 
   /**
    * Create a Float64 Tensor by copying data.
@@ -182,7 +182,7 @@ public:
   /**
    * Float32 specific Tensor methods. \see corresponding Float64 methods.
    */
-  static Tensor float32(const Shape &, const float *);
+  static Tensor copyFloat32(const Shape &, const float *);
   static Tensor float32(const Shape &, const std::vector<float> &);
   static Tensor float32(const Shape &, std::vector<float> &&);
   static Tensor float32(float);
@@ -196,7 +196,7 @@ public:
   /**
    * Float16 specific Tensor methods. \see corresponding Float64 methods.
    */
-  static Tensor float16(const Shape &, const uint16_t *);
+  static Tensor copyFloat16(const Shape &, const uint16_t *);
   static Tensor float16(const Shape &, const std::vector<uint16_t> &);
   static Tensor float16(float);
   static Tensor refFloat16(const Shape &, uint16_t *);
@@ -211,7 +211,7 @@ public:
    *
    * \see The corresponding Float64 methods.
    * */
-  static Tensor int64(const Shape &, const int64_t *);
+  static Tensor copyInt64(const Shape &, const int64_t *);
   static Tensor int64(const Shape &, const std::vector<int64_t> &);
   static Tensor int64(const Shape &, std::vector<int64_t> &&);
   static Tensor int64(int64_t);
@@ -225,7 +225,7 @@ public:
    *
    * \see The corresponding Float64 methods.
    * */
-  static Tensor unsigned64(const Shape &, const uint64_t *);
+  static Tensor copyUnsigned64(const Shape &, const uint64_t *);
   static Tensor unsigned64(const Shape &, const std::vector<uint64_t> &);
   static Tensor unsigned64(const Shape &, std::vector<uint64_t> &&);
   static Tensor unsigned64(uint64_t);
@@ -239,7 +239,7 @@ public:
    *
    * \see the corresponding Float64 methods.
    * */
-  static Tensor int32(const Shape &, const int32_t *);
+  static Tensor copyInt32(const Shape &, const int32_t *);
   static Tensor int32(const Shape &, const std::vector<int32_t> &);
   static Tensor int32(const Shape &, std::vector<int32_t> &&);
   static Tensor int32(int32_t);
@@ -252,7 +252,7 @@ public:
    *
    * \see the corresponding Float64 methods.
    * */
-  static Tensor unsigned32(const Shape &, const uint32_t *);
+  static Tensor copyUnsigned32(const Shape &, const uint32_t *);
   static Tensor unsigned32(const Shape &, const std::vector<uint32_t> &);
   static Tensor unsigned32(const Shape &, std::vector<uint32_t> &&);
   static Tensor unsigned32(uint32_t);
@@ -266,7 +266,7 @@ public:
    *
    * \see the corresponding Float64 methods.
    * */
-  static Tensor int16(const Shape &, const int16_t *);
+  static Tensor copyInt16(const Shape &, const int16_t *);
   static Tensor int16(const Shape &, const std::vector<int16_t> &);
   static Tensor int16(const Shape &, std::vector<int16_t> &&);
   static Tensor int16(int16_t);
@@ -279,7 +279,7 @@ public:
    *
    * \see the corresponding Float64 methods.
    * */
-  static Tensor unsigned16(const Shape &, const uint16_t *);
+  static Tensor copyUnsigned16(const Shape &, const uint16_t *);
   static Tensor unsigned16(const Shape &, const std::vector<uint16_t> &);
   static Tensor unsigned16(const Shape &, std::vector<uint16_t> &&);
   static Tensor unsigned16(uint16_t);
@@ -293,7 +293,7 @@ public:
    *
    * \see the corresponding Float64 methods.
    * */
-  static Tensor int8(const Shape &, const int8_t *);
+  static Tensor copyInt8(const Shape &, const int8_t *);
   static Tensor int8(const Shape &, const std::vector<int8_t> &);
   static Tensor int8(const Shape &, std::vector<int8_t> &&);
   static Tensor int8(int8_t);
@@ -306,7 +306,7 @@ public:
    *
    * \see the corresponding Float64 methods.
    * */
-  static Tensor unsigned8(const Shape &, const uint8_t *);
+  static Tensor copyUnsigned8(const Shape &, const uint8_t *);
   static Tensor unsigned8(const Shape &, const std::vector<uint8_t> &);
   static Tensor unsigned8(const Shape &, std::vector<uint8_t> &&);
   static Tensor unsigned8(uint8_t);
@@ -488,6 +488,72 @@ public:
    * */
   Tensor slice(const Lower &l, const Upper &u) const;
   Tensor slice_(const Lower &l, const Upper &u) const;
+
+  /**
+   * Numpy-style [start:stop:step] slicing,
+   * https://numpy.org/doc/stable/reference/arrays.indexing.html
+   *
+   * \param starts Indices at which to start the slice. These are for all
+   *               dimensions in \a dims, unless \a dims is empty in which
+   *               case it is just all dimensions. Starting values which are
+   *               not in [0, dimSize) are canonicalized as:
+   *
+   * canonicalize(start):
+   *     if (start < 0):        start += dimSize.
+   *     if (start < 0):        start = 0.
+   *     if (start >= dimSize): start = dimSize - 1.
+   *     return start
+   *
+   * \param ends Indices at which to end (not including) the slice, for all
+   *             dimensions in \a dims if \a dims is non-empty, else all
+   *             dimensions. \a ends and \a starts must be the same size.
+   *             Ending values which are not in [-1, dimSize] are
+   *             canonicalized:
+   *
+   * canonicalize(end):
+   *     if (end < 0):       end += dimSize.
+   *     if (end < 0):       end = -1.
+   *     if (end > dimSize): end = dimSize.
+   *     return end
+   *
+   * Note that the canonicalization of start and end are slightly different,
+   * as the start index is inclusive while end index is exclusive. This means
+   * that canonicalized starts must lie in [0, dimSize) while ends must lie in
+   * [-1, dimSize + 1). This is in agreement with the numpy spec.
+   *
+   * \param steps The stride to take when slicing from values in \a starts to
+   *              \a ends. Defaults to +1. Values in \a steps must be
+   *              non-zero.
+   *
+   * \param dims The dimensions along which to slice. If empty, then slicigin
+   *             is in all dimensions, and \a starts and \a ends must of full
+   *             rank.
+   *
+   * Some examples. Suppose this Tensor is
+   *      [[ 0 1 2 3 ]
+   *       [ 4 5 6 7 ]]
+   *
+   * starts=(0,0), ends=(2,3), steps=(), dims=():
+   *      [[ 0 1 2 ]
+   *       [ 3 5 6 ]]
+   *
+   * starts=(0), ends=(4), steps=(2), dims=(1)
+   *      [[ 0 2 ]
+   *       [ 4 6 ]]
+   *
+   * starts=(3,1), ends=(-10,2), steps=(-1,1), dims=(1,0)
+   *      [[ 7 6 5 4 ]]
+   *
+   * \sa https://github.com/onnx/onnx/blob/master/docs/Operators.md#Slice
+   *     which is also identical to this method.
+   *
+   * */
+  Tensor slice(const Starts &starts,
+               const Ends &ends,
+               const Steps &steps,
+               const Dims &dims) const;
+  Tensor
+  slice_(const Starts &, const Ends &, const Steps &, const Dims &) const;
 
   /**
    * Reverse this Tensor along certain dimensions

@@ -13,10 +13,10 @@ void testBasicConstructors() {
 
   // Construct from pointer:
   const double x{1.0};
-  const auto a = Tensor::float64({}, &x);
+  const auto a = Tensor::copyFloat64({}, &x);
 
   const std::array<double, 2> y{2.0, 3.0};
-  const auto b = Tensor::float64({2}, y.data());
+  const auto b = Tensor::copyFloat64({2}, y.data());
 
   // Construct from vector:
   const std::vector<double> z{4., 5., 6.};
@@ -67,6 +67,51 @@ void testScalarConstructors() {
   c.assertAllEquivalent(Tensor::scalar(DType::Float16, 0.0));
 }
 
+void testInitializerListConstructors0() {
+  const auto a = Tensor::scalar(DType::Float64, 7.);
+  const auto b = Tensor::float64(7.);
+  const auto c = Tensor::float64({}, {7});
+  const auto d = Tensor::float64({}, {7.});
+  const auto e = Tensor::float64({}, std::initializer_list<double>{7});
+  const auto f = Tensor::float64({}, std::vector<double>{7});
+  a.assertAllEquivalent(b);
+  b.assertAllEquivalent(c);
+  c.assertAllEquivalent(d);
+  d.assertAllEquivalent(e);
+  e.assertAllEquivalent(f);
+  f.assertAllEquivalent(a);
+}
+
+void testCheckErrors0() {
+  bool caught{false};
+  try {
+    Tensor::copyFloat64({1, 2}, nullptr);
+  } catch (const poprithms::error::error &e) {
+    std::cout << e.what();
+    caught = true;
+  }
+  if (!caught) {
+    std::ostringstream oss;
+    throw error(
+        "Attempt to construct non-empty Tensor from nullptr should fail.");
+  }
+}
+
+void testCheckErrors1() {
+  bool caught{false};
+  try {
+    Tensor::float64({1, 2}, {1, 2, 3, 4});
+  } catch (const poprithms::error::error &e) {
+    std::cout << e.what();
+    caught = true;
+  }
+  if (!caught) {
+    std::ostringstream oss;
+    throw error(
+        "Attempt to construct Tensor with Shape and n-elms mismatch.");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -74,5 +119,8 @@ int main() {
   testRefConstructor();
   testBoolConstructor();
   testScalarConstructors();
+  testInitializerListConstructors0();
+  testCheckErrors0();
+  testCheckErrors1();
   return 0;
 }

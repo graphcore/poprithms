@@ -134,6 +134,8 @@ public:
   concat(const ConstDataPtrs &, const Shapes &, uint64_t axis);
   virtual BaseDataSP
   slice(const Shape &, const Lower &, const Upper &) const                = 0;
+  virtual BaseDataSP slice(const Shape &,
+                           const NormalizedSliceParams &) const           = 0;
   virtual BaseDataSP gather(const Shape &,
                             uint64_t dimension,
                             const std::vector<int64_t> &where) const      = 0;
@@ -151,6 +153,8 @@ public:
   concat_(const ConstDataPtrs &, const Shapes &, uint64_t axis);
   virtual BaseDataSP
   slice_(const Shape &, const Lower &, const Upper &) const            = 0;
+  virtual BaseDataSP slice_(const Shape &,
+                            const NormalizedSliceParams &) const       = 0;
   virtual BaseDataSP gather_(const Shape &,
                              uint64_t dimension,
                              const std::vector<int64_t> &where) const  = 0;

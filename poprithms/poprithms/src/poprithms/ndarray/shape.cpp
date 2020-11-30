@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <numeric>
+#include <ostream>
 #include <sstream>
 
 #include <poprithms/ndarray/error.hpp>
@@ -482,6 +483,22 @@ std::vector<int64_t> Shape::getSubSampledRowMajorIndices(
 }
 
 std::vector<int64_t>
+Shape::getSlicedRowMajorIndices(const NormalizedSliceParams &n) const {
+
+  // initialize strides as if steps were are +1
+  auto strides = getRowMajorStrides();
+
+  // itialize start as if starts were all 0.
+  int64_t start{0};
+
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    start += strides[i] * n.start(i);
+    strides[i] *= n.step(i);
+  }
+  return getIndices(start, strides, slice(n));
+}
+
+std::vector<int64_t>
 Shape::getReversedRowMajorIndices(const std::vector<uint64_t> &dims) const {
   auto strides = getRowMajorStrides();
   std::vector<bool> mustReverse(rank_u64(), false);
@@ -767,6 +784,81 @@ Shape Shape::slice(const Lower &l, const Upper &u) const {
   return Shape(out);
 }
 
+namespace {
+// Number of elements in [start, end) with stride of step. step may be
+// negative, and start may be greater than end. The return value cannot be
+// negative though.
+int64_t getSize(int64_t start, int64_t end, int64_t step) {
+
+  // If the step takes you further away from end, then return 0.
+  if ((start < end) != (step > 0)) {
+    return 0ll;
+  }
+  uint64_t delta_u64  = start < end ? end - start : start - end;
+  uint64_t step_u64   = step > 0 ? step : -step;
+  const auto size_u64 = delta_u64 / step_u64 + (delta_u64 % step_u64 != 0);
+  return static_cast<int64_t>(size_u64);
+}
+} // namespace
+
+Shape Shape::slice(const Starts &starts,
+                   const Ends &ends,
+                   const Steps &steps,
+                   const Dims &dims) const {
+  const auto n = getNormalizedSliceParams(starts, ends, steps, dims);
+  return slice(n);
+}
+
+void Shape::validateNormalizedSliceParams(
+    const NormalizedSliceParams &n) const {
+  const auto getBase = [&n, this]() {
+    std::ostringstream oss;
+    oss << "Invalid call " << *this
+        << ".validateNormalizedSliceParams(n=" << n << "). ";
+    return oss.str();
+  };
+  if (n.size() != rank_u64()) {
+    std::ostringstream oss;
+    oss << getBase() << "Expected n to be of size " << rank_u64()
+        << ", the size of this Shape. ";
+    throw error(oss.str());
+  }
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    if (n.step(i) == 0) {
+      std::ostringstream oss;
+      oss << getBase() << "Steps must all be non-zero.";
+      throw error(oss.str());
+    }
+    if (n.start(i) < 0 || n.start(i) >= dim(i)) {
+      std::ostringstream oss;
+      oss << getBase() << "Starts must be in [0, dim).";
+      throw error(oss.str());
+    }
+    if (n.end(i) < -1 || n.end(i) > dim(i)) {
+      std::ostringstream oss;
+      oss << getBase() << "Ends must be in [-1, dim+1).";
+      throw error(oss.str());
+    }
+  }
+}
+
+Shape Shape::slice(const NormalizedSliceParams &n) const {
+  validateNormalizedSliceParams(n);
+  std::vector<int64_t> shape_(rank_u64());
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+    shape_[d] = getSize(n.start(d), n.end(d), n.step(d));
+  }
+  return shape_;
+}
+
+std::vector<int64_t> Shape::getSlicedRowMajorIndices(const Starts &starts,
+                                                     const Ends &ends,
+                                                     const Steps &steps,
+                                                     const Dims &dims) const {
+  return getSlicedRowMajorIndices(
+      getNormalizedSliceParams(starts, ends, steps, dims));
+}
+
 void Shape::assertBoundsAreValid(const Lower &l, const Upper &u) const {
 
   std::ostringstream ss;
@@ -852,6 +944,42 @@ Shape Shape::matmul(const Shape &a, const Shape &b) {
   return outShape;
 }
 
+namespace {
+// some numpy experiments:
+//
+// In [5]: X = np.arange(4)
+// In [6]: X
+// Out[6]: array([0, 1, 2, 3])
+//
+// In [7]: X[-100:100:1] #start:end:step
+// Out[7]: array([0, 1, 2, 3])
+//
+// In [8]: X[90:100:1]
+// Out[8]: array([], dtype=int64)
+//
+// In [9]: X[-100:1:1]
+// Out[9]: array([0])
+//
+// In [10]: X[-1:100:1]
+// Out[10]: array([3])
+//
+// In [11]: X[-1:100:1]
+//
+// Map \a v to [low, high), pivoting on pivot
+int64_t normalize(int64_t v, uint64_t pivot, int64_t low, int64_t high) {
+  if (v < 0) {
+    v += pivot;
+  }
+  if (v < low) {
+    v = low;
+  }
+  if (v >= high) {
+    v = high - 1;
+  }
+  return v;
+}
+} // namespace
+
 Shape Shape::flattenTo2d(uint64_t axis) const {
   if (axis > rank_u64()) {
     std::ostringstream oss;
@@ -861,6 +989,142 @@ Shape Shape::flattenTo2d(uint64_t axis) const {
     throw error(oss.str());
   }
   return {dimProduct(0, axis), dimProduct(axis, rank_u64())};
+}
+
+Shape::NormalizedSliceParams::NormalizedSliceParams(const Starts &starts_,
+                                                    const Ends &ends_,
+                                                    const Steps &steps_,
+                                                    const Dims &dims_,
+                                                    const Shape &shape) {
+
+  // return a string, summarizing the input parameters. Used for error
+  // messages.
+  auto getBase = [&shape, &starts_, &ends_, &steps_, &dims_]() {
+    std::ostringstream oss;
+    oss << "In NormalizedSliceParams constructor, with "
+        << "starts=" << starts_.starts << ", ends=" << ends_.ends
+        << ", steps=" << steps_.steps << ", dims=" << dims_.dims
+        << ", shape=" << shape << ". ";
+    return oss.str();
+  };
+
+  const auto R_u64 = shape.rank_u64();
+  const auto R_i64 = shape.rank_i64();
+
+  if (starts_.starts.size() != ends_.ends.size()) {
+    std::ostringstream oss;
+    oss << getBase() << "starts and ends must be same size. ";
+    throw error(oss.str());
+  }
+
+  const auto NIn = starts_.starts.size();
+
+  // Dims
+  // If no dimensions are provided, the ONNX spec stipulates that is
+  // implicitly all dimensions of the Shape. That is, starts and ends are for
+  // all dimensions.
+  if (dims_.dims.empty()) {
+    if (NIn != R_u64) {
+      std::ostringstream oss;
+      oss << getBase()
+          << "As dims is empty, starts and ends must both be of size "
+          << R_u64 << ", the rank of the Shape. ";
+      throw error(oss.str());
+    }
+  }
+
+  // If dimensions are provided, they correspond to values in starts and ends.
+  else {
+    if (NIn != dims_.dims.size()) {
+      std::ostringstream oss;
+      oss << getBase()
+          << "As dims is non-empty, starts and ends must both be of size "
+          << dims_.dims.size() << ", the size of dims. ";
+      throw error(oss.str());
+    }
+  }
+
+  // Empty steps implies step size 1 in every dimension
+  if (!steps_.steps.empty() && steps_.steps.size() != NIn) {
+    std::ostringstream oss;
+    oss << getBase() << "As steps is non-empty, it must be of size " << NIn
+        << ", the size of starts and ends. ";
+  }
+  if (std::any_of(steps_.steps.cbegin(), steps_.steps.cend(), [](auto x) {
+        return x == 0;
+      })) {
+    std::ostringstream oss;
+    oss << getBase() << "Invalid steps, all steps must be non-zero";
+    throw error(oss.str());
+  }
+
+  // At this point in the code, all 4 vectors are of size NIn.
+  // Normalize the elements of dims, to be positive.
+  auto dims = dims_.dims;
+  std::vector<bool> dimsSeen(R_u64, false);
+  for (auto &d : dims) {
+    if (d < -R_i64 || d >= R_i64) {
+      std::ostringstream oss;
+      oss << getBase() << "Dimension " << d << " is not in the range ["
+          << -R_i64 << ", " << R_i64 << "). ";
+      throw error(oss.str());
+    }
+    if (d < 0) {
+      d += R_i64;
+    }
+
+    // At this point in the code, we know that d is non-negative.
+    const auto d_u64 = static_cast<uint64_t>(d);
+    if (dimsSeen[d_u64]) {
+      std::ostringstream oss;
+      oss << getBase() << "Repeated dimension, " << d_u64 << ".";
+      throw error(oss.str());
+    }
+    dimsSeen[static_cast<uint64_t>(d)] = true;
+  }
+  if (dims.empty()) {
+    dims.resize(R_u64);
+    std::iota(dims.begin(), dims.end(), 0);
+  }
+
+  // At this point, all 4 vectors are of the same length, and all elements of
+  // dims are positive. We initialize the normalized parameters to defaults:
+  starts = std::vector<int64_t>(R_u64, 0);
+  ends   = shape.get();
+  steps  = std::vector<int64_t>(R_u64, 1);
+
+  for (uint64_t i = 0; i < NIn; ++i) {
+    const auto d = static_cast<uint64_t>(dims[i]);
+
+    const auto start = starts_.starts[i];
+    starts[d]        = normalize(start, shape.dim_u64(d), 0, shape.dim(d));
+
+    const auto end = ends_.ends[i];
+    ends[d]        = normalize(end, shape.dim_u64(d), -1, shape.dim(d) + 1);
+
+    if (!steps_.steps.empty()) {
+      const auto step = steps_.steps[i];
+      steps[d]        = step;
+    }
+  }
+}
+
+Shape::NormalizedSliceParams
+Shape::getNormalizedSliceParams(const Starts &starts,
+                                const Ends &ends,
+                                const Steps &steps,
+                                const Dims &dims) const {
+  return NormalizedSliceParams(starts, ends, steps, dims, *this);
+}
+
+void Shape::NormalizedSliceParams::append(std::ostream &ost) const {
+  ost << "starts=" << starts << ",ends=" << ends << ",steps=" << steps;
+}
+
+std::ostream &operator<<(std::ostream &ost,
+                         const Shape::NormalizedSliceParams &n) {
+  n.append(ost);
+  return ost;
 }
 
 } // namespace ndarray
