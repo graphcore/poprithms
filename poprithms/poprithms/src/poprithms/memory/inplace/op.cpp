@@ -7,7 +7,6 @@
 #include <type_traits>
 
 #include <poprithms/memory/alias/graph.hpp>
-#include <poprithms/memory/inplace/aliastype.hpp>
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/tensormap.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -37,15 +36,6 @@ std::vector<InIndex> Op::modifyingIndices() const {
   return indices_;
 }
 
-void Op::apply(alias::Graph &g, TensorMap &m, AliasType t) {
-  if (t.isOutplace()) {
-    applyOutplaceTo(g, m);
-  } else {
-    applyInplaceTo(g, m, t);
-  }
-  aType_ = t;
-}
-
 void Op::insertOut(OpId ido) {
   if (std::find(outs_.cbegin(), outs_.cend(), ido) == outs_.cend()) {
     outs_.insert(std::upper_bound(outs_.cbegin(), outs_.cend(), ido), ido);
@@ -65,8 +55,7 @@ void Op::insertIn(OpId ido) {
 
 Op::Op(const State &ob)
     : id_(ob.id), ins_(ob.ins), outs_(ob.outs), inIds_(ob.inIds),
-      consumers_(ob.consumers), outShapes_(ob.outShapes), aType_(ob.aType),
-      name_(ob.name) {}
+      consumers_(ob.consumers), outShapes_(ob.outShapes), name_(ob.name) {}
 
 // C++20 we will be able to just use (= default).
 bool Op::State::operator==(const State &rhs) const {
@@ -77,7 +66,6 @@ bool Op::State::operator==(const State &rhs) const {
       inIds == rhs.inIds &&         //
       consumers == rhs.consumers && //
       outShapes == rhs.outShapes && //
-      aType == rhs.aType &&         //
       name == rhs.name;
 }
 
@@ -95,36 +83,6 @@ std::ostream &operator<<(std::ostream &os, const Op &op) {
   return os;
 }
 
-TensorIds Op::inAliasIdsIf(AliasType t) const {
-  const auto inIndices = inAliasIndicesIf(t);
-  TensorIds inIds;
-  inIds.reserve(inIndices.size());
-  for (auto inIndex : inIndices) {
-    inIds.push_back(inTensorId(inIndex));
-  }
-  return inIds;
-}
-
-TensorIds Op::inModifiedIdsIf(AliasType t) const {
-  const auto inIndices = inModifiedIndicesIf(t);
-  TensorIds inIds;
-  inIds.reserve(inIndices.size());
-  for (auto inIndex : inIndices) {
-    inIds.push_back(inTensorId(inIndex));
-  }
-  return inIds;
-}
-
-TensorIds Op::outAliasIdsIf(AliasType t) const {
-  const auto outIndices = outAliasIndicesIf(t);
-  TensorIds outIds;
-  outIds.reserve(outIndices.size());
-  for (auto outIndex : outIndices) {
-    outIds.push_back(outTensorId(outIndex));
-  }
-  return outIds;
-}
-
 void Op::grow(alias::Graph &g, TensorMap &m) const {
   AliasTensorIds outIds = typeSpecificGrow(g, m);
   for (uint64_t o = 0; o < nOutTensors(); ++o) {
@@ -132,12 +90,18 @@ void Op::grow(alias::Graph &g, TensorMap &m) const {
   }
 }
 
-void Op::verifyAllInplace(AliasType t) const {
-  if (!t.isAllInplace()) {
-    std::ostringstream oss;
-    oss << "error in Op::verifyAllInplace, with AliasType " << t;
-    throw error(oss.str());
-  }
+Op::State Op::getBaseState(const OpId opId,
+                           const TensorIds &inIds,
+                           const Shapes &outShapes,
+                           const OpIds &opIns) {
+
+  const OpIds opOuts{};
+  const std::string name{};
+
+  // No consumers at any of the output indices.
+  std::vector<Consumers> consumers(outShapes.size());
+
+  return State(opId, opIns, opOuts, inIds, consumers, outShapes, name);
 }
 
 } // namespace inplace

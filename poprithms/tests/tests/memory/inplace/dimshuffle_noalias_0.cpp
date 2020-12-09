@@ -3,57 +3,57 @@
 
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
+#include <poprithms/memory/inplace/tensor.hpp>
 
 namespace {
 using namespace poprithms::memory::inplace;
 void testDimShuffle0() {
   Graph g;
 
-  const auto x0 = g.variable({2, 3, 5});
-  const auto d0 = g.dimShuffle(x0, AliasType::outplace(), {{1, 2, 0}});
-  if (g.shape(d0) != Shape{3, 5, 2}) {
+  //    x0  -> mux -> dimShuffle -> slice -> mux +
+  //    |                                        + - concat -> mux -> unary.
+  //  slice -> mux ------------------------------+
+  //
+  //  The 2 slices slice the exact same elements from x0.
+  //
+
+  const auto x0    = Tensor::variable(g, {2, 3, 5});
+  const auto x0Mux = x0.closedMux();
+  const auto d0    = x0Mux.dimShuffle({{1, 2, 0}});
+  if (d0.shape() != Shape{3, 5, 2}) {
     throw error("dimShuffle shape incorrect");
   }
-  const auto s0  = g.slice(d0, AliasType::outplace(), {2, 2, 1}, {3, 3, 2});
-  const auto s1  = g.slice(x0, AliasType::outplace(), {1, 2, 2}, {2, 3, 3});
-  const auto cat = g.concat({s0, s1}, AliasType::outplace(), 0);
-  const auto u0  = g.unary(cat, AliasType::outplace());
+  const auto s0Mux  = d0.slice({2, 2, 1}, {3, 3, 2}).closedMux();
+  const auto s1Mux  = x0.slice({1, 2, 2}, {2, 3, 3}).closedMux();
+  const auto catMux = Tensor::concat({s0Mux, s1Mux}, 0).closedMux();
+  catMux.unary();
+  Tensors order{s1Mux, s0Mux, x0Mux, catMux};
 
-  TensorIds order{s1, s0, d0, u0, cat};
+  std::cout << g.tryOpenings0(Tensor::opIds(order),
+                              CheckParallelWriteable::Yes)
+            << std::endl;
+  for (auto id : order) {
+    if (id != catMux) {
 
-  auto g0 = g;
-  g0.tryInplaces(Graph::createProposalsAllInplace(order),
-                 CheckParallelWriteable::Yes);
-  for (TensorId id : order) {
-    if (id != cat) {
-      if (g0.aliasType(id) == AliasType::outplace()) {
+      if (id.muxIsClosed()) {
         throw error("Expected all except cat to be inplace");
       }
     } else {
-      if (g0.aliasType(id) != AliasType::outplace()) {
+      if (id.muxIsOpen()) {
         throw error("Expected cat to be outplace (otherwise alias modified)");
       }
     }
   }
 }
 
-//   OpId  Name         OpType          InTensors  InOps  OutIndex
-//   ----- ------------ --------------- ---------- ------ ---------
-//   0                  Alloc(color=1)  ()         ()     0
-//   1                  Alloc(color=1)  ()         ()     0
-//   2     myComplexOp  NoAlias         (0,1)      (0,1)  0
-//                                                        1
-//                                                        2
-
 void testNoAlias0() {
 
   Graph g;
-  const auto v0  = g.variable({5, 3});
-  const auto v1  = g.variable({7, 11});
-  const auto nax = g.noAlias({v0, v1}, {{1, 2}, {3, 4}, {5, 6}});
-  g.setName(nax, "myComplexOp");
+  const auto v0  = Tensor::variable(g, {5, 3});
+  const auto v1  = Tensor::variable(g, {7, 11});
+  const auto nax = Tensor::multi(g, {v0, v1}, {{1, 2}, {3, 4}, {5, 6}}, {});
 
-  if (g.shape({nax, 1}) != Shape{3, 4}) {
+  if (nax[1].shape() != Shape{3, 4}) {
     throw error("incorrect output Shape of NoAlias Op");
   }
 }

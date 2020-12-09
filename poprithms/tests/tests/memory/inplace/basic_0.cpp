@@ -4,35 +4,33 @@
 
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
+#include <poprithms/memory/inplace/tensor.hpp>
 
 namespace {
 
 using namespace poprithms::memory::inplace;
 
-Proposals getProposals0(const std::vector<TensorId> &ids) {
-  Proposals ps;
-  ps.reserve(ids.size());
-  for (const auto &id : ids) {
-    ps.push_back({id, AliasType::allInplace()});
-  }
-  return ps;
-}
-
-void testUnaryChainBase(const Graph &g0, const TensorIds &order) {
-  auto g = g0;
+// Check that all Muxes are open.
+void testUnaryChainBase(Graph g, const TensorIds &idOrder) {
+  const auto order = Tensor::tensors(g, idOrder);
   const auto statuses =
-      g.tryInplaces(getProposals0(order), CheckParallelWriteable::Yes);
-  for (auto x : order) {
-    if (g.aliasType(x.opId()) != AliasType::allInplace()) {
+      g.tryOpenings0(Tensor::tensorIds(order), CheckParallelWriteable::Yes);
+  for (auto t : order) {
+    if (t.muxIsClosed()) {
       std::ostringstream oss;
-      oss << "With order = " << order << " failed to inplace all";
+      oss << "In this test, "
+          << " which consists of a simple chain of "
+          << " unary and mux, "
+          << " all muxs should be opened. "
+          << "With order = " << order << ", failed to open all.";
       throw error(oss.str());
     }
   }
   for (auto s : statuses) {
-    if (s != InplaceStatus::Valid) {
+    if (s != OpeningStatus::Valid) {
       std::ostringstream oss;
-      oss << "With order = " << order << " failed to apply all";
+      oss << "With order = " << order
+          << " not all statuses are Valid, they should be";
       throw error(oss.str());
     }
   }
@@ -40,36 +38,36 @@ void testUnaryChainBase(const Graph &g0, const TensorIds &order) {
 
 void testUnaryChain() {
   Graph g;
-  auto x0 = g.variable({4, 4});
-  auto x1 = g.unary(x0, AliasType::outplace());
-  auto x2 = g.unary(x1, AliasType::outplace());
-  auto x3 = g.unary(x2, AliasType::outplace());
-  testUnaryChainBase(g, {x3, x1, x2});
-  testUnaryChainBase(g, {x2, x1, x3});
-  testUnaryChainBase(g, {x2, x3, x1});
-  testUnaryChainBase(g, {x1, x2, x3});
+  auto x1 = Tensor::variable(g, {4, 4}).closedMux();
+  auto x2 = x1.unary().closedMux();
+  auto x3 = x2.unary().closedMux();
+  x3.unary();
+
+  testUnaryChainBase(g, Tensor::tensorIds({x3, x1, x2}));
+  testUnaryChainBase(g, Tensor::tensorIds({x2, x1, x3}));
+  testUnaryChainBase(g, Tensor::tensorIds({x2, x3, x1}));
+  testUnaryChainBase(g, Tensor::tensorIds({x1, x2, x3}));
 }
 
-void testUnaryTriFork0Base(const Graph &g0, const TensorIds &order) {
-  auto g = g0;
-  const auto statuses =
-      g.tryInplaces(getProposals0(order), CheckParallelWriteable::Yes);
+void testUnaryTriFork0Base(Graph g, const TensorIds &idOrder) {
+  const auto order    = Tensor::tensors(g, idOrder);
+  const auto statuses = g.tryOpenings0(idOrder, CheckParallelWriteable::Yes);
 
   if (order.size() != 3) {
     throw error("order must be of size 3 in this test - bad test");
   }
 
   // We expect only the first proposal to be accepted:
-  if (g.aliasType(order[0].opId()) != AliasType::allInplace()) {
+  if (order[0].muxIsClosed()) {
     std::ostringstream oss;
     oss << "With order = " << order << ", failed to inplace first";
     throw error(oss.str());
   }
 
   for (auto i : {1, 2}) {
-    if (g.aliasType(order[i].opId()) == AliasType::allInplace()) {
+    if (order[i].muxIsOpen()) {
       std::ostringstream oss;
-      oss << "With order = " << order << ", inplaced after first";
+      oss << "With order = " << order << ", incorrectly inplaced non-first";
       throw error(oss.str());
     }
   }
@@ -83,23 +81,30 @@ void testUnaryTriFork0() {
   //     |      |       |
   //    x1     x2      x3
   Graph g;
-  auto x0 = g.variable({3});
-  auto x1 = g.unary(x0, AliasType::outplace());
-  auto x2 = g.unary(x0, AliasType::outplace());
-  auto x3 = g.unary(x0, AliasType::outplace());
+  auto x0 = Tensor::variable(g, {3});
+  auto x1 = x0.closedMux();
+  auto x2 = x0.closedMux();
+  auto x3 = x0.closedMux();
+  x1.unary();
+  x2.unary();
+  x3.unary();
 
-  testUnaryTriFork0Base(g, {x1, x2, x3});
-  testUnaryTriFork0Base(g, {x3, x2, x1});
-  testUnaryTriFork0Base(g, {x2, x3, x1});
+  testUnaryTriFork0Base(g, Tensor::tensorIds({x1, x2, x3}));
+  testUnaryTriFork0Base(g, Tensor::tensorIds({x3, x2, x1}));
+  testUnaryTriFork0Base(g, Tensor::tensorIds({x2, x3, x1}));
 }
 
 void testUnaryTriLongFork0() {
 
   //     +----- x0 -----+
   //     |      |       |
+  //    mux    mux     mux
+  //     |      |       |
   //   unary  unary   unary
   //     |      |       |
   //    x1     x3      x5
+  //     |      |       |
+  //    mux    mux     mux
   //     |      |       |
   //   unary  unary   unary
   //     |      |       |
@@ -109,58 +114,62 @@ void testUnaryTriLongFork0() {
   //                  =====
   //    and all of {x2, x4, x6}.
 
-  Graph g0;
-  auto x0 = g0.variable({3});
-  TensorIds outs;
+  Graph g0_;
+  auto x0 = Tensor::variable(g0_, {3});
   TensorIds forkers;
+  TensorIds outs;
   for (uint64_t i = 0; i < 3; ++i) {
+    auto t = x0;
     for (uint64_t j = 0; j < 2; ++j) {
+      const auto m = t.closedMux();
+      outs.push_back(m.id());
       if (j % 2 == 0) {
-        outs.push_back(g0.unary(x0, AliasType::outplace()));
-        forkers.push_back(outs.back());
-      } else {
-        outs.push_back(g0.unary(outs.back(), AliasType::outplace()));
+        forkers.push_back(m.id());
       }
+      t = m.unary();
     }
   }
 
-  auto isForker = [&forkers](TensorId id) {
+  const auto isForker = [&forkers](auto id) {
     return std::find(forkers.cbegin(), forkers.cend(), id) != forkers.cend();
   };
 
-  std::vector<TensorIds> orders{
-      outs,                                                   //
-      {outs[5], outs[4], outs[3], outs[2], outs[1], outs[0]}, //
-      {outs[4], outs[5], outs[2], outs[3], outs[1], outs[0]}, //
-      {outs[5], outs[3], outs[3], outs[1], outs[0], outs[4]}, //
-  };
+  std::vector<std::vector<uint64_t>> orders{{0, 1, 2, 3, 4, 5},
+                                            {5, 4, 3, 2, 1, 0},
+                                            {4, 5, 2, 3, 1, 0},
+                                            {5, 3, 2, 1, 0, 4}};
   for (auto order : orders) {
+    TensorIds muxOrder;
+    muxOrder.reserve(6);
+    for (auto i : order) {
+      muxOrder.push_back(outs[i]);
+    }
 
-    auto g = g0;
-    g.tryInplaces(getProposals0(order), CheckParallelWriteable::Yes);
+    auto g = g0_;
+    g.tryOpenings0(muxOrder, CheckParallelWriteable::Yes);
 
-    auto getFirstForker = [&order, &isForker]() -> TensorId {
+    auto firstForker = [&outs, &order, &isForker]() {
       for (auto x : order) {
-        if (isForker(x)) {
-          return x;
+        if (isForker(outs[x])) {
+          return outs[x];
         }
       }
       throw error("first forker not found");
-    };
+    }();
 
-    auto firstForker = getFirstForker();
     for (auto x : order) {
-      if (isForker(x) && x != firstForker) {
-        if (g.aliasType(x.opId()) != AliasType::outplace()) {
+      const auto id = outs[x];
+      if (isForker(id) && id != firstForker) {
+        if (g.muxIsOpen(id.opId())) {
           std::ostringstream oss;
-          oss << "With order = " << order << ", expected " << x
+          oss << "With order = " << muxOrder << ", expected " << x
               << " to be outplace";
           throw error(oss.str());
         }
       } else {
-        if (g.aliasType(x.opId()) != AliasType::allInplace()) {
+        if (g.muxIsClosed(id.opId())) {
           std::ostringstream oss;
-          oss << "With order = " << order << ", expected " << x
+          oss << "With order = " << muxOrder << ", expected " << x
               << " to be inplace";
           throw error(oss.str());
         }
@@ -169,25 +178,31 @@ void testUnaryTriLongFork0() {
   }
 }
 
-void testMixedBiFork0Base(const Graph &g0,
+void testMixedBiFork0Base(Graph g,
                           CheckParallelWriteable obey,
-                          const TensorIds &order,
-                          const TensorIds &expectedOut) {
-  auto g              = g0;
-  Proposals proposals = getProposals0(order);
-  const auto statuses = g.tryInplaces(proposals, obey);
+                          const TensorIds &idsOrder,
+                          const TensorIds &idsExpected) {
+  const auto gIn = g;
 
-  auto getBaseString = [&g0, &order, &expectedOut]() {
+  const auto order              = Tensor::tensors(g, idsOrder);
+  const auto expectedClosedMuxs = Tensor::tensors(g, idsExpected);
+
+  const auto statuses = g.tryOpenings0(Tensor::tensorIds(order), obey);
+
+  auto getBaseString = [&gIn, &order, &expectedClosedMuxs]() {
     std::ostringstream oss;
-    oss << "For Initial Graph=" << g0 << ", and order=" << order
-        << " expected " << expectedOut << " to be outplace. ";
+    oss << "For Initial Graph=" << gIn << ", and order=" << order
+        << " expected only " << expectedClosedMuxs << " to be outplace. ";
     return oss.str();
   };
 
   for (auto tId : order) {
-    if (std::find(expectedOut.cbegin(), expectedOut.cend(), tId) !=
-        expectedOut.cend()) {
-      if (g.aliasType(tId.opId()) != AliasType::outplace()) {
+
+    std::cout << tId << " " << expectedClosedMuxs << std::endl;
+    if (std::find(expectedClosedMuxs.cbegin(),
+                  expectedClosedMuxs.cend(),
+                  tId) != expectedClosedMuxs.cend()) {
+      if (!tId.muxIsClosed()) {
         std::ostringstream oss;
         oss << getBaseString() << "\nFailed, as " << tId
             << " is not outplace. "
@@ -195,7 +210,7 @@ void testMixedBiFork0Base(const Graph &g0,
         throw error(oss.str());
       }
     } else {
-      if (g.aliasType(tId.opId()) == AliasType::outplace()) {
+      if (tId.muxIsClosed()) {
         std::ostringstream oss;
         oss << getBaseString() << "\nFailed, as " << tId
             << " is outplace. Results were " << statuses;
@@ -210,50 +225,79 @@ void testMixedBiFork0() {
 
   //       alloc
   //      /.    \.
-  //    rsh    rev  // view change copies
+  //    rsh    rev    // view change copies
   //     |      |
-  //    x0     x1   // unary modfier copies
+  //    mux    mux
+  //     |      |
+  //  unary   unary   // unary modfiers
+  //     |      |
+  //    mux    mux
   //      \   /.
   //       cat      // concatenation copy
+  //        |
+  //       mux
   //
-  auto alloc = g.variable({7});
-  auto rsh   = g.reshape(alloc, AliasType::outplace(), {7});
-  auto x0    = g.unary(rsh, AliasType::outplace());
-  auto rev   = g.reverse(alloc, AliasType::outplace(), {0});
-  auto x1    = g.unary(rev, AliasType::outplace());
-  auto cat   = g.concat({x0, x1}, AliasType::outplace(), 0);
+  //
+  //
+  const auto alloc    = Tensor::variable(g, {7}); // .variable({7});
+  const auto rsh      = alloc.reshape({7}).closedMux();
+  const auto rev      = alloc.reverse({0}).closedMux();
+  const auto rshUnary = rsh.unary().closedMux();
+  const auto revUnary = rev.unary().closedMux();
+  const auto cat      = Tensor::concat({rshUnary, revUnary}, 0).closedMux();
 
-  const auto T = CheckParallelWriteable::Yes;
-  const auto F = CheckParallelWriteable::No;
-  testMixedBiFork0Base(g, T, {x1, x0, rsh, rev, cat}, {rev});
-  testMixedBiFork0Base(g, F, {rev, rsh, cat, x0, x1}, {x1});
-  testMixedBiFork0Base(g, T, {cat, x0, rsh, x1, rev}, {rev});
-  testMixedBiFork0Base(g, F, {cat, x1, x0, rev, rsh}, {rsh});
+  for (auto pll : {CheckParallelWriteable::Yes, CheckParallelWriteable::No}) {
+    testMixedBiFork0Base(
+        g,
+        pll,
+        Tensor::tensorIds({rshUnary, revUnary, rsh, rev, cat}),
+        Tensor::tensorIds({rev}));
+    testMixedBiFork0Base(
+        g,
+        pll,
+        Tensor::tensorIds({rsh, rev, cat, rshUnary, revUnary}),
+        Tensor::tensorIds({rev}));
+    testMixedBiFork0Base(
+        g,
+        pll,
+        Tensor::tensorIds({cat, rshUnary, rsh, revUnary, rev}),
+        Tensor::tensorIds({rev}));
+    testMixedBiFork0Base(
+        g,
+        pll,
+        Tensor::tensorIds({cat, rev, rshUnary, revUnary, rsh}),
+        Tensor::tensorIds({rsh}));
+  }
 }
 
 void testConstraint0() {
   Graph g;
-  const auto alloc = g.variable({3});
-  const auto x0    = g.unary(alloc, AliasType::outplace());
-  const auto x1    = g.unary(alloc, AliasType::outplace());
+  const auto alloc = Tensor::variable(g, {3});
+  const auto x0mux = alloc.closedMux();
+  x0mux.unary();
+  const auto x1mux = alloc.closedMux();
+  const auto x11   = x1mux.unary();
 
   //
   //      alloc
   //      /.   \.
+  //    mux    mux
+  //     |      |
+  //   unary  unary
+  //     |      |
   //    x0  <-  x1
   //
-  g.constraint(x1, x0);
+  g.constraint(x11.opId(), x0mux.opId());
 
   // The attempt to inplace x1 fails, as it
   // is constrained to be before x0.
-  TensorIds order{x1, x0};
-  g.tryInplaces(getProposals0(order), CheckParallelWriteable::Yes);
-  if (g.aliasType(x1) != AliasType::outplace()) {
+  g.tryOpenings0({x1mux.opId(), x0mux.opId()}, CheckParallelWriteable::Yes);
+  if (x1mux.muxIsOpen()) {
     throw error(
         "Failed to inplace correctly with constraint - x0 not outplace");
   }
 
-  if (g.aliasType(x0) != AliasType::allInplace()) {
+  if (x0mux.muxIsClosed()) {
     throw error(
         "Failed to inplace correctly with constraint - x1 not outplace");
   }

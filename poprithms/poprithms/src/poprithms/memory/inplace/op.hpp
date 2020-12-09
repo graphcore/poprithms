@@ -38,11 +38,9 @@ public:
           const TensorIds &inIds_,
           const std::vector<Consumers> &consumers_,
           const Shapes &outShapes_,
-          AliasType aType_,
           const std::string &name_)
         : id(id_), ins(ins_), outs(outs_), inIds(inIds_),
-          consumers(consumers_), outShapes(outShapes_), aType(aType_),
-          name(name_) {}
+          consumers(consumers_), outShapes(outShapes_), name(name_) {}
 
     // This Op's unique identifier
     const OpId id;
@@ -64,9 +62,6 @@ public:
 
     // The Shapes of the output Tensors which this Op creates
     const Shapes outShapes;
-
-    // How the inputs and outputs of this Op are aliased to each other
-    const AliasType aType;
 
     // (optional) name to be associated to this Op, can be useful for logging
     const std::string name;
@@ -106,17 +101,12 @@ public:
 
   const Shapes &outShapes() const { return outShapes_; }
 
-  AliasType aliasType() const { return aType_; }
-
-  bool isOutplace() const { return aliasType().isOutplace(); }
-
   const std::string &name() const { return name_; }
 
   void setName(const std::string &n) { name_ = n; }
 
   State getState() const {
-    return State{
-        id_, ins_, outs_, inIds_, consumers_, outShapes_, aType_, name_};
+    return State{id_, ins_, outs_, inIds_, consumers_, outShapes_, name_};
   }
 
   const TensorIds &inTensorIds() const { return inIds_; }
@@ -138,20 +128,6 @@ public:
     return getState() == rhs.getState() && typeid(*this) == typeid(rhs) &&
            typeSpecificEqualTo(rhs);
   }
-
-  /**
-   * The output Tensors which would be aliased to one or more inputs, if the
-   * AliasType of this Op were \a t
-   * */
-  TensorIds outAliasIdsIf(AliasType t) const;
-
-  /**
-   * The input Tensors which would be aliased to one or more outputs, if the
-   * AliasType of this Op were \a t
-   * */
-  TensorIds inAliasIdsIf(AliasType t) const;
-
-  TensorIds inModifiedIdsIf(AliasType t) const;
 
   /**
    * String describing the exact transformation performed by this Op
@@ -184,19 +160,14 @@ public:
 
   virtual std::unique_ptr<Op> clone() const = 0;
 
-  /**
-   * Change this Op to be of AliasType t, modifying \a g and \a m
-   * appropriately
-   *
-   * \see grow
-   * */
-  void apply(alias::Graph &g, TensorMap &m, AliasType t);
-
   using AliasTensorIds = std::vector<alias::TensorId>;
   using OutIndices     = std::vector<OutIndex>;
   using InIndices      = std::vector<InIndex>;
 
-  void verifyAllInplace(AliasType) const;
+  static State getBaseState(const OpId opId,
+                            const TensorIds &tensorIns,
+                            const Shapes &outShapes,
+                            const OpIds &opIns);
 
 private:
   OpId id_;
@@ -205,7 +176,6 @@ private:
   TensorIds inIds_;
   std::vector<Consumers> consumers_;
   Shapes outShapes_;
-  AliasType aType_;
   std::string name_;
 
 private:
@@ -217,28 +187,11 @@ private:
    * */
   virtual bool typeSpecificEqualTo(const Op &other) const = 0;
 
-  virtual void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const = 0;
-
-  virtual void applyOutplaceTo(alias::Graph &, const TensorMap &) const = 0;
-
   virtual AliasTensorIds typeSpecificGrow(alias::Graph &,
                                           const TensorMap &) const = 0;
-
-  /**
-   * If this Op's AliasType were changed to \a t, at which output indices
-   * would there be aliases to one or more input Tensors?
-   * */
-  virtual OutIndices outAliasIndicesIf(AliasType) const = 0;
-
-  /**
-   * If this Op's AliasType were changed to \a t, at which input indices
-   * would there be aliases to one or more output Tensors?
-   * */
-  virtual InIndices inAliasIndicesIf(AliasType) const = 0;
-
-  virtual InIndices inModifiedIndicesIf(AliasType) const = 0;
 };
+
+std::ostream &operator<<(std::ostream &, const Op &);
 
 } // namespace inplace
 } // namespace memory

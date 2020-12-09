@@ -9,6 +9,33 @@ namespace poprithms {
 namespace memory {
 namespace inplace {
 
+class Mux : public Op {
+public:
+  /** An open Mux, flowing from input at index i_, to output. */
+  Mux(const State &st, InIndex i_);
+
+  /** A closed Mux */
+  Mux(const State &st);
+
+  std::string typeString() const final;
+  std::unique_ptr<Op> clone() const final;
+  bool modifies(InIndex) const final { return false; }
+
+  bool closed() const { return inIndex_ < 0; }
+  bool open() const { return !closed(); }
+  bool outplace() const { return closed(); }
+  InIndex inIndex() const;
+
+  void openAt(alias::Graph &g, TensorMap &m, InIndex);
+  void close(alias::Graph &, TensorMap &);
+
+private:
+  int64_t inIndex_{-1};
+  bool typeSpecificEqualTo(const Op &other) const final;
+  AliasTensorIds typeSpecificGrow(alias::Graph &,
+                                  const TensorMap &) const final;
+};
+
 /** Allocations, with no inputs, 1 output (either constant or variable) */
 class Alloc : public Op {
 public:
@@ -19,219 +46,130 @@ public:
   bool modifies(InIndex) const final { return false; }
 
 private:
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final;
-  void applyOutplaceTo(alias::Graph &, const TensorMap &) const final;
   bool typeSpecificEqualTo(const Op &other) const final;
-  OutIndices outAliasIndicesIf(AliasType) const final { return {}; }
-  InIndices inAliasIndicesIf(AliasType) const final { return {}; }
-  InIndices inModifiedIndicesIf(AliasType) const final { return {}; }
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
   alias::Color color_;
 };
 
-/** Abstract base class for Ops which are not Allocs, and have inputs */
-class NonAlloc : public Op {
-public:
-  NonAlloc(const State &st) : Op(st) {}
-
-private:
-  void applyOutplaceTo(alias::Graph &, const TensorMap &) const final;
-  virtual AliasTensorIds growInplace(alias::Graph &,
-                                     const TensorMap &) const = 0;
-  AliasTensorIds typeSpecificGrow(alias::Graph &,
-                                  const TensorMap &) const final;
-};
-
 /** Concatenation */
-class Concat : public NonAlloc {
+class Concat : public Op {
 public:
-  Concat(const State &st, uint64_t axis__) : NonAlloc(st), axis_(axis__) {}
+  Concat(const State &st, uint64_t axis__) : Op(st), axis_(axis__) {}
   uint64_t axis() const { return axis_; }
   std::string typeString() const final;
   std::unique_ptr<Op> clone() const final;
   bool modifies(InIndex) const final { return false; }
 
 private:
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final;
   bool typeSpecificEqualTo(const Op &other) const final;
-  OutIndices outAliasIndicesIf(AliasType) const final;
-  InIndices inAliasIndicesIf(AliasType) const final;
-  InIndices inModifiedIndicesIf(AliasType) const final { return {}; }
-  AliasTensorIds growInplace(alias::Graph &, const TensorMap &) const final;
+  AliasTensorIds typeSpecificGrow(alias::Graph &,
+                                  const TensorMap &) const final;
   uint64_t axis_;
 };
 
-/** Unary (sqrt, etc) */
-class Unary : public NonAlloc {
+/** UnaryModifier (sqrt, etc) */
+class UnaryModifier : public Op {
 public:
-  Unary(const State &st) : NonAlloc(st) {}
-  std::string typeString() const final { return "Unary"; }
+  UnaryModifier(const State &st) : Op(st) {}
+  std::string typeString() const final { return "UnaryModifier"; }
   std::unique_ptr<Op> clone() const final;
-  bool modifies(InIndex) const final;
+  bool modifies(InIndex) const final { return true; }
 
 private:
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final;
   bool typeSpecificEqualTo(const Op &) const final { return true; }
-  OutIndices outAliasIndicesIf(AliasType) const final;
-  InIndices inAliasIndicesIf(AliasType) const final;
-  AliasTensorIds growInplace(alias::Graph &, const TensorMap &) const final;
-  InIndices inModifiedIndicesIf(AliasType t) const final {
-    return inAliasIndicesIf(t);
-  }
-};
-
-/** Binary (add, sub) */
-class Binary : public NonAlloc {
-public:
-  Binary(const State &st);
-  std::string typeString() const final { return "Binary"; }
-  std::unique_ptr<Op> clone() const final;
-  bool modifies(InIndex) const final;
-
-private:
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final;
-  bool typeSpecificEqualTo(const Op &) const final { return true; }
-  OutIndices outAliasIndicesIf(AliasType) const final;
-  InIndices inAliasIndicesIf(AliasType) const final;
-  AliasTensorIds growInplace(alias::Graph &, const TensorMap &) const final;
-  InIndices inModifiedIndicesIf(AliasType t) const final {
-    return inAliasIndicesIf(t);
-  }
-  void assertShapesValid();
-};
-
-/** Virtual base for non-modififying "view" Ops with 1 input and 1 output */
-class UnaryView : public NonAlloc {
-public:
-  UnaryView(const State &st) : NonAlloc(st) {}
-  bool modifies(InIndex) const final { return false; }
-
-private:
-  OutIndices outAliasIndicesIf(AliasType) const final;
-  InIndices inAliasIndicesIf(AliasType) const final;
-  InIndices inModifiedIndicesIf(AliasType) const final { return {}; }
+  AliasTensorIds typeSpecificGrow(alias::Graph &,
+                                  const TensorMap &) const final;
 };
 
 /** Generalization of slice and subSample */
-class SettSample : public UnaryView {
+class SettSample : public Op {
 public:
   SettSample(const State &st, const Region &region__)
-      : UnaryView(st), region_(region__) {}
+      : Op(st), region_(region__) {}
   Region region() const { return region_; }
   std::string typeString() const final;
   std::unique_ptr<Op> clone() const final;
+  bool modifies(InIndex) const final { return false; }
 
 private:
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final;
   bool typeSpecificEqualTo(const Op &other) const final;
-  AliasTensorIds growInplace(alias::Graph &, const TensorMap &) const final;
+  AliasTensorIds typeSpecificGrow(alias::Graph &,
+                                  const TensorMap &) const final;
   Region region_;
 };
 
 /** Multi-dimensional transpose */
-class DimShuffle : public UnaryView {
+class DimShuffle : public Op {
 public:
   DimShuffle(const State &st, const Permutation &permutation__)
-      : UnaryView(st), permutation_(permutation__) {}
+      : Op(st), permutation_(permutation__) {}
   Permutation permutation() const { return permutation_; }
   std::string typeString() const final;
   std::unique_ptr<Op> clone() const final;
 
+  bool modifies(InIndex) const final { return false; }
+
 private:
   bool typeSpecificEqualTo(const Op &other) const final;
-  AliasTensorIds growInplace(alias::Graph &, const TensorMap &) const final;
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final;
+  AliasTensorIds typeSpecificGrow(alias::Graph &,
+                                  const TensorMap &) const final;
   Permutation permutation_;
 };
 
-class Reverse : public UnaryView {
+class Reverse : public Op {
 public:
   Reverse(const State &st, const Dimensions &dimensions__)
-      : UnaryView(st), dimensions_(dimensions__) {}
+      : Op(st), dimensions_(dimensions__) {}
   Dimensions dimensions() const { return dimensions_; }
   std::string typeString() const final;
   std::unique_ptr<Op> clone() const final;
+  bool modifies(InIndex) const final { return false; }
 
 private:
   bool typeSpecificEqualTo(const Op &other) const final;
-  AliasTensorIds growInplace(alias::Graph &, const TensorMap &) const final;
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final;
+  AliasTensorIds typeSpecificGrow(alias::Graph &,
+                                  const TensorMap &) const final;
   Dimensions dimensions_;
 };
 
-class Reshape : public UnaryView {
+class Reshape : public Op {
 public:
-  Reshape(const State &st) : UnaryView(st) {}
+  Reshape(const State &st) : Op(st) {}
   std::string typeString() const final { return "Reshape"; }
   std::unique_ptr<Op> clone() const final;
+  bool modifies(InIndex) const final { return false; }
 
 private:
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final;
   bool typeSpecificEqualTo(const Op &) const final { return true; }
-  AliasTensorIds growInplace(alias::Graph &, const TensorMap &) const final;
+  AliasTensorIds typeSpecificGrow(alias::Graph &,
+                                  const TensorMap &) const final;
 };
 
-class Identity : public UnaryView {
+class Identity : public Op {
 public:
-  Identity(const State &st) : UnaryView(st) {}
+  Identity(const State &st) : Op(st) {}
   std::string typeString() const final { return "Identity"; }
   std::unique_ptr<Op> clone() const final;
+  bool modifies(InIndex) const final { return false; }
 
 private:
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final;
   bool typeSpecificEqualTo(const Op &) const final { return true; }
-  AliasTensorIds growInplace(alias::Graph &, const TensorMap &) const final;
+  AliasTensorIds typeSpecificGrow(alias::Graph &,
+                                  const TensorMap &) const final;
 };
 
-class Expand : public UnaryView {
+class Expand : public Op {
 public:
-  Expand(const State &st) : UnaryView(st) {}
+  Expand(const State &st) : Op(st) {}
   std::string typeString() const final { return "Expand"; }
   std::unique_ptr<Op> clone() const final;
+  bool modifies(InIndex) const final { return false; }
 
 private:
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final;
   bool typeSpecificEqualTo(const Op &) const final { return true; }
-  AliasTensorIds growInplace(alias::Graph &, const TensorMap &) const final;
-};
-
-/** Base class for Ops which only every have 1 AliasType, and will not be
- * considered for modification in, for example, the inplacing transformation
- */
-class NoneAliasType : public Op {
-public:
-  NoneAliasType(const State &st);
-
-private:
-  void
-  applyInplaceTo(alias::Graph &, const TensorMap &, AliasType) const final {
-    invalidCall("applyInplaceTo");
-  }
-  void applyOutplaceTo(alias::Graph &, const TensorMap &) const final {
-    invalidCall("applyOutplaceTo");
-  }
-  OutIndices outAliasIndicesIf(AliasType) const final {
-    invalidCall("outAliasIndicesIf");
-  }
-  InIndices inAliasIndicesIf(AliasType) const final {
-    invalidCall("inAliasIndicesIf");
-  }
-  InIndices inModifiedIndicesIf(AliasType) const final {
-    invalidCall("inModifiedIndicesIf");
-  }
-
-  [[noreturn]] void invalidCall(const std::string &) const;
+  AliasTensorIds typeSpecificGrow(alias::Graph &,
+                                  const TensorMap &) const final;
 };
 
 /**
@@ -243,20 +181,19 @@ private:
  * An Op which does not have any aliasing between inputs and outputs will have
  * the mapping_ vector empty.
  **/
-class Multi : public NoneAliasType {
+class Multi : public Op {
 public:
-  using Mapping = std::vector<CrossAlias>;
-  Multi(const State &st, const Mapping &m__);
+  Multi(const State &st, const CrossAliases &m__);
   std::string typeString() const final;
   std::unique_ptr<Op> clone() const final;
   bool modifies(InIndex) const final;
-  const Mapping &mapping() const { return mapping_; }
+  const CrossAliases &mapping() const { return mapping_; }
 
 private:
   bool typeSpecificEqualTo(const Op &) const final;
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
-  Mapping mapping_;
+  CrossAliases mapping_;
   std::vector<bool> inIndexIsModified_;
 };
 

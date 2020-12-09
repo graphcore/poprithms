@@ -45,9 +45,13 @@ private:
   OpId opId_;
   OutIndex outIndex_;
 };
+using TensorIds = std::vector<TensorId>;
 
 std::ostream &operator<<(std::ostream &, const TensorId &);
 std::ostream &operator<<(std::ostream &, const TensorIds &);
+
+using ToAliasGraph   = std::vector<std::vector<alias::TensorId>>;
+using FromAliasGraph = std::vector<TensorId>;
 
 } // namespace inplace
 } // namespace memory

@@ -15,13 +15,6 @@ namespace memory {
 namespace inplace {
 
 namespace {
-template <typename T> std::vector<T> emptyIfOutplaceElseZero(AliasType t) {
-  std::vector<T> inds;
-  if (!t.isOutplace()) {
-    inds.push_back(0);
-  }
-  return inds;
-}
 
 template <typename T>
 std::ostream &operator<<(std::ostream &ost, const std::vector<T> &ts) {
@@ -41,33 +34,12 @@ template <class... Args> std::string strcat(Args &&... args) {
   append(oss, args...);
   return oss.str();
 }
-} // namespace
 
-namespace {
 using UpOp = std::unique_ptr<Op>;
 template <typename OP> UpOp mu(const OP *const derived) {
   return std::make_unique<OP>(*derived);
 }
 } // namespace
-
-// ---------- //
-//  NonAlloc  //
-// ---------- //
-std::vector<alias::TensorId>
-NonAlloc::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
-  if (isOutplace()) {
-    AliasTensorIds ids;
-    for (uint64_t o = 0; o < nOutTensors(); ++o) {
-      ids.push_back(g.allocate(outShape(o), Variable));
-    }
-    return ids;
-  }
-  return growInplace(g, m);
-}
-
-void NonAlloc::applyOutplaceTo(alias::Graph &g, const TensorMap &m) const {
-  g.toAllocation(m.toAliasGraphId(outTensorId(0)), Variable);
-}
 
 // -------- //
 //  Concat  //
@@ -79,48 +51,15 @@ bool Concat::typeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const Concat &>(rhs);
   return axis() == rhs_.axis();
 }
-std::vector<alias::TensorId> Concat::growInplace(alias::Graph &g,
-                                                 const TensorMap &m) const {
+std::vector<alias::TensorId>
+Concat::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   for (auto x : inTensorIds()) {
     m.toAliasGraphId(x);
   }
 
   return {g.concat(m.toAliasGraphIds(inTensorIds()), axis())};
 }
-void Concat::applyInplaceTo(alias::Graph &g,
-                            const TensorMap &m,
-                            AliasType t) const {
-  verifyAllInplace(t);
-  g.allocationToConcat(m.toAliasGraphIds(inTensorIds()),
-                       axis(),
-                       m.toAliasGraphId(outTensorId(0)));
-}
-std::vector<OutIndex> Concat::outAliasIndicesIf(AliasType t) const {
-  return emptyIfOutplaceElseZero<OutIndex>(t);
-}
-std::vector<InIndex> Concat::inAliasIndicesIf(AliasType t) const {
-  if (t.isOutplace()) {
-    return {};
-  }
-  std::vector<InIndex> allInIndices;
-  allInIndices.reserve(nInTensors());
-  for (uint64_t i = 0; i < nInTensors(); ++i) {
-    allInIndices.push_back(InIndex(i));
-  }
-  return allInIndices;
-}
 UpOp Concat::clone() const { return mu<Concat>(this); }
-
-// ----------- //
-//  UnaryView  //
-// ----------- //
-std::vector<OutIndex> UnaryView::outAliasIndicesIf(AliasType t) const {
-  return emptyIfOutplaceElseZero<OutIndex>(t);
-}
-
-std::vector<InIndex> UnaryView::inAliasIndicesIf(AliasType t) const {
-  return emptyIfOutplaceElseZero<InIndex>(t);
-}
 
 // ------- //
 //  Alloc  //
@@ -134,16 +73,6 @@ bool Alloc::typeSpecificEqualTo(const Op &rhs) const {
   return color() == rhs_.color();
 }
 
-void Alloc::applyOutplaceTo(alias::Graph &, const TensorMap &) const {
-  throw error("Alloc cannot grow apply outplace");
-}
-
-void Alloc::applyInplaceTo(alias::Graph &,
-                           const TensorMap &,
-                           AliasType) const {
-  throw error("Alloc never changes AliasType, invalid call.");
-}
-
 UpOp Alloc::clone() const { return mu<Alloc>(this); }
 
 std::vector<alias::TensorId>
@@ -155,105 +84,23 @@ Alloc::typeSpecificGrow(alias::Graph &g, const TensorMap &) const {
   return ids;
 }
 
+std::vector<alias::TensorId> Mux::typeSpecificGrow(alias::Graph &g,
+                                                   const TensorMap &m) const {
+  if (closed()) {
+    return {g.allocate(outShape(0), VariableColor)};
+  }
+  return {g.identity(m.toAliasGraphId(inTensorId(inIndex())))};
+}
+
 // ------- //
 //  Unary  //
 // ------- //
-std::vector<alias::TensorId> Unary::growInplace(alias::Graph &g,
-                                                const TensorMap &m) const {
+std::vector<alias::TensorId>
+UnaryModifier::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.identity(m.toAliasGraphId(inTensorId(0)))};
 }
-
-void Unary::applyInplaceTo(alias::Graph &g,
-                           const TensorMap &m,
-                           AliasType t) const {
-  verifyAllInplace(t);
-  g.toIdentity(m.toAliasGraphId(inTensorId(0)),
-               m.toAliasGraphId(outTensorId(0)));
-}
-std::unique_ptr<Op> Unary::clone() const { return mu<Unary>(this); }
-bool Unary::modifies(InIndex) const { return !isOutplace(); }
-
-std::vector<OutIndex> Unary::outAliasIndicesIf(AliasType t) const {
-  return emptyIfOutplaceElseZero<OutIndex>(t);
-}
-std::vector<InIndex> Unary::inAliasIndicesIf(AliasType t) const {
-  return emptyIfOutplaceElseZero<InIndex>(t);
-}
-
-// ---------- //
-//  Identity  //
-// ---------- //
-std::vector<alias::TensorId> Identity::growInplace(alias::Graph &g,
-                                                   const TensorMap &m) const {
-  return {g.identity(m.toAliasGraphId(inTensorId(0)))};
-}
-
-void Identity::applyInplaceTo(alias::Graph &g,
-                              const TensorMap &m,
-                              AliasType t) const {
-  verifyAllInplace(t);
-  g.toIdentity(m.toAliasGraphId(inTensorId(0)),
-               m.toAliasGraphId(outTensorId(0)));
-}
-UpOp Identity::clone() const { return mu<Identity>(this); }
-
-// ------- //
-//  Binary //
-// ------- //
-// NOTE: if we have in0:(4,)  in1:(1,4,1,1) then either in0 or in1 can be
-// inplaced.
-std::vector<alias::TensorId> Binary::growInplace(alias::Graph &g,
-                                                 const TensorMap &m) const {
-
-  const InIndex inIndex = aliasType().isBinary0() ? 0 : 1;
-  return {g.reshape(m.toAliasGraphId(inTensorId(inIndex)), outShape(0))};
-}
-
-void Binary::applyInplaceTo(alias::Graph &g,
-                            const TensorMap &m,
-                            AliasType t) const {
-  if (!t.isBinary0() && !t.isBinary1()) {
-    std::ostringstream oss;
-    oss << "Expected a binary inplace variant in applyInplaceTo, not " << t
-        << '.';
-    throw error(oss.str());
-  }
-  const InIndex inIndex = t.isBinary0() ? 0 : 1;
-  g.allocationToReshape(m.toAliasGraphId(inTensorId(inIndex)),
-                        m.toAliasGraphId(outTensorId(0)));
-}
-std::unique_ptr<Op> Binary::clone() const { return mu<Binary>(this); }
-
-Binary::Binary(const State &st) : NonAlloc(st) {
-  if (!st.aType.isOutplace() && !st.aType.isBinary0() &&
-      !st.aType.isBinary1()) {
-    std::ostringstream oss;
-    oss << "Invalid AliasType in Binary constructor, " << st.aType
-        << ". It must be binary0, binary1, or outplace.";
-    throw error(oss.str());
-  }
-}
-
-bool Binary::modifies(InIndex i) const {
-  if (aliasType().isBinary0() && i == 0) {
-    return true;
-  }
-  if (aliasType().isBinary1() && i == 1) {
-    return true;
-  }
-  return false;
-}
-std::vector<OutIndex> Binary::outAliasIndicesIf(AliasType t) const {
-  return emptyIfOutplaceElseZero<OutIndex>(t);
-}
-std::vector<InIndex> Binary::inAliasIndicesIf(AliasType t) const {
-  if (t.isBinary0()) {
-    return {0};
-  }
-  if (t.isBinary1()) {
-    return {1};
-  }
-  return {};
+std::unique_ptr<Op> UnaryModifier::clone() const {
+  return mu<UnaryModifier>(this);
 }
 
 // ------------ //
@@ -267,16 +114,8 @@ bool SettSample::typeSpecificEqualTo(const Op &rhs) const {
   return region().equivalent(rhs_.region());
 }
 std::vector<alias::TensorId>
-SettSample::growInplace(alias::Graph &g, const TensorMap &m) const {
+SettSample::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.settsample(m.toAliasGraphId(inTensorId(0)), region())};
-}
-void SettSample::applyInplaceTo(alias::Graph &g,
-                                const TensorMap &m,
-                                AliasType t) const {
-  verifyAllInplace(t);
-  g.allocationToSettsample(m.toAliasGraphId(inTensorId(0)),
-                           region(),
-                           m.toAliasGraphId(outTensorId(0)));
 }
 
 UpOp SettSample::clone() const { return mu<SettSample>(this); }
@@ -292,16 +131,8 @@ bool DimShuffle::typeSpecificEqualTo(const Op &rhs) const {
   return permutation() == rhs_.permutation();
 }
 std::vector<alias::TensorId>
-DimShuffle::growInplace(alias::Graph &g, const TensorMap &m) const {
+DimShuffle::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.dimshuffle(m.toAliasGraphId(inTensorId(0)), permutation())};
-}
-void DimShuffle::applyInplaceTo(alias::Graph &g,
-                                const TensorMap &m,
-                                AliasType t) const {
-  verifyAllInplace(t);
-  g.allocationToDimshuffle(m.toAliasGraphId(inTensorId(0)),
-                           permutation(),
-                           m.toAliasGraphId(outTensorId(0)));
 }
 UpOp DimShuffle::clone() const { return mu<DimShuffle>(this); }
 
@@ -315,95 +146,35 @@ bool Reverse::typeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const Reverse &>(rhs);
   return dimensions() == rhs_.dimensions();
 }
-std::vector<alias::TensorId> Reverse::growInplace(alias::Graph &g,
-                                                  const TensorMap &m) const {
+std::vector<alias::TensorId>
+Reverse::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.reverse(m.toAliasGraphId(inTensorId(0)), dimensions().get())};
-}
-void Reverse::applyInplaceTo(alias::Graph &g,
-                             const TensorMap &m,
-                             AliasType t) const {
-  verifyAllInplace(t);
-  g.allocationToReverse(m.toAliasGraphId(inTensorId(0)),
-                        dimensions().get(),
-                        m.toAliasGraphId(outTensorId(0)));
 }
 UpOp Reverse::clone() const { return mu<Reverse>(this); }
 
 // --------- //
 //  Reshape  //
 // --------- //
-std::vector<alias::TensorId> Reshape::growInplace(alias::Graph &g,
-                                                  const TensorMap &m) const {
+std::vector<alias::TensorId>
+Reshape::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.reshape(m.toAliasGraphId(inTensorId(0)), outShape(0))};
-}
-void Reshape::applyInplaceTo(alias::Graph &g,
-                             const TensorMap &m,
-                             AliasType t) const {
-  verifyAllInplace(t);
-  g.allocationToReshape(m.toAliasGraphId(inTensorId(0)),
-                        m.toAliasGraphId(outTensorId(0)));
 }
 UpOp Reshape::clone() const { return mu<Reshape>(this); }
 
 // --------- //
 //  Expand   //
 // --------- //
-std::vector<alias::TensorId> Expand::growInplace(alias::Graph &g,
-                                                 const TensorMap &m) const {
+std::vector<alias::TensorId>
+Expand::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.expand(m.toAliasGraphId(inTensorId(0)), outShape(0))};
 }
-void Expand::applyInplaceTo(alias::Graph &g,
-                            const TensorMap &m,
-                            AliasType t) const {
-  verifyAllInplace(t);
-  g.allocationToExpand(m.toAliasGraphId(inTensorId(0)),
-                       m.toAliasGraphId(outTensorId(0)));
-}
+
 UpOp Expand::clone() const { return mu<Expand>(this); }
-
-// -------------------------- //
-// NoneAliasType //
-// -------------------------- //
-NoneAliasType::NoneAliasType(const State &st) : Op(st) {
-  if (st.aType != AliasType::none()) {
-    throw error("NoneAliasType, alias type must be none");
-  }
-}
-void NoneAliasType::invalidCall(const std::string &methodName) const {
-  std::ostringstream oss;
-  oss << "Invalid function class to " << typeString() << ". " << methodName
-      << "is not supported for "
-      << "NoneAliasType Ops. ";
-  throw error(oss.str());
-}
-
-void CrossAlias::append(std::ostream &ost) const {
-  ost << in() << "->" << out();
-  if (isModifying()) {
-    ost << "[modifying]";
-  } else {
-    ost << "[not modifying]";
-  }
-}
-
-std::ostream &operator<<(std::ostream &ost, const Multi::Mapping &m) {
-  ost << '(';
-  if (!m.empty()) {
-    m[0].append(ost);
-  }
-  for (uint64_t i = 1; i < m.size(); ++i) {
-    ost << ',';
-    m[i].append(ost);
-  }
-  ost << ')';
-  return ost;
-}
 
 // ------- //
 // Multi //
 // ------- //
-Multi::Multi(const State &st, const Mapping &m)
-    : NoneAliasType(st), mapping_(m) {
+Multi::Multi(const State &st, const CrossAliases &m) : Op(st), mapping_(m) {
   const auto nIn = st.inIds.size();
   std::vector<bool> inSeen(nIn, false);
   const auto nOut = st.outShapes.size();
@@ -461,10 +232,69 @@ Multi::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
 
   for (uint64_t outIndex = 0; outIndex < nOutTensors(); ++outIndex) {
     if (!processed[outIndex]) {
-      registerOut(outIndex, g.allocate(outShape(outIndex)));
+      registerOut(outIndex, g.allocate(outShape(outIndex), VariableColor));
     }
   }
   return tensorIds;
+}
+
+void Mux::close(alias::Graph &g, TensorMap &m) {
+  inIndex_ = -1;
+  g.toAllocation(m.toAliasGraphId(outTensorId(0)), VariableColor);
+}
+
+void Mux::openAt(alias::Graph &g, TensorMap &m, InIndex index) {
+  if (index.get() >= nInTensors()) {
+    std::ostringstream oss;
+    oss << "Invalid InIndex (" << index << ") in Mux::openAt. For Mux with "
+        << nInTensors() << '.';
+    throw error(oss.str());
+  }
+  inIndex_ = index.get();
+  g.toIdentity(m.toAliasGraphId(inTensorId(inIndex_)),
+               m.toAliasGraphId(outTensorId(0)));
+}
+
+Mux::Mux(const State &st) : Op(st), inIndex_(-1) {}
+
+Mux::Mux(const State &st, InIndex i_) : Op(st) {
+  if (static_cast<uint64_t>(i_.get()) >= nInTensors()) {
+    std::ostringstream oss;
+    oss << "Invalid InIndex " << i_ << " in Mux constructor. "
+        << "Expected value in range [0, " << nInTensors()
+        << ") for this Mux, which has " << nInTensors() << " inputs. "
+        << "Note that closed Muxes must be created with the other (single "
+           "input) constructor. ";
+    throw error(oss.str());
+  }
+
+  inIndex_ = static_cast<int64_t>(i_.get());
+}
+
+std::string Mux::typeString() const {
+  std::ostringstream oss;
+  oss << "Mux(";
+  if (closed()) {
+    oss << "closed";
+  } else {
+    oss << inIndex();
+  }
+  oss << ')';
+  return oss.str();
+}
+
+UpOp Mux::clone() const { return mu<Mux>(this); }
+
+bool Mux::typeSpecificEqualTo(const Op &rhs) const {
+  const auto &rhs_ = static_cast<const Mux &>(rhs);
+  return closed() == rhs_.closed() || (inIndex() == rhs_.inIndex());
+}
+
+InIndex Mux::inIndex() const {
+  if (closed()) {
+    throw error("Invalid call, Mux::inIndex for closed Mux. ");
+  }
+  return inIndex_;
 }
 
 } // namespace inplace

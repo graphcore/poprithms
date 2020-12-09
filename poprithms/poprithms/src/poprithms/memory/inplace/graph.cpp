@@ -1,10 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include "ops.hpp"
-#include "poprithms/schedule/scc/scc.hpp"
 
 #include <algorithm>
-#include <cstdlib>
-#include <cstring>
 #include <iterator>
 #include <memory>
 #include <numeric>
@@ -13,15 +10,102 @@
 #include <string>
 #include <utility>
 
-#include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
+#include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace inplace {
+
+namespace {
+void assertNonNegative(const std::vector<int64_t> &vs) {
+  for (auto v : vs) {
+    if (v < 0) {
+      std::ostringstream oss;
+      oss << "Failure in assertNonNegative, for input ";
+      util::append(oss, vs);
+      throw error(oss.str());
+    }
+  }
+}
+} // namespace
+
+TensorId Graph::pad(const TensorId &id,
+                    const std::array<std::vector<int64_t>, 2> &lowerAndUpper,
+                    bool paddingIsParallelWriteable) {
+
+  const auto &l = std::get<0>(lowerAndUpper);
+  assertNonNegative(l);
+  std::vector<uint64_t> l_u64{l.cbegin(), l.cend()};
+
+  const auto &u = std::get<1>(lowerAndUpper);
+  assertNonNegative(u);
+  std::vector<uint64_t> u_u64{u.cbegin(), u.cend()};
+
+  const auto cp =
+      paddingIsParallelWriteable ? ConstantPadding::No : ConstantPadding::Yes;
+
+  const auto sp = paddingIsParallelWriteable ? BroadcastPadding::No
+                                             : BroadcastPadding::Yes;
+
+  return pad(id, LowerPadding(l_u64), UpperPadding(u_u64), cp, sp);
+}
+
+std::vector<std::array<TensorId, 2>>
+Graph::createBroadcastPadElements(const Shape &shape,
+                                  const LowerPadding &l,
+                                  const UpperPadding &u,
+                                  ConstantPadding cp) {
+  const auto alloc = cp == ConstantPadding::Yes ? constant({}) : variable({});
+  const auto padShapes = shape.getPadShapes(l.get(), u.get());
+  std::vector<std::array<TensorId, 2>> paddings;
+  paddings.reserve(shape.rank_u64());
+  for (auto [l_, u_] : padShapes) {
+    paddings.push_back({expand(alloc, l_), expand(alloc, u_)});
+  }
+  return paddings;
+}
+
+std::vector<std::array<TensorId, 2>>
+Graph::createNonAliasedPadElements(const Shape &shape,
+                                   const LowerPadding &l,
+                                   const UpperPadding &u,
+                                   ConstantPadding cp) {
+  std::vector<std::array<TensorId, 2>> paddings;
+  paddings.reserve(shape.rank_u64());
+  for (auto [l_, u_] : shape.getPadShapes(l.get(), u.get())) {
+    if (cp == ConstantPadding::Yes) {
+      paddings.push_back({constant(l_), constant(u_)});
+    } else {
+      paddings.push_back({variable(l_), variable(u_)});
+    }
+  }
+  return paddings;
+}
+
+TensorId Graph::pad(const TensorId &id,
+                    const LowerPadding &l,
+                    const UpperPadding &u,
+                    ConstantPadding cp,
+                    BroadcastPadding bp) {
+
+  auto paddings = (bp == BroadcastPadding::Yes)
+                      ? createBroadcastPadElements(shape(id), l, u, cp)
+                      : createNonAliasedPadElements(shape(id), l, u, cp);
+  auto current = id;
+  for (uint64_t d = 0; d < rank_u64(id); ++d) {
+    current = concat(
+        {std::get<0>(paddings[d]), current, std::get<1>(paddings[d])}, d);
+  }
+  return current;
+}
+
+TensorId Graph::slice(const TensorId &id, const Lower &l, const Upper &u) {
+  return settSample(id, Region::fromBounds(shape(id), l, u));
+}
 
 std::ostream &operator<<(std::ostream &ost, CheckParallelWriteable check) {
   switch (check) {
@@ -52,62 +136,6 @@ std::ostream &operator<<(std::ostream &ost, ConstantPadding cp) {
   }
 
   return ost;
-}
-
-TensorId Graph::concat_(const TensorIds &ins, uint64_t axis) {
-  return concat(ins, AliasType::allInplace(), axis);
-}
-
-TensorId Graph::settSample_(const TensorId &id, const Region &w) {
-  return settSample(id, AliasType::allInplace(), w);
-}
-
-TensorId Graph::slice(const TensorId &tIn,
-                      AliasType t,
-                      const Lower &l,
-                      const Upper &u) {
-  return settSample(tIn, t, Region::fromBounds(shape(tIn), l, u));
-}
-TensorId Graph::slice_(const TensorId &tIn, const Lower &l, const Upper &u) {
-  return slice(tIn, AliasType::allInplace(), l, u);
-}
-
-TensorId
-Graph::subSample_(const TensorId &tIn, int64_t stride, uint64_t dimension) {
-  return subSample(tIn, AliasType::allInplace(), stride, dimension);
-}
-
-TensorId Graph::reverse_(const TensorId &tIn, const Dimensions &dims) {
-  return reverse(tIn, AliasType::allInplace(), dims);
-}
-
-TensorId Graph::reshape_(const TensorId &id, const Shape &shape) {
-  return reshape(id, AliasType::allInplace(), shape);
-}
-
-TensorId Graph::identity_(const TensorId &tIn) {
-  return identity(tIn, AliasType::allInplace());
-}
-
-TensorId Graph::dimShuffle_(const TensorId &id, const Permutation &perm) {
-  return dimShuffle(id, AliasType::allInplace(), perm);
-}
-
-TensorId Graph::expand_(const TensorId &id, const Shape &shape) {
-  return expand(id, AliasType::allInplace(), shape);
-}
-
-TensorId Graph::unary_(const TensorId &inTensor) {
-  return unary(inTensor, AliasType::allInplace());
-}
-
-OpIds Graph::getOpIds(const TensorIds &tensorIds) {
-  OpIds opIds_;
-  opIds_.reserve(tensorIds.size());
-  for (const auto &tid : tensorIds) {
-    opIds_.push_back(tid.opId());
-  }
-  return opIds_;
 }
 
 namespace {
@@ -149,34 +177,20 @@ bool Graph::satisifedWithoutAnyChange(const Constraints &constraints) const {
 
 uint64_t Graph::nInTensors(OpId id) const { return op(id).nInTensors(); }
 
-namespace {
-
-Op::State getBaseState(const OpId opId,
-                       const TensorIds &inIds,
-                       const Shapes &outShapes,
-                       const AliasType aType,
-                       const OpIds &opIns) {
-
-  const OpIds opOuts{};
-  const std::string name{};
-  std::vector<Consumers> consumers(outShapes.size());
-
-  return Op::State(
-      opId, opIns, opOuts, inIds, consumers, outShapes, aType, name);
-}
-} // namespace
-
 template <class T, class... Args>
 OpId Graph::createOp(const TensorIds &inIds,
                      const Shapes &outShapes,
-                     const AliasType aType,
                      Args... args) {
+  return insertOp(
+      std::make_unique<T>(
+          Op::getBaseState(nOps_i64(), inIds, outShapes, opIds(inIds)),
+          args...),
+      inIds);
+}
+
+OpId Graph::insertOp(std::unique_ptr<Op> createdOp, const TensorIds &inIds) {
 
   scheduleIsValid = false;
-
-  auto createdOp = std::make_unique<T>(
-      getBaseState(nOps_i64(), inIds, outShapes, aType, getOpIds(inIds)),
-      args...);
 
   for (uint64_t inIndex = 0; inIndex < inIds.size(); ++inIndex) {
     const auto inTensor = inIds[inIndex];
@@ -185,236 +199,100 @@ OpId Graph::createOp(const TensorIds &inIds,
     source.insertConsumer(inTensor.outIndex(),
                           {createdOp->id(), InIndex(inIndex)});
   }
+
   ops.emplace_back(std::move(createdOp));
+
   ops.back().up->grow(aGraph(), tensorMap);
   auto newId = ops.back().up->id();
 
   return newId;
 }
 
-TensorId Graph::concat(const TensorIds &inIds,
-                       const AliasType aType,
-                       const uint64_t axis) {
-  const auto outShape = Shape::concat(shapes(inIds), axis);
-  const auto opId     = createOp<Concat>(inIds, {outShape}, aType, axis);
-  return {opId, OutIndex(0)};
-}
-
-TensorId Graph::unary(const TensorId &inId, const AliasType aType) {
-  const auto opId = createOp<Unary>({inId}, {shape(inId)}, aType);
-  return {opId, OutIndex(0)};
-}
-
-std::vector<std::array<TensorId, 2>>
-Graph::createBroadcastPadElements(const Shape &s,
-                                  const LowerPadding &l,
-                                  const UpperPadding &u,
-                                  ConstantPadding cp) {
-  const auto alloc = cp == ConstantPadding::Yes ? constant({}) : variable({});
-  const auto padShapes = s.getPadShapes(l.get(), u.get());
-  std::vector<std::array<TensorId, 2>> paddings;
-  paddings.reserve(s.rank_u64());
-  for (auto [l_, u_] : padShapes) {
-    paddings.push_back({expand_(alloc, l_), expand_(alloc, u_)});
-  }
-  return paddings;
-}
-
-std::vector<std::array<TensorId, 2>>
-Graph::createNonAliasedPadElements(const Shape &s,
-                                   const LowerPadding &l,
-                                   const UpperPadding &u,
-                                   ConstantPadding cp) {
-  std::vector<std::array<TensorId, 2>> paddings;
-  paddings.reserve(s.rank_u64());
-
-  for (auto [l_, u_] : s.getPadShapes(l.get(), u.get())) {
-    if (cp == ConstantPadding::Yes) {
-      paddings.push_back({constant(l_), constant(u_)});
-    } else {
-      paddings.push_back({variable(l_), variable(u_)});
-    }
-  }
-
-  return paddings;
-}
-
-TensorId Graph::pad_(const TensorId &inId,
-                     const LowerPadding &l,
-                     const UpperPadding &u,
-                     ConstantPadding cp,
-                     BroadcastPadding bp) {
-  auto paddings = (bp == BroadcastPadding::Yes)
-                      ? createBroadcastPadElements(shape(inId), l, u, cp)
-                      : createNonAliasedPadElements(shape(inId), l, u, cp);
-  TensorId current = inId;
-  for (uint64_t d = 0; d < rank_u64(inId); ++d) {
-    current = concat_(
-        {std::get<0>(paddings[d]), current, std::get<1>(paddings[d])}, d);
-  }
-  return current;
-}
-
-namespace {
-void assertNonNegative(const std::vector<int64_t> &vs) {
-  for (auto v : vs) {
-    if (v < 0) {
-      std::ostringstream oss;
-      oss << "Failure in assertNonNegative, for input ";
-      util::append(oss, vs);
-      throw error(oss.str());
-    }
-  }
-}
-} // namespace
-
-TensorId Graph::pad_(const TensorId &inTensor,
-                     const std::array<std::vector<int64_t>, 2> &lowerAndUpper,
-                     bool paddingIsParallelWriteable) {
-
-  const auto &l = std::get<0>(lowerAndUpper);
-  assertNonNegative(l);
-  std::vector<uint64_t> l_u64{l.cbegin(), l.cend()};
-
-  const auto &u = std::get<1>(lowerAndUpper);
-  assertNonNegative(u);
-  std::vector<uint64_t> u_u64{u.cbegin(), u.cend()};
-
-  const auto cp =
-      paddingIsParallelWriteable ? ConstantPadding::No : ConstantPadding::Yes;
-
-  const auto sp = paddingIsParallelWriteable ? BroadcastPadding::No
-                                             : BroadcastPadding::Yes;
-
-  return pad_(inTensor, LowerPadding(l_u64), UpperPadding(u_u64), cp, sp);
+TensorId Graph::settSample(const TensorId &id, const Region &r) {
+  return {createOp<SettSample>({id}, {r.nelms()}, r), 0};
 }
 
 TensorId
-Graph::binary(const TensorId &arg0, const TensorId &arg1, AliasType t) {
-  const auto outShape = shape(arg0).numpyBinary(shape(arg1));
-  const auto opId     = createOp<Binary>({arg0, arg1}, {outShape}, t);
-  return {opId, OutIndex(0)};
-}
-
-TensorId
-Graph::reshape(const TensorId &inId, AliasType t, const Shape &outShape) {
-  if (outShape.nelms_u64() != shape(inId).nelms_u64()) {
-    std::ostringstream oss;
-    oss << "Invalid reshape, number of elements changes. "
-        << "Cannot reshape from " << shape(inId) << " to " << outShape
-        << ". ";
-    throw error(oss.str());
-  }
-  const auto opId = createOp<Reshape>({inId}, {outShape}, t);
-  return {opId, OutIndex(0)};
-}
-
-TensorId Graph::flatten(const TensorId &id, AliasType t) {
-  return reshape(id, t, shape(id).flatten());
-}
-
-OpId Graph::multi(const TensorIds &inIds,
-                  const Shapes &outShapes,
-                  const Multi::Mapping &mapping) {
-  const auto opId =
-      createOp<Multi>(inIds, outShapes, AliasType::none(), mapping);
-
-  for (const auto &crossAlias : mapping) {
-    const auto inShape  = shape(op(opId).inTensorId(crossAlias.in()));
-    const auto outShape = shape(op(opId).outTensorId(crossAlias.out()));
-    if (inShape != outShape) {
-      std::ostringstream oss;
-      oss << "Incompatible Shapes in Graph::multi, for CrossAlias "
-          << crossAlias << ". The input shape at index " << crossAlias.in()
-          << " is " << inShape << ", and the output shape at index "
-          << crossAlias.out() << " is " << outShape << '.';
-      throw error(oss.str());
-    }
-  }
-  return opId;
-}
-
-TensorId
-Graph::settSample(const TensorId &inId, AliasType t, const Region &r) {
-  const auto opId = createOp<SettSample>({inId}, {r.nelms()}, t, r);
-  return {opId, OutIndex(0)};
-}
-
-TensorId Graph::dimShuffle(const TensorId &inId,
-                           AliasType t,
-                           const Permutation &perm) {
-  const auto opId =
-      createOp<DimShuffle>({inId}, {shape(inId).dimShuffle(perm)}, t, perm);
-  return {opId, OutIndex(0)};
-}
-
-TensorId Graph::subSample(const TensorId &inId,
-                          AliasType t,
-                          int64_t stride,
-                          uint64_t dimension) {
+Graph::subSample(const TensorId &id, int64_t stride, uint64_t dimension) {
   return settSample(
-      inId,
-      t,
-      Region::fromStripe(shape(inId), dimension, {1, stride - 1, 0}));
+      id, Region::fromStripe(shape(id), dimension, {1, stride - 1, 0}));
 }
 
-TensorId
-Graph::subSample(const TensorId &inId, AliasType t, const Strides &strides) {
+TensorId Graph::subSample(const TensorId &id, const Strides &strides) {
   std::vector<nest::Sett> setts;
   setts.reserve(strides.size());
   for (auto stride : strides.get()) {
     setts.push_back({{{1, stride - 1, 0}}});
   }
-  return settSample(inId, t, Region(shape(inId), setts));
+  return settSample(id, Region(shape(id), setts));
 }
 
-TensorId Graph::subSample_(const TensorId &inId, const Strides &strides) {
-  return subSample(inId, AliasType::allInplace(), strides);
+TensorId Graph::dimShuffle(const TensorId &id, const Permutation &perm) {
+  return {createOp<DimShuffle>({id}, {shape(id).dimShuffle(perm)}, perm), 0};
 }
 
-TensorId Graph::identity(const TensorId &tIn, AliasType t) {
-  const auto opId = createOp<Identity>({tIn}, {shape(tIn)}, t);
-  return {opId, OutIndex(0)};
+TensorId Graph::reverse(const TensorId &id, const Dimensions &d) {
+  return {createOp<Reverse>({id}, {shape(id)}, d.get()), 0};
 }
 
-TensorId Graph::reverse(const TensorId &tIn,
-                        AliasType t,
-                        const Dimensions &dimensions) {
-  const auto opId = createOp<Reverse>({tIn}, {shape(tIn)}, t, dimensions);
-  return {opId, OutIndex(0)};
+TensorId Graph::flatten(const TensorId &id) {
+  return reshape(id, {shape(id).nelms()});
 }
 
-TensorId Graph::expand(const TensorId &tIn, AliasType t, const Shape &shape) {
-  const auto opId = createOp<Expand>({tIn}, {shape}, t);
-  return {opId, OutIndex(0)};
+TensorId Graph::reshape(const TensorId &id, const Shape &outShape) {
+  // Note that this sanity check can't be be done in the Reshape constructor,
+  // as there the input Shape is not known.
+  if (outShape.nelms_u64() != nelms_u64(id)) {
+    std::ostringstream oss;
+    oss << "Invalid reshape, number of elements changes. "
+        << "Cannot reshape from " << shape(id) << " to " << outShape << ". ";
+    throw error(oss.str());
+  }
+
+  return {createOp<Reshape>({id}, {outShape}), 0};
+}
+
+TensorId Graph::expand(const TensorId &id, const Shape &outShape) {
+  shape(id).assertCanExpandTo(outShape);
+  return {createOp<Expand>({id}, {outShape}), 0};
+}
+
+TensorId Graph::unary(const TensorId &id) {
+  return {createOp<UnaryModifier>({id}, {shape(id)}), 0};
 }
 
 TensorId Graph::constant(const Shape &shape) {
-  const auto opId =
-      createOp<Alloc>({}, {shape}, AliasType::outplace(), Constant);
-  return {opId, OutIndex(0)};
+  return {createOp<Alloc>({}, {shape}, ConstantColor), 0};
 }
 
 TensorId Graph::variable(const Shape &shape) {
+  return {createOp<Alloc>({}, {shape}, VariableColor), 0};
+}
+
+TensorId Graph::concat(const TensorIds &ids, uint64_t axis) {
+  if (ids.empty()) {
+    std::ostringstream oss;
+    oss << "In Tensor::concatIds(ids of size 0"
+        << ", axis = " << axis << "). ids must be non-empty.";
+    throw error(oss.str());
+  }
+
   const auto opId =
-      createOp<Alloc>({}, {shape}, AliasType::outplace(), Variable);
-  return {opId, OutIndex(0)};
+      createOp<Concat>(ids, {Shape::concat(shapes(ids), axis)}, axis);
+
+  return {opId, 0};
+}
+
+OpIds Graph::opIds(const TensorIds &tids) {
+  OpIds ids_(tids.size());
+  for (uint64_t i = 0; i < tids.size(); ++i) {
+    ids_[i] = tids[i].opId();
+  }
+  return ids_;
 }
 
 void Graph::setName(const OpId id, const std::string &name) {
   op(id).setName(name);
-}
-
-void Graph::setName(const TensorId &id, const std::string &name) {
-  if (op(id.opId()).nOutTensors() != 1) {
-    std::ostringstream oss;
-    oss << "Cannot call Graph::setName(TensorId=" << id << ", name=" << name
-        << '.' << "), because the Op creator has multiple outputs. "
-        << "Call setName(OpId=" << id.opId() << ", name=" << name
-        << ") instead.";
-    throw error(oss.str());
-  }
-  setName(id.opId(), name);
 }
 
 void Graph::constraint(const OpId before, const OpId after) {
@@ -474,16 +352,24 @@ Graph::UpOp &Graph::UpOp::UpOp::operator=(const Graph::UpOp &x) {
   return *this;
 }
 
-AliasType Graph::aliasType(OpId opId) const { return op(opId).aliasType(); }
-
-std::vector<InplaceStatus> Graph::tryInplaces(const Proposals &proposals,
-                                              CheckParallelWriteable check) {
-  std::vector<InplaceStatus> statuses;
+OpeningStatuses Graph::tryOpenings(const Proposals &proposals,
+                                   CheckParallelWriteable check) {
+  OpeningStatuses statuses;
   statuses.reserve(proposals.size());
   for (const auto &p : proposals) {
-    statuses.push_back(tryInplace(p, check));
+    statuses.push_back(tryOpening(p, check));
   }
   return statuses;
+}
+
+OpeningStatuses Graph::tryOpenings0(const TensorIds &ids,
+                                    CheckParallelWriteable xp) {
+  return tryOpenings(Proposal::open0(ids), xp);
+}
+
+OpeningStatuses Graph::tryOpenings0(const OpIds &ids,
+                                    CheckParallelWriteable xp) {
+  return tryOpenings(Proposal::open0(ids), xp);
 }
 
 std::vector<Shape> Graph::shapes(const TensorIds &ids) const {
@@ -526,11 +412,13 @@ TensorIds Graph::allAliases(const TensorId &id) const {
   return tensorMap.fromAliasGraphIds(aGraph().allAliases(aliasGraphId));
 }
 
-const Consumers &Graph::consumers(const TensorId &id) const {
+Consumers Graph::consumers(const TensorId &id) const {
   return op(id.opId()).consumers(id.outIndex());
 }
 
-TensorIds Graph::difference(TensorIds a, TensorIds b) const {
+TensorIds Graph::difference(const TensorIds &a_, const TensorIds &b_) const {
+  auto a = a_;
+  auto b = b_;
   std::sort(a.begin(), a.end());
   std::sort(b.begin(), b.end());
 
@@ -555,19 +443,50 @@ uint64_t Graph::scheduleIndex(OpId id) const {
 
 // Possible optimizations for the inplacing algorithm:
 //
-// 1) Cache aliases between calls to tryInplace (T29079)
+// 1) Cache aliases between calls to tryOpening (T29079)
 //
 // 2) use the DAG structure to reduce alias computation, and sparsify
 //    constraint calculation and insertion (T29080)
-//
 
-InplaceResult Graph::tryInplacePartial(const Proposal &p,
+const Mux &Graph::asMux(OpId mid) const {
+  auto proposedBaseOp   = &op(mid);
+  auto proposedMuxOpPtr = dynamic_cast<const Mux *>(proposedBaseOp);
+  if (!proposedMuxOpPtr) {
+    std::ostringstream oss;
+    oss << "Failure to cast Op to Mux. This for OpId = " << mid
+        << ", where the Op trying to cast to Mux is " << *proposedBaseOp;
+    throw error(oss.str());
+  }
+  auto &mux = *proposedMuxOpPtr;
+  return mux;
+}
+
+InIndex Graph::muxInIndex(OpId mid) const { return asMux(mid).inIndex(); }
+
+bool Graph::muxIsClosed(OpId mid) const { return asMux(mid).closed(); }
+
+// See Scott Meyers' "Effective C++"
+Mux &Graph::asMux(OpId mid) {
+  return const_cast<Mux &>(static_cast<const Graph &>(*this).asMux(mid));
+}
+
+OpeningResult Graph::tryOpeningPartial(const Proposal &p,
                                        CheckParallelWriteable check) {
 
-  auto &proposedOp = op(p.tensorId().opId());
+  auto &mux_ = asMux(p.muxId());
 
-  if (proposedOp.aliasType() != AliasType::outplace()) {
-    return InplaceResult::alreadyInplace();
+  if (mux_.nInTensors() <= p.inIndex().get()) {
+    std::ostringstream oss;
+    oss << "Invalid proposal input index, " << p.inIndex()
+        << ", for mux with only " << mux_.nInTensors() << " input Tensors. ";
+    throw error(oss.str());
+  }
+
+  const auto inTensorToAlias  = mux_.inTensorId(p.inIndex());
+  const auto outTensorToAlias = mux_.outTensorId(0);
+
+  if (!mux_.outplace()) {
+    return OpeningResult::alreadyOpen();
   }
 
   // The schedule is not kept up-to-date while the Graph is being constructed,
@@ -580,7 +499,7 @@ InplaceResult Graph::tryInplacePartial(const Proposal &p,
         schedule::vanilla::VerifyEdges::Yes)));
     if (sched.size() != nOps()) {
       std::ostringstream oss;
-      oss << "A cycle detected in Graph::tryInplacePartial, "
+      oss << "A cycle detected in Graph::tryOpeningPartial, "
           << "before the proposal " << p << " was processed. "
           << "Only " << sched.size() << " of " << nOps()
           << " were scheduled. This suggests a cycle was present "
@@ -603,80 +522,56 @@ InplaceResult Graph::tryInplacePartial(const Proposal &p,
 
   // Aliases of inputs which have modifiers, under the proposal.
   //
-  // Example: proposal is to make reshape inplace
-  //          input to reshape is X
+  // Example: proposal to open mux.
+  //          input to mux is X
   //          Y is an alias of X, and Y has a modifier, so AliInfo of Y will
   //          be in the returned vector.
   //
   //            Y         .
   //           / \        .
-  //      slice_  unary_  .
+  //      slice   unary   .
   //        |             .
   //        X             .
   //        |             .
-  //      reshape (proposal to make reshape_)
+  //       mux (proposal to make reshape_)
   //
   std::vector<AliInfo> inAliasModified;
-  for (auto t : proposedOp.inAliasIdsIf(p.type())) {
-    for (auto ali : allAliases(t)) {
-      const auto m = modifiers(ali);
-      if (!m.empty()) {
-        inAliasModified.push_back({ali, m, allAliases(ali)});
-      }
+  for (auto ali : allAliases(inTensorToAlias)) {
+    const auto m = modifiers(ali);
+    if (!m.empty()) {
+      inAliasModified.push_back({ali, m, allAliases(ali)});
     }
   }
 
   // Aliases of outputs which have modifiers under the proposal.
   //
-  // Example: proposal to make slice inplace.
+  // Example: proposal to open mux.
   //          output of slice is Y
   //          Z is an alias of Y, and Z has a modifier, so AliInfo of Z will
   //          be in the returned vector.
   //
   //     X
   //     |
-  //   slice (proposal to make slice_)
+  //    mux
   //     |
   //     Y
-  //     |
-  //   reverse_
-  //     |
-  //     Z
-  //     |
-  //   unary_
+  //      \.
+  //     reverse
+  //        |
+  //        Z
+  //       /.
+  //   unary
   //
   std::vector<AliInfo> outAliasModified;
-  for (auto t : proposedOp.outAliasIdsIf(p.type())) {
-    for (auto ali : allAliases(t)) {
-      const auto m = modifiers(ali);
-      if (!m.empty()) {
-        outAliasModified.push_back({ali, m, allAliases(ali)});
-      }
+  for (auto ali : allAliases(outTensorToAlias)) {
+    const auto m = modifiers(ali);
+    if (!m.empty()) {
+      outAliasModified.push_back({ali, m, allAliases(ali)});
     }
   }
 
-  // All Tensors which are aliased to an input Tensor of the proposed Op, if
-  // the input is modified by the proposed Op.
-  //
-  // Example: proposal is to make unary inplace.
-  //          X is an input to unary, at the input index unary_ modifies.
-  //          Y is aliased to X, and so Y is in the returned vector
-  //
-  //            X                                          .
-  //          /   \                                        .
-  //  reshape_      unary (proposal to make unary_)        .
-  //     |                                                 .
-  //     Y                                                 .
-  //
-  TensorIds aliasedPreChangeToModifiedIns;
-  for (auto t : proposedOp.inModifiedIdsIf(p.type())) {
-    for (auto x : allAliases(t)) {
-      aliasedPreChangeToModifiedIns.push_back(x);
-    }
-  }
-
-  // Make proposedOp inplace.
-  proposedOp.apply(aGraph(), tensorMap, p.type());
+  // Open the Mux, let the aliases "flow"
+  mux_.openAt(aGraph(), tensorMap, p.inIndex());
 
   if (check == CheckParallelWriteable::Yes) {
 
@@ -690,19 +585,16 @@ InplaceResult Graph::tryInplacePartial(const Proposal &p,
       allModifiers.insert(
           allModifiers.end(), x.modifiers.cbegin(), x.modifiers.cend());
     }
-    for (auto i : proposedOp.modifyingIndices()) {
-      allModifiers.push_back({proposedOp.id(), i});
-    }
 
     // Check that no modifiers modify a Tensor with a constant or a self-alias
-    // If they do, return proposedOp to be outplace.
+    // If they do, mux will remain close.
     for (auto m : allModifiers) {
       const auto &op_ = op(m.opId());
       const auto tId  = tensorMap.toAliasGraphId(op_.inTensorId(m.inIndex()));
-      if (aGraph().containsColor(tId, Constant) ||
+      if (aGraph().containsColor(tId, ConstantColor) ||
           aGraph().containsAliases(tId)) {
-        proposedOp.apply(aGraph(), tensorMap, AliasType::outplace());
-        return InplaceResult::notParallelWriteable();
+        mux_.close(aGraph(), tensorMap);
+        return OpeningResult::notParallelWriteable();
       }
     }
   }
@@ -710,7 +602,7 @@ InplaceResult Graph::tryInplacePartial(const Proposal &p,
   Constraints newConstraints;
 
   // The modifiers of output aliases might have new aliases: Tensors which are
-  // aliased to the inputs of proposedOp. Consumers of these new aliases must
+  // aliased to the inputs of mux. Consumers of these new aliases must
   // execute before the modifier, so that behaviour is unchanged.
   for (const auto &x : outAliasModified) {
     for (auto newAlias : difference(allAliases(x.id), x.aliases)) {
@@ -723,8 +615,8 @@ InplaceResult Graph::tryInplacePartial(const Proposal &p,
   }
 
   // The modifiers of input aliases might have new aliases: Tensors which are
-  // aliased to outputs of the proposedOp.  If the modifiers were scheduled
-  // after proposedOp, they must be scheduled after the new aliases too, so
+  // aliased to outputs of the mux.  If the modifiers were scheduled
+  // after mux, they must be scheduled after the new aliases too, so
   // that behaviour is unchanged.
   //
   // optimization here: don't need to go
@@ -733,28 +625,17 @@ InplaceResult Graph::tryInplacePartial(const Proposal &p,
   for (const auto &x : inAliasModified) {
     auto diff = difference(allAliases(x.id), x.aliases);
     for (auto m : x.modifiers) {
-      if (scheduleIndex(m.opId()) > scheduleIndex(proposedOp.id())) {
+      if (scheduleIndex(m.opId()) > scheduleIndex(mux_.id())) {
 
         // remoteinplace (popart) test requires this constraint TODO(T29862):
         // as follow-up, remove this.
-        newConstraints.push_back({proposedOp.id(), m.opId()});
+        newConstraints.push_back({mux_.id(), m.opId()});
 
         for (auto newAlias : diff) {
           for (auto c : consumers(newAlias)) {
             newConstraints.push_back({c.opId(), m.opId()});
           }
         }
-      }
-    }
-  }
-
-  // Final set of constraints: Aliases of modified inputs to proposedOp must
-  // have there consumers scheduled before proposedOp, to keep behaviour
-  // unchanged.
-  for (auto x : aliasedPreChangeToModifiedIns) {
-    for (auto c : consumers(x)) {
-      if (c.opId() != proposedOp.id()) {
-        newConstraints.push_back({c.opId(), proposedOp.id()});
       }
     }
   }
@@ -767,7 +648,7 @@ InplaceResult Graph::tryInplacePartial(const Proposal &p,
   if (satisifedWithoutAnyChange(newConstraints)) {
     constraints(newConstraints);
     scheduleIsValid = true;
-    return InplaceResult::validWithUnchangedSchedule(
+    return OpeningResult::validWithUnchangedSchedule(
         std::move(newConstraints));
   }
 
@@ -778,42 +659,41 @@ InplaceResult Graph::tryInplacePartial(const Proposal &p,
           schedule::vanilla::VerifyEdges::No));
 
   if (proposedSchedule.size() != nOps()) {
-    proposedOp.apply(aGraph(), tensorMap, AliasType::outplace());
-    return InplaceResult::cycle();
+    mux_.close(aGraph(), tensorMap);
+    return OpeningResult::cycle();
   }
 
-  return InplaceResult::validWithChangedSchedule(std::move(newConstraints),
+  return OpeningResult::validWithChangedSchedule(std::move(newConstraints),
                                                  std::move(proposedSchedule));
 }
 
-InplaceStatus Graph::tryInplace(const Proposal &p,
+OpeningStatus Graph::tryOpening(const Proposal &p,
                                 const CheckParallelWriteable check) {
 
-  auto partial = tryInplacePartial(p, check);
-  if (partial.status() == InplaceStatus::Valid) {
-    completeInplace(partial);
+  auto partial = tryOpeningPartial(p, check);
+  if (partial.status() == OpeningStatus::Valid) {
+    completeOpening(partial);
   }
   return partial.status();
 }
 
-void Graph::completeInplace(const InplaceResult &inplaceResult) {
-  if (inplaceResult.status() != InplaceStatus::Valid) {
+void Graph::completeOpening(const OpeningResult &r) {
+  if (r.status() != OpeningStatus::Valid) {
     std::ostringstream oss;
-    oss << "Invalid call to completeStatus with InplaceResult "
-        << inplaceResult << ". Status must be Valid.";
+    oss << "Invalid call to completeStatus with OpeningResult " << r
+        << ". Status must be Valid.";
     throw error(oss.str());
   }
-  if (inplaceResult.scheduleChange()) {
-    auto sch = inplaceResult.schedule();
+  if (r.scheduleChange()) {
+    auto sch = r.schedule();
     setSchedule(std::move(sch));
   }
-  constraints(inplaceResult.constraints());
+  constraints(r.constraints());
   scheduleIsValid = true;
 }
 
-void Graph::backoutInplace(const Proposal &proposal) {
-  auto &proposedOp = op(proposal.tensorId().opId());
-  proposedOp.apply(aGraph(), tensorMap, AliasType::outplace());
+void Graph::backoutOpening(const Proposal &proposal) {
+  asMux(proposal.muxId()).close(aGraph(), tensorMap);
 }
 
 void Graph::setSchedule(OpIds &&schedule_) {
@@ -936,7 +816,7 @@ void Graph::append(std::ostream &ost) const {
       tensorType__[l]  = aGraph().typeString(aliasId);
       selfAliases__[l] = aGraph().containsAliases(aliasId) ? "yes" : "no";
       constants__[l] =
-          aGraph().containsColor(aliasId, Constant) ? "yes" : "no";
+          aGraph().containsColor(aliasId, ConstantColor) ? "yes" : "no";
       aliasedTo__[l] = getStr(aliasedTo[aliasId.get()]);
       ++l;
     }
@@ -979,26 +859,43 @@ void Graph::append(std::ostream &ost) const {
   }
 }
 
-Proposals Graph::createProposalsAllInplace(const TensorIds &ids) {
-  Proposals ps;
-  ps.reserve(ids.size());
-  for (auto id : ids) {
-    ps.push_back({id, AliasType::allInplace()});
-  }
-  return ps;
-}
-
 std::ostream &operator<<(std::ostream &ost, const Graph &g) {
   g.append(ost);
   return ost;
 }
 
-std::ostream &operator<<(std::ostream &ost, const CrossAlias &ca) {
-  ca.append(ost);
-  return ost;
+std::string Graph::typeString(OpId id) const { return op(id).typeString(); }
+
+OpId Graph::multi(const TensorIds &inIds,
+                  const Shapes &outShapes,
+                  const CrossAliases &mapping) {
+  const auto opId = createOp<Multi>(inIds, outShapes, mapping);
+
+  for (const auto &crossAlias : mapping) {
+    const auto inShape  = shape(op(opId).inTensorId(crossAlias.in()));
+    const auto outShape = shape(op(opId).outTensorId(crossAlias.out()));
+    if (inShape != outShape) {
+      std::ostringstream oss;
+      oss << "Incompatible Shapes in Graph::multi, for CrossAlias "
+          << crossAlias << ". The input shape at index " << crossAlias.in()
+          << " is " << inShape << ", and the output shape at index "
+          << crossAlias.out() << " is " << outShape << '.';
+      throw error(oss.str());
+    }
+  }
+  return opId;
 }
 
-std::string Graph::typeString(OpId id) const { return op(id).typeString(); }
+TensorId Graph::mux(const TensorIds &ids) {
+  return {createOp<Mux>(ids, {Shape::numpyVariadic(shapes(ids))}), 0};
+}
+
+TensorId Graph::mux(const TensorIds &ids, InIndex inInd) {
+  if (inInd < 0) {
+    return mux(ids);
+  }
+  return {createOp<Mux>(ids, {Shape::numpyVariadic(shapes(ids))}, inInd), 0};
+}
 
 } // namespace inplace
 } // namespace memory

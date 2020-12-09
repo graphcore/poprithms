@@ -1,13 +1,14 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/proposal.hpp>
+#include <poprithms/memory/inplace/tensor.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace inplace {
 
 void Proposal::append(std::ostream &ost) const {
-  ost << "(id=" << tensorId() << ", t=" << type() << ')';
+  ost << "(id=" << muxId() << ", index=" << inIndex() << ')';
 }
 
 std::ostream &operator<<(std::ostream &ost, const Proposal &p) {
@@ -15,14 +16,26 @@ std::ostream &operator<<(std::ostream &ost, const Proposal &p) {
   return ost;
 }
 
-void Proposal::assertValidType() const {
-  if (type().isOutplace() || type().isNone()) {
-    std::ostringstream oss;
-    oss << "Invalid Proposal for TensorId " << tensorId()
-        << ". Proposals cannot be " << type() << '.';
-    throw error(oss.str());
+Proposals Proposal::open0(const OpIds &ids) {
+  Proposals ps;
+  ps.reserve(ids.size());
+  for (const auto &id : ids) {
+    ps.push_back({id, 0});
   }
+  return ps;
 }
+
+Proposals Proposal::open0(const TensorIds &ids) {
+  Proposals ps;
+  ps.reserve(ids.size());
+  for (const auto &id : ids) {
+    ps.push_back({id.opId(), 0});
+  }
+  return ps;
+}
+
+Proposal::Proposal(const Tensor &tid, InIndex index)
+    : Proposal(tid.opId(), index) {}
 
 } // namespace inplace
 } // namespace memory

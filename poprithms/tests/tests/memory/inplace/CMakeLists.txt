@@ -21,10 +21,10 @@ add_memory_inplace_test(memory_inplace_constraints_0  constraints_0.cpp)
 add_memory_inplace_test(memory_inplace_aliased_0  aliased_0.cpp)
 add_memory_inplace_test(memory_inplace_concat_0  concat_0.cpp)
 add_memory_inplace_test(memory_inplace_settsample_0  settsample_0.cpp)
+add_memory_inplace_test(memory_inplace_demo_0  demo_0.cpp)
 add_memory_inplace_test(memory_inplace_reverse_reshape_0  reverse_reshape_0.cpp)
 add_memory_inplace_test(memory_inplace_dimshuffle_noalias_0  dimshuffle_noalias_0.cpp)
 add_memory_inplace_test(memory_inplace_binary_0  binary_0.cpp)
-add_memory_inplace_test(memory_inplace_demo_0  demo_0.cpp)
 add_memory_inplace_test(memory_inplace_pad_0  pad_0.cpp)
 
 

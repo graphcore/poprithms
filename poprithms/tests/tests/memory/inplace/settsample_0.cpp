@@ -3,6 +3,7 @@
 
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
+#include <poprithms/memory/inplace/tensor.hpp>
 
 namespace {
 
@@ -11,40 +12,47 @@ using namespace poprithms::memory::inplace;
 
 void test0() {
   Graph g;
-  const auto x = g.variable({10, 10});
+  const auto x = Tensor::variable(g, {10, 10});
 
   //              11
   //              11
   //          /.  |   \.
-  //        1.    .1   11
+  //        1.    .1   11    sett samples.
   //        ..    ..   11
   //        |     |    |
-  //        nl    nl   nl
+  //       mux   mux  mux   [x00, x11, xSS]
+  //        |     |    |
+  //       mux   mux  mux   [n00, n11, nSS]
+  //        |     |    |
+  //      unary unary unary
   //
 
-  const auto x00 = g.settSample(
-      x, AliasType::outplace(), {{10, 10}, {{{{1, 1, 0}}}, {{{1, 1, 0}}}}});
+  const auto x00 =
+      x.settSample({{10, 10}, {{{{1, 1, 0}}}, {{{1, 1, 0}}}}}).closedMux();
 
-  const auto x11 = g.settSample(
-      x, AliasType::outplace(), {{10, 10}, {{{{1, 1, 1}}}, {{{1, 1, 1}}}}});
+  const auto x11 =
+      x.settSample({{10, 10}, {{{{1, 1, 1}}}, {{{1, 1, 1}}}}}).closedMux();
 
-  const auto xSS = g.settSample(
-      x, AliasType::outplace(), {{10, 10}, {{{{2, 3, 0}}}, {{{2, 3, 0}}}}});
+  const auto xSS =
+      x.settSample({{10, 10}, {{{{2, 3, 0}}}, {{{2, 3, 0}}}}}).closedMux();
 
-  const auto n00 = g.unary(x00, AliasType::outplace());
-  const auto n11 = g.unary(x11, AliasType::outplace());
-  const auto nSS = g.unary(xSS, AliasType::outplace());
+  const auto n00 = x00.closedMux();
+  const auto n11 = x11.closedMux();
+  const auto nSS = xSS.closedMux();
+
+  n00.unary();
+  n11.unary();
+  nSS.unary();
 
   const auto &gStart = g;
-  auto test          = [&gStart](const TensorIds &order,
+  auto test          = [&gStart](const Tensors &order,
                         std::vector<bool> expectedInplace) {
-    auto g0      = gStart;
-    auto results = g0.tryInplaces(Graph::createProposalsAllInplace(order),
-                                  CheckParallelWriteable::Yes);
+    auto g0 = gStart;
+    auto results =
+        g0.tryOpenings0(Tensor::opIds(order), CheckParallelWriteable::Yes);
     for (uint64_t i = 0; i < expectedInplace.size(); ++i) {
-      auto id        = order[i];
-      bool isInplace = (g0.aliasType(id) != AliasType::outplace());
-      if (isInplace != expectedInplace[i]) {
+      auto id = order[i];
+      if (id.muxIsOpen() != expectedInplace[i]) {
         std::ostringstream oss;
         oss << "Failure with input graph " << gStart
             << ", which was inplaced to " << g0 << ". Expected "

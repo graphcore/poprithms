@@ -26,21 +26,21 @@ std::ostream &operator<<(std::ostream &ost, const Constraints &constraints) {
   return ost;
 }
 
-void InplaceResult::append(std::ostream &ost) const {
+void OpeningResult::append(std::ostream &ost) const {
   ost << status();
-  if (status() == InplaceStatus::Valid) {
+  if (status() == OpeningStatus::Valid) {
     ost << "(";
     ost << constraints() << ")";
   }
   ost << "scheduleChange=" << (scheduleChange_ ? "Yes" : "No");
 }
 
-std::ostream &operator<<(std::ostream &ost, const InplaceResult &r) {
+std::ostream &operator<<(std::ostream &ost, const OpeningResult &r) {
   r.append(ost);
   return ost;
 }
 
-std::ostream &operator<<(std::ostream &ost, const InplaceResults &rs) {
+std::ostream &operator<<(std::ostream &ost, const OpeningResults &rs) {
   if (rs.empty()) {
     ost << "()";
     return ost;
@@ -54,22 +54,22 @@ std::ostream &operator<<(std::ostream &ost, const InplaceResults &rs) {
   return ost;
 }
 
-std::ostream &operator<<(std::ostream &ost, const InplaceStatus &s) {
+std::ostream &operator<<(std::ostream &ost, const OpeningStatus &s) {
 
   switch (s) {
-  case InplaceStatus::AlreadyInplace: {
+  case OpeningStatus::AlreadyOpen: {
     ost << "AlreadyInplace";
     break;
   }
-  case InplaceStatus::Valid: {
+  case OpeningStatus::Valid: {
     ost << "Valid";
     break;
   }
-  case InplaceStatus::Cycle: {
+  case OpeningStatus::Cycle: {
     ost << "Cycle";
     break;
   }
-  case InplaceStatus::NotParallelWriteable: {
+  case OpeningStatus::NotParallelWriteable: {
     ost << "NotParallelWriteable";
     break;
   }
@@ -81,50 +81,50 @@ std::ostream &operator<<(std::ostream &ost, const InplaceStatus &s) {
   return ost;
 }
 
-const Constraints &InplaceResult::constraints() const {
-  if (status() != InplaceStatus::Valid) {
+const Constraints &OpeningResult::constraints() const {
+  if (status() != OpeningStatus::Valid) {
     std::ostringstream oss;
-    oss << "Call to InplaceResults::constraints, on " << *this
-        << ". This method is only valid for InplaceResults with "
-        << "InplaceStatus::Valid status. ";
+    oss << "Call to OpeningResults::constraints, on " << *this
+        << ". This method is only valid for OpeningResults with "
+        << "OpeningStatus::Valid status. ";
     throw error(oss.str());
   }
   return constraints_;
 }
 
-const OpIds &InplaceResult::schedule() const {
-  if (status() != InplaceStatus::Valid) {
+const OpIds &OpeningResult::schedule() const {
+  if (status() != OpeningStatus::Valid) {
     std::ostringstream oss;
-    oss << "Call to InplaceResults::schedule, on " << *this
-        << ". This method is only valid for InplaceResults with "
+    oss << "Call to OpeningResults::schedule, on " << *this
+        << ". This method is only valid for OpeningResults with "
         << "a changed schedule, non-changed schedules are not stored. ";
     throw error(oss.str());
   }
   return schedule_;
 }
 
-InplaceResult InplaceResult::validWithUnchangedSchedule(Constraints &&cs) {
-  return InplaceResult(InplaceStatus::Valid, std::move(cs), {}, false);
+OpeningResult OpeningResult::validWithUnchangedSchedule(Constraints &&cs) {
+  return OpeningResult(OpeningStatus::Valid, std::move(cs), {}, false);
 }
-InplaceResult InplaceResult::validWithChangedSchedule(Constraints &&cs,
+OpeningResult OpeningResult::validWithChangedSchedule(Constraints &&cs,
                                                       OpIds &&sched) {
-  return InplaceResult(
-      InplaceStatus::Valid, std::move(cs), std::move(sched), true);
+  return OpeningResult(
+      OpeningStatus::Valid, std::move(cs), std::move(sched), true);
 }
 
-InplaceResult InplaceResult::cycle() {
-  return InplaceResult(InplaceStatus::Cycle, {}, {}, false);
+OpeningResult OpeningResult::cycle() {
+  return OpeningResult(OpeningStatus::Cycle, {}, {}, false);
 }
 
-InplaceResult InplaceResult::alreadyInplace() {
-  return InplaceResult(InplaceStatus::AlreadyInplace, {}, {}, false);
+OpeningResult OpeningResult::alreadyOpen() {
+  return OpeningResult(OpeningStatus::AlreadyOpen, {}, {}, false);
 }
 
-InplaceResult InplaceResult::notParallelWriteable() {
-  return InplaceResult(InplaceStatus::NotParallelWriteable, {}, {}, false);
+OpeningResult OpeningResult::notParallelWriteable() {
+  return OpeningResult(OpeningStatus::NotParallelWriteable, {}, {}, false);
 }
 
-std::ostream &operator<<(std::ostream &ost, const InplaceStatuses &statuses) {
+std::ostream &operator<<(std::ostream &ost, const OpeningStatuses &statuses) {
   ost << '(';
   if (!statuses.empty()) {
     ost << statuses[0];

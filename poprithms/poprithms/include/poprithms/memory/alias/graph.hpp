@@ -26,7 +26,6 @@ enum class BroadcastPadding {
   No = 0, ///< All elements in the padding are distinct allocations
   Yes     ///< All elements in the padding are aliases of a single scalar
 };
-
 std::ostream &operator<<(std::ostream &, BroadcastPadding);
 
 /**

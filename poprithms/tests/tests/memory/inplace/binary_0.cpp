@@ -1,22 +1,22 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
-#include <iostream>
 #include <random>
 
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
+#include <poprithms/memory/inplace/tensor.hpp>
 
 namespace {
 using namespace poprithms::memory::inplace;
 
 void testBadShape() {
   Graph g;
-  const auto a = g.variable({3, 1});
-  const auto b = g.variable({3, 3});
-  const auto c = g.binary(a, b, AliasType::outplace());
+  const auto a = Tensor::variable(g, {3, 1});
+  const auto b = Tensor::variable(g, {3, 3});
+  const auto c = Tensor::mux({a, b});
   bool caught{false};
   try {
-    g.tryInplace({c, AliasType::binary0()}, CheckParallelWriteable::Yes);
+    g.tryOpening({c, 0}, CheckParallelWriteable::Yes);
   } catch (const poprithms::error::error &) {
     caught = true;
   }
@@ -27,59 +27,58 @@ void testBadShape() {
 
 void testNoConst() {
   Graph g;
-  const auto a = g.constant({3});
-  const auto b = g.variable({3});
-  const auto c = g.binary(a, b, AliasType::outplace());
-  g.tryInplaces({{c, AliasType::binary0()}, {c, AliasType::binary1()}},
-                CheckParallelWriteable::Yes);
-  auto alis = g.allAliases(c);
-  std::sort(alis.begin(), alis.end());
-  if (alis != TensorIds{b, c}) {
-    throw error("Incorrect aliases after inplacing");
+  //
+  //
+  // a.
+  //   \.
+  //     mux -> unary
+  //   /.
+  // b
+  const auto a = Tensor::constant(g, {3});
+  const auto b = Tensor::variable(g, {3});
+  const auto c = Tensor::mux({a, b});
+  c.unary();
+  g.tryOpenings({{c, 0}, {c, 1}}, CheckParallelWriteable::Yes);
+  auto alis = c.allAliases();
+  if (std::find(alis.cbegin(), alis.cend(), a) != alis.cend()) {
+    throw error("Expected a to NOT be aliased to c, as it is constant");
+  }
+  if (std::find(alis.cbegin(), alis.cend(), b) == alis.cend()) {
+    throw error("Expected b TO be aliased to c, as it is not constant");
   }
 }
 
 void testMultiplePossibilities() {
   Graph g;
-  const auto a = g.variable({3});
-  const auto b = g.variable({3});
-  const auto c = g.binary(a, b, AliasType::outplace());
+  const auto a = Tensor::variable(g, {3});
+  const auto b = Tensor::variable(g, {3});
+  const auto c = Tensor::mux({a, b});
   // Both valid inplacings, but only the first one should be applied.
-  g.tryInplaces({{c, AliasType::binary0()}, {c, AliasType::binary1()}},
-                CheckParallelWriteable::Yes);
-  auto alis = g.allAliases(c);
+  g.tryOpenings({{c, 0}, {c, 1}}, CheckParallelWriteable::Yes);
+  auto alis = c.allAliases();
   std::sort(alis.begin(), alis.end());
-  if (alis != TensorIds{a, c}) {
+  if (alis != Tensors{a, c}) {
     throw error("Incorrect aliases after inplacing");
   }
 }
 
 void testChain0() {
   Graph g;
-  TensorIds ids{g.variable({7})};
-  TensorIds binIds{};
-  while (binIds.size() < 6) {
-    ids.push_back(g.variable({7}));
-    ids.push_back(
-        g.binary(*(ids.cend() - 2), ids.back(), AliasType::outplace()));
-    binIds.push_back(ids.back());
+  Tensors all{Tensor::variable(g, {7})};
+  Tensors muxs{};
+  while (muxs.size() < 6) {
+    all.push_back(Tensor::variable(g, {7}));
+    auto m   = Tensor::mux({*(all.cend() - 2), all.back()});
+    auto mun = m.unary();
+    all.push_back(mun);
+    muxs.push_back(m);
   }
   std::mt19937_64 generator(1015);
-  std::shuffle(binIds.begin(), binIds.end(), generator);
-
-  Proposals proposals;
-  proposals.reserve(binIds.size());
-  for (auto id : binIds) {
-    proposals.push_back({id, AliasType::binary0()});
-  }
-
-  g.tryInplaces(proposals, CheckParallelWriteable::Yes);
-  std::cout << g << std::endl;
-
-  for (auto id : ids) {
-    if (g.nInTensors(id.opId()) != 0 &&
-        g.aliasType(id) == AliasType::outplace()) {
-      throw error("Expected all binary ops to be inplaced");
+  std::shuffle(muxs.begin(), muxs.end(), generator);
+  g.tryOpenings0(Tensor::opIds(muxs), CheckParallelWriteable::Yes);
+  for (auto m : muxs) {
+    if (m.muxIsClosed()) {
+      throw error("Expected all mux ops to be inplaced");
     }
   }
 }

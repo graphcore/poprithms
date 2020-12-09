@@ -5,34 +5,39 @@
 
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
+#include <poprithms/memory/inplace/tensor.hpp>
 
 namespace {
 
 using namespace poprithms::memory::inplace;
 
 void testPad0() {
+  Graph graph;
+  const auto v0 = Tensor::variable(graph, {3});
 
-  Graph g;
-  const auto a0 = g.variable({5, 5});
-  // const auto lAndU = std::array<std::vector<int64_t>, 2>{{{1,1}, {1,1}}};
+  const auto muxNotPll = v0.pad({{{1}, {1}}}, false).closedMux();
+  muxNotPll.unary();
 
-  const auto u0 = g.unary(a0, AliasType::outplace());
+  const auto muxPll = v0.pad({{{1}, {1}}}, true).closedMux();
+  muxPll.unary();
 
-  //  const auto p0 = g.pad(u0, AliasType::outplace(), {{{1, 1}, {1, 1}}},
-  //  true); const auto p1 = g.pad(a0, AliasType::outplace(), {{{1, 1}, {1,
-  //  1}}}, true);
+  std::cout << graph << std::endl;
 
-  const auto p0 = g.flatten(u0, AliasType::outplace());
-  const auto p1 = g.flatten(a0, AliasType::outplace());
-
-  const auto u1 = g.unary(p1, AliasType::outplace());
-  g.binary(p0, u1, AliasType::outplace());
-
-  std::cout << g << std::endl;
-  std::cout << g.tryInplaces(
-      Graph::createProposalsAllInplace({u0, u1, p0, p1}),
-      CheckParallelWriteable::No);
-  std::cout << g << std::endl;
+  const auto tryNotPll =
+      graph.tryOpening({muxNotPll, 0}, CheckParallelWriteable::Yes);
+  if (tryNotPll != OpeningStatus::NotParallelWriteable) {
+    std::ostringstream oss;
+    oss << "If this Mux is opened, the Tensor which is padded with "
+        << " a broadcast constant would be modified."
+        << "But CheckParallelWriteable::Yes is set, so this is not allowed. ";
+    throw error(oss.str());
+  }
+  const auto tryPll =
+      graph.tryOpening({muxPll, 0}, CheckParallelWriteable::Yes);
+  if (tryPll != OpeningStatus::Valid) {
+    throw error(
+        "The Tensor padded with non-broadcast variable can be modified. ");
+  }
 }
 
 } // namespace
