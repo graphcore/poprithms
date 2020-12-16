@@ -1,11 +1,11 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <poprithms/ndarray/dtype.hpp>
 
-// This header file is not part of the public/installed poprithms API. It is
-// found at compile time because we have explicitly set the path to its
-// directory in a parent CMakeLists.txt file.
-#include "baseoperators.hpp"
-#include "ieeehalf.hpp"
+// These header files are not part of the public/installed poprithms API. They
+// are found found at compile time because we have explicitly set the path to
+// a directory in a parent CMakeLists.txt file.
+#include <compute/host/include/baseoperators.hpp>
+#include <compute/host/include/ieeehalf.hpp>
 
 namespace {
 

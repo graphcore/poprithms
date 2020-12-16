@@ -244,10 +244,13 @@ foreach(tgt IN ITEMS
 
   target_include_directories (${tgt} SYSTEM PRIVATE ${POPRITHMS_COMMON_INCLUDES})
   target_link_libraries(${tgt} PRIVATE ${POPRITHMS_COMMON_LIBRARIES})
-  target_include_directories(${tgt} PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
+  target_include_directories(${tgt} 
+    PRIVATE 
+      ${poprithms_src_dir}/poprithms
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+  )
 endforeach()
 
 install(TARGETS poprithms

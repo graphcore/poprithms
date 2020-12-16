@@ -1,9 +1,8 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include "gridpointhelper.hpp"
-
 #include <algorithm>
 #include <sstream>
 
+#include <compute/host/include/gridpointhelper.hpp>
 #include <poprithms/compute/host/error.hpp>
 
 namespace {

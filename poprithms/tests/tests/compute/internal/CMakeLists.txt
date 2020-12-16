@@ -1,20 +1,5 @@
-function(add_compute_host_internal_test_executable name source)
-  add_executable(${name} ${source})
-  set(LIB_DEPS  poprithms-compute-host poprithms-util )
-  target_link_libraries(${name} PRIVATE ${LIB_DEPS})
+add_compute_host_test(compute_host_internal_base_operators_0 base_operators_0.cpp)
 
-  # set the path to internal files being tested:
-  target_include_directories (${name} PRIVATE ${internal_compute_include_dir})
-endfunction()
+add_compute_host_test(compute_host_internal_numpy_string_formatter_0 numpy_string_formatter_0.cpp)
 
-function(add_compute_host_internal_test name source)
-  add_compute_host_internal_test_executable(${name} ${source})
-  set(executable_name ${name})
-  add_test(NAME ${name}
-           COMMAND ${name} ${ARGN}
-           WORKING_DIRECTORY ${CMAKE_CURRENT_BUILD_DIR})
-endfunction()
-
-add_compute_host_internal_test(compute_host_internal_base_operators_0 base_operators_0.cpp)
-add_compute_host_internal_test(compute_host_internal_numpy_string_formatter_0 numpy_string_formatter_0.cpp)
-add_compute_host_internal_test(compute_host_internal_gridpointhelper_0 gridpointhelper_0.cpp)
+add_compute_host_test(compute_host_internal_gridpointhelper_0 gridpointhelper_0.cpp)
