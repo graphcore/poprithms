@@ -17,10 +17,144 @@ std::ostream &operator<<(std::ostream &ost, const std::vector<uint64_t> &x) {
   util::append(ost, x);
   return ost;
 }
+template <typename T>
+std::ostream &operator<<(std::ostream &ost, const BaseVector<T> &x) {
+  util::append(ost, x.vals);
+  return ost;
+}
+
 } // namespace
 
 uint64_t Shape::dimProduct_u64(int64_t l, int64_t u) const {
   return static_cast<uint64_t>(dimProduct(l, u));
+}
+
+Shape Shape::batchedMultiChannelConvolve(
+    const Shape &kernel,
+    const std::vector<uint64_t> &lowPrePads,
+    const std::vector<uint64_t> &uppPrePads,
+    const Dilations &dilations,
+    const Strides &strides) const {
+
+  if (rank_u64() < 2 || kernel.rank_u64() < 1) {
+    std::ostringstream oss;
+    oss << "Invalid ranks in batchedMultiChannelConvolve. "
+        << "This (data) Shape is " << *this << ", and the Shape of kernel is "
+        << kernel << ". This must be rank>=2 and kernel must be rank>=1. ";
+    throw error(oss.str());
+  }
+
+  // 1) spatial convolution of the suffixes of this and kernel
+  // 2) prepend batch-size, and output channels.
+  return fromDim(2)
+      .convolve(kernel.fromDim(1), lowPrePads, uppPrePads, dilations, strides)
+      .prepend({dim(0), kernel.dim(0)});
+}
+
+Shape Shape::pool(const Shape &window,
+                  const std::vector<uint64_t> &lowPrePads,
+                  const std::vector<uint64_t> &uppPrePads,
+                  const Dilations &dilations,
+                  const Strides &strides,
+                  const RoundMode m) const {
+
+  const auto R0 = rank_u64();
+
+  // For all empty inputs, give them the default values:
+
+  auto window_ = window.rank_u64() == 0 ? singleton(R0) : window;
+
+  const auto lowPrePads_ =
+      lowPrePads.empty() ? std::vector<uint64_t>(R0, 0) : lowPrePads;
+
+  const auto uppPrePads_ =
+      uppPrePads.empty() ? std::vector<uint64_t>(R0, 0) : uppPrePads;
+
+  const auto dilations_ =
+      dilations.empty() ? Dilations(std::vector<uint64_t>(R0, 1)) : dilations;
+
+  const auto strides_ =
+      strides.empty() ? Strides(std::vector<uint64_t>(R0, 1)) : strides;
+
+  // Check that all inputs now have the correct rank:
+
+  if (window_.rank_u64() != R0 || lowPrePads_.size() != R0 ||
+      uppPrePads_.size() != R0 || dilations_.size() != R0 ||
+      strides_.size() != R0) {
+    std::ostringstream oss;
+    oss << "Invalid inputs to pool for this Shape " << *this
+        << ", which has rank " << rank_u64()
+        << ". Expected all inputs to have either size 0, or size "
+        << rank_u64() << ". But the sizes of the inputs are:"
+        << "\n    window    : " << window.rank_u64()
+        << "\n    lowPrePads: " << lowPrePads.size()
+        << "\n    uppPrePads: " << uppPrePads.size()
+        << "\n    dilations : " << dilations.size()
+        << "\n    strides   : " << strides.size() << '.' << " The window is "
+        << window << ".";
+    throw error(oss.str());
+  }
+
+  // populate dimension by dimension:
+
+  std::vector<int64_t> out;
+  out.reserve(R0);
+  for (uint64_t d = 0; d < R0; ++d) {
+    out.push_back(pool1d(dim(d),
+                         window_.dim(d),
+                         lowPrePads_.at(d),
+                         uppPrePads_.at(d),
+                         dilations_.at(d),
+                         strides_.at(d),
+                         m));
+  }
+  return out;
+}
+
+uint64_t Shape::pool1d(uint64_t data,
+                       uint64_t window,
+                       uint64_t lowPad,
+                       uint64_t uppPad,
+                       Dilation dilation,
+                       Stride stride,
+                       RoundMode m) {
+
+  /**
+   * Example 0 (most basic case)
+   * --> data = 10, window=1, padSum = 0, dilation=1, stride=0
+   *     out = 10
+   *
+   * Example 2 (scales as - dilation * (window - 1) when stride = 1)
+   * --> data = 10, window=3, padSum = 0, dilation=1, stride=0
+   *     out = 8
+   *
+   *     *..*..* (window = 3, dilation = 3)
+   * --> data = 7, window=3, padSum = 0, dilation=3, stride=0
+   *     out = 1
+   *
+   *
+   * Example 3 (After dilation, striding is applied)
+   * dddddd
+   * kkk      (first out)
+   *   kkk    (second out)
+   *     kkk  (third out, only if RoundMode::Ceil)
+   *
+   * --> data = 6, window=3, padSum = 0, dilation=1, stride=2,
+   *     RoundMode::Floor
+   *     out = 2
+   *
+   * --> data = 6, window=3, padSum = 0, dilation=1, stride=2,
+   *
+   * RoundMode::Floor
+   *     out = 3
+   * */
+
+  const auto padSum = lowPad + uppPad;
+
+  auto x0 = data + padSum - 1 - dilation.val * (window - 1);
+  x0 /= stride.get();
+  x0 += (x0 % stride.get() == 0) * (m == RoundMode::Ceil) + 1;
+  return x0;
 }
 
 Shape Shape::unsqueeze(const std::vector<uint64_t> &dims) const {
@@ -66,6 +200,13 @@ void Shape::assertValidDimension(uint64_t d) const {
         << ", failure with invalid dimension= " << d;
     throw error(oss.str());
   }
+}
+
+Shape Shape::prepend(const Shape &dims0) const {
+  auto outShape_    = dims0.get();
+  const auto suffix = get();
+  outShape_.insert(outShape_.end(), suffix.cbegin(), suffix.cend());
+  return outShape_;
 }
 
 Shape Shape::prepend(int64_t dim0) const {
@@ -1002,28 +1143,27 @@ Shape::NormalizedSliceParams::NormalizedSliceParams(const Starts &starts_,
   auto getBase = [&shape, &starts_, &ends_, &steps_, &dims_]() {
     std::ostringstream oss;
     oss << "In NormalizedSliceParams constructor, with "
-        << "starts=" << starts_.starts << ", ends=" << ends_.ends
-        << ", steps=" << steps_.steps << ", dims=" << dims_.dims
-        << ", shape=" << shape << ". ";
+        << "starts=" << starts_ << ", ends=" << ends_ << ", steps=" << steps_
+        << ", dims=" << dims_ << ", shape=" << shape << ". ";
     return oss.str();
   };
 
   const auto R_u64 = shape.rank_u64();
   const auto R_i64 = shape.rank_i64();
 
-  if (starts_.starts.size() != ends_.ends.size()) {
+  if (starts_.size() != ends_.size()) {
     std::ostringstream oss;
     oss << getBase() << "starts and ends must be same size. ";
     throw error(oss.str());
   }
 
-  const auto NIn = starts_.starts.size();
+  const auto NIn = starts_.size();
 
   // Dims
   // If no dimensions are provided, the ONNX spec stipulates that is
   // implicitly all dimensions of the Shape. That is, starts and ends are for
   // all dimensions.
-  if (dims_.dims.empty()) {
+  if (dims_.empty()) {
     if (NIn != R_u64) {
       std::ostringstream oss;
       oss << getBase()
@@ -1035,22 +1175,22 @@ Shape::NormalizedSliceParams::NormalizedSliceParams(const Starts &starts_,
 
   // If dimensions are provided, they correspond to values in starts and ends.
   else {
-    if (NIn != dims_.dims.size()) {
+    if (NIn != dims_.size()) {
       std::ostringstream oss;
       oss << getBase()
           << "As dims is non-empty, starts and ends must both be of size "
-          << dims_.dims.size() << ", the size of dims. ";
+          << dims_.size() << ", the size of dims. ";
       throw error(oss.str());
     }
   }
 
   // Empty steps implies step size 1 in every dimension
-  if (!steps_.steps.empty() && steps_.steps.size() != NIn) {
+  if (!steps_.empty() && steps_.size() != NIn) {
     std::ostringstream oss;
     oss << getBase() << "As steps is non-empty, it must be of size " << NIn
         << ", the size of starts and ends. ";
   }
-  if (std::any_of(steps_.steps.cbegin(), steps_.steps.cend(), [](auto x) {
+  if (std::any_of(steps_.vals.cbegin(), steps_.vals.cend(), [](auto x) {
         return x == 0;
       })) {
     std::ostringstream oss;
@@ -1060,7 +1200,7 @@ Shape::NormalizedSliceParams::NormalizedSliceParams(const Starts &starts_,
 
   // At this point in the code, all 4 vectors are of size NIn.
   // Normalize the elements of dims, to be positive.
-  auto dims = dims_.dims;
+  auto dims = dims_.vals;
   std::vector<bool> dimsSeen(R_u64, false);
   for (auto &d : dims) {
     if (d < -R_i64 || d >= R_i64) {
@@ -1096,14 +1236,14 @@ Shape::NormalizedSliceParams::NormalizedSliceParams(const Starts &starts_,
   for (uint64_t i = 0; i < NIn; ++i) {
     const auto d = static_cast<uint64_t>(dims[i]);
 
-    const auto start = starts_.starts[i];
+    const auto start = starts_.vals[i];
     starts[d]        = normalize(start, shape.dim_u64(d), 0, shape.dim(d));
 
-    const auto end = ends_.ends[i];
+    const auto end = ends_.vals[i];
     ends[d]        = normalize(end, shape.dim_u64(d), -1, shape.dim(d) + 1);
 
-    if (!steps_.steps.empty()) {
-      const auto step = steps_.steps[i];
+    if (!steps_.empty()) {
+      const auto step = steps_.vals[i];
       steps[d]        = step;
     }
   }

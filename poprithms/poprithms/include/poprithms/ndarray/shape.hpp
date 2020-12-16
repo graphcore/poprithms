@@ -6,6 +6,8 @@
 #include <ostream>
 #include <vector>
 
+#include <poprithms/ndarray/accessors.hpp>
+
 namespace poprithms {
 
 namespace util {
@@ -140,6 +142,15 @@ public:
   Shape prepend(int64_t dim0) const;
 
   /**
+   * \return A copy of this Shape but with the dimensions in \a dims0
+   * prepended.
+   *
+   * Example: If this is (3,4) and #dims0 is (5,6), the calling prepend(dims)
+   *          on this Shape returns the Shape (5,6,3,4).
+   * */
+  Shape prepend(const Shape &dims0) const;
+
+  /**
    * Throw an error if the size of \a l or size of \a u is not the same as the
    * rank of this Tensor, or if
    *       l[i] > u[i] or
@@ -158,6 +169,10 @@ public:
     return {{shp.cbegin() + x0, shp.cbegin() + x1}};
   }
 
+  Shape fromDim(int64_t x0) const { return dimRange(x0, rank_i64()); }
+
+  Shape untilDim(int64_t x1) const { return dimRange(0, x1); }
+
   /**
    * \return The product of the dimensions in range [x0, x1)
    * */
@@ -172,36 +187,6 @@ public:
   /**
    * Starting indices of a numpy-slice
    * */
-  struct Starts {
-    explicit Starts(const std::vector<int64_t> &s) : starts(s) {}
-    std::vector<int64_t> starts;
-  };
-
-  /**
-   * Ending (exclusive) indices of a numpy-slice
-   * */
-  struct Ends {
-    explicit Ends(const std::vector<int64_t> &e) : ends(e) {}
-    std::vector<int64_t> ends;
-  };
-
-  /**
-   * numpy-slice step sizes, which may be negative but must be non-zero
-   * */
-  struct Steps {
-    explicit Steps(const std::vector<int64_t> &s) : steps(s) {}
-    Steps() : steps({}) {}
-    std::vector<int64_t> steps;
-  };
-
-  /**
-   * numpy-slice dimensions
-   * */
-  struct Dims {
-    explicit Dims(const std::vector<int64_t> &d) : dims(d) {}
-    Dims() : dims({}) {}
-    std::vector<int64_t> dims;
-  };
 
   /**
    * Canonicalized/normalized slice parameters.
@@ -303,6 +288,124 @@ public:
   static Shape matmul(const Shape &arg0, const Shape &arg1);
 
   Shape matmul(const Shape &arg1) const { return matmul(*this, arg1); }
+
+  enum RoundMode { Floor, Ceil };
+  using RoundModes = std::vector<RoundMode>;
+
+  /**
+   * 1-D pooling, as described at:
+   * https://pytorch.org/docs/stable/generated/torch.nn.MaxPool1d.html
+   *
+   * There is a nice animation desribing the parameters here:
+   * https://github.com/vdumoulin/conv_arithmetic/blob/master/README.md
+   *
+   * unrounded output size is:
+   * ( data + lowPad + uppPad - 1 - dilation * (kernel - 1) ) / stride
+   *
+   * To obtain the final output size, the unrounded value is floored, if
+   * RoundMode::Floor, and otherwise it is rounded up to the nearest integer.
+   *
+   * \param window The number of values to pool over. For example, if
+   *               window = 3, then every value in the output of pooling is
+   *               influenced by 3 positions in the input.
+   *
+   * \param dilation The spacing between positions in the window which
+   *                 influence output values. For example, if window = 3 and
+   *                 dilation = 4, then the sampling stencil/mask is
+   *                 100010001.
+   *
+   * \param stride The distance between applications of the pooling stencil.
+   *
+   * \param RoundMode If Floor, applications of the stencil which overflow the
+   *                  input are ignored. If Ceil, additional padding is
+   *                  implicitly added.
+   * */
+  static uint64_t pool1d(uint64_t inputSize,
+                         uint64_t window,
+                         uint64_t lowPad,
+                         uint64_t uppPad,
+                         Dilation dilation,
+                         Stride stride,
+                         RoundMode);
+
+  /**
+   * 1-d convolution. The receptive field of a convolution kernel is
+   * equivalent to the window size in pooling - \sa pool1d.
+   * */
+  static uint64_t convolve1d(uint64_t data,
+                             uint64_t kernel,
+                             uint64_t lowPad,
+                             uint64_t uppPad,
+                             Dilation dilation,
+                             Stride stride) {
+    return pool1d(
+        data, kernel, lowPad, uppPad, dilation, stride, RoundMode::Floor);
+  }
+
+  /**
+   * N-d pooling. The input parameters #window, #lowPrePads, #uppPrePads,
+   * #dilations, and #strides must all be either
+   * 1) the same size as this Shape, or
+   * 2) of size 0. When parameters are of size 0, they take default values, as
+   *    described below.
+   *
+   * \param window The size of the receptive field, in number of
+   *               values/pixels, over which pooling occurs. Default: the
+   *               singleton Shape, containing all 1s.
+   *
+   * \param lowPrePads How much padding to apply below this Shape before
+   *                   pooling. Default: all 0.
+   *
+   * \param uppPrePads How much padding to apply above this Shape before
+   *                   pooling. Default: all 0.
+   *
+   * \param dilations Default: all 1, which corresponds to a contiguous
+   *                  receptive window.
+   *
+   * \param stride Default: all 1, which corresponds to dense sampling.
+   *
+   * \sa pool1d
+   * */
+  Shape pool(const Shape &window,
+             const std::vector<uint64_t> &lowPrePads,
+             const std::vector<uint64_t> &uppPrePads,
+             const Dilations &dilations,
+             const Strides &strides,
+             const RoundMode) const;
+
+  /** The spatial component of a convolution.
+   * \sa batchedMultiChannelConvolve
+   * */
+  Shape convolve(const Shape &kernel,
+                 const std::vector<uint64_t> &lowPrePads,
+                 const std::vector<uint64_t> &uppPrePads,
+                 const Dilations &dilations,
+                 const Strides &strides) const {
+    return pool(
+        kernel, lowPrePads, uppPrePads, dilations, strides, RoundMode::Floor);
+  }
+
+  /**
+   * Convolution of a batch of multi-channel spatial data, with a
+   * multi-channel kernel. This is equivalent to PyTorch's 2-d convolution
+   * https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
+   * when this Shape has rank 4.
+   * Specifically, if this Shape is (N, C, *spatialData)
+   * and kernel is (K, *spatialKernel),
+   * the returned Shape is (N, C, spatialData.convolve(spatialKernel)).
+   *
+   * If this Shape has rank 2, then the parameters #lowPrePads, #uppPrePads,
+   * #dilations, and #strides must have rank R - 2, or 0.
+   * */
+  Shape batchedMultiChannelConvolve(const Shape &kernel,
+                                    const std::vector<uint64_t> &lowPrePads,
+                                    const std::vector<uint64_t> &uppPrePads,
+                                    const Dilations &dilations,
+                                    const Strides &strides) const;
+
+  static Shape singleton(uint64_t rnk) {
+    return Shape(std::vector<int64_t>(rnk, 1));
+  }
 
   /**
    * \param to The Shape to be expanded to. \a to cannot be smaller than this

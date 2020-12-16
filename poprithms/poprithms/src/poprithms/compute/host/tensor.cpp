@@ -478,11 +478,11 @@ getStrides(uint64_t stride, uint64_t dimension, const Shape &s0) {
 } // namespace
 
 Tensor Tensor::subSample(Stride stride, Dimension dimension) const {
-  return subSample(getStrides(stride.s, dimension.d, shape()));
+  return subSample(getStrides(stride.val, dimension.val, shape()));
 }
 
 Tensor Tensor::subSample_(Stride stride, Dimension dimension) const {
-  return subSample_(getStrides(stride.s, dimension.d, shape()));
+  return subSample_(getStrides(stride.val, dimension.val, shape()));
 }
 
 Tensor Tensor::slice(const Lower &l, const Upper &u) const {

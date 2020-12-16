@@ -591,20 +591,6 @@ public:
   Tensor subSample(const std::vector<uint64_t> &strides) const;
   Tensor subSample_(const std::vector<uint64_t> &strides) const;
 
-  /** A stride, which must be explicitly constructed to avoid muddling with
-   * Dimension, etc. */
-  struct Stride {
-    explicit Stride(uint64_t s_) : s(s_) {}
-    uint64_t s;
-  };
-
-  /** A dimension, which must be explicitly constructed to avoid muddling with
-   * Stride, etc. */
-  struct Dimension {
-    explicit Dimension(uint64_t d_) : d(d_) {}
-    uint64_t d;
-  };
-
   /** Subsample along a single dimension  */
   Tensor subSample(Stride, Dimension) const;
   Tensor subSample_(Stride, Dimension) const;

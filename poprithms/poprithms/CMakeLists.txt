@@ -35,6 +35,7 @@ set(util_sources
 
 set(ndarray_sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/shape.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/accessors.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/dtype.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/error.cpp
 )

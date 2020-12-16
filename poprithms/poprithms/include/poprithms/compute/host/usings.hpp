@@ -17,10 +17,12 @@ using DType                 = poprithms::ndarray::DType;
 using Permutation           = poprithms::util::Permutation;
 using Lower                 = Shape::Lower;
 using Upper                 = Shape::Upper;
-using Starts                = Shape::Starts;
-using Ends                  = Shape::Ends;
-using Steps                 = Shape::Steps;
-using Dims                  = Shape::Dims;
+using Starts                = poprithms::ndarray::Starts;
+using Ends                  = poprithms::ndarray::Ends;
+using Steps                 = poprithms::ndarray::Steps;
+using Dims                  = poprithms::ndarray::Dims;
+using Stride                = poprithms::ndarray::Stride;
+using Dimension             = poprithms::ndarray::Dimension;
 using NormalizedSliceParams = Shape::NormalizedSliceParams;
 using Shapes                = std::vector<Shape>;
 
