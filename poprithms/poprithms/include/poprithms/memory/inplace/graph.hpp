@@ -10,7 +10,7 @@
 #include <poprithms/memory/inplace/checkparallelwriteable.hpp>
 #include <poprithms/memory/inplace/constantpadding.hpp>
 #include <poprithms/memory/inplace/consumer.hpp>
-#include <poprithms/memory/inplace/crossalias.hpp>
+#include <poprithms/memory/inplace/crosslink.hpp>
 #include <poprithms/memory/inplace/proposal.hpp>
 #include <poprithms/memory/inplace/result.hpp>
 #include <poprithms/memory/inplace/tensorid.hpp>
@@ -24,19 +24,24 @@ class Op;
 class Mux;
 
 /**
- * An extension of the alias::Graph class, which adds concepts and algorithms
- * related to computation.
+ * This graph class extends the functionality of the alias::Graph class, by
+ * adding concepts and algorithms related to computation.
+ *
+ * The extension uses the HAS-A design, as the IS-A approach does not work due
+ * to limitations on the alias::Graph class. For example, the alias::Graph has
+ * a 1:1 correspondence between Nodes and Tensors, which means multi-output
+ * Nodes are not possible with it.
  *
  * Almost all methods in this class which insert Tensors do not perform
- * allocations. That is, almost all outputs are aliases of inputs.
- * The 2 exceptions are,
+ * allocations. That is, almost all outputs of an Op are aliases of the Op's
+ * inputs. The 2 exceptions are,
  *
  * 1) mux. This method takes N inputs, and creates one output whose Shape is
- *         numpy-broadcast inferred from the N inputs. The output is
+ *         inferred by numpy-broadcasting the N inputs. The output is
  *         optionally aliased to one of the inputs with the same Shape. So
  *         with N inputs of the same Shape, there are N + 1 Mux variants: one
- *         "closed" variant, and N "open" variants, which alias one of the N
- *         inputs.
+ *         "closed" variant, and N "open" variants, which respectively alias
+ *         one of the N inputs.
  *
  * 2) multi. This Op has N inputs and creates M outputs, of user specified
  *           Shapes. How inputs and outpus are are aliased, if at all, is also
@@ -99,15 +104,27 @@ public:
   /** Concatentate Tensors along a certain dimension */
   TensorId concat(const TensorIds &, uint64_t);
 
-  /** A multi-purpose operation, which creates outputs, whose input aliasing
-   * is defined by \a mapping. */
+  /** A multi-purpose operation. The definition of which outputs modify,
+   * alias, and use which inputs is defined by #mapping. */
   OpId multi(const TensorIds &inputs,
              const Shapes &outputShapes,
-             const CrossAliases &mapping);
+             const CrossLinks &mapping);
 
-  /** A closed Mux, whose output Shape is the numpy-reduction inferred from
-   * the input Shapes. As this Mux is closed, it is equivalent to an
-   * allocation of a new variable Tensor.  */
+  /**
+   * A mux represents a variadic elementwise numpy-broadcast operation, where
+   * the output may optionally alias, but not modify, one of the inputs. In
+   * other words:
+   *   1) it has N inputs and 1 output whose Shape is inferred by
+   *      numpy-broadcasting the N inputs.
+   *   2) The output is optionally aliased to one of the inputs with the same
+   *      Shape. If the N inputs all have the same Shape, there are N + 1 Mux
+   *      variants: one "closed" variant, and N "open" variants, which
+   *      each respectively alias one of the N inputs.
+   *
+   * This method creates a closed (non-aliasing) mux operation in this Graph.
+   * In terms of aliasing, it is equivalent to allocating a new variable
+   * Tensor.
+   * */
   TensorId mux(const TensorIds &);
 
   /** An open Mux, where the output is aliased to the \a i'th input. The Shape
@@ -129,6 +146,7 @@ public:
 
   /** The number of elements of a Tensor in the Graph. */
   uint64_t nelms_u64(const TensorId &x) const { return shape(x).nelms_u64(); }
+  uint64_t nelms(const TensorId &x) const { return shape(x).nelms(); }
 
   /** The rank of a Tensor in the Graph. */
   uint64_t rank_u64(const TensorId &x) const { return shape(x).rank_u64(); }
@@ -258,6 +276,46 @@ public:
 
   std::string name() const { return name_; }
 
+  /** Map Regions #inRegs, which enter the Op #opId at the input index
+   * #inIndex, to the Regions in the output Tensor at #outIndex which use
+   * #inRegs.
+   *
+   * An example:
+   *   Suppose the Op #opId flattens a Tensor of Shape (4,4). Suppose that
+   *   inRegs is the slice [1:3, :], described as:
+   *      ....
+   *      1111
+   *      1111
+   *      ....
+   *
+   *    This Regions maps to slice [4:12] in the output:
+   *      ....11111111....
+   *
+   *   This method would therefore return this flat slice. Using the Region
+   *   class constructors, this means we would we map
+   *   <code>
+   *        Region::fromBounds({4,4}, {1,3}, {0,4});
+   *   </code>
+   *   to
+   *   <code>
+   *        Region::fromBounds({16}, {4}, {12});
+   *   </code>
+   * */
+  DisjointRegions outRegions(const DisjointRegions &inRegs,
+                             InIndex inIndex,
+                             OpId opId,
+                             OutIndex outIndex) const;
+
+  /** Map Regions in the output Tensor at #outIndex to the Regions in the
+   *  input Tensor at #inIndex which they use, via the Op #opId. This is the
+   *  inverse of the method \a outRegions. In particular it is guaranteed that
+   *  inRegions(outRegions(inRegs, in, opId, out), in, opId, out) = inRegs.
+   * */
+  DisjointRegions inRegions(const DisjointRegions &out,
+                            InIndex inIndex,
+                            OpId opId,
+                            OutIndex outIndex) const;
+
 private:
   static OpIds opIds(const TensorIds &tids);
 
@@ -276,12 +334,6 @@ private:
   // algorithm API.
   using FwdEdges = std::vector<std::vector<decltype(OpId().get())>>;
   FwdEdges getFwdEdges(const Constraints &additional) const;
-
-  // An Op in this Graph maps to 1 or more Nodes in an alias::Graph.
-  alias::Graph aGraph_;
-  alias::Graph &aGraph() { return aGraph_; }
-  const alias::Graph &aGraph() const { return aGraph_; }
-  TensorMap tensorMap;
 
   std::vector<std::array<TensorId, 2>>
   createBroadcastPadElements(const Shape &,
@@ -302,11 +354,20 @@ private:
     UpOp(std::unique_ptr<Op> x);
     UpOp(const UpOp &x);
     UpOp &operator=(const UpOp &x);
+
     ~UpOp();
     std::unique_ptr<Op> up;
     bool operator==(const UpOp &) const;
+    bool operator!=(const UpOp &rhs) const { return !operator==(rhs); }
   };
   std::vector<UpOp> ops;
+
+  // The Tensor class is a thin API on top of the Graph class, to make user
+  // code more succinct. A useful mental model is to think of the Graph and
+  // Tensor classes as the same.
+  friend class Tensor;
+
+  std::string name_;
 
   // All Op names, pythonically: [op(i).name() for i in range(nOps())]
   std::vector<std::string> getOpNames() const;
@@ -326,16 +387,15 @@ private:
   std::vector<uint64_t> invSched;
   bool scheduleIsValid{false};
 
+  // An Op in this Graph maps to 1 or more Nodes in an alias::Graph.
+  alias::Graph aGraph_;
+  alias::Graph &aGraph() { return aGraph_; }
+  const alias::Graph &aGraph() const { return aGraph_; }
+  TensorMap tensorMap;
+
   // Dynamically cast to a Mux.
   Mux &asMux(OpId);
   const Mux &asMux(OpId) const;
-
-  // The Tensor class is a thin API on top of the Graph class, to make user
-  // code more succinct. My mental model is that Graph and Tensor are the same
-  // class.
-  friend class Tensor;
-
-  std::string name_;
 };
 
 std::ostream &operator<<(std::ostream &, const Graph &);

@@ -220,7 +220,7 @@ public:
   static Tensors multi(Graph &,
                        const Tensors &ins,
                        const Shapes &outShapes,
-                       const CrossAliases &);
+                       const CrossLinks &);
 
   static TensorIds tensorIds(const Tensors &);
   static OpIds opIds(const Tensors &);

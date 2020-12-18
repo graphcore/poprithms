@@ -55,7 +55,8 @@ void Op::insertIn(OpId ido) {
 
 Op::Op(const State &ob)
     : id_(ob.id), ins_(ob.ins), outs_(ob.outs), inIds_(ob.inIds),
-      consumers_(ob.consumers), outShapes_(ob.outShapes), name_(ob.name) {}
+      consumers_(ob.consumers), inShapes_(ob.inShapes),
+      outShapes_(ob.outShapes), name_(ob.name) {}
 
 // C++20 we will be able to just use (= default).
 bool Op::State::operator==(const State &rhs) const {
@@ -65,6 +66,7 @@ bool Op::State::operator==(const State &rhs) const {
       outs == rhs.outs &&           //
       inIds == rhs.inIds &&         //
       consumers == rhs.consumers && //
+      inShapes == rhs.inShapes &&   //
       outShapes == rhs.outShapes && //
       name == rhs.name;
 }
@@ -80,6 +82,9 @@ TensorIds Op::outTensorIds() const {
 
 std::ostream &operator<<(std::ostream &os, const Op &op) {
   os << op.str();
+  if (!op.name().empty()) {
+    os << "::" << op.name();
+  }
   return os;
 }
 
@@ -90,8 +95,32 @@ void Op::grow(alias::Graph &g, TensorMap &m) const {
   }
 }
 
+void Op::verify(InIndex inIndex,
+                OutIndex outIndex,
+                const std::string &context) const {
+  if (inIndex >= nInTensors()) {
+    std::ostringstream oss;
+    oss << "Invalid InIndex in " << context << " of " << typeString()
+        << ". InIndex=" << inIndex << ", but nInTensors=" << nInTensors()
+        << '.';
+    throw error(oss.str());
+  }
+  if (outIndex >= nOutTensors()) {
+    std::ostringstream oss;
+    oss << "Invalid OutIndex in " << context << " of " << typeString()
+        << ". InIndex=" << inIndex << ", but nOutTensors=" << nOutTensors()
+        << '.';
+    throw error(oss.str());
+  }
+}
+
+std::string Op::str() const {
+  return typeString() + std::string("::") + id();
+}
+
 Op::State Op::getBaseState(const OpId opId,
                            const TensorIds &inIds,
+                           const Shapes &inShapes,
                            const Shapes &outShapes,
                            const OpIds &opIns) {
 
@@ -101,7 +130,8 @@ Op::State Op::getBaseState(const OpId opId,
   // No consumers at any of the output indices.
   std::vector<Consumers> consumers(outShapes.size());
 
-  return State(opId, opIns, opOuts, inIds, consumers, outShapes, name);
+  return State(
+      opId, opIns, opOuts, inIds, consumers, inShapes, outShapes, name);
 }
 
 } // namespace inplace

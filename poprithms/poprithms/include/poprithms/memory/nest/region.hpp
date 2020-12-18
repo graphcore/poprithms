@@ -262,7 +262,7 @@ public:
                const std::vector<int64_t> &upper) const;
 
   /**
-   * The inverse operation expand. Example:
+   * The inverse operation of expand. Example:
    *
    *   2 3 4 5  this Region's Shape
    *     1 4 1  the output Shape

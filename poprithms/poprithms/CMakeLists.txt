@@ -169,7 +169,7 @@ set(memory_alias_sources
 
 set(memory_inplace_sources
        ${memory_src_dir}/inplace/consumer.cpp
-       ${memory_src_dir}/inplace/crossalias.cpp
+       ${memory_src_dir}/inplace/crosslink.cpp
        ${memory_src_dir}/inplace/tensor.cpp
        ${memory_src_dir}/inplace/error.cpp
        ${memory_src_dir}/inplace/graph.cpp

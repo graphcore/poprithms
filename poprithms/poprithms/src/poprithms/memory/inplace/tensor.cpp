@@ -56,7 +56,7 @@ Tensor Tensor::mux(const Tensors &ts) {
 Tensors Tensor::multi(Graph &g,
                       const Tensors &ins,
                       const Shapes &outs,
-                      const CrossAliases &cas) {
+                      const CrossLinks &cas) {
 
   if (std::any_of(ins.cbegin(), ins.cend(), [&g](const auto &t) {
         return &t.graph() != &g;

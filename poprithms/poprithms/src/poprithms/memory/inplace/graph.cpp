@@ -54,6 +54,20 @@ TensorId Graph::pad(const TensorId &id,
   return pad(id, LowerPadding(l_u64), UpperPadding(u_u64), cp, sp);
 }
 
+DisjointRegions Graph::outRegions(const DisjointRegions &inRegions,
+                                  InIndex inIndex,
+                                  OpId opId,
+                                  OutIndex outIndex) const {
+  return op(opId).outRegions(inRegions, inIndex, outIndex);
+}
+
+DisjointRegions Graph::inRegions(const DisjointRegions &out,
+                                 InIndex inIndex,
+                                 OpId opId,
+                                 OutIndex outIndex) const {
+  return op(opId).inRegions(out, inIndex, outIndex);
+}
+
 std::vector<std::array<TensorId, 2>>
 Graph::createBroadcastPadElements(const Shape &shape,
                                   const LowerPadding &l,
@@ -183,7 +197,8 @@ OpId Graph::createOp(const TensorIds &inIds,
                      Args... args) {
   return insertOp(
       std::make_unique<T>(
-          Op::getBaseState(nOps_i64(), inIds, outShapes, opIds(inIds)),
+          Op::getBaseState(
+              nOps_i64(), inIds, shapes(inIds), outShapes, opIds(inIds)),
           args...),
       inIds);
 }
@@ -240,15 +255,6 @@ TensorId Graph::flatten(const TensorId &id) {
 }
 
 TensorId Graph::reshape(const TensorId &id, const Shape &outShape) {
-  // Note that this sanity check can't be be done in the Reshape constructor,
-  // as there the input Shape is not known.
-  if (outShape.nelms_u64() != nelms_u64(id)) {
-    std::ostringstream oss;
-    oss << "Invalid reshape, number of elements changes. "
-        << "Cannot reshape from " << shape(id) << " to " << outShape << ". ";
-    throw error(oss.str());
-  }
-
   return {createOp<Reshape>({id}, {outShape}), 0};
 }
 
@@ -809,12 +815,11 @@ void Graph::append(std::ostream &ost) const {
     // ++l;
     for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
       const auto aliasId = tensorMap.toAliasGraphId(op(i).outTensorId(o));
-      // const auto aliaseTensor = aGraph().tensor(aliasId);
-      outIndex__[l]    = std::to_string(o);
-      tensorId__[l]    = std::to_string(aliasId.get());
-      tensorShape__[l] = getStr(aGraph().shape(aliasId).get());
-      tensorType__[l]  = aGraph().typeString(aliasId);
-      selfAliases__[l] = aGraph().containsAliases(aliasId) ? "yes" : "no";
+      outIndex__[l]      = std::to_string(o);
+      tensorId__[l]      = std::to_string(aliasId.get());
+      tensorShape__[l]   = getStr(aGraph().shape(aliasId).get());
+      tensorType__[l]    = aGraph().typeString(aliasId);
+      selfAliases__[l]   = aGraph().containsAliases(aliasId) ? "yes" : "no";
       constants__[l] =
           aGraph().containsColor(aliasId, ConstantColor) ? "yes" : "no";
       aliasedTo__[l] = getStr(aliasedTo[aliasId.get()]);
@@ -868,22 +873,8 @@ std::string Graph::typeString(OpId id) const { return op(id).typeString(); }
 
 OpId Graph::multi(const TensorIds &inIds,
                   const Shapes &outShapes,
-                  const CrossAliases &mapping) {
-  const auto opId = createOp<Multi>(inIds, outShapes, mapping);
-
-  for (const auto &crossAlias : mapping) {
-    const auto inShape  = shape(op(opId).inTensorId(crossAlias.in()));
-    const auto outShape = shape(op(opId).outTensorId(crossAlias.out()));
-    if (inShape != outShape) {
-      std::ostringstream oss;
-      oss << "Incompatible Shapes in Graph::multi, for CrossAlias "
-          << crossAlias << ". The input shape at index " << crossAlias.in()
-          << " is " << inShape << ", and the output shape at index "
-          << crossAlias.out() << " is " << outShape << '.';
-      throw error(oss.str());
-    }
-  }
-  return opId;
+                  const CrossLinks &mapping) {
+  return createOp<Multi>(inIds, outShapes, mapping);
 }
 
 TensorId Graph::mux(const TensorIds &ids) {

@@ -37,10 +37,12 @@ public:
           const OpIds &outs_,
           const TensorIds &inIds_,
           const std::vector<Consumers> &consumers_,
+          const Shapes &inShapes_,
           const Shapes &outShapes_,
           const std::string &name_)
         : id(id_), ins(ins_), outs(outs_), inIds(inIds_),
-          consumers(consumers_), outShapes(outShapes_), name(name_) {}
+          consumers(consumers_), inShapes(inShapes_), outShapes(outShapes_),
+          name(name_) {}
 
     // This Op's unique identifier
     const OpId id;
@@ -59,6 +61,9 @@ public:
     // The Ops which consume output Tensors of this Op, in the order of
     // OutputIndex
     const std::vector<Consumers> consumers;
+
+    // The Shapes of the input Tensors of this Op
+    const Shapes inShapes;
 
     // The Shapes of the output Tensors which this Op creates
     const Shapes outShapes;
@@ -85,9 +90,11 @@ public:
   /** Ops which must be scheduled after this Op. */
   const OpIds &outs() const { return outs_; }
 
-  std::string str() const { return typeString() + std::string("::") + id(); }
+  std::string str() const;
 
   OpId id() const { return id_; }
+
+  const Shape &inShape(InIndex i) const { return inShapes_.at(i.get()); }
 
   const Shape &outShape(OutIndex i) const { return outShapes_.at(i.get()); }
 
@@ -99,6 +106,8 @@ public:
 
   const Consumers &consumers(OutIndex o) const { return consumers_[o.get()]; }
 
+  const Shapes &inShapes() const { return inShapes_; }
+
   const Shapes &outShapes() const { return outShapes_; }
 
   const std::string &name() const { return name_; }
@@ -106,7 +115,8 @@ public:
   void setName(const std::string &n) { name_ = n; }
 
   State getState() const {
-    return State{id_, ins_, outs_, inIds_, consumers_, outShapes_, name_};
+    return State{
+        id_, ins_, outs_, inIds_, consumers_, inShapes_, outShapes_, name_};
   }
 
   const TensorIds &inTensorIds() const { return inIds_; }
@@ -125,14 +135,24 @@ public:
   void insertConsumer(OutIndex, const Consumer &);
 
   bool operator==(const Op &rhs) const {
-    return getState() == rhs.getState() && typeid(*this) == typeid(rhs) &&
-           typeSpecificEqualTo(rhs);
+    return
+        // Same base properties:
+        getState() == rhs.getState() &&
+        // Same derived class:
+        typeid(*this) == typeid(rhs) &&
+        // Same derived class properties:
+        typeSpecificEqualTo(rhs);
   }
 
   /**
    * String describing the exact transformation performed by this Op
    * */
   virtual std::string typeString() const = 0;
+
+  virtual DisjointRegions
+  outRegions(const DisjointRegions &in, InIndex, OutIndex) const = 0;
+  virtual DisjointRegions
+  inRegions(const DisjointRegions &out, InIndex, OutIndex) const = 0;
 
   /**
    * Append this Op's alias::Graph equivalent(s) into \a g, and also
@@ -166,8 +186,14 @@ public:
 
   static State getBaseState(const OpId opId,
                             const TensorIds &tensorIns,
+                            const Shapes &inShapes,
                             const Shapes &outShapes,
                             const OpIds &opIns);
+
+  /** Verify that the input and output indices are valid for this Op. If they
+   * are not, a descriptive error message which includes #context is thrown.
+   */
+  void verify(InIndex, OutIndex, const std::string &context) const;
 
 private:
   OpId id_;
@@ -175,6 +201,7 @@ private:
   OpIds outs_;
   TensorIds inIds_;
   std::vector<Consumers> consumers_;
+  Shapes inShapes_;
   Shapes outShapes_;
   std::string name_;
 
