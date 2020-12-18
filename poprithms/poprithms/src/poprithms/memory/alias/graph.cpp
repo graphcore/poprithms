@@ -12,6 +12,7 @@
 #include <poprithms/memory/alias/origins.hpp>
 #include <poprithms/memory/alias/usings.hpp>
 #include <poprithms/util/printiter.hpp>
+#include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -282,7 +283,8 @@ const Node &Graph::node(TensorId a) const {
         << ", there is no Node with TensorId " << a;
     throw error(oss.str());
   }
-  return *nodes[a.get()].up;
+
+  return *nodes[a.get()].uptr;
 }
 
 // See Scott Meyers' "Effective C++"
@@ -669,35 +671,6 @@ void Graph::Workspace::clear(const TensorIds &sched) {
   }
 }
 
-template <typename T>
-Graph::Up<T>::Up(std::unique_ptr<T> x) : up(std::move(x)) {}
-
-template <typename T>
-bool Graph::Up<T>::operator==(const Graph::Up<T> &rhs) const {
-  if ((up && !rhs.up) || (!up && rhs.up)) {
-    return false;
-  }
-  if (!up && !rhs.up) {
-    return true;
-  }
-  return (*up == *rhs.up);
-}
-
-template <typename T> Graph::Up<T>::Up() = default;
-
-template <typename T>
-Graph::Up<T>::Up(const Up &x) : Up<T>(x.up ? x.up->clone() : nullptr) {}
-
-template <typename T> Graph::Up<T>::~Up() = default;
-
-template <typename T>
-Graph::Up<T> &Graph::Up<T>::operator=(const Graph::Up<T> &x) {
-  if (x.up) {
-    up = x.up->clone();
-  }
-  return *this;
-}
-
 // This implementation works vy performing a depth-first search for all
 // Tensors preceding the Tensor clone, and creating a clone of all of them.
 // Example:
@@ -756,11 +729,16 @@ std::string Graph::verboseString() const {
   return oss.str();
 }
 
+void Graph::reserve(uint64_t nTensors) { nodes.reserve(nTensors); }
+
 const Shape &Graph::shape(TensorId id) const { return node(id).shape(); }
 
-// This must appear after template function implementations (above)
-template class Graph::Up<Node>;
+bool Graph::operator==(const Graph &rhs) const { return nodes == rhs.nodes; }
 
 } // namespace alias
 } // namespace memory
+
+namespace util {
+template class CopyByClone<memory::alias::Node>;
+}
 } // namespace poprithms

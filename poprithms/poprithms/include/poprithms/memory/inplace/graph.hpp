@@ -15,6 +15,7 @@
 #include <poprithms/memory/inplace/result.hpp>
 #include <poprithms/memory/inplace/tensorid.hpp>
 #include <poprithms/memory/inplace/tensormap.hpp>
+#include <poprithms/util/copybyclone.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -347,20 +348,7 @@ private:
                               const UpperPadding &,
                               ConstantPadding);
 
-  // Wrapping a unique_ptr in a class to make the Graph class copyable.
-  class UpOp {
-  public:
-    UpOp();
-    UpOp(std::unique_ptr<Op> x);
-    UpOp(const UpOp &x);
-    UpOp &operator=(const UpOp &x);
-
-    ~UpOp();
-    std::unique_ptr<Op> up;
-    bool operator==(const UpOp &) const;
-    bool operator!=(const UpOp &rhs) const { return !operator==(rhs); }
-  };
-  std::vector<UpOp> ops;
+  std::vector<util::CopyByClone<Op>> ops;
 
   // The Tensor class is a thin API on top of the Graph class, to make user
   // code more succinct. A useful mental model is to think of the Graph and

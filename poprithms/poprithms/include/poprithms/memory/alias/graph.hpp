@@ -10,6 +10,7 @@
 #include <poprithms/memory/alias/usings.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/ndarray/shape.hpp>
+#include <poprithms/util/copybyclone.hpp>
 #include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
@@ -342,7 +343,7 @@ public:
    * */
   bool isRowMajorSetContiguous(TensorId) const;
 
-  void reserve(uint64_t nTensors) { nodes.reserve(nTensors); }
+  void reserve(uint64_t nTensors);
 
   void append(std::ostream &) const;
 
@@ -362,7 +363,7 @@ public:
 
   // Note that the order in which nodes are inserted into the graph must be
   // the same for equality.
-  bool operator==(const Graph &rhs) const { return nodes == rhs.nodes; }
+  bool operator==(const Graph &rhs) const;
   bool operator!=(const Graph &rhs) const { return !operator==(rhs); }
 
   enum class Direction { Fwd = 0, Bwd };
@@ -400,18 +401,7 @@ private:
    * */
   void appendOrigins(std::ostream &, bool bitwise) const;
 
-  // A wrapper around a unique pointer to make it copyable.
-  template <class T> class Up {
-  public:
-    Up();
-    Up(std::unique_ptr<T> x);
-    Up(const Up &x);
-    Up &operator=(const Up &x);
-    ~Up();
-    std::unique_ptr<T> up;
-    bool operator==(const Up<T> &) const;
-  };
-  using UpNode = Up<Node>;
+  using UpNode = util::CopyByClone<Node>;
   std::vector<UpNode> nodes;
 
   // a mutable workspace used for depth-first searches.

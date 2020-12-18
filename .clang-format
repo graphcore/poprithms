@@ -72,6 +72,8 @@ IncludeCategories:
     Priority:        200
   - Regex:           '<memory/'
     Priority:        200
+  - Regex:           '<util/copybyclone'
+    Priority:        200
 
   - Regex:           '<boost*'
     Priority:        140

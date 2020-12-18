@@ -15,6 +15,7 @@
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 #include <poprithms/util/printiter.hpp>
+#include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -217,8 +218,8 @@ OpId Graph::insertOp(std::unique_ptr<Op> createdOp, const TensorIds &inIds) {
 
   ops.emplace_back(std::move(createdOp));
 
-  ops.back().up->grow(aGraph(), tensorMap);
-  auto newId = ops.back().up->id();
+  ops.back().uptr->grow(aGraph(), tensorMap);
+  auto newId = ops.back().uptr->id();
 
   return newId;
 }
@@ -317,7 +318,7 @@ const Op &Graph::op(OpId a) const {
     throw error(oss.str());
   }
 
-  const auto &opPtr = ops[static_cast<uint64_t>(a.get())].up;
+  const auto &opPtr = ops[static_cast<uint64_t>(a.get())].uptr;
 
   // In case we decide that we need to delete Ops for this transformation at
   // some point:
@@ -330,32 +331,6 @@ const Op &Graph::op(OpId a) const {
 // See Scott Meyers' "Effective C++"
 Op &Graph::op(OpId id) {
   return const_cast<Op &>(static_cast<const Graph &>(*this).op(id));
-}
-
-Graph::UpOp::UpOp(std::unique_ptr<Op> x) : up(std::move(x)) {}
-
-bool Graph::UpOp::operator==(const Graph::UpOp &rhs) const {
-  if ((up && !rhs.up) || (!up && rhs.up)) {
-    return false;
-  }
-  if (!up && !rhs.up) {
-    return true;
-  }
-  return (*up == *rhs.up);
-}
-
-Graph::UpOp::UpOp() = default;
-
-Graph::UpOp::UpOp(const Graph::UpOp &x)
-    : Graph::UpOp(x.up ? x.up->clone() : nullptr) {}
-
-Graph::UpOp::~UpOp() = default;
-
-Graph::UpOp &Graph::UpOp::UpOp::operator=(const Graph::UpOp &x) {
-  if (x.up) {
-    up = x.up->clone();
-  }
-  return *this;
 }
 
 OpeningStatuses Graph::tryOpenings(const Proposals &proposals,
@@ -890,4 +865,9 @@ TensorId Graph::mux(const TensorIds &ids, InIndex inInd) {
 
 } // namespace inplace
 } // namespace memory
+
+namespace util {
+template class CopyByClone<memory::inplace::Op>;
+}
+
 } // namespace poprithms

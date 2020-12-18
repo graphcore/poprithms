@@ -5,6 +5,7 @@
 
 #include <poprithms/memory/inplace/usings.hpp>
 #include <poprithms/memory/nest/region.hpp>
+#include <poprithms/util/copybyclone.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -129,33 +130,17 @@ public:
   bool isAliasing() const { return isModifying() || isPureAliasing(); }
 
   DisjointRegions fwd(const DisjointRegions &in) const {
-    return regsMap_.rm_->fwd(in);
+    return regsMap_.uptr->fwd(in);
   }
 
   DisjointRegions bwd(const DisjointRegions &out) const {
-    return regsMap_.rm_->bwd(out);
+    return regsMap_.uptr->bwd(out);
   }
 
   void append(std::ostream &) const;
 
 private:
   enum class Type { Uses = 0, PureAliases, Modifies };
-
-  // Wrapping unique_ptr in a class to make it copyable.
-  class WrappedRegsMap {
-  public:
-    WrappedRegsMap() = default;
-    WrappedRegsMap(std::unique_ptr<RegsMap> x) : rm_(std::move(x)) {}
-
-    WrappedRegsMap(const WrappedRegsMap &rhs) : rm_(rhs.rm_->clone()) {}
-    WrappedRegsMap(WrappedRegsMap &&rhs);
-
-    WrappedRegsMap &operator=(const WrappedRegsMap &);
-    WrappedRegsMap &operator=(WrappedRegsMap &&);
-
-    ~WrappedRegsMap() = default;
-    std::unique_ptr<RegsMap> rm_;
-  };
 
   CrossLink(InIndex i_, OutIndex o_, Type t_, std::unique_ptr<RegsMap> r)
       : inIndex_(i_), outIndex_(o_), regsMap_(std::move(r)), type_(t_) {}
@@ -166,7 +151,7 @@ private:
 
   InIndex inIndex_;
   OutIndex outIndex_;
-  WrappedRegsMap regsMap_;
+  util::CopyByClone<RegsMap> regsMap_;
   Type type_;
 };
 

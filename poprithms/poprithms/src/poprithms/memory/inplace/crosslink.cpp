@@ -4,6 +4,7 @@
 
 #include <poprithms/memory/inplace/crosslink.hpp>
 #include <poprithms/util/printiter.hpp>
+#include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -15,7 +16,7 @@ bool RegsMap::operator==(const RegsMap &rhs) const {
 }
 
 bool CrossLink::operator==(const CrossLink &rhs) const {
-  return tup() == rhs.tup() && regsMap_.rm_->operator==(*rhs.regsMap_.rm_);
+  return tup() == rhs.tup() && regsMap_.uptr->operator==(*rhs.regsMap_.uptr);
 }
 
 void CrossLink::append(std::ostream &ost) const {
@@ -27,28 +28,6 @@ void CrossLink::append(std::ostream &ost) const {
   } else {
     ost << "[using]";
   }
-}
-
-// TODO(T31845) Unify this class's appearances as a utility.
-CrossLink::WrappedRegsMap &
-CrossLink::WrappedRegsMap::operator=(const WrappedRegsMap &rhs) {
-  if (this == &rhs) {
-    return *this;
-  }
-  this->rm_ = rhs.rm_->clone();
-  return *this;
-}
-
-CrossLink::WrappedRegsMap::WrappedRegsMap(WrappedRegsMap &&rhs)
-    : rm_(std::move(rhs.rm_)) {}
-
-CrossLink::WrappedRegsMap &
-CrossLink::WrappedRegsMap::operator=(WrappedRegsMap &&rhs) {
-  if (this == &rhs) {
-    return *this;
-  }
-  this->rm_ = std::move(rhs.rm_);
-  return *this;
 }
 
 std::unique_ptr<RegsMap> IdentityRegsMap::clone() const {
@@ -89,4 +68,9 @@ std::ostream &operator<<(std::ostream &ost, const CrossLink &ca) {
 
 } // namespace inplace
 } // namespace memory
+
+namespace util {
+template class CopyByClone<memory::inplace::RegsMap>;
+}
+
 } // namespace poprithms
