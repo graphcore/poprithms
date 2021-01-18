@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <numeric>
 #include <ostream>
@@ -603,7 +603,7 @@ std::vector<int64_t> getIndices(int64_t start,
 
 std::vector<int64_t> Shape::getSlicedRowMajorIndices(const Lower &l,
                                                      const Upper &u) const {
-  assertBoundsAreValid(l, u);
+  assertSliceBoundsAreValid(l, u);
   int64_t start{0};
   auto strides = getRowMajorStrides();
   for (uint64_t i = 0; i < rank_u64(); ++i) {
@@ -851,6 +851,11 @@ void Shape::assertSameNumberOfElements(const Shape &rhs) const {
 void Shape::append(std::ostream &os) const {
   poprithms::util::append(os, shp);
 }
+std::string Shape::str() const {
+  std::ostringstream ost;
+  append(ost);
+  return ost.str();
+}
 
 std::ostream &operator<<(std::ostream &os, const Shape &sh) {
   sh.append(os);
@@ -916,8 +921,61 @@ void Shape::assertConcattable(const Shape &rhs, uint64_t axis) const {
   }
 }
 
+Shape Shape::pad(const Lower &l, const Upper &u) const {
+
+  const auto throwBadParams = [this, &l, &u]() {
+    std::ostringstream oss;
+    oss << "Invalid Lower or Upper in Shape::pad. "
+        << "This Shape is " << *this << ", Lower is " << l << " of rank "
+        << l.size() << ", and Upper is " << u << ", of size " << u.size()
+        << '.';
+    throw error(oss.str());
+  };
+
+  if (l.size() != rank_u64() || u.size() != rank_u64()) {
+    throwBadParams();
+  }
+
+  std::vector<int64_t> out;
+  out.reserve(rank_u64());
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    if (l[i] < 0 || u[i] < 0) {
+      throwBadParams();
+    }
+    out.push_back(dim(i) + l[i] + u[i]);
+  }
+  return out;
+}
+
+Shape Shape::addToDims(const std::vector<int64_t> &d) const {
+
+  if (d.size() != rank_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid values in Shape::addToDims. "
+        << "This Shape is " << *this << ", values"
+        << ": type should have the same rank but do not. ";
+    throw error(oss.str());
+  }
+
+  std::vector<int64_t> out;
+  out.reserve(rank_u64());
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    out.push_back(dim(i) + d[i]);
+    if (out.back() < 0) {
+      std::ostringstream oss;
+      oss << "Invalid values in Shape::addToDims. "
+          << "In dimension " << i << ", Shape's dim is " << dim(i)
+          << ", and the delta value is " << d[i]
+          << ". Adding these together results in a negative dimension"
+          << ", which is not allowed. ";
+      throw error(oss.str());
+    }
+  }
+  return out;
+}
+
 Shape Shape::slice(const Lower &l, const Upper &u) const {
-  assertBoundsAreValid(l, u);
+  assertSliceBoundsAreValid(l, u);
   std::vector<int64_t> out(rank_u64(), 0);
   for (uint64_t d = 0; d < rank_u64(); ++d) {
     out[d] = u[d] - l[d];
@@ -1000,7 +1058,7 @@ std::vector<int64_t> Shape::getSlicedRowMajorIndices(const Starts &starts,
       getNormalizedSliceParams(starts, ends, steps, dims));
 }
 
-void Shape::assertBoundsAreValid(const Lower &l, const Upper &u) const {
+void Shape::assertSliceBoundsAreValid(const Lower &l, const Upper &u) const {
 
   std::ostringstream ss;
 
@@ -1265,6 +1323,77 @@ std::ostream &operator<<(std::ostream &ost,
                          const Shape::NormalizedSliceParams &n) {
   n.append(ost);
   return ost;
+}
+
+void Shape::assertConcattable(const Shapes &shapes_, uint64_t axis_) {
+  if (shapes_.size() == 0) {
+    throw error("Failed in assertConcattable, where there are 0 Shapes. "
+                "Concatenation requires at least one Shape. ");
+  }
+
+  for (uint64_t i = 1; i < shapes_.size(); ++i) {
+    shapes_[i].assertConcattable(shapes_[0], axis_);
+  }
+}
+
+std::vector<uint64_t>
+Shape::getCanonicalReverseIndices(const std::vector<uint64_t> &where) const {
+
+  std::vector<bool> flips(rank_u64(), false);
+  for (auto d : where) {
+    if (d < rank_u64()) {
+      flips[d] = !flips[d];
+    } else {
+      std::ostringstream oss;
+      oss << "Invalid index " << d
+          << " in getCanonicalReverseIndices for Shape " << *this
+          << ", which is of rank " << rank_u64() << '.';
+      throw error(oss.str());
+    }
+  }
+
+  std::vector<uint64_t> flipped;
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+    if (flips[d]) {
+      flipped.push_back(d);
+    }
+  }
+  return flipped;
+}
+
+bool Shape::canReduceTo(const Shape &outShape) const {
+  const auto outRank = outShape.rank_u64();
+
+  // cannot reduce to higher rank
+  if (outRank > rank_u64()) {
+    return false;
+  }
+
+  const auto deltaRank = rank_u64() - outRank;
+
+  for (uint64_t d = 0; d < outShape.rank_u64(); ++d) {
+    if (outShape.dim(d) != 1) {
+      if (outShape.dim(d) != dim(d + deltaRank)) {
+        // cannot reduce, as neither is 1.
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+void Shape::assertCanReduceTo(const Shape &outShape) const {
+  if (!canReduceTo(outShape)) {
+    std::ostringstream oss;
+    oss << "Cannot reduce from " << *this << " to " << outShape << ".";
+    throw error(oss.str());
+  }
+}
+
+Shape Shape::scale(Stride s, Dimension d) const {
+  auto x = get();
+  x[d.get()] *= s.get();
+  return x;
 }
 
 } // namespace ndarray

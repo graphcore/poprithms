@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <numeric>
 #include <ostream>
@@ -537,7 +537,7 @@ Region Region::fromBounds(const Shape &sh,
                           const std::vector<int64_t> &l,
                           const std::vector<int64_t> &u) {
 
-  sh.assertBoundsAreValid(l, u);
+  sh.assertSliceBoundsAreValid(l, u);
   std::vector<Sett> slices;
   slices.reserve(sh.rank_u64());
   for (uint64_t i = 0; i < sh.rank_u64(); ++i) {

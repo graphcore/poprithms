@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
 #include <poprithms/ndarray/error.hpp>
@@ -71,7 +71,6 @@ void testRowMajorIndex0() {
 
   assertRowMajorIndex(Shape({2, 3, 5, 1, 1}), {0, 2, 1, 0, 0}, 11);
 }
-} // namespace
 
 void testConcat() {
   const Shape a({2, 3, 4});
@@ -230,6 +229,68 @@ void testFlatten2d() {
   assertFlatten2d({2, 3, 4}, 3, {24, 1});
 }
 
+void testAssertConcattable() {
+
+  bool caught{false};
+  try {
+    Shape::assertConcattable(Shapes{}, 0);
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw error("Failure in testAssertConcattable. Did not catch error when "
+                "trying to concat empty vector of Shapes");
+  }
+}
+
+void testAddToDims() {
+  Shape a({2, 3});
+  if (a.addToDims({-1, 3}) != Shape({1, 6})) {
+    throw error("Failed to correctly addDims in testAddToDims");
+  }
+}
+
+void assertReduceTo(const Shape &from, const Shape &to, bool valid) {
+  if (from.canReduceTo(to) != valid) {
+    std::ostringstream oss;
+    oss << "Testing if " << from << " can be reduced to " << to
+        << ", failed. Expected this to be " << (valid ? "" : "NOT ")
+        << "valid. ";
+    throw error(oss.str());
+  }
+}
+
+void testCanReduceTo() {
+  assertReduceTo({4, 1}, {1, 1}, true);
+  assertReduceTo({4, 1}, {2, 1}, false);
+  assertReduceTo({4, 1}, {4, 4}, false);
+  assertReduceTo({4, 1}, {}, true);
+  assertReduceTo({4, 1}, {4}, false);
+}
+
+void testCanonicalReverseIndices() {
+
+  // 0: 3
+  // 1: 2
+  // 2: 2
+  // 3: 1
+  if (Shape({3, 4, 5, 6})
+          .getCanonicalReverseIndices({
+              3,
+              0,
+              1,
+              2,
+              0,
+              2,
+              1,
+              0,
+          }) != std::vector<uint64_t>{0, 3}) {
+    throw error("Expected the reduction to be {0,3}");
+  }
+}
+
+} // namespace
+
 int main() {
   testNumpyBinary0();
   testPrepend();
@@ -243,5 +304,9 @@ int main() {
   testUnsqueeze0();
   testPadShapes0();
   testFlatten2d();
+  testAssertConcattable();
+  testAddToDims();
+  testCanReduceTo();
+  testCanonicalReverseIndices();
   return 0;
 }

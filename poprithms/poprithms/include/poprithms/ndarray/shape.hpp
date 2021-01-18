@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_NDARRAY_SHAPE_HPP
 #define POPRITHMS_NDARRAY_SHAPE_HPP
 
@@ -15,6 +15,9 @@ class Permutation;
 }
 
 namespace ndarray {
+
+class Shape;
+using Shapes = std::vector<Shape>;
 
 using poprithms::util::Permutation;
 
@@ -87,6 +90,13 @@ public:
    * */
   void assertConcattable(const Shape &rhs, uint64_t axis) const;
 
+  /**
+   * Throws an error if either
+   * 1) shapes is empty, or
+   * 2) any 2 Shapes cannot be concatenated.
+   * */
+  static void assertConcattable(const Shapes &shapes, uint64_t axis);
+
   Shape flatten() const { return Shape({nelms()}); }
 
   /**
@@ -151,14 +161,11 @@ public:
   Shape prepend(const Shape &dims0) const;
 
   /**
-   * Throw an error if the size of \a l or size of \a u is not the same as the
-   * rank of this Tensor, or if
-   *       l[i] > u[i] or
-   *       l[i] < 0 or
-   *       u[i] > dim(i),
+   * Throw an error if the size of \a l or the size of \a u is not the same as
+   * the rank of this Tensor, or if l[i] > u[i] or l[i] < 0 or u[i] > dim(i),
    * for a dimension "i" less than the rank of this Shape.
    * */
-  void assertBoundsAreValid(const Lower &l, const Upper &u) const;
+  void assertSliceBoundsAreValid(const Lower &l, const Upper &u) const;
 
   /**
    * Project the Shape into \a x1 - \a x0 dimensions, by retaining
@@ -183,6 +190,31 @@ public:
    * \return the Shape \a u - \a l.
    * */
   Shape slice(const Lower &l, const Upper &u) const;
+
+  /**
+   * Pad this Shape above by \a u and below by \a l
+   *
+   * \return A Shape of the same rank as this Shape, and of size in dimension
+   *         d of this->dim(d) + l[d] + u[d].
+   * */
+  Shape pad(const Lower &l, const Upper &u) const;
+
+  /**
+   * Pad/trim this Shape.
+   *
+   * \return A shape with has size in dimension d of dim(d) + delta[d].
+   * */
+  Shape addToDims(const std::vector<int64_t> &delta) const;
+
+  /**
+   * Scale this Shape in a single dimension.
+   *
+   * \param s the factor by which to scale this Shape in a single dimension.
+   * \param d the dimension to scale.
+   *
+   * \return The scaled Shape.
+   * */
+  Shape scale(Stride s, Dimension d) const;
 
   /**
    * Starting indices of a numpy-slice
@@ -760,6 +792,11 @@ public:
 
   void append(std::ostream &os) const;
 
+  /**
+   * \return A string representation of this Shape.
+   * */
+  std::string str() const;
+
   template <typename Container>
   static Container numpyBinary(const Container &a, const Container &b) {
     bool aIsLonger      = a.size() > b.size();
@@ -782,6 +819,28 @@ public:
   void assertSameNumberOfElements(const Shape &) const;
 
   void assertCanExpandTo(const Shape &to) const;
+
+  /**
+   * This Shape can be reduced to \a outShape if and only if (iff) this Shape
+   * and \a outShape can be added using numpy broadcasting rules:
+   * https://numpy.org/doc/stable/user/basics.broadcasting.html
+   * */
+  bool canReduceTo(const Shape &outShape) const;
+
+  /**
+   * If this Shape cannot be reduced to the Shape \a outShape, throw an error.
+   * */
+  void assertCanReduceTo(const Shape &outShape) const;
+
+  /**
+   * \param indices A vector of dimensions in the range [0, rank()), which may
+   *                contain repeats.
+   *
+   * \return A sorted subset of indices, where all values in indices which
+   *         appear an even number of times do not appear.
+   * */
+  std::vector<uint64_t>
+  getCanonicalReverseIndices(const std::vector<uint64_t> &indices) const;
 
   bool operator==(const Shape &rhs) const { return shp == rhs.shp; }
   bool operator!=(const Shape &rhs) const { return shp != rhs.shp; }
