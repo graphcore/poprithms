@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <numeric>
 
@@ -8,6 +8,24 @@
 
 namespace poprithms {
 namespace util {
+
+Permutation Permutation::identity(uint64_t rnk) {
+  std::vector<uint64_t> p(rnk, 0);
+  std::iota(p.begin(), p.end(), 0);
+  return p;
+}
+
+Permutation Permutation::prod(const std::vector<Permutation> &ps) {
+  if (ps.empty()) {
+    throw error("Failed to get product/composition, more than 0 "
+                "Permutations required. ");
+  }
+  return std::accumulate(
+      ps.cbegin(),
+      ps.cend(),
+      Permutation::identity(ps[0].size()),
+      [](const Permutation &a, const Permutation &b) { return a.mul(b); });
+}
 
 Permutation::Permutation(const std::vector<uint64_t> &p_) : permutation(p_) {
   std::vector<bool> seen(permutation.size(), false);
@@ -59,9 +77,12 @@ void Permutation::confirmInSize(uint64_t s) const {
 }
 
 bool Permutation::isIdentity() const {
-  auto p2 = get();
-  std::iota(p2.begin(), p2.end(), 0);
-  return p2 == get();
+  for (uint64_t i = 0; i < size(); ++i) {
+    if (i != get(i)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 std::ostream &operator<<(std::ostream &ost, const Permutation &p) {

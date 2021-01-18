@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_UTIL_PERMUTATION_HPP
 #define POPRITHMS_UTIL_PERMUTATION_HPP
 
@@ -21,6 +21,17 @@ public:
   Permutation(const std::vector<uint64_t> &p_);
 
   /**
+   * \return The identity permutation, (0 1 2 ... rnk-1).
+   * */
+  static Permutation identity(uint64_t rnk);
+
+  /**
+   * \return true if and only if (iff) this Permutation is
+   *         (0 1 2 ... size() -1)
+   * */
+  bool isIdentity() const;
+
+  /**
    * \return A Permutation which reverses the order of dimensions.
    *
    * \param r The rank of the Permutation.
@@ -41,6 +52,18 @@ public:
 
   uint64_t size() const { return permutation.size(); }
 
+  /**
+   * Multiply/compose this permutation on the right-hand side by \a rhs
+   * Example (1 2 3 0).mul((1 2 3 0)) is (2 3 0 1).
+   * https://en.wikipedia.org/wiki/Permutation_group
+   *  */
+  Permutation mul(const Permutation &rhs) const { return apply(rhs.get()); }
+
+  /**
+   * Accumulate the Permutations in \a prms using multiplication/composition.
+   * */
+  static Permutation prod(const std::vector<Permutation> &prms);
+
   template <typename T> std::vector<T> apply(const std::vector<T> &x) const {
 
     // The input must be the size of this Permutation
@@ -52,11 +75,6 @@ public:
     }
     return permuted;
   }
-
-  /**
-   * \return true iff permutation is {0, ..., size() - 1}.
-   * */
-  bool isIdentity() const;
 
   bool operator==(const Permutation &rhs) const {
     return permutation == rhs.permutation;
