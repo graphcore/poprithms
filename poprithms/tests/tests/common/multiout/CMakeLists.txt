@@ -1,0 +1,1 @@
+add_common_test(util_common_multiout_0 multiout_0.cpp)

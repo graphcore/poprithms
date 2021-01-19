@@ -51,6 +51,24 @@ add_library(poprithms-util-objlib OBJECT
 # poprithms-foo is created and used to improve test link times.
 add_library(poprithms-util SHARED  $<TARGET_OBJECTS:poprithms-util-objlib>)
 
+set(common_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/common)
+set(common_multiout_sources
+  ${common_src_dir}/multiout/consumptionid.cpp
+  ${common_src_dir}/multiout/error.cpp
+  ${common_src_dir}/multiout/graph.cpp
+  ${common_src_dir}/multiout/logging.cpp
+  ${common_src_dir}/multiout/op.cpp
+  ${common_src_dir}/multiout/opid.cpp
+  ${common_src_dir}/multiout/tensorid.cpp
+)
+
+add_library(poprithms-common-multiout-objlib OBJECT ${common_multiout_sources})
+add_library(poprithms-common-multiout SHARED
+  $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
+
 set(schedule_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule)
 set(anneal_source_dir ${schedule_src_dir}/anneal)
 set(schedule_anneal_sources
@@ -227,6 +245,8 @@ if (${POPRITHMS_USE_STACKTRACE})
 endif()
 
 foreach(tgt IN ITEMS
+  poprithms-common-multiout-objlib
+  poprithms-common-multiout
   poprithms-compute-host-objlib
   poprithms-compute-host
   poprithms-schedule-objlib
