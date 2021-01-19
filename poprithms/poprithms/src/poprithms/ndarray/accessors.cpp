@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 
 #include <poprithms/ndarray/accessors.hpp>
@@ -75,6 +75,24 @@ Strides::Strides(std::vector<uint64_t> &&d) : BaseVectorU64(std::move(d)) {
 }
 
 Strides::Strides(const std::vector<Stride> &ds) : Strides(get_u64(ds)) {}
+
+std::ostream &operator<<(std::ostream &o, const Strides &s) {
+  util::append(o, s.get());
+  return o;
+}
+
+Dimensions::Dimensions(const std::vector<uint64_t> &d) : BaseVectorU64(d) {}
+
+Dimensions::Dimensions(std::vector<uint64_t> &&d)
+    : BaseVectorU64(std::move(d)) {}
+
+Dimensions::Dimensions(const std::vector<Dimension> &ds)
+    : Dimensions(get_u64(ds)) {}
+
+std::ostream &operator<<(std::ostream &o, const Dimensions &s) {
+  util::append(o, s.get());
+  return o;
+}
 
 } // namespace ndarray
 } // namespace poprithms

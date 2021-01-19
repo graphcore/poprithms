@@ -1,7 +1,6 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_NEST_REGION_HPP
 #define POPRITHMS_MEMORY_NEST_REGION_HPP
-
 #include <sstream>
 #include <vector>
 
@@ -22,8 +21,11 @@ namespace poprithms {
 namespace memory {
 namespace nest {
 
-using Shape       = poprithms::ndarray::Shape;
-using Permutation = poprithms::util::Permutation;
+using poprithms::ndarray::Dimension;
+using poprithms::ndarray::Shape;
+using poprithms::ndarray::Shapes;
+using poprithms::ndarray::Stride;
+using poprithms::util::Permutation;
 
 class Region;
 using OptionalRegion = poprithms::memory::nest::OptionalSet<1, Region>;
@@ -31,18 +33,18 @@ using OptionalRegion = poprithms::memory::nest::OptionalSet<1, Region>;
 class DisjointRegions;
 
 /**
- * A set of elements of a Shape. The set is expressed as the outer product of
- * Setts in each of the dimensions. A Sett (see sett.hpp) is a generalization
- * of an interval, and Regions can represent non-contiguous areas within a
- * Shape.
+ * A set of elements in a Shape. The set is expressed as the outer product of
+ * Setts, one Sett for each dimension. A Sett (see sett.hpp) is a
+ * generalization of an interval. Regions can represent non-contiguous
+ * areas within a Shape.
  *
  * A Region is defined by its 2 class members,
  *
  *  1) Shape shape_;
- * defines the containing rectangular volume.
+ *     defines the containing rectangular volume.
  *
  *  2) std::vector<Sett> setts_;
- * defines the striping pattern of elements in the volume.
+ *     defines the rectilinear striping pattern of elements in the volume.
  *
  * Examples of 2-d Regions, using 1 to denote a contained element:
  *
@@ -130,17 +132,32 @@ public:
 
   /**
    * Construct a Region with always-on Setts in all dimensions, except in
-   * dimension "dim" which has a depth-1 Sett defined by "st".
+   * dimension #dim which has a depth-1 Sett defined by #stripe.
    * */
-  static Region fromStripe(const Shape &, uint64_t dim, const Stripe &st);
+  static Region fromStripe(const Shape &, uint64_t dim, const Stripe &stripe);
 
   /**
-   * \return Region which contains all elements of "shape".
+   * Construct a Region which is always on (1) in all dimensions other than
+   * dimension #d. In dimension #d, the Region is only on at indices i
+   * where (i mod s) = 0.
+   *
+   * Example. If Shape is (2,8), stride=3 and dim =1, then returned Region is
+   *                1..1..1.
+   *                1..1..1.
+   * \sa fromStripe
+   * */
+  static Region
+  fromStrideAndDim(const Shape &sh, Stride stride, Dimension dim) {
+    return fromStripe(sh, dim.get(), {1, stride.get_i64() - 1, 0});
+  }
+
+  /**
+   * \return Region which contains all elements of #shape.
    * */
   static Region createFull(const Shape &shape);
 
   /**
-   * \return A Region which contains no elements, contained in volume "shape".
+   * \return A Region which contains no elements, contained in volume #shape
    * */
   static Region createEmpty(const Shape &shape);
 
@@ -156,7 +173,7 @@ public:
   int64_t totalElms() const;
 
   /**
-   * \return The number of elements defined by the Sett along dimension "dim".
+   * \return The number of elements defined by the Sett along dimension #dim.
    * */
   int64_t nelms(uint64_t dim) const;
 
@@ -171,25 +188,25 @@ public:
   const Sett &sett(uint64_t d) const { return setts()[d]; }
 
   /**
-   * \return true iff the Region contains no elements.
+   * \return true if the Region contains no elements.
    * */
   bool empty() const;
 
   /**
-   * \return true iff this Region contains all elements of containing volume.
+   * \return true if this Region contains all elements of containing volume.
    * */
   bool full() const;
 
   /**
    * \param rhs A Region with the same containing Shape as this.
    *
-   * \return The intersection of this Region and rhs. The returned Regions
+   * \return The intersection of this Region and #rhs. The returned Regions
    *         have the same containing Shape as this Region.
    * */
   DisjointRegions intersect(const Region &rhs) const;
 
   /**
-   * \return The element-wise complement of this Region. The returned
+   * \return The elementwise complement of this Region. The returned
    *         DisjointRegions and this Region form a partition of the
    *         containing Shape.
    * */
@@ -210,7 +227,7 @@ public:
    *              select. It must have the same containing Shape as this.
    *
    * \return DisjointRegions, whose containing Shape is equal to
-   * where.nelms().
+   *         where.nelms().
    *
    * Example
    *
@@ -237,7 +254,7 @@ public:
    * ...     ..11.1.          1. 1      ..1..1.
    *         ..11.1.          .. .      .......
    *
-   * As seen in the example above, all the '1's in "scaffold" are replaced
+   * As seen in the example above, all the '1's in #scaffold are replaced
    * by the values in this Region. scaffold.nelms() must equal this Region's
    * containing Shape, in this example this is (3,3).
    * */
@@ -256,7 +273,7 @@ public:
   DisjointRegions settFillWith(const Region &ink) const;
 
   /**
-   * Slice this Region. The Shape of the returned Region is "upper - lower"
+   * Slice this Region. The Shape of the returned Region is #upper - #lower
    * */
   Region slice(const std::vector<int64_t> &lower,
                const std::vector<int64_t> &upper) const;
@@ -312,7 +329,7 @@ public:
   Region expand(const Shape &to) const;
 
   /**
-   * Attempt to merge this Region with "other". If not possible, the returned
+   * Attempt to merge this Region with #other. If not possible, the returned
    * object is empty.
    * */
   OptionalRegion merge(const Region &other) const;
@@ -343,24 +360,24 @@ public:
   std::string str() const;
 
   /**
-   * \return true iff rhs and this have an empty intersection.
+   * \return true if rhs and this have an empty intersection.
    * */
   bool disjoint(const Region &rhs) const;
 
   /**
-   * \return true iff rhs and this have exactly the same elements and
-   *         containing Shape.
+   * \return true if rhs and this have exactly the same elements and
+   * containing Shape.
    * */
   bool equivalent(const Region &rhs) const;
 
   /**
-   * \return true iff all elements in rhs are also in this, and rhs has the
-   *         same containing Shape as this.
+   * \return true if all elements in #rhs are also in this, and #rhs has
+   *         the same containing Shape as this.
    * */
   bool contains(const Region &rhs) const;
 
   /**
-   * \return true iff a and b contain the same elements and have the same
+   * \return true if a and b contain the same elements and have the same
    *         containing Shapes.
    * */
   static bool equivalent(const DisjointRegions &a, const DisjointRegions &b);
@@ -426,6 +443,13 @@ public:
 
   bool disjoint(const DisjointRegions &rhs) const;
 
+  /**
+   * \return The intersection of this DisjointRegions and #rhs.
+   *
+   * \sa Region::intersect
+   * */
+  DisjointRegions intersect(const DisjointRegions &rhs) const;
+
   DisjointRegions(const Region &s) : sh_(s.shape()), regs_({s}) {}
 
   size_t size() const { return regs_.size(); }
@@ -437,13 +461,15 @@ public:
   const Region &at(size_t i) const { return regs_[i]; }
 
   /**
-   * \return true iff The Regions are mutually disjoint and have the same
+   * \return true if the Regions are mutually disjoint and have the same
    *         containing Shape.
    * */
   bool isValid() const;
   void confirmValid() const;
 
   int64_t totalElms() const;
+
+  bool full() const { return totalElms() == shape().nelms(); }
 
   /** Append r to regs_  */
   void insert(const Region &r);
@@ -479,6 +505,14 @@ public:
   bool equivalent(const DisjointRegions &rhs) const {
     return Region::equivalent(*this, rhs);
   }
+
+  /**
+   * \return true if all elements in all Regions in #rhs are also in one of
+   *         this DisjointRegions' Regions.
+   *
+   * \sa Region::contains
+   * */
+  bool contains(const DisjointRegions &rhs) const;
 
   /**
    * Append debug information.

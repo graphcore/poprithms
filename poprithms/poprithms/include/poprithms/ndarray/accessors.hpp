@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_NDARRAY_ACCESSORS_HPP
 #define POPRITHMS_NDARRAY_ACCESSORS_HPP
 
@@ -18,6 +18,7 @@ namespace ndarray {
 struct BaseScalarU64 {
   BaseScalarU64(uint64_t v_) : val(v_) {}
   uint64_t get() const { return val; }
+  int64_t get_i64() const { return static_cast<int64_t>(val); }
   uint64_t val;
 };
 
@@ -42,6 +43,8 @@ template <typename T> struct BaseVector {
   std::vector<T> vals;
   uint64_t size() const { return vals.size(); }
   bool empty() const { return vals.empty(); }
+  bool operator==(const BaseVector<T> &rhs) const { return vals == rhs.vals; }
+  bool operator!=(const BaseVector<T> &rhs) const { return !operator==(rhs); }
 };
 
 using BaseVectorI64 = BaseVector<int64_t>;
@@ -90,6 +93,16 @@ struct Strides : public BaseVectorU64 {
   explicit Strides(const std::vector<Stride> &);
   Stride at(uint64_t d) const { return Stride(vals[d]); }
 };
+std::ostream &operator<<(std::ostream &, const Strides &);
+
+struct Dimensions : public BaseVectorU64 {
+  explicit Dimensions(const std::vector<uint64_t> &d);
+  explicit Dimensions(std::vector<uint64_t> &&d);
+  Dimensions() : BaseVectorU64() {}
+  explicit Dimensions(const std::vector<Dimension> &);
+  Dimension at(uint64_t d) const { return Dimension(vals[d]); }
+};
+std::ostream &operator<<(std::ostream &, const Dimensions &);
 
 } // namespace ndarray
 } // namespace poprithms

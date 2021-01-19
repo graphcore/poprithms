@@ -7,6 +7,7 @@
 #include <poprithms/memory/nest/error.hpp>
 #include <poprithms/memory/nest/optionalset.hpp>
 #include <poprithms/memory/nest/region.hpp>
+#include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -98,25 +99,9 @@ Region Region::permute(const Permutation &p) const {
 }
 
 Region Region::reverse(const std::vector<uint64_t> &where) const {
-  std::vector<bool> flips(rank_u64(), false);
-  for (auto d : where) {
-    if (d < rank_u64()) {
-      flips[d] = !flips[d];
-    } else {
-      std::ostringstream oss;
-      oss << "Invalid index " << d << " in reverse for " << *this << '.';
-      throw error(oss.str());
-    }
-  }
-
-  std::vector<Sett> flipped;
-  flipped.reserve(rank_u64());
-  for (uint64_t d = 0; d < rank_u64(); ++d) {
-    if (flips[d]) {
-      flipped.push_back(sett(d).getReverse(0));
-    } else {
-      flipped.push_back(sett(d));
-    }
+  std::vector<Sett> flipped = setts();
+  for (auto d : shape().getCanonicalReverseIndices(where)) {
+    flipped[d] = sett(d).getReverse(0);
   }
   return Region(shape(), flipped);
 }
@@ -172,6 +157,21 @@ OptionalRegion Region::merge(const Region &rhs) const {
     }
   }
   return OptionalRegion::None();
+}
+
+// TODO(T24990) accelerate this (make sub-quadratic) with spatial
+// data-structure.
+DisjointRegions DisjointRegions::intersect(const DisjointRegions &rhs) const {
+
+  std::vector<Region> out;
+  for (const auto &a : get()) {
+    for (const auto &b : rhs.get()) {
+      const auto aInterB = a.intersect(b).get();
+      out.insert(out.end(), aInterB.cbegin(), aInterB.cend());
+    }
+  }
+
+  return DisjointRegions(shape(), out);
 }
 
 DisjointRegions Region::intersect(const Region &rhs) const {
@@ -338,7 +338,9 @@ std::ostream &operator<<(std::ostream &ost, const DisjointRegions &regs) {
 }
 
 void DisjointRegions::append(std::ostream &ost) const {
-  if (empty()) {
+  if (full()) {
+    ost << "(full" << shape() << ")";
+  } else if (empty()) {
     ost << "(empty" << shape() << ")";
   } else {
     ost << "(shape=" << shape() << ",(";
@@ -547,6 +549,7 @@ Region Region::fromBounds(const Shape &sh,
   return Region(sh, slices);
 }
 
+// TODO(T32863) use Dimension instead of uint64_t.
 Region Region::fromStripe(const Shape &sh,
                           uint64_t dimension,
                           const Stripe &stripe0) {
@@ -580,24 +583,14 @@ Region Region::slice(const std::vector<int64_t> &l,
 }
 
 Region Region::reduce(const Shape &outShape) const {
-  const auto outRank = outShape.rank_u64();
 
-  if (outRank > rank_u64()) {
-    throw error("Cannot reduce to a higher rank");
-  }
-
+  shape().assertCanReduceTo(outShape);
+  const auto outRank   = outShape.rank_u64();
   const auto deltaRank = rank_u64() - outRank;
 
   std::vector<nest::Sett> nxtSetts(outRank, {{}});
   for (uint64_t d = 0; d < outShape.rank_u64(); ++d) {
     if (outShape.dim(d) != 1) {
-      if (outShape.dim(d) != dim(d + deltaRank)) {
-        std::ostringstream oss;
-        oss << "Cannot reduce region of shape " << shape() << " to shape "
-            << outShape << " (" << outShape.dim(d)
-            << " != " << dim(d + deltaRank) << " != 1)";
-        throw error(oss.str());
-      }
       nxtSetts[d] = sett(d + deltaRank);
     }
   }
@@ -628,6 +621,19 @@ DisjointRegions DisjointRegions::reduce(const Shape &outShape) const {
     }
   }
   return outRegs;
+}
+
+bool DisjointRegions::contains(const DisjointRegions &rhs) const {
+  const auto nElmsThis = totalElms();
+
+  // Check that each Region in rhs is contained, individually:
+  for (const auto &r : rhs.get()) {
+    const auto diff0 = subtract(DisjointRegions(r));
+    if (nElmsThis - diff0.totalElms() != r.totalElms()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 DisjointRegions DisjointRegions::subtract(const DisjointRegions &rhs) const {
