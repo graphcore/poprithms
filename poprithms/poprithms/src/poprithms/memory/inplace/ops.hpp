@@ -4,10 +4,17 @@
 #include "op.hpp"
 
 #include <poprithms/memory/inplace/crosslink.hpp>
+#include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace inplace {
+
+using ndarray::Dimensions;
+using nest::Region;
+using util::Permutation;
+
+using UpBop = std::unique_ptr<poprithms::common::multiout::Op>;
 
 class Mux : public Op {
 public:
@@ -18,25 +25,19 @@ public:
   Mux(const State &st);
 
   std::string typeString() const final;
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
   bool modifies(InIndex) const final { return false; }
 
   bool closed() const { return inIndex_ < 0; }
   bool open() const { return !closed(); }
-  bool outplace() const { return closed(); }
   InIndex inIndex() const;
 
   void openAt(alias::Graph &g, TensorMap &m, InIndex);
   void close(alias::Graph &, TensorMap &);
 
-  DisjointRegions
-  outRegions(const DisjointRegions &in, InIndex, OutIndex) const final;
-  DisjointRegions
-  inRegions(const DisjointRegions &, InIndex, OutIndex) const final;
-
 private:
   int64_t inIndex_{-1};
-  bool typeSpecificEqualTo(const Op &other) const final;
+  bool inplaceTypeSpecificEqualTo(const Op &other) const final;
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
 };
@@ -47,16 +48,11 @@ public:
   Alloc(const State &st, alias::Color color__) : Op(st), color_(color__) {}
   alias::Color color() const { return color_; }
   std::string typeString() const final;
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
   bool modifies(InIndex) const final { return false; }
 
-  DisjointRegions
-  outRegions(const DisjointRegions &in, InIndex, OutIndex) const final;
-  DisjointRegions
-  inRegions(const DisjointRegions &, InIndex, OutIndex) const final;
-
 private:
-  bool typeSpecificEqualTo(const Op &other) const final;
+  bool inplaceTypeSpecificEqualTo(const Op &other) const final;
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
   alias::Color color_;
@@ -67,19 +63,15 @@ class Concat : public Op {
 public:
   Concat(const State &st, uint64_t axis__)
       : Op(st), axis_(axis__),
-        partitionPoints_(Shape::concatPartitionPoints(st.inShapes, axis__)) {}
+        partitionPoints_(
+            Shape::concatPartitionPoints(st.baseState.inShapes, axis__)) {}
   uint64_t axis() const { return axis_; }
   std::string typeString() const final;
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
   bool modifies(InIndex) const final { return false; }
 
-  DisjointRegions
-  outRegions(const DisjointRegions &in, InIndex, OutIndex) const final;
-  DisjointRegions
-  inRegions(const DisjointRegions &, InIndex, OutIndex) const final;
-
 private:
-  bool typeSpecificEqualTo(const Op &other) const final;
+  bool inplaceTypeSpecificEqualTo(const Op &other) const final;
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
   uint64_t axis_;
@@ -93,24 +85,21 @@ private:
 };
 
 /** UnaryModifier (sqrt, etc) */
-class UnaryModifier : public Op {
+class Unary : public Op {
 public:
-  UnaryModifier(const State &st) : Op(st) {}
+  Unary(const State &st) : Op(st) {}
+};
+
+/** UnaryModifier (sqrt, etc) */
+class UnaryModifier : public Unary {
+public:
+  UnaryModifier(const State &st) : Unary(st) {}
   std::string typeString() const final { return "UnaryModifier"; }
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
   bool modifies(InIndex) const final { return true; }
 
-  DisjointRegions
-  outRegions(const DisjointRegions &in, InIndex, OutIndex) const final {
-    return in;
-  }
-  DisjointRegions
-  inRegions(const DisjointRegions &out, InIndex, OutIndex) const final {
-    return out;
-  }
-
 private:
-  bool typeSpecificEqualTo(const Op &) const final { return true; }
+  bool inplaceTypeSpecificEqualTo(const Op &) const final { return true; }
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
 };
@@ -120,14 +109,7 @@ public:
   ViewChange1to1(const State &st) : Op(st) {}
   bool modifies(InIndex) const final { return false; }
 
-  DisjointRegions
-  outRegions(const DisjointRegions &in, InIndex, OutIndex) const final;
-  DisjointRegions
-  inRegions(const DisjointRegions &, InIndex, OutIndex) const final;
-
 private:
-  virtual DisjointRegions outRegs(const DisjointRegions &in) const = 0;
-  virtual DisjointRegions inRegs(const DisjointRegions &) const    = 0;
 };
 
 /** Generalization of slice and subSample */
@@ -137,14 +119,10 @@ public:
       : ViewChange1to1(st), region_(region__) {}
   Region region() const { return region_; }
   std::string typeString() const final;
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
 
 private:
-  DisjointRegions outRegs(const DisjointRegions &in) const final {
-    return in.settSample(region());
-  }
-  DisjointRegions inRegs(const DisjointRegions &) const final;
-  bool typeSpecificEqualTo(const Op &other) const final;
+  bool inplaceTypeSpecificEqualTo(const Op &other) const final;
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
   Region region_;
@@ -157,12 +135,10 @@ public:
       : ViewChange1to1(st), permutation_(permutation__) {}
   Permutation permutation() const { return permutation_; }
   std::string typeString() const final;
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
 
 private:
-  DisjointRegions outRegs(const DisjointRegions &in) const final;
-  DisjointRegions inRegs(const DisjointRegions &) const final;
-  bool typeSpecificEqualTo(const Op &other) const final;
+  bool inplaceTypeSpecificEqualTo(const Op &other) const final;
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
   Permutation permutation_;
@@ -174,15 +150,10 @@ public:
       : ViewChange1to1(st), dimensions_(dimensions__) {}
   Dimensions dimensions() const { return dimensions_; }
   std::string typeString() const final;
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
 
 private:
-  DisjointRegions outRegs(const DisjointRegions &in) const final {
-    return in.reverse(dimensions().get());
-  }
-
-  DisjointRegions inRegs(const DisjointRegions &) const final;
-  bool typeSpecificEqualTo(const Op &other) const final;
+  bool inplaceTypeSpecificEqualTo(const Op &other) const final;
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
   Dimensions dimensions_;
@@ -192,14 +163,10 @@ class Reshape : public ViewChange1to1 {
 public:
   Reshape(const State &st);
   std::string typeString() const final { return "Reshape"; }
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
 
 private:
-  DisjointRegions outRegs(const DisjointRegions &in) const final {
-    return in.reshape(outShape(0));
-  }
-  DisjointRegions inRegs(const DisjointRegions &) const final;
-  bool typeSpecificEqualTo(const Op &) const final { return true; }
+  bool inplaceTypeSpecificEqualTo(const Op &) const final { return true; }
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
 };
@@ -208,16 +175,10 @@ class Identity : public ViewChange1to1 {
 public:
   Identity(const State &st) : ViewChange1to1(st) {}
   std::string typeString() const final { return "Identity"; }
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
 
 private:
-  DisjointRegions outRegs(const DisjointRegions &in) const final {
-    return in;
-  }
-  DisjointRegions inRegs(const DisjointRegions &out) const final {
-    return out;
-  }
-  bool typeSpecificEqualTo(const Op &) const final { return true; }
+  bool inplaceTypeSpecificEqualTo(const Op &) const final { return true; }
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
 };
@@ -226,12 +187,10 @@ class Expand : public ViewChange1to1 {
 public:
   Expand(const State &st) : ViewChange1to1(st) {}
   std::string typeString() const final { return "Expand"; }
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
 
 private:
-  DisjointRegions outRegs(const DisjointRegions &in) const final;
-  DisjointRegions inRegs(const DisjointRegions &) const final;
-  bool typeSpecificEqualTo(const Op &) const final { return true; }
+  bool inplaceTypeSpecificEqualTo(const Op &) const final { return true; }
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
 };
@@ -248,16 +207,11 @@ class Multi : public Op {
 public:
   Multi(const State &st, const CrossLinks &m__);
   std::string typeString() const final;
-  std::unique_ptr<Op> clone() const final;
+  UpBop clone() const final;
   bool modifies(InIndex) const final;
 
-  DisjointRegions
-  outRegions(const DisjointRegions &in, InIndex, OutIndex) const final;
-  DisjointRegions
-  inRegions(const DisjointRegions &, InIndex, OutIndex) const final;
-
 private:
-  bool typeSpecificEqualTo(const Op &) const final;
+  bool inplaceTypeSpecificEqualTo(const Op &) const final;
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
   CrossLinks mapping_;

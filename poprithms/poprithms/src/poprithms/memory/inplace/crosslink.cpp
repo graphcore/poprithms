@@ -10,15 +10,6 @@ namespace poprithms {
 namespace memory {
 namespace inplace {
 
-bool RegsMap::operator==(const RegsMap &rhs) const {
-  // Same derived class, and same derived properties:
-  return typeid(*this) == typeid(rhs) && typeSpecificEqualTo(rhs);
-}
-
-bool CrossLink::operator==(const CrossLink &rhs) const {
-  return tup() == rhs.tup() && regsMap_.uptr->operator==(*rhs.regsMap_.uptr);
-}
-
 void CrossLink::append(std::ostream &ost) const {
   ost << in() << "->" << out();
   if (isModifying()) {
@@ -30,22 +21,12 @@ void CrossLink::append(std::ostream &ost) const {
   }
 }
 
-std::unique_ptr<RegsMap> IdentityRegsMap::clone() const {
-  return std::make_unique<IdentityRegsMap>();
-}
-
 CrossLink CrossLink::modifies(InIndex i, OutIndex o) {
-  return CrossLink(i, o, Type::Modifies, std::make_unique<IdentityRegsMap>());
+  return CrossLink(i, o, Type::Modifies);
 }
 
 CrossLink CrossLink::pureAliases(InIndex i, OutIndex o) {
-  return CrossLink(
-      i, o, Type::PureAliases, std::make_unique<IdentityRegsMap>());
-}
-
-CrossLink
-CrossLink::uses(InIndex i, OutIndex o, std::unique_ptr<RegsMap> regsMap) {
-  return CrossLink(i, o, Type::Uses, std::move(regsMap));
+  return CrossLink(i, o, Type::PureAliases);
 }
 
 std::ostream &operator<<(std::ostream &ost, const CrossLinks &m) {
@@ -68,9 +49,5 @@ std::ostream &operator<<(std::ostream &ost, const CrossLink &ca) {
 
 } // namespace inplace
 } // namespace memory
-
-namespace util {
-template class CopyByClone<memory::inplace::RegsMap>;
-}
 
 } // namespace poprithms

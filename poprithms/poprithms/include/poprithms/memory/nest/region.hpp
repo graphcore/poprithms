@@ -25,6 +25,7 @@ using poprithms::ndarray::Dimension;
 using poprithms::ndarray::Shape;
 using poprithms::ndarray::Shapes;
 using poprithms::ndarray::Stride;
+using poprithms::ndarray::Strides;
 using poprithms::util::Permutation;
 
 class Region;
@@ -150,6 +151,16 @@ public:
   fromStrideAndDim(const Shape &sh, Stride stride, Dimension dim) {
     return fromStripe(sh, dim.get(), {1, stride.get_i64() - 1, 0});
   }
+
+  /**
+   * Construct a Region which is only at i in dim(d) if
+   *                                    (i mod #strides[d] == 0) */
+  static Region fromStrides(const Shape &, const Strides &strides);
+
+  /**
+   * Construct a Region which is only at i in Dimension d if
+   *                                    (i mod #strides[d] == 0) */
+  static Region fromStride(const Shape &, Stride, Dimension);
 
   /**
    * \return Region which contains all elements of #shape.

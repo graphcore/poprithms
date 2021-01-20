@@ -1,6 +1,9 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include "ops.hpp"
 
+#include <sstream>
+
+#include <poprithms/common/multiout/util.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
@@ -10,13 +13,13 @@ namespace poprithms {
 namespace memory {
 namespace inplace {
 
+Tensor Tensor::withName(const std::string &dbs) const {
+  setName(dbs);
+  return *this;
+}
+
 TensorIds Tensor::tensorIds(const Tensors &tensors) {
-  TensorIds ids_;
-  ids_.reserve(tensors.size());
-  for (const auto &t : tensors) {
-    ids_.push_back(t.id());
-  }
-  return ids_;
+  return common::multiout::util::ids<Tensors, TensorIds>(tensors);
 }
 
 OpIds Tensor::opIds(const Tensors &tensors) {
@@ -39,10 +42,24 @@ Tensor Tensor::concat(const Tensors &ts, uint64_t axis) {
   return {ts[0].graph().concat(tensorIds(ts), axis), ts[0].graph()};
 }
 
+void Tensor::assertSameGraph(const Tensors &ts) {
+  if (ts.empty()) {
+    return;
+  }
+  if (std::any_of(ts.cbegin(), ts.cend(), [&ts](const auto &t) {
+        return t.graph_ != ts[0].graph_;
+      })) {
+    std::ostringstream oss;
+    oss << "Failed in Tensor::assertSameGraph where Tensors are " << ts;
+    throw error(oss.str());
+  }
+}
+
 Tensor Tensor::mux(const Tensors &ts, InIndex inIndex) {
   if (ts.empty()) {
     throw error("Cannot create Mux with 0 inputs");
   }
+  assertSameGraph(ts);
   return {ts[0].graph().mux(tensorIds(ts), inIndex), ts[0].graph()};
 }
 
@@ -88,7 +105,7 @@ Tensor Tensor::mux(bool isOpen) const {
   return {graph().mux({id()}, 0), graph()};
 }
 
-Tensor Tensor::unary() const { return {graph().unary(id()), graph()}; }
+Tensor Tensor::modify() const { return {graph().modify(id()), graph()}; }
 
 Tensor Tensor::reshape(const Shape &outShape) const {
   return {graph().reshape(id(), outShape), graph()};
@@ -96,7 +113,7 @@ Tensor Tensor::reshape(const Shape &outShape) const {
 
 Tensor Tensor::flatten() const { return reshape(shape().flatten()); }
 
-Tensor Tensor::subSample(int64_t stride, uint64_t dimension) const {
+Tensor Tensor::subSample(Stride stride, Dimension dimension) const {
   return {graph().subSample(id(), stride, dimension), graph()};
 }
 
@@ -131,11 +148,17 @@ std::string Tensor::opTypeString() const {
   return graph().typeString(opId());
 }
 
-void Tensor::setName(const std::string &dbs) { graph().setName(opId(), dbs); }
+void Tensor::setName(const std::string &dbs) const {
+  graph().setName(opId(), dbs);
+}
 
-Consumers Tensor::consumers() const { return graph().consumers(id()); }
+std::string Tensor::opName() const { return graph().getName(opId()); }
 
-Consumers Tensor::modifiers() const { return graph().modifiers(id()); }
+ConsumptionIds Tensor::consumptionIds() const {
+  return graph().consumptionIds(id());
+}
+
+ConsumptionIds Tensor::modifiers() const { return graph().modifiers(id()); }
 
 Tensors Tensor::allAliases() const {
   const auto ids = graph().allAliases(id());
@@ -193,7 +216,7 @@ Tensors Tensor::tensors(Graph &g, const TensorIds &ids) {
   return ts_;
 }
 
-std::string Tensor::graphName() const { return graph().name(); }
+std::string Tensor::graphName() const { return graph().getName(); }
 
 } // namespace inplace
 } // namespace memory

@@ -12,6 +12,7 @@ using namespace poprithms::memory::inplace;
 
 // Check that all Muxes are open.
 void testUnaryChainBase(Graph g, const TensorIds &idOrder) {
+
   const auto order = Tensor::tensors(g, idOrder);
   const auto statuses =
       g.tryOpenings0(Tensor::tensorIds(order), CheckParallelWriteable::Yes);
@@ -22,7 +23,8 @@ void testUnaryChainBase(Graph g, const TensorIds &idOrder) {
           << " which consists of a simple chain of "
           << " unary and mux, "
           << " all muxs should be opened. "
-          << "With order = " << order << ", failed to open all.";
+          << "With order = " << order
+          << ", failed to open all, statuses = " << statuses;
       throw error(oss.str());
     }
   }
@@ -39,9 +41,9 @@ void testUnaryChainBase(Graph g, const TensorIds &idOrder) {
 void testUnaryChain() {
   Graph g;
   auto x1 = Tensor::variable(g, {4, 4}).closedMux();
-  auto x2 = x1.unary().closedMux();
-  auto x3 = x2.unary().closedMux();
-  x3.unary();
+  auto x2 = x1.modify().closedMux();
+  auto x3 = x2.modify().closedMux();
+  x3.modify();
 
   testUnaryChainBase(g, Tensor::tensorIds({x3, x1, x2}));
   testUnaryChainBase(g, Tensor::tensorIds({x2, x1, x3}));
@@ -85,9 +87,9 @@ void testUnaryTriFork0() {
   auto x1 = x0.closedMux();
   auto x2 = x0.closedMux();
   auto x3 = x0.closedMux();
-  x1.unary();
-  x2.unary();
-  x3.unary();
+  x1.modify();
+  x2.modify();
+  x3.modify();
 
   testUnaryTriFork0Base(g, Tensor::tensorIds({x1, x2, x3}));
   testUnaryTriFork0Base(g, Tensor::tensorIds({x3, x2, x1}));
@@ -126,7 +128,7 @@ void testUnaryTriLongFork0() {
       if (j % 2 == 0) {
         forkers.push_back(m.id());
       }
-      t = m.unary();
+      t = m.modify();
     }
   }
 
@@ -198,7 +200,6 @@ void testMixedBiFork0Base(Graph g,
 
   for (auto tId : order) {
 
-    std::cout << tId << " " << expectedClosedMuxs << std::endl;
     if (std::find(expectedClosedMuxs.cbegin(),
                   expectedClosedMuxs.cend(),
                   tId) != expectedClosedMuxs.cend()) {
@@ -241,9 +242,9 @@ void testMixedBiFork0() {
   //
   const auto alloc    = Tensor::variable(g, {7}); // .variable({7});
   const auto rsh      = alloc.reshape({7}).closedMux();
-  const auto rev      = alloc.reverse({0}).closedMux();
-  const auto rshUnary = rsh.unary().closedMux();
-  const auto revUnary = rev.unary().closedMux();
+  const auto rev      = alloc.reverse(0).closedMux();
+  const auto rshUnary = rsh.modify().closedMux();
+  const auto revUnary = rev.modify().closedMux();
   const auto cat      = Tensor::concat({rshUnary, revUnary}, 0).closedMux();
 
   for (auto pll : {CheckParallelWriteable::Yes, CheckParallelWriteable::No}) {
@@ -274,9 +275,9 @@ void testConstraint0() {
   Graph g;
   const auto alloc = Tensor::variable(g, {3});
   const auto x0mux = alloc.closedMux();
-  x0mux.unary();
+  x0mux.modify();
   const auto x1mux = alloc.closedMux();
-  const auto x11   = x1mux.unary();
+  const auto x11   = x1mux.modify();
 
   //
   //      alloc
@@ -306,7 +307,6 @@ void testConstraint0() {
 } // namespace
 
 int main() {
-
   testMixedBiFork0();
   testUnaryChain();
   testUnaryTriFork0();

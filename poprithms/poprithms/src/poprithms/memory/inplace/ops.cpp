@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include <poprithms/memory/alias/graph.hpp>
+#include <poprithms/memory/inplace/color.hpp>
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -45,21 +46,6 @@ template <typename OP> UpOp mu(const OP *const derived) {
 //  Concat  //
 // -------- //
 
-DisjointRegions Concat::outRegions(const DisjointRegions &inRegs,
-                                   InIndex i,
-                                   OutIndex o) const {
-  verify(i, o, "outRegions");
-  return inRegs.settFillInto(
-      Region::fromBounds(outShape(0), getLowerSlice(i), getUpperSlice(i)));
-}
-
-DisjointRegions Concat::inRegions(const DisjointRegions &outRegs,
-                                  InIndex i,
-                                  OutIndex o) const {
-  verify(i, o, "inRegions");
-  return outRegs.slice(getLowerSlice(i), getUpperSlice(i));
-}
-
 std::vector<int64_t> Concat::getLowerSlice(InIndex i) const {
   std::vector<int64_t> x(outRank(0), 0LL);
   x[axis()] = partitionPoints_[i.get()];
@@ -73,7 +59,7 @@ std::vector<int64_t> Concat::getUpperSlice(InIndex i) const {
 std::string Concat::typeString() const {
   return strcat("Concat(axis=", axis(), ')');
 }
-bool Concat::typeSpecificEqualTo(const Op &rhs) const {
+bool Concat::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const Concat &>(rhs);
   return axis() == rhs_.axis();
 }
@@ -85,29 +71,21 @@ Concat::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
 
   return {g.concat(m.toAliasGraphIds(inTensorIds()), axis())};
 }
-UpOp Concat::clone() const { return mu<Concat>(this); }
+UpBop Concat::clone() const { return mu<Concat>(this); }
 
 // ------- //
 //  Alloc  //
 // ------- //
-DisjointRegions
-Alloc::outRegions(const DisjointRegions &, InIndex, OutIndex) const {
-  throw error("No Alloc::outRegions implemented, as no valid InIndex");
-}
-DisjointRegions
-Alloc::inRegions(const DisjointRegions &, InIndex, OutIndex) const {
-  throw error("No Alloc::inRegions implemented, as no valid InIndex");
-}
 std::string Alloc::typeString() const {
   return strcat("Alloc(color=", color(), ')');
 }
 
-bool Alloc::typeSpecificEqualTo(const Op &rhs) const {
+bool Alloc::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const Alloc &>(rhs);
   return color() == rhs_.color();
 }
 
-UpOp Alloc::clone() const { return mu<Alloc>(this); }
+UpBop Alloc::clone() const { return mu<Alloc>(this); }
 
 std::vector<alias::TensorId>
 Alloc::typeSpecificGrow(alias::Graph &g, const TensorMap &) const {
@@ -118,27 +96,24 @@ Alloc::typeSpecificGrow(alias::Graph &g, const TensorMap &) const {
   return ids;
 }
 
-// ------- //
-//  Unary  //
-// ------- //
+// --------------- //
+//  UnaryModifier  //
+// --------------- //
 std::vector<alias::TensorId>
 UnaryModifier::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.identity(m.toAliasGraphId(inTensorId(0)))};
 }
-std::unique_ptr<Op> UnaryModifier::clone() const {
-  return mu<UnaryModifier>(this);
-}
+UpBop UnaryModifier::clone() const { return mu<UnaryModifier>(this); }
 
 // ------------ //
 //  SettSample  //
 // ------------ //
-DisjointRegions SettSample::inRegs(const DisjointRegions &out) const {
-  return out.settFillInto(region());
-}
 std::string SettSample::typeString() const {
-  return strcat("SettSample(region=", region(), ')');
+  std::ostringstream oss;
+  oss << "SettSample(" << region().setts() << ')';
+  return oss.str();
 }
-bool SettSample::typeSpecificEqualTo(const Op &rhs) const {
+bool SettSample::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const SettSample &>(rhs);
   return region().equivalent(rhs_.region());
 }
@@ -146,21 +121,15 @@ std::vector<alias::TensorId>
 SettSample::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.settsample(m.toAliasGraphId(inTensorId(0)), region())};
 }
-UpOp SettSample::clone() const { return mu<SettSample>(this); }
+UpBop SettSample::clone() const { return mu<SettSample>(this); }
 
 // ------------ //
 //  DimShuffle  //
 // ------------ //
-DisjointRegions DimShuffle::inRegs(const DisjointRegions &out) const {
-  return out.permute(permutation().inverse());
-}
-DisjointRegions DimShuffle::outRegs(const DisjointRegions &inRegs) const {
-  return inRegs.permute(permutation());
-}
 std::string DimShuffle::typeString() const {
   return strcat("DimShuffle(permutation=", permutation(), ')');
 }
-bool DimShuffle::typeSpecificEqualTo(const Op &rhs) const {
+bool DimShuffle::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const DimShuffle &>(rhs);
   return permutation() == rhs_.permutation();
 }
@@ -168,49 +137,45 @@ std::vector<alias::TensorId>
 DimShuffle::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.dimshuffle(m.toAliasGraphId(inTensorId(0)), permutation())};
 }
-UpOp DimShuffle::clone() const { return mu<DimShuffle>(this); }
+UpBop DimShuffle::clone() const { return mu<DimShuffle>(this); }
 
 // --------- //
 //  Reverse  //
 // --------- //
-DisjointRegions Reverse::inRegs(const DisjointRegions &out) const {
-  return out.reverse(dimensions().get());
-}
 std::string Reverse::typeString() const {
   return strcat("Reverse(dimensions=", dimensions().get(), ")");
 }
-bool Reverse::typeSpecificEqualTo(const Op &rhs) const {
+bool Reverse::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const Reverse &>(rhs);
-  return dimensions() == rhs_.dimensions();
+  return dimensions().get() == rhs_.dimensions().get();
 }
 std::vector<alias::TensorId>
 Reverse::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.reverse(m.toAliasGraphId(inTensorId(0)), dimensions().get())};
 }
-UpOp Reverse::clone() const { return mu<Reverse>(this); }
+UpBop Reverse::clone() const { return mu<Reverse>(this); }
 
 // --------- //
 //  Reshape  //
 // --------- //
-DisjointRegions Reshape::inRegs(const DisjointRegions &out) const {
-  return out.reshape(inShape(0));
-}
 std::vector<alias::TensorId>
 Reshape::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.reshape(m.toAliasGraphId(inTensorId(0)), outShape(0))};
 }
-UpOp Reshape::clone() const { return mu<Reshape>(this); }
+UpBop Reshape::clone() const { return mu<Reshape>(this); }
 
 Reshape::Reshape(const State &st) : ViewChange1to1(st) {
-  if (st.inShapes.size() != 1 || st.outShapes.size() != 1) {
+  if (st.baseState.inShapes.size() != 1 ||
+      st.baseState.outShapes.size() != 1) {
     throw error("Invalid reshape, expected 1 input and 1 output");
   }
 
-  if (st.outShapes[0].nelms_u64() != st.inShapes[0].nelms_u64()) {
+  if (st.baseState.outShapes[0].nelms_u64() !=
+      st.baseState.inShapes[0].nelms_u64()) {
     std::ostringstream oss;
     oss << "Invalid reshape, number of elements changes. "
-        << "Cannot reshape from " << st.inShapes[0] << " to "
-        << st.outShapes[0] << ". ";
+        << "Cannot reshape from " << st.baseState.inShapes[0] << " to "
+        << st.baseState.outShapes[0] << ". ";
     throw error(oss.str());
   }
 }
@@ -218,45 +183,18 @@ Reshape::Reshape(const State &st) : ViewChange1to1(st) {
 // --------- //
 //  Expand   //
 // --------- //
-DisjointRegions Expand::inRegs(const DisjointRegions &out) const {
-  return out.reduce(inShape(0));
-}
-DisjointRegions Expand::outRegs(const DisjointRegions &inRegs) const {
-  return inRegs.expand(inShape(0));
-}
 std::vector<alias::TensorId>
 Expand::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.expand(m.toAliasGraphId(inTensorId(0)), outShape(0))};
 }
-UpOp Expand::clone() const { return mu<Expand>(this); }
+UpBop Expand::clone() const { return mu<Expand>(this); }
 
 // ----- //
 // Multi //
 // ----- //
-DisjointRegions
-Multi::outRegions(const DisjointRegions &rs, InIndex i, OutIndex o) const {
-  verify(i, o, "outRegions");
-  for (const auto &crossAlias : mapping()) {
-    if (crossAlias.in() == i && crossAlias.out() == o) {
-      return crossAlias.fwd(rs);
-    }
-  }
-  return DisjointRegions::createEmpty(outShape(o));
-}
-
-DisjointRegions
-Multi::inRegions(const DisjointRegions &rs, InIndex i, OutIndex o) const {
-  verify(i, o, "inRegions");
-  for (const auto &crossAlias : mapping()) {
-    if (crossAlias.in() == i && crossAlias.out() == o) {
-      return crossAlias.bwd(rs);
-    }
-  }
-  return DisjointRegions::createEmpty(inShape(i));
-}
 Multi::Multi(const State &st, const CrossLinks &m) : Op(st), mapping_(m) {
-  const auto nIn  = st.inIds.size();
-  const auto nOut = st.outShapes.size();
+  const auto nIn  = st.baseState.inIds.size();
+  const auto nOut = st.baseState.outShapes.size();
 
   // 1) Verify that all indices are valud
   for (const auto &crossAlias : m) {
@@ -305,8 +243,8 @@ Multi::Multi(const State &st, const CrossLinks &m) : Op(st), mapping_(m) {
   // 4) Shape agreement.
   for (const auto &crossAlias : m) {
     if (crossAlias.isModifying() || crossAlias.isAliasing()) {
-      const auto inShape  = st.inShapes[crossAlias.in().get()];
-      const auto outShape = st.outShapes[crossAlias.out().get()];
+      const auto inShape  = st.baseState.inShapes[crossAlias.in().get()];
+      const auto outShape = st.baseState.outShapes[crossAlias.out().get()];
       if (inShape != outShape) {
         std::ostringstream oss;
         oss << "Incompatible Shapes for CrossLink " << crossAlias
@@ -333,11 +271,11 @@ std::string Multi::typeString() const {
   return oss.str();
 }
 
-UpOp Multi::clone() const { return mu<Multi>(this); }
+UpBop Multi::clone() const { return mu<Multi>(this); }
 
 bool Multi::modifies(InIndex i) const { return inIndexIsModified_[i.get()]; }
 
-bool Multi::typeSpecificEqualTo(const Op &rhs) const {
+bool Multi::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const Multi &>(rhs);
   return mapping() == rhs_.mapping();
 }
@@ -371,36 +309,10 @@ Multi::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
 
 //  ------------  //
 // ViewChange1to1 //
-//  ------------  //
-
-DisjointRegions ViewChange1to1::outRegions(const DisjointRegions &inRegs,
-                                           InIndex i,
-                                           OutIndex o) const {
-  verify(i, o, "outRegions");
-  return outRegs(inRegs);
-}
-
-DisjointRegions ViewChange1to1::inRegions(const DisjointRegions &outRegs,
-                                          InIndex i,
-                                          OutIndex o) const {
-  verify(i, o, "inRegions");
-  return inRegs(outRegs);
-}
 
 /////////
 // Mux //
 /////////
-DisjointRegions
-Mux::outRegions(const DisjointRegions &inRegs, InIndex i, OutIndex o) const {
-  verify(i, o, "outRegions");
-  return inRegs.expand(outShape(0));
-}
-
-DisjointRegions
-Mux::inRegions(const DisjointRegions &outRegs, InIndex i, OutIndex o) const {
-  verify(i, o, "inRegions");
-  return outRegs.reduce(inShape(0));
-}
 std::vector<alias::TensorId> Mux::typeSpecificGrow(alias::Graph &g,
                                                    const TensorMap &m) const {
   if (closed()) {
@@ -453,11 +365,23 @@ std::string Mux::typeString() const {
   return oss.str();
 }
 
-UpOp Mux::clone() const { return mu<Mux>(this); }
+UpBop Mux::clone() const { return mu<Mux>(this); }
 
-bool Mux::typeSpecificEqualTo(const Op &rhs) const {
+bool Mux::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const Mux &>(rhs);
-  return closed() == rhs_.closed() || (inIndex() == rhs_.inIndex());
+
+  // one open, one closed
+  if (closed() != rhs_.closed()) {
+    return false;
+  }
+
+  // both open
+  if (open()) {
+    return (inIndex() == rhs_.inIndex());
+  }
+
+  // both closed
+  return true;
 }
 
 InIndex Mux::inIndex() const {

@@ -2,8 +2,8 @@
 #include <ostream>
 #include <sstream>
 
+#include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/memory/alias/usings.hpp>
-#include <poprithms/memory/inplace/tensorid.hpp>
 #include <poprithms/memory/inplace/tensormap.hpp>
 #include <poprithms/util/printiter.hpp>
 

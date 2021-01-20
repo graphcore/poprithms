@@ -22,13 +22,13 @@ void test0() {
   Graph g;
   const auto v0 = Tensor::variable(g, {3});
 
-  const auto x1 = v0.unary();
+  const auto x1 = v0.modify();
 
   const auto x2m = v0.closedMux();
-  const auto x2  = x2m.unary();
+  const auto x2  = x2m.modify();
 
   const auto x3m = v0.closedMux();
-  const auto x3  = x3m.unary();
+  const auto x3  = x3m.modify();
 
   // confirm that inserting the same constraint multiple times is ok.
   for (int i = 0; i < 5; ++i) {
@@ -62,8 +62,8 @@ void testLateConstraint() {
   const auto v0     = Tensor::variable(g, {3});
   const auto x0mux  = v0.closedMux();
   const auto x1mux  = v0.closedMux();
-  const auto x0_    = x0mux.unary();
-  const auto x1_    = x1mux.unary();
+  const auto x0_    = x0mux.modify();
+  const auto x1_    = x1mux.modify();
   const auto cat    = Tensor::concat({x0_, x1_}, 0);
   const auto catMux = cat.closedMux();
 

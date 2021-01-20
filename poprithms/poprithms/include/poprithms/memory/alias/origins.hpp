@@ -12,6 +12,10 @@ namespace poprithms {
 namespace memory {
 namespace alias {
 
+using ndarray::Shape;
+using nest::DisjointRegions;
+using nest::Region;
+
 /** A class to represent the allocations that a Tensor is composed of.
  *
  * An example is, if

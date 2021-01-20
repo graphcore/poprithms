@@ -6,20 +6,57 @@
 #include <sstream>
 #include <vector>
 
+#include <poprithms/common/multiout/consumptionid.hpp>
+#include <poprithms/common/multiout/graph.hpp>
+#include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/inplace/checkparallelwriteable.hpp>
 #include <poprithms/memory/inplace/constantpadding.hpp>
-#include <poprithms/memory/inplace/consumer.hpp>
 #include <poprithms/memory/inplace/crosslink.hpp>
+#include <poprithms/memory/inplace/padding.hpp>
 #include <poprithms/memory/inplace/proposal.hpp>
 #include <poprithms/memory/inplace/result.hpp>
-#include <poprithms/memory/inplace/tensorid.hpp>
 #include <poprithms/memory/inplace/tensormap.hpp>
+#include <poprithms/memory/nest/region.hpp>
 #include <poprithms/util/copybyclone.hpp>
+#include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace inplace {
+
+using common::multiout::ConsumptionId;
+using common::multiout::ConsumptionIds;
+using common::multiout::InIndex;
+using common::multiout::OpId;
+using common::multiout::OpIds;
+using common::multiout::OutIndex;
+using common::multiout::TensorId;
+using common::multiout::TensorIds;
+using memory::nest::Region;
+using ndarray::Dimension;
+using ndarray::Dimensions;
+using ndarray::Shape;
+using Lower = ndarray::Shape::Lower;
+using Upper = ndarray::Shape::Upper;
+using common::multiout::ConsumptionId;
+using common::multiout::ConsumptionIds;
+using common::multiout::InIndex;
+using common::multiout::OpId;
+using common::multiout::OpIds;
+using common::multiout::OutIndex;
+using common::multiout::TensorId;
+using common::multiout::TensorIds;
+using memory::alias::BroadcastPadding;
+using memory::nest::DisjointRegions;
+using memory::nest::Region;
+using ndarray::Dimension;
+using ndarray::Dimensions;
+using ndarray::Shape;
+using ndarray::Shapes;
+using ndarray::Stride;
+using ndarray::Strides;
+using util::Permutation;
 
 class Op;
 class Mux;
@@ -29,9 +66,9 @@ class Mux;
  * adding concepts and algorithms related to computation.
  *
  * The extension uses the HAS-A design, as the IS-A approach does not work due
- * to limitations on the alias::Graph class. For example, the alias::Graph has
- * a 1:1 correspondence between Nodes and Tensors, which means multi-output
- * Nodes are not possible with it.
+ * to limitations on the alias::Graph class. In particular, the alias::Graph
+ * has a 1:1 correspondence between Nodes and Tensors, which means
+ * multi-output Nodes are not possible with it.
  *
  * Almost all methods in this class which insert Tensors do not perform
  * allocations. That is, almost all outputs of an Op are aliases of the Op's
@@ -40,36 +77,26 @@ class Mux;
  * 1) mux. This method takes N inputs, and creates one output whose Shape is
  *         inferred by numpy-broadcasting the N inputs. The output is
  *         optionally aliased to one of the inputs with the same Shape. So
- *         with N inputs of the same Shape, there are N + 1 Mux variants: one
- *         "closed" variant, and N "open" variants, which respectively alias
- *         one of the N inputs.
+ *         with N inputs of the same Shape, there are N + 1 Mux possibilities:
+ *         one "closed" variant, and N "open" variants, which respectively
+ *         alias one of the N inputs.
  *
  * 2) multi. This Op has N inputs and creates M outputs, of user specified
  *           Shapes. How inputs and outpus are are aliased, if at all, is also
  *           user specified.
  * */
-class Graph {
+class Graph : public common::multiout::Graph {
 
 public:
-  Graph() = default;
-
-  /** Allocate a constant Tensor in this Graph */
-  TensorId constant(const Shape &);
-
-  /** Allocate a variable Tensor in this Graph */
-  TensorId variable(const Shape &);
+  virtual ~Graph() override;
+  Graph()              = default;
+  Graph(Graph &&)      = default;
+  Graph(const Graph &) = default;
+  Graph &operator=(Graph &&) = default;
+  Graph &operator=(const Graph &) = default;
 
   /** Subsample a Tensor in a specified Region. \sa Region */
   TensorId settSample(const TensorId &, const Region &);
-
-  /** Slice a Tensor in a region defined by lower and upper bounds */
-  TensorId slice(const TensorId &, const Lower &, const Upper &);
-
-  /** Subsample a Tensor along a single dimension */
-  TensorId subSample(const TensorId &, int64_t stride, uint64_t dimension);
-
-  /** Subsample a Tensor with different strides along all dimensions */
-  TensorId subSample(const TensorId &, const Strides &);
 
   /** Reverse a Tensor along certain dimensions. */
   TensorId reverse(const TensorId &, const Dimensions &);
@@ -77,17 +104,35 @@ public:
   /** Reshape a Tensor, keeping the number of elements unchanged. */
   TensorId reshape(const TensorId &, const Shape &);
 
-  /** Reshape a Tensor to be of rank 1. */
-  TensorId flatten(const TensorId &);
-
   /** Expand a Tensor, broadcasting in singleton dimensions. */
   TensorId expand(const TensorId &, const Shape &);
 
   /** Permute the dimensions a Tensor. */
   TensorId dimShuffle(const TensorId &, const Permutation &);
 
-  /** Modify the elements of a Tensor. */
-  TensorId unary(const TensorId &);
+  /** Concatentate Tensors along a certain dimension */
+  TensorId concat(const TensorIds &, uint64_t);
+
+  /** Slice a Tensor in a region defined by lower and upper bounds. */
+  TensorId slice(const TensorId &, const Lower &, const Upper &);
+
+  /** Subsample a Tensor along a single dimension. */
+  TensorId subSample(const TensorId &, Stride, Dimension);
+
+  /** Reshape a Tensor to be of rank 1. */
+  TensorId flatten(const TensorId &);
+
+  /** Subsample a Tensor with different strides along all dimensions. */
+  TensorId subSample(const TensorId &, const Strides &);
+
+  /** Allocate a constant Tensor in this Graph */
+  TensorId constant(const Shape &);
+
+  /** Allocate a variable Tensor in this Graph */
+  TensorId variable(const Shape &);
+
+  /** Modify the elements of a Tensor, return alias. */
+  TensorId modify(const TensorId &);
 
   /** Pad a Tensor, inserting constant/variable Tensor(s) below and above. */
   TensorId pad(const TensorId &,
@@ -101,9 +146,6 @@ public:
   TensorId pad(const TensorId &,
                const std::array<std::vector<int64_t>, 2> &lowerAndUpper,
                bool paddingIsParallelWriteable);
-
-  /** Concatentate Tensors along a certain dimension */
-  TensorId concat(const TensorIds &, uint64_t);
 
   /** A multi-purpose operation. The definition of which outputs modify,
    * alias, and use which inputs is defined by #mapping. */
@@ -139,33 +181,11 @@ public:
   bool muxIsOpen(OpId id) const { return !muxIsClosed(id); }
   InIndex muxInIndex(OpId) const;
 
-  /** Set the name of an Op in the Graph */
-  void setName(OpId, const std::string &);
-
-  /** The Shape of a Tensor in the Graph */
-  Shape shape(const TensorId &) const;
-
-  /** The number of elements of a Tensor in the Graph. */
-  uint64_t nelms_u64(const TensorId &x) const { return shape(x).nelms_u64(); }
-  uint64_t nelms(const TensorId &x) const { return shape(x).nelms(); }
-
-  /** The rank of a Tensor in the Graph. */
-  uint64_t rank_u64(const TensorId &x) const { return shape(x).rank_u64(); }
-
-  /** Shapes of multiple Tensors in the Graph. */
-  Shapes shapes(const TensorIds &tids) const;
-
-  /** The Consumers of a Tensor which modify it. */
-  Consumers modifiers(const TensorId &) const;
-
-  /** All Consumers of a Tensor in this Graph. */
-  Consumers consumers(const TensorId &) const;
+  /** The ConsumptionIds of a Tensor which modify it. */
+  ConsumptionIds modifiers(const TensorId &) const;
 
   /** All Tensors which are aliased to \a t */
   TensorIds allAliases(const TensorId &t) const;
-
-  /** Set the name of this Graph. */
-  void setName(const std::string &n) { name_ = n; }
 
   /** Insert a topological constraint, ensuring that \a before appears before
    * \a after in all schedules. */
@@ -262,74 +282,17 @@ public:
   /** Append a string describing this Graph to \a ost */
   void append(std::ostream &ost) const;
 
-  /** \return The total number of Tensors in this Graph */
-  uint64_t nTensors() const;
-
-  /** \return The total number of Ops in this Graph */
-  uint64_t nOps() const { return ops.size(); }
-  int64_t nOps_i64() const { return static_cast<int64_t>(ops.size()); }
-
-  /** \return The number of inputs that the Op \a id has */
-  uint64_t nInTensors(OpId id) const;
-
-  /** \return The string description of the Op \a id. */
-  std::string typeString(OpId id) const;
-
-  std::string name() const { return name_; }
-
-  /** Map Regions #inRegs, which enter the Op #opId at the input index
-   * #inIndex, to the Regions in the output Tensor at #outIndex which use
-   * #inRegs.
-   *
-   * An example:
-   *   Suppose the Op #opId flattens a Tensor of Shape (4,4). Suppose that
-   *   inRegs is the slice [1:3, :], described as:
-   *      ....
-   *      1111
-   *      1111
-   *      ....
-   *
-   *    This Regions maps to slice [4:12] in the output:
-   *      ....11111111....
-   *
-   *   This method would therefore return this flat slice. Using the Region
-   *   class constructors, this means we would we map
-   *   <code>
-   *        Region::fromBounds({4,4}, {1,3}, {0,4});
-   *   </code>
-   *   to
-   *   <code>
-   *        Region::fromBounds({16}, {4}, {12});
-   *   </code>
-   * */
-  DisjointRegions outRegions(const DisjointRegions &inRegs,
-                             InIndex inIndex,
-                             OpId opId,
-                             OutIndex outIndex) const;
-
-  /** Map Regions in the output Tensor at #outIndex to the Regions in the
-   *  input Tensor at #inIndex which they use, via the Op #opId. This is the
-   *  inverse of the method \a outRegions. In particular it is guaranteed that
-   *  inRegions(outRegions(inRegs, in, opId, out), in, opId, out) = inRegs.
-   * */
-  DisjointRegions inRegions(const DisjointRegions &out,
-                            InIndex inIndex,
-                            OpId opId,
-                            OutIndex outIndex) const;
-
 private:
-  static OpIds opIds(const TensorIds &tids);
-
   template <class T, class... Args>
   OpId
   createOp(const TensorIds &inIds, const Shapes &outShapes, Args... args);
-  OpId insertOp(std::unique_ptr<Op>, const TensorIds &inIds);
+  OpId insertOp(std::unique_ptr<Op>);
+
+  bool
+  multiOutTypeSpecificEqualTo(const common::multiout::Graph &) const final;
 
   Op &op(OpId);
   const Op &op(OpId) const;
-
-  // "a minus b" a.k.a. "a \ b"
-  TensorIds difference(const TensorIds &a, const TensorIds &b) const;
 
   // Get a simple edge map, which can be passed into an external scheduling
   // algorithm API.
@@ -348,17 +311,10 @@ private:
                               const UpperPadding &,
                               ConstantPadding);
 
-  std::vector<util::CopyByClone<Op>> ops;
-
   // The Tensor class is a thin API on top of the Graph class, to make user
-  // code more succinct. A useful mental model is to think of the Graph and
-  // Tensor classes as the same.
+  // code more succinct. The Graph and Tensor classes can be thought of as
+  // interfaces to the same underlying graph structure.
   friend class Tensor;
-
-  std::string name_;
-
-  // All Op names, pythonically: [op(i).name() for i in range(nOps())]
-  std::vector<std::string> getOpNames() const;
 
   // Return true if the Constraints constraints are all already satisfied by
   // the current schedule.

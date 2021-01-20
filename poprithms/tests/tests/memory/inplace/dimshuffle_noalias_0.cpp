@@ -26,7 +26,7 @@ void testDimShuffle0() {
   const auto s0Mux  = d0.slice({2, 2, 1}, {3, 3, 2}).closedMux();
   const auto s1Mux  = x0.slice({1, 2, 2}, {2, 3, 3}).closedMux();
   const auto catMux = Tensor::concat({s0Mux, s1Mux}, 0).closedMux();
-  catMux.unary();
+  catMux.modify();
   Tensors order{s1Mux, s0Mux, x0Mux, catMux};
 
   std::cout << g.tryOpenings0(Tensor::opIds(order),

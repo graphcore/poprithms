@@ -14,7 +14,7 @@ void test0() {
   const auto c0 = Tensor::constant(g, {3, 3});
   const auto v0 = c0.reshape({9});
   const auto x0 = v0.closedMux();
-  x0.unary();
+  x0.modify();
 
   {
     auto g0 = g;

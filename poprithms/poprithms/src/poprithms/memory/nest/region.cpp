@@ -847,6 +847,25 @@ DisjointSetts DisjointRegions::flattenToSetts() const {
   return DisjointSetts(setts);
 }
 
+namespace {
+std::vector<Sett> settsFromStrides(const Strides &strides) {
+  std::vector<Sett> setts;
+  setts.reserve(strides.size());
+  for (auto stride : strides.get()) {
+    setts.push_back({{{1, static_cast<int64_t>(stride) - 1, 0}}});
+  }
+  return setts;
+}
+} // namespace
+
+Region Region::fromStrides(const Shape &shape, const Strides &strides) {
+  return Region(shape, settsFromStrides(strides));
+}
+
+Region Region::fromStride(const Shape &shape, Stride s, Dimension d) {
+  return Region::fromStripe(shape, d.get_i64(), {1, s.get_i64() - 1, 0});
+}
+
 } // namespace nest
 } // namespace memory
 } // namespace poprithms

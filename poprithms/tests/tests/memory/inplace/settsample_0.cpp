@@ -40,9 +40,9 @@ void test0() {
   const auto n11 = x11.closedMux();
   const auto nSS = xSS.closedMux();
 
-  n00.unary();
-  n11.unary();
-  nSS.unary();
+  n00.modify();
+  n11.modify();
+  nSS.modify();
 
   const auto &gStart = g;
   auto test          = [&gStart](const Tensors &order,

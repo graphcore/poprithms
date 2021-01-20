@@ -6,11 +6,20 @@
 #include <vector>
 
 #include <poprithms/memory/alias/usings.hpp>
+#include <poprithms/memory/nest/region.hpp>
 #include <poprithms/ndarray/shape.hpp>
+#include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace alias {
+
+using memory::nest::DisjointRegions;
+using memory::nest::Region;
+using ndarray::Shape;
+using util::Permutation;
+using Lower = poprithms::ndarray::Shape::Lower;
+using Upper = poprithms::ndarray::Shape::Upper;
 
 class Graph;
 

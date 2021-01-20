@@ -4,10 +4,10 @@
 
 #include <poprithms/memory/inplace/crosslink.hpp>
 #include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/memory/nest/region.hpp>
 
 int main() {
   using namespace poprithms::memory::inplace;
-
   {
     auto m1 = CrossLink::modifies(0, 0);
     auto m2 = m1;
@@ -22,22 +22,6 @@ int main() {
     if (!m1.isAliasing() || m1.isPureAliasing()) {
       throw error("Error testing aliasing of a modiying CrossLink");
     }
-  }
-
-  auto a = CrossLink::pureAliases(0, 0);
-
-  auto u  = CrossLink::uses(0, 0, std::make_unique<IdentityRegsMap>());
-  auto u2 = CrossLink::uses(0, 0, std::make_unique<IdentityRegsMap>());
-  if (u != u2) {
-    throw error("Failed in comparison test of CrossLinks");
-  }
-  const DisjointRegions dr({5, 5},
-                           {Region::fromBounds({5, 5}, {1, 1}, {4, 4})});
-  auto out = u.fwd(dr);
-  if (!out.equivalent(dr)) {
-    std::ostringstream oss;
-    oss << "Failed CrossLink::uses test with IdentityRegsMap";
-    throw error(oss.str());
   }
 
   return 0;

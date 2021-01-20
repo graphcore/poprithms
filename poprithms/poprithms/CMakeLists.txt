@@ -192,7 +192,6 @@ set(memory_chain_sources
 )
 
 set(memory_inplace_sources
-       ${memory_src_dir}/inplace/consumer.cpp
        ${memory_src_dir}/inplace/crosslink.cpp
        ${memory_src_dir}/inplace/tensor.cpp
        ${memory_src_dir}/inplace/error.cpp
@@ -202,7 +201,6 @@ set(memory_inplace_sources
        ${memory_src_dir}/inplace/ops.cpp
        ${memory_src_dir}/inplace/proposal.cpp
        ${memory_src_dir}/inplace/result.cpp
-       ${memory_src_dir}/inplace/tensorid.cpp
        ${memory_src_dir}/inplace/tensormap.cpp
 )
 
@@ -230,6 +228,7 @@ add_library(poprithms-memory-chain SHARED
 
 add_library(poprithms-memory-inplace-objlib OBJECT ${memory_inplace_sources})
 add_library(poprithms-memory-inplace SHARED
+  $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
@@ -239,6 +238,7 @@ add_library(poprithms-memory-inplace SHARED
 
 
 add_library(poprithms SHARED 
+  $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-objlib>
   $<TARGET_OBJECTS:poprithms-outline-objlib>

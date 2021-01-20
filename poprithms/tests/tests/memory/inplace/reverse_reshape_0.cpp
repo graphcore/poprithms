@@ -26,9 +26,9 @@ void testReverse0() {
     const auto v0Mux     = v0.slice({0}, {sliceSize}).closedMux();
     const auto preRevMux = v0.closedMux();
     const auto postRevMux =
-        preRevMux.reverse({0}).slice({0}, {sliceSize}).closedMux();
-    v0Mux.unary();
-    postRevMux.unary();
+        preRevMux.reverse(0).slice({0}, {sliceSize}).closedMux();
+    v0Mux.modify();
+    postRevMux.modify();
 
     // "0", "1", "2":
     OpIds muxs{v0Mux.opId(), postRevMux.opId(), preRevMux.opId()};
@@ -67,15 +67,15 @@ void testReshape0() {
   //
 
   auto s0 = v0.slice({0, 2}, {14, 3}).closedMux();
-  s0.unary();
+  s0.modify();
 
   auto r0 = v0.reshape({5, 14}).closedMux();
 
   auto s1 = r0.slice({0, 3}, {5, 4}).closedMux();
-  s1.unary();
+  s1.modify();
 
   auto s2 = r0.slice({0, 11}, {5, 12}).closedMux();
-  s2.unary();
+  s2.modify();
 
   const auto &gBase = g;
   auto test         = [&gBase](const TensorIds &ts,
@@ -103,11 +103,11 @@ void testEmptySlice0() {
   Graph g;
   auto a      = Tensor::variable(g, {10, 10});
   auto b      = a.slice({0, 0}, {10, 0}).closedMux();
-  auto c      = b.reverse({1}).closedMux();
+  auto c      = b.reverse(1).closedMux();
   auto d      = b.dimShuffle({{1, 0}}).closedMux();
   auto e      = d.reshape({5, 0}).closedMux();
-  auto f      = e.unary().closedMux();
-  auto g_     = b.unary().closedMux();
+  auto f      = e.modify().closedMux();
+  auto g_     = b.modify().closedMux();
   auto muxIds = Tensor::opIds({b, c, d, e, f, g_});
   g.tryOpenings0(muxIds, CheckParallelWriteable::Yes);
   std::cout << g << std::endl;

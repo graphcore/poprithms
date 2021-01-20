@@ -29,7 +29,7 @@ void sliceTest0() {
     // Concatenation of the 2 slices. They intersect if squareSize > 5.
     const auto x0 = Tensor::concat({s0, s1}, 0).closedMux();
 
-    x0.unary();
+    x0.modify();
     g.tryOpening({x0.opId(), 0}, CheckParallelWriteable::Yes);
 
     if (squareSize > 5 && x0.muxIsOpen()) {
@@ -55,7 +55,7 @@ void expandTest0() {
     const auto mux0 =
         Tensor::variable(g, {1, 3, 1, 4}).expand({2, 3, 5, 4}).closedMux();
     const auto mux1 = mux0.flatten().closedMux();
-    mux1.unary();
+    mux1.modify();
 
     Tensors order{mux0, mux1};
     if (tryExpandFirst) {

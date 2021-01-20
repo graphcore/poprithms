@@ -13,15 +13,12 @@ using namespace poprithms::memory::inplace;
 
 void testPad0() {
   Graph graph;
-  const auto v0 = Tensor::variable(graph, {3});
-
-  const auto muxNotPll = v0.pad({{{1}, {1}}}, false).closedMux();
-  muxNotPll.unary();
-
+  const auto v0        = Tensor::variable(graph, {3});
+  const auto foo       = v0.pad({{{1}, {1}}}, false);
+  const auto muxNotPll = foo.closedMux();
+  muxNotPll.modify();
   const auto muxPll = v0.pad({{{1}, {1}}}, true).closedMux();
-  muxPll.unary();
-
-  std::cout << graph << std::endl;
+  muxPll.modify();
 
   const auto tryNotPll =
       graph.tryOpening({muxNotPll, 0}, CheckParallelWriteable::Yes);

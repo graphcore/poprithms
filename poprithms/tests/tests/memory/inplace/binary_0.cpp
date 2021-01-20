@@ -37,7 +37,7 @@ void testNoConst() {
   const auto a = Tensor::constant(g, {3});
   const auto b = Tensor::variable(g, {3});
   const auto c = Tensor::mux({a, b});
-  c.unary();
+  c.modify();
   g.tryOpenings({{c, 0}, {c, 1}}, CheckParallelWriteable::Yes);
   auto alis = c.allAliases();
   if (std::find(alis.cbegin(), alis.cend(), a) != alis.cend()) {
@@ -69,7 +69,7 @@ void testChain0() {
   while (muxs.size() < 6) {
     all.push_back(Tensor::variable(g, {7}));
     auto m   = Tensor::mux({*(all.cend() - 2), all.back()});
-    auto mun = m.unary();
+    auto mun = m.modify();
     all.push_back(mun);
     muxs.push_back(m);
   }

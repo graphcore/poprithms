@@ -44,8 +44,8 @@ int main() {
   const auto slice1 = var.slice({3}, {10}).closedMux();
 
   // Create the unary operations which act on the copied slices.
-  const auto unary0 = slice0.unary().closedMux();
-  const auto unary1 = slice1.unary().closedMux();
+  const auto unary0 = slice0.modify().closedMux();
+  const auto unary1 = slice1.modify().closedMux();
 
   // Create the operation (greaterThan) which we know will never create
   // aliases.

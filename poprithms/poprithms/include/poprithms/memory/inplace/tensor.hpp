@@ -8,6 +8,9 @@ namespace poprithms {
 namespace memory {
 namespace inplace {
 
+// TODO(T32973) reuse the pattern of the this class for other projects with
+// Tensors and Graphs.
+
 class Tensor;
 using Tensors = std::vector<Tensor>;
 
@@ -87,7 +90,7 @@ public:
   Tensor slice(const Lower &l, const Upper &u) const;
 
   /** Subsample this Tensor along a single dimension */
-  Tensor subSample(int64_t stride, uint64_t dimension) const;
+  Tensor subSample(Stride, Dimension) const;
 
   /** Subsample this Tensor along all dimensions. */
   Tensor subSample(const Strides &strides) const;
@@ -96,6 +99,8 @@ public:
    * repeated in #dims, then the reverse is applied once for each of the
    * repeats. */
   Tensor reverse(const Dimensions &dims) const;
+
+  Tensor reverse(uint64_t d) const { return reverse(Dimensions({d})); }
 
   Tensor reshape(const Shape &shape) const;
 
@@ -114,7 +119,7 @@ public:
   Tensor dimShuffle(const Permutation &perm) const;
 
   /** Unary elementwise operation which modifies and aliases the input. */
-  Tensor unary() const;
+  Tensor modify() const;
 
   /**
    * A convenience method, which creates one or multiple allocations and
@@ -155,23 +160,36 @@ public:
   /** \return The string description of the creator. */
   std::string opTypeString() const;
 
+  /**
+   * \return The concatenation of Tensors #ins along axis #axis. The
+   *         output is a view of the inputs, there is no new allocation.
+   * */
+  static Tensor concat(const Tensors &ins, uint64_t axis);
+
   /** Set the name of the Op which creates this Tensor to #dbs */
-  void setName(const std::string &dbs);
+  void setName(const std::string &dbs) const;
+
+  Tensor withName(const std::string &dbs) const;
+
+  /** \return Then name of Op which has this Tensor as an output. Also known
+   * as this Tensor's 'creator'.  */
+  std::string opName() const;
 
   /**
-   * \return All Consumers of this Tensor
+   * \return All ConsumptionIds of this Tensor
    *
-   * Recall that a Consumer is defined by 1) an OpId and 2) an InIndex.
-   * Specifically the InIndex of a returned Consumer is the index at which
-   * this Tensor is consumed.
+   * Recall that a ConsumptionId is defined by 1) an OpId and 2) an InIndex.
+   * Specifically the InIndex of a returned ConsumptionId is the index at
+   * which this Tensor is consumed.
    *
-   * \sa Consumer
+   * \sa ConsumptionId
    * */
-  Consumers consumers() const;
+  ConsumptionIds consumptionIds() const;
 
-  /** \return The subset of Consumers of this Tensor which modify this Tensor
+  /** \return The subset of ConsumptionIds of this Tensor which modify this
+   *          Tensor
    */
-  Consumers modifiers() const;
+  ConsumptionIds modifiers() const;
 
   /** Create a constant Tensor in the same Graph as this Tensor */
   Tensor constant(const Shape &) const;
@@ -191,12 +209,6 @@ public:
    * */
   static Tensor mux(const Tensors &, InIndex);
   static Tensor mux(const Tensors &);
-
-  /**
-   * \return The concatenation of Tensors #ins along axis #axis. The
-   *         output is a view of the inputs, there is no new allocation.
-   * */
-  static Tensor concat(const Tensors &, uint64_t axis);
 
   /**
    * A general purpose Op which can be used to represent operations such as
@@ -226,6 +238,7 @@ public:
   static OpIds opIds(const Tensors &);
   static Tensors tensors(Graph &g, const TensorIds &);
   static Shapes shapes(const Tensors &);
+  static void assertSameGraph(const Tensors &);
 
 private:
   TensorId id_;
@@ -234,7 +247,6 @@ private:
   Tensors tensors(const TensorIds &) const;
 
   /** Constructor used by the Graph class factory methods: */
-  friend class Graph;
   Tensor(const TensorId &id__, Graph &graph__)
       : id_(id__), graph_(&graph__) {}
 };

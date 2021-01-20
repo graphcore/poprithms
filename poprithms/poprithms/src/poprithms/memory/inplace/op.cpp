@@ -6,6 +6,7 @@
 #include <sstream>
 #include <type_traits>
 
+#include <poprithms/common/multiout/util.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/tensormap.hpp>
@@ -42,48 +43,25 @@ void Op::insertOut(OpId ido) {
   }
 }
 
-void Op::insertConsumer(OutIndex outIndex, const Consumer &consumer) {
-  consumers_[outIndex.get()].push_back(consumer);
-  insertOut(consumer.opId());
-}
-
 void Op::insertIn(OpId ido) {
   if (std::find(ins_.cbegin(), ins_.cend(), ido) == ins_.cend()) {
     ins_.insert(std::upper_bound(ins_.cbegin(), ins_.cend(), ido), ido);
   }
 }
 
-Op::Op(const State &ob)
-    : id_(ob.id), ins_(ob.ins), outs_(ob.outs), inIds_(ob.inIds),
-      consumers_(ob.consumers), inShapes_(ob.inShapes),
-      outShapes_(ob.outShapes), name_(ob.name) {}
-
 // C++20 we will be able to just use (= default).
 bool Op::State::operator==(const State &rhs) const {
   return                            //
-      id == rhs.id &&               //
+      baseState == rhs.baseState && //
       ins == rhs.ins &&             //
-      outs == rhs.outs &&           //
-      inIds == rhs.inIds &&         //
-      consumers == rhs.consumers && //
-      inShapes == rhs.inShapes &&   //
-      outShapes == rhs.outShapes && //
-      name == rhs.name;
-}
-
-TensorIds Op::outTensorIds() const {
-  TensorIds outIds;
-  outIds.reserve(nOutTensors());
-  for (uint64_t o = 0; o < nOutTensors(); ++o) {
-    outIds.push_back(TensorId{id(), OutIndex(o)});
-  }
-  return outIds;
+      outs == rhs.outs              //
+      ;
 }
 
 std::ostream &operator<<(std::ostream &os, const Op &op) {
   os << op.str();
-  if (!op.name().empty()) {
-    os << "::" << op.name();
+  if (!op.getName().empty()) {
+    os << "::" << op.getName();
   }
   return os;
 }
@@ -95,43 +73,32 @@ void Op::grow(alias::Graph &g, TensorMap &m) const {
   }
 }
 
-void Op::verify(InIndex inIndex,
-                OutIndex outIndex,
-                const std::string &context) const {
-  if (inIndex >= nInTensors()) {
-    std::ostringstream oss;
-    oss << "Invalid InIndex in " << context << " of " << typeString()
-        << ". InIndex=" << inIndex << ", but nInTensors=" << nInTensors()
-        << '.';
-    throw error(oss.str());
-  }
-  if (outIndex >= nOutTensors()) {
-    std::ostringstream oss;
-    oss << "Invalid OutIndex in " << context << " of " << typeString()
-        << ". InIndex=" << inIndex << ", but nOutTensors=" << nOutTensors()
-        << '.';
-    throw error(oss.str());
-  }
-}
-
-std::string Op::str() const {
-  return typeString() + std::string("::") + id();
-}
-
-Op::State Op::getBaseState(const OpId opId,
-                           const TensorIds &inIds,
-                           const Shapes &inShapes,
-                           const Shapes &outShapes,
-                           const OpIds &opIns) {
+Op::State Op::getStartingState(const OpId opId,
+                               const TensorIds &inIds,
+                               const Shapes &inShapes,
+                               const Shapes &outShapes,
+                               const OpIds &opIns) {
 
   const OpIds opOuts{};
   const std::string name{};
 
-  // No consumers at any of the output indices.
-  std::vector<Consumers> consumers(outShapes.size());
+  // No consumptionIds at any of the output indices.
+  const std::vector<ConsumptionIds> consumptionIds(outShapes.size());
 
   return State(
-      opId, opIns, opOuts, inIds, consumers, inShapes, outShapes, name);
+      opId, inIds, consumptionIds, inShapes, outShapes, name, opIns, opOuts);
+}
+
+bool Op::multiOutTypeSpecificEqualTo(const common::multiout::Op &rhs_) const {
+
+  const auto &rhs = static_cast<const Op &>(rhs_);
+  return
+      // Same base properties:
+      getState() == rhs.getState() &&
+      // Same derived class:
+      typeid(*this) == typeid(rhs) &&
+      // Same derived class properties:
+      inplaceTypeSpecificEqualTo(rhs);
 }
 
 } // namespace inplace

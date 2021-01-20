@@ -33,8 +33,7 @@ std::string Allocate::typeString() const {
 
 std::string SettSample::typeString() const {
   std::ostringstream oss;
-  oss << "SettSample " << region().setts();
-  ;
+  oss << "SettSample(" << region().setts() << ')';
   return oss.str();
 }
 

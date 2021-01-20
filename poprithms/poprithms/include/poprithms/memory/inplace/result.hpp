@@ -3,7 +3,7 @@
 #define POPRITHMS_MEMORY_INPLACE_RESULT_HPP
 #include <algorithm>
 
-#include <poprithms/memory/inplace/usings.hpp>
+#include <poprithms/memory/inplace/constraint.hpp>
 
 namespace poprithms {
 namespace memory {

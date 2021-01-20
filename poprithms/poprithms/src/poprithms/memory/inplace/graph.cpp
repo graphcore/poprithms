@@ -2,6 +2,7 @@
 #include "ops.hpp"
 
 #include <algorithm>
+#include <iostream>
 #include <iterator>
 #include <memory>
 #include <numeric>
@@ -10,18 +11,23 @@
 #include <string>
 #include <utility>
 
+#include <poprithms/memory/inplace/color.hpp>
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 #include <poprithms/util/printiter.hpp>
+#include <poprithms/util/stringutil.hpp>
 #include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace inplace {
 
+Graph::~Graph() = default;
+
 namespace {
+
 void assertNonNegative(const std::vector<int64_t> &vs) {
   for (auto v : vs) {
     if (v < 0) {
@@ -53,20 +59,6 @@ TensorId Graph::pad(const TensorId &id,
                                              : BroadcastPadding::Yes;
 
   return pad(id, LowerPadding(l_u64), UpperPadding(u_u64), cp, sp);
-}
-
-DisjointRegions Graph::outRegions(const DisjointRegions &inRegions,
-                                  InIndex inIndex,
-                                  OpId opId,
-                                  OutIndex outIndex) const {
-  return op(opId).outRegions(inRegions, inIndex, outIndex);
-}
-
-DisjointRegions Graph::inRegions(const DisjointRegions &out,
-                                 InIndex inIndex,
-                                 OpId opId,
-                                 OutIndex outIndex) const {
-  return op(opId).inRegions(out, inIndex, outIndex);
 }
 
 std::vector<std::array<TensorId, 2>>
@@ -107,19 +99,19 @@ TensorId Graph::pad(const TensorId &id,
                     ConstantPadding cp,
                     BroadcastPadding bp) {
 
-  auto paddings = (bp == BroadcastPadding::Yes)
-                      ? createBroadcastPadElements(shape(id), l, u, cp)
-                      : createNonAliasedPadElements(shape(id), l, u, cp);
+  // This copy is necessary, as the reference is invalidated in concat.
+  const auto sh = shape(id);
+
+  const auto paddings = (bp == BroadcastPadding::Yes)
+                            ? createBroadcastPadElements(sh, l, u, cp)
+                            : createNonAliasedPadElements(sh, l, u, cp);
+
   auto current = id;
   for (uint64_t d = 0; d < rank_u64(id); ++d) {
     current = concat(
         {std::get<0>(paddings[d]), current, std::get<1>(paddings[d])}, d);
   }
   return current;
-}
-
-TensorId Graph::slice(const TensorId &id, const Lower &l, const Upper &u) {
-  return settSample(id, Region::fromBounds(shape(id), l, u));
 }
 
 std::ostream &operator<<(std::ostream &ost, CheckParallelWriteable check) {
@@ -149,7 +141,6 @@ std::ostream &operator<<(std::ostream &ost, ConstantPadding cp) {
     break;
   }
   }
-
   return ost;
 }
 
@@ -190,37 +181,25 @@ bool Graph::satisifedWithoutAnyChange(const Constraints &constraints) const {
   return true;
 }
 
-uint64_t Graph::nInTensors(OpId id) const { return op(id).nInTensors(); }
-
 template <class T, class... Args>
 OpId Graph::createOp(const TensorIds &inIds,
                      const Shapes &outShapes,
                      Args... args) {
-  return insertOp(
-      std::make_unique<T>(
-          Op::getBaseState(
-              nOps_i64(), inIds, shapes(inIds), outShapes, opIds(inIds)),
-          args...),
-      inIds);
+  return insertOp(std::make_unique<T>(
+      Op::getStartingState(
+          nOps_i64(), inIds, shapes(inIds), outShapes, opIds(inIds)),
+      args...));
 }
 
-OpId Graph::insertOp(std::unique_ptr<Op> createdOp, const TensorIds &inIds) {
-
-  scheduleIsValid = false;
-
-  for (uint64_t inIndex = 0; inIndex < inIds.size(); ++inIndex) {
-    const auto inTensor = inIds[inIndex];
-    const auto sourceId = inTensor.opId();
-    auto &source        = op(sourceId);
-    source.insertConsumer(inTensor.outIndex(),
-                          {createdOp->id(), InIndex(inIndex)});
+OpId Graph::insertOp(std::unique_ptr<Op> createdOp) {
+  scheduleIsValid  = false;
+  const auto inIds = createdOp->inTensorIds();
+  const auto newId = insertMultioutOp(std::move(createdOp));
+  for (const auto &inId : inIds) {
+    op(inId.opId()).insertOut(newId);
+    op(newId).insertIn(inId.opId());
   }
-
-  ops.emplace_back(std::move(createdOp));
-
-  ops.back().uptr->grow(aGraph(), tensorMap);
-  auto newId = ops.back().uptr->id();
-
+  op(newId).grow(aGraph(), tensorMap);
   return newId;
 }
 
@@ -228,31 +207,12 @@ TensorId Graph::settSample(const TensorId &id, const Region &r) {
   return {createOp<SettSample>({id}, {r.nelms()}, r), 0};
 }
 
-TensorId
-Graph::subSample(const TensorId &id, int64_t stride, uint64_t dimension) {
-  return settSample(
-      id, Region::fromStripe(shape(id), dimension, {1, stride - 1, 0}));
-}
-
-TensorId Graph::subSample(const TensorId &id, const Strides &strides) {
-  std::vector<nest::Sett> setts;
-  setts.reserve(strides.size());
-  for (auto stride : strides.get()) {
-    setts.push_back({{{1, stride - 1, 0}}});
-  }
-  return settSample(id, Region(shape(id), setts));
-}
-
 TensorId Graph::dimShuffle(const TensorId &id, const Permutation &perm) {
   return {createOp<DimShuffle>({id}, {shape(id).dimShuffle(perm)}, perm), 0};
 }
 
 TensorId Graph::reverse(const TensorId &id, const Dimensions &d) {
-  return {createOp<Reverse>({id}, {shape(id)}, d.get()), 0};
-}
-
-TensorId Graph::flatten(const TensorId &id) {
-  return reshape(id, {shape(id).nelms()});
+  return {createOp<Reverse>({id}, {shape(id)}, d), 0};
 }
 
 TensorId Graph::reshape(const TensorId &id, const Shape &outShape) {
@@ -264,10 +224,9 @@ TensorId Graph::expand(const TensorId &id, const Shape &outShape) {
   return {createOp<Expand>({id}, {outShape}), 0};
 }
 
-TensorId Graph::unary(const TensorId &id) {
+TensorId Graph::modify(const TensorId &id) {
   return {createOp<UnaryModifier>({id}, {shape(id)}), 0};
 }
-
 TensorId Graph::constant(const Shape &shape) {
   return {createOp<Alloc>({}, {shape}, ConstantColor), 0};
 }
@@ -277,61 +236,34 @@ TensorId Graph::variable(const Shape &shape) {
 }
 
 TensorId Graph::concat(const TensorIds &ids, uint64_t axis) {
-  if (ids.empty()) {
-    std::ostringstream oss;
-    oss << "In Tensor::concatIds(ids of size 0"
-        << ", axis = " << axis << "). ids must be non-empty.";
-    throw error(oss.str());
-  }
-
-  const auto opId =
-      createOp<Concat>(ids, {Shape::concat(shapes(ids), axis)}, axis);
-
-  return {opId, 0};
-}
-
-OpIds Graph::opIds(const TensorIds &tids) {
-  OpIds ids_(tids.size());
-  for (uint64_t i = 0; i < tids.size(); ++i) {
-    ids_[i] = tids[i].opId();
-  }
-  return ids_;
-}
-
-void Graph::setName(const OpId id, const std::string &name) {
-  op(id).setName(name);
+  const auto shapes_ = shapes(ids);
+  Shape::assertConcattable(shapes_, axis);
+  return {createOp<Concat>(ids, {Shape::concat(shapes_, axis)}, axis), 0};
 }
 
 void Graph::constraint(const OpId before, const OpId after) {
   op(before).insertOut(after);
   op(after).insertIn(before);
-  if (scheduleIsValid && scheduleIndex(before) >= scheduleIndex(after)) {
-    scheduleIsValid = false;
-  }
+  // If 'after' appears before 'before' in current schedule, label invalid.
+  scheduleIsValid =
+      scheduleIsValid && (scheduleIndex(after) > scheduleIndex(before));
+}
+
+bool Graph::multiOutTypeSpecificEqualTo(
+    const common::multiout::Graph &rhs_) const {
+  // As the state of the base class completely defines the base of this class,
+  // there are no additional comparisons required.
+  const Graph &rhs = static_cast<const Graph &>(rhs_);
+  (void)rhs;
+  return true;
 }
 
 const Op &Graph::op(OpId a) const {
-  if (a.get() >= nOps_i64()) {
-    std::ostringstream oss;
-    oss << "The number of Ops in this Graph is " << nOps()
-        << ", so there is no Op with OpId " << a << '.';
-    throw error(oss.str());
-  }
-
-  const auto &opPtr = ops[static_cast<uint64_t>(a.get())].uptr;
-
-  // In case we decide that we need to delete Ops for this transformation at
-  // some point:
-  if (!opPtr) {
-    throw error("nullptr in op(" + std::to_string(a.get()) + ").");
-  }
-  return *opPtr;
+  // We know that all Ops in this Graph can be safely cast, so no need for
+  // dynamic_cast here.
+  return static_cast<const Op &>(multioutOp(a));
 }
-
-// See Scott Meyers' "Effective C++"
-Op &Graph::op(OpId id) {
-  return const_cast<Op &>(static_cast<const Graph &>(*this).op(id));
-}
+Op &Graph::op(OpId a) { return static_cast<Op &>(multioutOp(a)); }
 
 OpeningStatuses Graph::tryOpenings(const Proposals &proposals,
                                    CheckParallelWriteable check) {
@@ -353,19 +285,6 @@ OpeningStatuses Graph::tryOpenings0(const OpIds &ids,
   return tryOpenings(Proposal::open0(ids), xp);
 }
 
-std::vector<Shape> Graph::shapes(const TensorIds &ids) const {
-  std::vector<Shape> shapes;
-  shapes.reserve(ids.size());
-  for (const auto &id : ids) {
-    shapes.push_back(shape(id));
-  }
-  return shapes;
-}
-
-Shape Graph::shape(const TensorId &tid) const {
-  return op(tid.opId()).outShape(tid.outIndex());
-}
-
 void Graph::constraints(OpId a, const OpIds &bs) {
   for (auto b : bs) {
     constraint(a, b);
@@ -378,9 +297,9 @@ void Graph::constraints(const OpIds &as, OpId b) {
   }
 }
 
-Consumers Graph::modifiers(const TensorId &id) const {
-  std::vector<Consumer> modifiers;
-  for (const auto &consumer : consumers(id)) {
+ConsumptionIds Graph::modifiers(const TensorId &id) const {
+  std::vector<ConsumptionId> modifiers;
+  for (const auto &consumer : consumptionIds(id)) {
     if (op(consumer.opId()).modifies(consumer.inIndex())) {
       modifiers.push_back(consumer);
     }
@@ -391,28 +310,6 @@ Consumers Graph::modifiers(const TensorId &id) const {
 TensorIds Graph::allAliases(const TensorId &id) const {
   const auto aliasGraphId = tensorMap.toAliasGraphId(id);
   return tensorMap.fromAliasGraphIds(aGraph().allAliases(aliasGraphId));
-}
-
-Consumers Graph::consumers(const TensorId &id) const {
-  return op(id.opId()).consumers(id.outIndex());
-}
-
-TensorIds Graph::difference(const TensorIds &a_, const TensorIds &b_) const {
-  auto a = a_;
-  auto b = b_;
-  std::sort(a.begin(), a.end());
-  std::sort(b.begin(), b.end());
-
-  TensorIds diff;
-  diff.reserve(a.size() - b.size());
-
-  std::set_difference(a.cbegin(),
-                      a.cend(),
-                      b.cbegin(),
-                      b.cend(),
-                      std::inserter(diff, diff.begin()));
-
-  return diff;
 }
 
 uint64_t Graph::scheduleIndex(OpId id) const {
@@ -466,7 +363,7 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   const auto inTensorToAlias  = mux_.inTensorId(p.inIndex());
   const auto outTensorToAlias = mux_.outTensorId(0);
 
-  if (!mux_.outplace()) {
+  if (mux_.open()) {
     return OpeningResult::alreadyOpen();
   }
 
@@ -474,10 +371,12 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   // so we update it here, if necessary.
   if (!scheduleIsValid) {
     const auto fwdEdges = getFwdEdges({});
+
     setSchedule(toOpIds(poprithms::schedule::vanilla::getSchedule_i64(
         fwdEdges,
         schedule::vanilla::ErrorIfCycle::No,
         schedule::vanilla::VerifyEdges::Yes)));
+
     if (sched.size() != nOps()) {
       std::ostringstream oss;
       oss << "A cycle detected in Graph::tryOpeningPartial, "
@@ -496,9 +395,9 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   }
 
   struct AliInfo {
-    TensorId id;         // The Tensor whose info is stored
-    Consumers modifiers; // modifiers of Tensor "id"
-    TensorIds aliases;   // aliases of Tensor "id"
+    TensorId id;              // The Tensor whose info is stored
+    ConsumptionIds modifiers; // modifiers of Tensor "id"
+    TensorIds aliases;        // aliases of Tensor "id"
   };
 
   // Aliases of inputs which have modifiers, under the proposal.
@@ -557,7 +456,7 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   if (check == CheckParallelWriteable::Yes) {
 
     // Get all Ops which modify an alias of an input or output
-    std::vector<Consumer> allModifiers;
+    std::vector<ConsumptionId> allModifiers;
     for (auto x : inAliasModified) {
       allModifiers.insert(
           allModifiers.end(), x.modifiers.cbegin(), x.modifiers.cend());
@@ -583,11 +482,11 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   Constraints newConstraints;
 
   // The modifiers of output aliases might have new aliases: Tensors which are
-  // aliased to the inputs of mux. Consumers of these new aliases must
+  // aliased to the inputs of mux. ConsumptionIds of these new aliases must
   // execute before the modifier, so that behaviour is unchanged.
   for (const auto &x : outAliasModified) {
-    for (auto newAlias : difference(allAliases(x.id), x.aliases)) {
-      for (auto c : consumers(newAlias)) {
+    for (auto newAlias : setDifference(allAliases(x.id), x.aliases)) {
+      for (auto c : consumptionIds(newAlias)) {
         for (auto m : x.modifiers) {
           newConstraints.push_back({c.opId(), m.opId()});
         }
@@ -604,7 +503,7 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   // through all in modifiers, only the ones which might be scheduled first
   // (T29080)
   for (const auto &x : inAliasModified) {
-    auto diff = difference(allAliases(x.id), x.aliases);
+    auto diff = setDifference(allAliases(x.id), x.aliases);
     for (auto m : x.modifiers) {
       if (scheduleIndex(m.opId()) > scheduleIndex(mux_.id())) {
 
@@ -613,7 +512,7 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
         newConstraints.push_back({mux_.id(), m.opId()});
 
         for (auto newAlias : diff) {
-          for (auto c : consumers(newAlias)) {
+          for (auto c : consumptionIds(newAlias)) {
             newConstraints.push_back({c.opId(), m.opId()});
           }
         }
@@ -691,14 +590,6 @@ void Graph::constraints(const Constraints &constraints_) {
   }
 }
 
-uint64_t Graph::nTensors() const {
-  uint64_t n = 0;
-  for (uint64_t i = 0; i < nOps(); ++i) {
-    n += op(i).nOutTensors();
-  }
-  return n;
-}
-
 Graph::FwdEdges Graph::getFwdEdges(const Constraints &additional) const {
   FwdEdges fwdEdges;
   fwdEdges.reserve(nOps());
@@ -709,15 +600,6 @@ Graph::FwdEdges Graph::getFwdEdges(const Constraints &additional) const {
     fwdEdges[from.get()].push_back(to.get());
   }
   return fwdEdges;
-}
-
-std::vector<std::string> Graph::getOpNames() const {
-  std::vector<std::string> names;
-  names.reserve(nOps());
-  for (uint64_t i = 0; i < nOps(); ++i) {
-    names.push_back(op(i).name());
-  }
-  return names;
 }
 
 namespace {
@@ -731,15 +613,6 @@ template <typename T> std::string getStr(const std::vector<T> &X) {
 void Graph::append(std::ostream &ost) const {
 
   const auto aliasedTo = aGraph().allAliases();
-
-  // Return just enough white space to get a perfect alignment of columns.
-  const auto getSpace = [](uint64_t target, const std::string &ts) {
-    uint64_t taken = ts.size();
-    if (taken > target) {
-      return std::string(" ");
-    }
-    return std::string(target - taken + 1, ' ');
-  };
 
   const auto nLines = nOps() + nTensors() + 2;
 
@@ -756,17 +629,19 @@ void Graph::append(std::ostream &ost) const {
   Strings inTensors__(nLines, "");
   inTensors__[0] = "InTensors";
 
-  Strings inOps__(nLines, "");
-  inOps__[0] = "InOps";
-
   Strings outIndex__(nLines, "");
   outIndex__[0] = "OutIndex";
+
+  Strings tensorShape__(nLines, "");
+  tensorShape__[0] = "Shape";
+
+  // extensions:
 
   Strings tensorId__(nLines, "");
   tensorId__[0] = "TensorId";
 
-  Strings tensorShape__(nLines, "");
-  tensorShape__[0] = "Shape";
+  Strings inOps__(nLines, "");
+  inOps__[0] = "InOps";
 
   Strings tensorType__(nLines, "");
   tensorType__[0] = "TensorType";
@@ -782,11 +657,12 @@ void Graph::append(std::ostream &ost) const {
 
   uint64_t l = 2;
   for (uint64_t i = 0; i < nOps(); ++i) {
+
     opId__[l]      = std::to_string(i);
     opType__[l]    = op(i).typeString();
     inTensors__[l] = getStr(tensorMap.toAliasGraphIds(op(i).inTensorIds()));
     inOps__[l]     = getStr(op(i).ins());
-    opDebugString__[l] = op(i).name();
+    opDebugString__[l] = op(i).getName();
     // ++l;
     for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
       const auto aliasId = tensorMap.toAliasGraphId(op(i).outTensorId(o));
@@ -800,22 +676,50 @@ void Graph::append(std::ostream &ost) const {
       aliasedTo__[l] = getStr(aliasedTo[aliasId.get()]);
       ++l;
     }
+    if (op(i).nOutTensors() == 0) {
+      ++l;
+    }
   }
 
-  std::vector<Strings> frags{opId__,
-                             opDebugString__,
-                             opType__,
-                             inTensors__,
-                             inOps__,
-                             outIndex__,
-                             tensorId__,
-                             tensorShape__,
-                             tensorType__,
-                             selfAliases__,
-                             constants__,
-                             aliasedTo__};
+  std::vector<Strings> frags;
+  frags.push_back(opId__);
 
-  auto getLen = [](const Strings &v) {
+  // Only add logging about which Tensors self-alias if any of them actually
+  // do.
+  if (std::any_of(opDebugString__.cbegin() + 2,
+                  opDebugString__.cend(),
+                  [](const auto &x) { return !x.empty(); })) {
+    frags.push_back(opDebugString__);
+  }
+
+  frags.push_back(opType__);
+  frags.push_back(inTensors__);
+  frags.push_back(outIndex__);
+  frags.push_back(tensorShape__);
+  frags.push_back(tensorId__);
+  frags.push_back(inOps__);
+  frags.push_back(tensorType__);
+  frags.push_back(aliasedTo__);
+
+  // Only add logging about which Tensors self-alias if any of them actually
+  // do.
+  if (std::any_of(
+          selfAliases__.cbegin(), selfAliases__.cend(), [](const auto &x) {
+            return x.find("yes") != std::string::npos;
+          })) {
+    frags.push_back(selfAliases__);
+  }
+
+  // Only add logging about which Tensors contain constants if any of them
+  // actually do.
+  if (std::any_of(
+          constants__.cbegin(), constants__.cend(), [](const auto &x) {
+            return x.find("yes") != std::string::npos;
+          })) {
+    frags.push_back(constants__);
+  }
+
+  const auto getLen = [](const Strings &v) {
     return 1 + std::accumulate(v.cbegin(),
                                v.cend(),
                                0ULL,
@@ -834,7 +738,7 @@ void Graph::append(std::ostream &ost) const {
   for (uint64_t i = 0; i < nLines; ++i) {
     ost << "\n       ";
     for (uint64_t fi = 0; fi < frags.size(); ++fi) {
-      ost << frags[fi][i] << getSpace(lens[fi], frags[fi][i]);
+      ost << frags[fi][i] << util::spaceString(lens[fi], frags[fi][i]);
     }
   }
 }
@@ -843,8 +747,6 @@ std::ostream &operator<<(std::ostream &ost, const Graph &g) {
   g.append(ost);
   return ost;
 }
-
-std::string Graph::typeString(OpId id) const { return op(id).typeString(); }
 
 OpId Graph::multi(const TensorIds &inIds,
                   const Shapes &outShapes,
@@ -860,14 +762,27 @@ TensorId Graph::mux(const TensorIds &ids, InIndex inInd) {
   if (inInd < 0) {
     return mux(ids);
   }
-  return {createOp<Mux>(ids, {Shape::numpyVariadic(shapes(ids))}, inInd), 0};
+
+  const auto outShape = Shape::numpyVariadic(shapes(ids));
+  return {createOp<Mux>(ids, {outShape}, inInd), 0};
+}
+
+TensorId Graph::slice(const TensorId &id, const Lower &l, const Upper &u) {
+  return settSample(id, Region::fromBounds(shape(id), l, u));
+}
+
+TensorId Graph::subSample(const TensorId &id, Stride s, Dimension d) {
+  return settSample(id, Region::fromStride(shape(id), s, d));
+}
+
+TensorId Graph::subSample(const TensorId &id, const Strides &strides) {
+  return settSample(id, Region::fromStrides(shape(id), strides));
+}
+
+TensorId Graph::flatten(const TensorId &id) {
+  return reshape(id, {shape(id).nelms()});
 }
 
 } // namespace inplace
 } // namespace memory
-
-namespace util {
-template class CopyByClone<memory::inplace::Op>;
-}
-
 } // namespace poprithms

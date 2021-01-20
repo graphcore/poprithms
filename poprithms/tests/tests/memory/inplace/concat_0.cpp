@@ -1,10 +1,14 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <iostream>
+
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
-int main() {
-  using namespace poprithms::memory::inplace;
+namespace {
+
+using namespace poprithms::memory::inplace;
+void test0() {
 
   //
   //      x  x   x  x     x  x   x  x
@@ -45,5 +49,35 @@ int main() {
       throw error("expected all concats to be inplaced");
     }
   }
-  return 0;
+}
+
+void test1() {
+
+  //           X0          .
+  //        /     \        .
+  //    modify  transpose  .
+  //       \       |       .
+  //        \     mux      .
+  //         \   /         .
+  //         concat        .
+
+  Graph g;
+  auto X0 = Tensor::variable(g, {4, 4});
+  auto u  = X0.modify();
+  auto t  = X0.dimShuffle({{1, 0}});
+  auto m  = t.closedMux();
+  g.constraint(m.opId(), u.opId());
+  Tensor::concat({m, u}, 0);
+
+  auto trial = g.tryOpenings0({m.opId()}, CheckParallelWriteable::No);
+  if (trial.size() != 1 || trial[0] != OpeningStatus::Cycle) {
+    throw error("Opening the mux makes the concat invalid. ");
+  }
+}
+
+} // namespace
+
+int main() {
+  test0();
+  test1();
 }

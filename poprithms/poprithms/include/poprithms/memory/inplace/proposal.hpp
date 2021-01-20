@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 
-#include <poprithms/memory/inplace/tensorid.hpp>
-#include <poprithms/memory/inplace/usings.hpp>
+#include <poprithms/common/multiout/opid.hpp>
+#include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
@@ -13,6 +13,12 @@
 namespace poprithms {
 namespace memory {
 namespace inplace {
+
+using common::multiout::InIndex;
+using common::multiout::OpId;
+using common::multiout::OpIds;
+using common::multiout::OutIndex;
+using common::multiout::TensorIds;
 
 class Tensor;
 

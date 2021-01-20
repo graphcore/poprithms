@@ -1,51 +1,69 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_INPLACE_OP_HPP
 #define POPRITHMS_MEMORY_INPLACE_OP_HPP
-#include <algorithm>
 #include <ios>
-#include <map>
 #include <memory>
 #include <sstream>
+#include <typeinfo>
 
+#include <poprithms/common/multiout/consumptionid.hpp>
+#include <poprithms/common/multiout/op.hpp>
+#include <poprithms/common/multiout/tensorid.hpp>
+#include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/alias/usings.hpp>
-#include <poprithms/memory/inplace/consumer.hpp>
-#include <poprithms/memory/inplace/proposal.hpp>
-#include <poprithms/memory/inplace/tensorid.hpp>
 #include <poprithms/memory/inplace/tensormap.hpp>
-#include <poprithms/memory/inplace/usings.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/ndarray/shape.hpp>
-#include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace inplace {
 
+using common::multiout::ConsumptionId;
+using common::multiout::ConsumptionIds;
+using common::multiout::InIndex;
+using common::multiout::OpId;
+using common::multiout::OpIds;
+using common::multiout::OutIndex;
+using common::multiout::TensorId;
+using common::multiout::TensorIds;
+using ndarray::Shape;
+using ndarray::Shapes;
+
 /** A node in an inplace::Graph, with directed edges (control dependencies /
  * topological constraints) to and from other Ops, input and output Tensors,
  * a name, and an AliasType. Inheriting classes can be found in ops.hpp.
  *  */
-class Op {
+class Op : public common::multiout::Op {
 
 public:
   /** All Op member variables */
   struct State {
 
   public:
-    State(const OpId id_,
+    State(const common::multiout::Op::State &state,
           const OpIds &ins_,
-          const OpIds &outs_,
+          const OpIds &outs_)
+        : baseState(state), ins(ins_), outs(outs_) {}
+
+    State(const OpId id_,
           const TensorIds &inIds_,
-          const std::vector<Consumers> &consumers_,
+          const std::vector<ConsumptionIds> &consumptionIds_,
           const Shapes &inShapes_,
           const Shapes &outShapes_,
-          const std::string &name_)
-        : id(id_), ins(ins_), outs(outs_), inIds(inIds_),
-          consumers(consumers_), inShapes(inShapes_), outShapes(outShapes_),
-          name(name_) {}
+          const std::string &name_,
+          const OpIds &ins_,
+          const OpIds &outs_)
+        : State(common::multiout::Op::State(id_,
+                                            inIds_,
+                                            consumptionIds_,
+                                            inShapes_,
+                                            outShapes_,
+                                            name_),
+                ins_,
+                outs_) {}
 
-    // This Op's unique identifier
-    const OpId id;
+    const common::multiout::Op::State baseState;
 
     // Dependencies that this Op has. In other words, Ops which must be
     // scheduled before this Op
@@ -54,22 +72,6 @@ public:
     // Ops which have dependencies on this Op. In other words, Ops which must
     // be scheduled after this Op
     const OpIds outs;
-
-    // The input Tensors of this Op, in order if InputIndex
-    const TensorIds inIds;
-
-    // The Ops which consume output Tensors of this Op, in the order of
-    // OutputIndex
-    const std::vector<Consumers> consumers;
-
-    // The Shapes of the input Tensors of this Op
-    const Shapes inShapes;
-
-    // The Shapes of the output Tensors which this Op creates
-    const Shapes outShapes;
-
-    // (optional) name to be associated to this Op, can be useful for logging
-    const std::string name;
 
     // Will be  "=default" in C++20, but for now must be done manually.
     bool operator==(const State &rhs) const;
@@ -82,7 +84,8 @@ public:
   Op(Op &&)            = default;
   Op()                 = delete;
 
-  Op(const State &ob);
+  Op(const State &ob)
+      : common::multiout::Op(ob.baseState), ins_(ob.ins), outs_(ob.outs) {}
 
   /** Ops which must be scheduled before this Op. */
   const OpIds &ins() const { return ins_; }
@@ -90,69 +93,12 @@ public:
   /** Ops which must be scheduled after this Op. */
   const OpIds &outs() const { return outs_; }
 
-  std::string str() const;
-
-  OpId id() const { return id_; }
-
-  const Shape &inShape(InIndex i) const { return inShapes_.at(i.get()); }
-
-  const Shape &outShape(OutIndex i) const { return outShapes_.at(i.get()); }
-
-  uint64_t outRank(OutIndex i) const { return outShape(i).rank_u64(); }
-
-  uint64_t nOutElms(OutIndex i) const { return outShape(i).nelms_u64(); }
-
-  const std::vector<Consumers> &consumers() const { return consumers_; }
-
-  const Consumers &consumers(OutIndex o) const { return consumers_[o.get()]; }
-
-  const Shapes &inShapes() const { return inShapes_; }
-
-  const Shapes &outShapes() const { return outShapes_; }
-
-  const std::string &name() const { return name_; }
-
-  void setName(const std::string &n) { name_ = n; }
-
   State getState() const {
-    return State{
-        id_, ins_, outs_, inIds_, consumers_, inShapes_, outShapes_, name_};
+    return State{common::multiout::Op::getState(), ins_, outs_};
   }
 
-  const TensorIds &inTensorIds() const { return inIds_; }
-  const TensorId &inTensorId(InIndex i) const { return inIds_[i.get()]; }
-  uint64_t nInTensors() const { return inIds_.size(); }
-
-  /** Note that Ops must have outputs at contiguous indices, which means
-   * optional outputs are not supported in this Graph/Op project.
-   * */
-  TensorIds outTensorIds() const;
-  TensorId outTensorId(OutIndex o) const { return {id(), o}; }
-  uint64_t nOutTensors() const { return outShapes().size(); }
-
-  void insertIn(OpId);
   void insertOut(OpId);
-  void insertConsumer(OutIndex, const Consumer &);
-
-  bool operator==(const Op &rhs) const {
-    return
-        // Same base properties:
-        getState() == rhs.getState() &&
-        // Same derived class:
-        typeid(*this) == typeid(rhs) &&
-        // Same derived class properties:
-        typeSpecificEqualTo(rhs);
-  }
-
-  /**
-   * String describing the exact transformation performed by this Op
-   * */
-  virtual std::string typeString() const = 0;
-
-  virtual DisjointRegions
-  outRegions(const DisjointRegions &in, InIndex, OutIndex) const = 0;
-  virtual DisjointRegions
-  inRegions(const DisjointRegions &out, InIndex, OutIndex) const = 0;
+  void insertIn(OpId);
 
   /**
    * Append this Op's alias::Graph equivalent(s) into \a g, and also
@@ -178,32 +124,17 @@ public:
   /** \return all InIndex where the input is modified */
   std::vector<InIndex> modifyingIndices() const;
 
-  virtual std::unique_ptr<Op> clone() const = 0;
+  static State getStartingState(const OpId opId,
+                                const TensorIds &tensorIns,
+                                const Shapes &inShapes,
+                                const Shapes &outShapes,
+                                const OpIds &opIns);
 
   using AliasTensorIds = std::vector<alias::TensorId>;
-  using OutIndices     = std::vector<OutIndex>;
-  using InIndices      = std::vector<InIndex>;
-
-  static State getBaseState(const OpId opId,
-                            const TensorIds &tensorIns,
-                            const Shapes &inShapes,
-                            const Shapes &outShapes,
-                            const OpIds &opIns);
-
-  /** Verify that the input and output indices are valid for this Op. If they
-   * are not, a descriptive error message which includes #context is thrown.
-   */
-  void verify(InIndex, OutIndex, const std::string &context) const;
 
 private:
-  OpId id_;
   OpIds ins_;
   OpIds outs_;
-  TensorIds inIds_;
-  std::vector<Consumers> consumers_;
-  Shapes inShapes_;
-  Shapes outShapes_;
-  std::string name_;
 
 private:
   /**
@@ -212,10 +143,13 @@ private:
    * be called when the 'other' is the same type as the instance
    * invoking the function.
    * */
-  virtual bool typeSpecificEqualTo(const Op &other) const = 0;
+  virtual bool inplaceTypeSpecificEqualTo(const Op &other) const = 0;
 
   virtual AliasTensorIds typeSpecificGrow(alias::Graph &,
                                           const TensorMap &) const = 0;
+
+  bool
+  multiOutTypeSpecificEqualTo(const common::multiout::Op &other) const final;
 };
 
 std::ostream &operator<<(std::ostream &, const Op &);

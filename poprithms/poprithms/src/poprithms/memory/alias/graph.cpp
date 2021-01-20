@@ -18,6 +18,8 @@ namespace poprithms {
 namespace memory {
 namespace alias {
 
+Graph::~Graph() = default;
+
 std::ostream &operator<<(std::ostream &ost, BroadcastPadding single) {
   switch (single) {
   case BroadcastPadding::Yes: {
@@ -42,7 +44,8 @@ TensorId Graph::concat(const TensorIds &ids, uint64_t axis) {
 TensorId Graph::settfill(const TensorIds &ids,
                          const DisjointRegions &regions) {
   if (ids.size() == 0 || regions.size() == 0) {
-    throw error("settfill requires more than 0 inputs");
+    throw error(
+        "settfill requires more than 0 inputs, and non-empty Regions");
   }
   const auto outShape = regions.at(0).shape();
   return createNode<SettFill>(ids, outShape, regions);
@@ -671,7 +674,7 @@ void Graph::Workspace::clear(const TensorIds &sched) {
   }
 }
 
-// This implementation works vy performing a depth-first search for all
+// This implementation works by performing a depth-first search for all
 // Tensors preceding the Tensor clone, and creating a clone of all of them.
 // Example:
 //
