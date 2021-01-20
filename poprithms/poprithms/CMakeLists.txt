@@ -185,6 +185,12 @@ set(memory_alias_sources
   ${memory_src_dir}/alias/tensor.cpp
 )
 
+set(memory_chain_sources
+	${memory_src_dir}/chain/error.cpp
+	${memory_src_dir}/chain/chain.cpp
+	${memory_src_dir}/chain/logging.cpp
+)
+
 set(memory_inplace_sources
        ${memory_src_dir}/inplace/consumer.cpp
        ${memory_src_dir}/inplace/crosslink.cpp
@@ -215,6 +221,13 @@ add_library(poprithms-memory-alias SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
+add_library(poprithms-memory-chain-objlib OBJECT ${memory_chain_sources})
+add_library(poprithms-memory-chain SHARED
+  $<TARGET_OBJECTS:poprithms-memory-chain-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
 add_library(poprithms-memory-inplace-objlib OBJECT ${memory_inplace_sources})
 add_library(poprithms-memory-inplace SHARED
   $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
@@ -231,6 +244,7 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-chain-objlib>
   $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
@@ -257,6 +271,8 @@ foreach(tgt IN ITEMS
   poprithms-memory-nest
   poprithms-memory-alias-objlib
   poprithms-memory-alias
+  poprithms-memory-chain-objlib
+  poprithms-memory-chain
   poprithms-memory-inplace-objlib
   poprithms-memory-inplace
   poprithms-util-objlib

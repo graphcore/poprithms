@@ -3,6 +3,7 @@
 #define POPRITHMS_NDARRAY_ACCESSORS_HPP
 
 #include <array>
+#include <initializer_list>
 #include <ostream>
 #include <vector>
 
@@ -14,6 +15,16 @@
 
 namespace poprithms {
 namespace ndarray {
+
+template <typename T>
+std::vector<uint64_t> get_u64(const std::vector<T> &ds) {
+  std::vector<uint64_t> vs;
+  vs.reserve(ds.size());
+  for (auto x : ds) {
+    vs.push_back(x.get());
+  }
+  return vs;
+}
 
 struct BaseScalarU64 {
   BaseScalarU64(uint64_t v_) : val(v_) {}
@@ -78,28 +89,36 @@ struct Steps : public BaseVectorI64 {
       : BaseVectorI64(std::move(s)) {}
 };
 
-struct Dilations : public BaseVectorU64 {
-  explicit Dilations(const std::vector<uint64_t> &d);
-  explicit Dilations(std::vector<uint64_t> &&d);
-  Dilations() : BaseVectorU64() {}
-  explicit Dilations(const std::vector<Dilation> &);
-  Dilation at(uint64_t d) const { return Dilation(vals[d]); }
-};
-
 struct Strides : public BaseVectorU64 {
-  explicit Strides(const std::vector<uint64_t> &d);
-  explicit Strides(std::vector<uint64_t> &&d);
   Strides() : BaseVectorU64() {}
-  explicit Strides(const std::vector<Stride> &);
+  explicit Strides(const std::vector<uint64_t> &d) : BaseVectorU64(d) {}
+  explicit Strides(std::initializer_list<uint64_t> d) : BaseVectorU64(d) {}
+  explicit Strides(std::vector<uint64_t> &&d) : BaseVectorU64(std::move(d)) {}
+  explicit Strides(const std::vector<Stride> &d) : Strides(get_u64(d)) {}
   Stride at(uint64_t d) const { return Stride(vals[d]); }
 };
-std::ostream &operator<<(std::ostream &, const Strides &);
+std::ostream &operator<<(std::ostream &, const Stride &);
+
+struct Dilations : public BaseVectorU64 {
+  Dilations() : BaseVectorU64() {}
+  explicit Dilations(const std::vector<uint64_t> &d) : BaseVectorU64(d) {}
+  explicit Dilations(std::initializer_list<uint64_t> d) : BaseVectorU64(d) {}
+  explicit Dilations(std::vector<uint64_t> &&d)
+      : BaseVectorU64(std::move(d)) {}
+  explicit Dilations(const std::vector<Dilation> &d)
+      : Dilations(get_u64(d)) {}
+  Dilation at(uint64_t d) const { return Dilation(vals[d]); }
+};
+std::ostream &operator<<(std::ostream &, const Dilations &);
 
 struct Dimensions : public BaseVectorU64 {
-  explicit Dimensions(const std::vector<uint64_t> &d);
-  explicit Dimensions(std::vector<uint64_t> &&d);
   Dimensions() : BaseVectorU64() {}
-  explicit Dimensions(const std::vector<Dimension> &);
+  explicit Dimensions(const std::vector<uint64_t> &d) : BaseVectorU64(d) {}
+  explicit Dimensions(std::initializer_list<uint64_t> d) : BaseVectorU64(d) {}
+  explicit Dimensions(std::vector<uint64_t> &&d)
+      : BaseVectorU64(std::move(d)) {}
+  explicit Dimensions(const std::vector<Dimension> &d)
+      : Dimensions(get_u64(d)) {}
   Dimension at(uint64_t d) const { return Dimension(vals[d]); }
 };
 std::ostream &operator<<(std::ostream &, const Dimensions &);
