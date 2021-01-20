@@ -15,5 +15,13 @@ std::string lowercase(const std::string &x) {
   return lower;
 }
 
+std::string spaceString(uint64_t target, const std::string &ts) {
+  uint64_t taken = ts.size();
+  if (taken > target) {
+    return std::string(" ");
+  }
+  return std::string(target - taken + 1, ' ');
+}
+
 } // namespace util
 } // namespace poprithms
