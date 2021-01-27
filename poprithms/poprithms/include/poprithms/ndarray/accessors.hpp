@@ -120,6 +120,9 @@ struct Dimensions : public BaseVectorU64 {
   explicit Dimensions(const std::vector<Dimension> &d)
       : Dimensions(get_u64(d)) {}
   Dimension at(uint64_t d) const { return Dimension(vals[d]); }
+
+  /** Concatenate the Dimensions in \a rhs to these Dimensions. */
+  Dimensions append(const Dimensions &rhs) const;
 };
 std::ostream &operator<<(std::ostream &, const Dimensions &);
 

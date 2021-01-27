@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <numeric>
+#include <sstream>
 
 #include <poprithms/util/error.hpp>
 #include <poprithms/util/permutation.hpp>
@@ -83,6 +84,31 @@ bool Permutation::isIdentity() const {
     }
   }
   return true;
+}
+
+std::vector<uint64_t>
+Permutation::mapBackward(const std::vector<uint64_t> &indicesAfter) const {
+
+  for (auto i : indicesAfter) {
+    if (i >= size()) {
+      std::ostringstream oss;
+      oss << "Invalid value in mapBackwards, " << i
+          << ", for this Permutation which is only of size  " << size()
+          << '.';
+      throw error(oss.str());
+    }
+  }
+  std::vector<uint64_t> indicesBefore;
+  indicesBefore.reserve(indicesAfter.size());
+  for (auto i : indicesAfter) {
+    indicesBefore.push_back(permutation[i]);
+  }
+  return indicesBefore;
+}
+
+std::vector<uint64_t>
+Permutation::mapForward(const std::vector<uint64_t> &indicesBefore) const {
+  return inverse().mapBackward(indicesBefore);
 }
 
 std::ostream &operator<<(std::ostream &ost, const Permutation &p) {

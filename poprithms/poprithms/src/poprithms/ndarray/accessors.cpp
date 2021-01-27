@@ -59,5 +59,12 @@ std::ostream &operator<<(std::ostream &o, const Dimensions &s) {
   return o;
 }
 
+Dimensions Dimensions::append(const Dimensions &rhs) const {
+  auto a       = get();
+  const auto b = rhs.get();
+  a.insert(a.end(), b.cbegin(), b.cend());
+  return Dimensions(a);
+}
+
 } // namespace ndarray
 } // namespace poprithms

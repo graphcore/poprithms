@@ -186,9 +186,11 @@ set(memory_alias_sources
 )
 
 set(memory_chain_sources
-	${memory_src_dir}/chain/error.cpp
 	${memory_src_dir}/chain/chain.cpp
+	${memory_src_dir}/chain/error.cpp
 	${memory_src_dir}/chain/logging.cpp
+	${memory_src_dir}/chain/op.cpp
+	${memory_src_dir}/chain/type.cpp
 )
 
 set(memory_inplace_sources

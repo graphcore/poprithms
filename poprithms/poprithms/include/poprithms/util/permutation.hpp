@@ -76,6 +76,24 @@ public:
     return permuted;
   }
 
+  /**
+   * Suppose this permutation is (1 2 0). Then
+   *   mapForward({0})     is {2}
+   *   mapForward({0,1})   is {2,0}
+   *   mapForward({0,1,2}) is {2,0,1}.
+   * */
+  std::vector<uint64_t>
+  mapForward(const std::vector<uint64_t> &indicesBefore) const;
+
+  /**
+   * Suppose this permutation is (1 2 0). Then
+   *   mapBackward({0})     is {1}
+   *   mapBackward({0,1})   is {1,2}
+   *   mapBackward({0,1,2}) is {1,2,0}.
+   * */
+  std::vector<uint64_t>
+  mapBackward(const std::vector<uint64_t> &indicesAfter) const;
+
   bool operator==(const Permutation &rhs) const {
     return permutation == rhs.permutation;
   }

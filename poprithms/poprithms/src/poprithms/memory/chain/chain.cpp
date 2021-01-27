@@ -3,57 +3,15 @@
 #include <sstream>
 #include <variant>
 
+#include <memory/chain/op.hpp>
 #include <poprithms/memory/chain/chain.hpp>
 #include <poprithms/memory/chain/error.hpp>
+#include <poprithms/memory/chain/type.hpp>
 #include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace chain {
-
-// C++ 17, so this cannot appear in chain.hpp as poprithms is C++11 API.
-using Variant = std::variant<Shape, Region, Permutation, Dimensions>;
-
-/** An attribute of an Op. The attribute is one of
- *     Shape,
- *     Region,
- *     Permutation, and
- *     Dimensions.
- *
- * The use of std::variant ensures that
- * sizeof(Attr) =
- * max(sizeof(Shape), sizeof(Region), sizeof(Permutation), sizeof(Dimensions)
- * */
-class Chain::Attr {
-public:
-  template <class T> Attr(const T &t) : v(t) {}
-
-  const Shape &shape() const { return std::get<Shape>(v); }
-  const Region &region() const { return std::get<Region>(v); }
-  const Permutation &permutation() const { return std::get<Permutation>(v); }
-  const Dimensions &dimensions() const { return std::get<Dimensions>(v); }
-  const Variant &var() const { return v; }
-
-private:
-  Variant v;
-};
-
-class Chain::Op {
-public:
-  Op(Type t, const Shape &o, const Attr &a)
-      : type_(t), outShape_(o), attr_(a) {}
-  Type type() const { return type_; }
-  Shape outShape() const { return outShape_; }
-  const Attr &attr() const { return attr_; }
-
-  bool operator==(const Op &) const;
-  bool operator!=(const Op &rhs) const { return !operator==(rhs); }
-
-private:
-  Type type_;
-  Shape outShape_;
-  Attr attr_;
-};
 
 class Chain::Ops {
 public:
@@ -63,16 +21,11 @@ public:
   std::vector<Op> ops;
 };
 
-template <typename X>
-Chain &Chain::append(Type t, const Shape &o, const X &a) {
+template <typename X> void Chain::append(Type t, const Shape &o, const X &a) {
   ops_.uptr->ops.push_back({t, o, a});
-  return *this;
 }
 
-Chain &Chain::append(const Op &op) {
-  ops_.uptr->ops.push_back(op);
-  return *this;
-}
+void Chain::append(const Op &op) { ops_.uptr->ops.push_back(op); }
 
 Chain Chain::mirror() const {
   Chain rev(outShape());
@@ -118,176 +71,180 @@ Chain Chain::mirror() const {
   return rev;
 }
 
-Chain &Chain::reshape(const Shape &s) {
+void Chain::reshape(const Shape &s) {
   outShape().assertSameNumberOfElements(s);
-  return append(Type::Reshape, s, s);
+  append(Type::Reshape, s, s);
 }
 
-Chain &Chain::reduce(const Shape &s) {
+void Chain::reduce(const Shape &s) {
   outShape().assertCanReduceTo(s);
-  return append(Type::Expand, s, s);
+  append(Type::Reduce, s, s);
 }
 
-Chain &Chain::expand(const Shape &s) {
+void Chain::expand(const Shape &s) {
   outShape().assertCanExpandTo(s);
-  return append(Type::Reduce, s, s);
+  append(Type::Expand, s, s);
 }
 
-Chain &Chain::settSample(const Region &r) {
+void Chain::settSample(const Region &r) {
   if (outShape() != r.shape()) {
     std::ostringstream oss;
     oss << "Chain::settSample: Region's Shape, " << r.shape()
         << " is not the same as outShape(), " << outShape();
     throw error(oss.str());
   }
-  return append(Type::SettSample, {r.nelms()}, r);
+  append(Type::SettSample, {r.nelms()}, r);
 }
 
-Chain &Chain::settSample(const std::vector<nest::Sett> &setts) {
-  return settSample(Region(outShape(), setts));
+void Chain::settSample(const std::vector<nest::Sett> &setts) {
+  settSample(Region(outShape(), setts));
 }
 
-Chain &Chain::settFillInto(const Region &r) {
+void Chain::settFillInto(const Region &r) {
   if (outShape() != r.nelms()) {
     std::ostringstream oss;
     oss << "Chain::settFillInto: Region r has nelms=" << Shape(r.nelms())
-        << ". This should match outShape, " << outShape();
+        << ". This should match outShape, " << outShape()
+        << ". This for Chain\n"
+        << *this;
     throw error(oss.str());
   }
-  return append(Type::SettFillInto, r.shape(), r);
+  append(Type::SettFillInto, r.shape(), r);
 }
 
-Chain &Chain::settFillInto(const Lower &l, const Upper &u) {
+void Chain::settFillInto(const Lower &l, const Upper &u) {
   const auto oShape = outShape().pad(l, u);
-  return settFillInto(
-      Region::fromBounds(oShape, l, outShape().addToDims(l).get()));
+  settFillInto(Region::fromBounds(oShape, l, outShape().addToDims(l).get()));
 }
 
-Chain &Chain::settFillInto(Stride s, Dimension d) {
+void Chain::settFillInto(Stride s, Dimension d) {
   const auto oShape = outShape().scale(s, d);
-  return settFillInto(Region::fromStrideAndDim(oShape, s, d));
+  settFillInto(Region::fromStrideAndDim(oShape, s, d));
 }
 
-Chain &Chain::reverse(const Dimensions &d) {
-  return append(Type::Reverse,
-                outShape(),
-                Dimensions(outShape().getCanonicalReverseIndices(d.get())));
+void Chain::reverse(const Dimensions &d) {
+  append(Type::Reverse,
+         outShape(),
+         Dimensions(outShape().getCanonicalReverseIndices(d.get())));
 }
 
-Chain &Chain::dimShuffle(const Permutation &p) {
+void Chain::reverse(Dimension d) { reverse(Dimensions({d})); }
+
+void Chain::dimShuffle(const Permutation &p) {
   return append(Type::DimShuffle, outShape().dimShuffle(p), p);
 }
 
-Chain Chain::removeIdentity() const {
-  Chain after(inShape());
-  for (uint64_t i = 0; i < nOps(); ++i) {
-    if (!isIdentity(i)) {
-      after.append(op(i));
+bool Chain::tryMergeLastTwo() {
+  if (nOps() < 2) {
+    return false;
+  }
+
+  // A SettFill followed by a SettSample of the exact same Region.
+  //
+  //
+  // settFill(region0)
+  // |
+  // v
+  //    settSample(region0)
+  //    |
+  //    v
+  //   .
+  //   x
+  //  /.\       .
+  // x . x
+  // x-x-x
+  // x . x
+  //  \./       .
+  //   x
+  //   .
+  // ^
+  // |
+  // in
+  //     ^
+  //     |
+  //    out
+  //
+  // same Region out.
+  //
+  if (type(nOps() - 2) == Type::SettFillInto &&
+      type(nOps() - 1) == Type::SettSample &&
+      region(nOps() - 1).equivalent(region(nOps() - 2))) {
+    popBack();
+    popBack();
+    return true;
+  }
+
+  // Case of 2 contiguous Ops of the same type. They can sometimes be merged.
+  if (type(nOps() - 1) == type(nOps() - 2)) {
+
+    const auto t     = type(nOps() - 1);
+    const auto shape = outShape(nOps() - 1);
+    switch (t) {
+
+    // Merging a sub-Chain of Reshapes, or of Expands, or of Reduces is
+    // simple: Just jump straight to the final Shape.
+    case Type::Reshape:
+    case Type::Expand:
+    case Type::Reduce: {
+      popBack();
+      popBack();
+      append(t, shape, shape);
+      return true;
+    }
+
+    // Merging DimShuffles consists of composing (multiplying) all of the
+    // Permutations together.
+    case Type::DimShuffle: {
+      const auto p = permutation(nOps() - 2).mul(permutation(nOps() - 1));
+      popBack();
+      popBack();
+      dimShuffle(p);
+      return true;
+    }
+
+    // Merging Reverses consists of simply concatenating the Dimensions of
+    // reversal.
+    case Type::Reverse: {
+      const auto dims = dimensions(nOps() - 2).append(dimensions(nOps() - 1));
+      popBack();
+      popBack();
+      reverse(dims);
+      return true;
+    }
+
+    // Merging SettSamples (slices, subSamples):
+    // Starting at the end of the sub-Chain, fill the sampling Region into
+    // the preceding SettSample's Region.
+    case Type::SettSample: {
+      auto merged = region(nOps() - 1).settFillInto(region(nOps() - 2));
+      if (merged.size() > 1) {
+        // It's not possible to merge these SettSamples, their Regions are not
+        // compatible for merging (they are "co-prime").
+        break;
+      }
+      popBack();
+      popBack();
+      settSample(merged.at(0));
+      return true;
+    }
+
+    // Merging SettFillInto:
+    case Type::SettFillInto: {
+      auto merged = region(nOps() - 2).settFillInto(region(nOps() - 1));
+      if (merged.size() > 1) {
+        // It's not possible to merge these SettFillIntos, their Regions are
+        // not compatible for merging (they are "co-prime").
+        break;
+      }
+      popBack();
+      popBack();
+      settFillInto(merged.at(0));
+      return true;
+    }
     }
   }
-  return after;
-}
 
-Chain Chain::mergeContiguousSameType() const {
-  Chain after(inShape());
-  uint64_t start{0};
-  while (start < nOps()) {
-
-    // from "start", move "stop" forward until an Op of a different type is
-    // found.
-    auto stop = start + 1;
-    while (stop < nOps() && type(stop) == type(start)) {
-      ++stop;
-    }
-
-    // The interval [start, stop) contains at least 2 Ops of the same type.
-    if (stop - start > 1) {
-      const auto t     = type(start);
-      const auto shape = outShape(stop - 1);
-      switch (t) {
-
-      // Merging a sub-Chain of Reshapes, or of Expands, or of Reduces is
-      // simple: Just jump straight to the final Shape.
-      case Type::Reshape:
-      case Type::Expand:
-      case Type::Reduce: {
-        after.append(type(start), shape, shape);
-        break;
-      }
-
-      // Merging DimShuffles consists of composing (multiplying) all of the
-      // Permutations together.
-      case Type::DimShuffle: {
-        const Permutation p =
-            std::accumulate(ops_.uptr->ops.cbegin() + start,
-                            ops_.uptr->ops.cbegin() + stop,
-                            Permutation::identity(shape.rank_u64()),
-                            [](const Permutation &a, const Op &b) {
-                              return a.mul(b.attr().permutation());
-                            });
-        after.dimShuffle(p);
-        break;
-      }
-
-      // Merging Reverses consists of simply concatenating the Dimensions of
-      // reversal.
-      case Type::Reverse: {
-        std::vector<uint64_t> allDims;
-        for (uint64_t i = start; i < stop; ++i) {
-          const auto nxt = dimensions(i).get();
-          allDims.insert(allDims.end(), nxt.cbegin(), nxt.cend());
-        }
-        after.reverse(Dimensions(allDims));
-        break;
-      }
-
-      // Merging SettSamples (slices, subSamples):
-      // Starting at the end of the sub-Chain, fill the sampling Region into
-      // the preceding SettSample's Region.
-      case Type::SettSample: {
-        uint64_t current = stop - 1;
-        std::vector<Region> rev;
-        auto merged = region(current);
-        while (current > start) {
-          auto nxt = merged.settFillInto(region(current - 1));
-          if (nxt.size() == 1) {
-            merged = nxt.at(0);
-          } else {
-            rev.push_back(merged);
-            merged = region(current - 1);
-          }
-          --current;
-        }
-        rev.push_back(merged);
-        for (auto pr = rev.crbegin(); pr != rev.crend(); ++pr) {
-          after.settSample(*pr);
-        }
-        break;
-      }
-
-      // Merging SettFillInto:
-      case Type::SettFillInto: {
-        uint64_t current = start;
-        auto merged      = region(current);
-        while (current < stop - 1) {
-          auto nxt = merged.settFillInto(region(current + 1));
-          if (nxt.size() == 1) {
-            merged = nxt.at(0);
-          } else {
-            after.settFillInto(merged);
-            merged = region(current + 1);
-          }
-          ++current;
-        }
-        after.settFillInto(merged);
-      }
-      }
-    } else {
-      after.append(op(start));
-    }
-    start = stop;
-  }
-  return after;
+  return false;
 }
 
 bool Chain::isIdentity(uint64_t opIndex) const {
@@ -316,26 +273,125 @@ bool Chain::isIdentity(uint64_t opIndex) const {
 //   bool Chain::randomRegionMappingEquivalent(const Chain &rhs,
 //                                      uint64_t nRandomRegions) const;
 
-// TODO(T32929) improve complexity of this algorithm.
-Chain Chain::canonicalize() const {
+void Chain::canonicalize() {
 
-  auto c0 = *this;
-  auto n0 = nOps();
-  bool converged{false};
-  while (!converged) {
-    converged = true;
-    auto c1   = c0.removeIdentity().mergeContiguousSameType();
-    // TODO(T32930) a pass to sort the Ops.
-
-    auto n1 = c1.nOps();
-
-    if (n1 != n0) {
-      converged = false;
-    }
-    c0 = c1;
-    n0 = n1;
+  // Check if the full Region gets mapped to the empty Region, if it does, it
+  // can be represented as a simple mask.
+  if (apply(DisjointRegions::createFull(inShape())).empty()) {
+    ops_.uptr->ops.clear();
+    mask(Region::createEmpty(outShape()));
+    return;
   }
-  return c0;
+
+  bool changed{true};
+
+  // Iteratively try canonicalization passes, until the Chain is unchanged.
+  // It is guaranteed that this does terminate, as there are no circular
+  // sequences of passes: they all either reduce the number of Ops, or move
+  // the Chain towards alphabetical order.
+  //
+  while (changed) {
+    changed = false;
+
+    // Store and clear the current Ops.
+    auto oldOps = ops_.uptr->ops;
+    ops_.uptr->ops.clear();
+
+    for (const auto &oldOp : oldOps) {
+
+      // Push the old Op into the new Chain. The passes which follow will try
+      // and remove / move it.
+      append(oldOp);
+
+      // remove identities.
+      while (nOps() > 0 && isIdentity(nOps() - 1)) {
+        popBack();
+        changed = true;
+      }
+
+      // merge or remove the back 2 Ops.
+      bool blocked = false;
+      while (!blocked) {
+        auto merged = tryMergeLastTwo();
+        if (merged) {
+          changed = true;
+        } else {
+          blocked = true;
+        }
+      }
+
+      // try bubbling the back Op backwards, towards the front of the Chain.
+      // we try and keep Ops in alphabetical order. This makes the pass which
+      // merges compatible Ops more likely to succeed, so that even though
+      // this pass does not reduce the number of Ops in this Chain, it makes
+      // it more likely for other Op-reducing passes to succeed.
+      if (nOps() > 1) {
+        uint64_t current = nOps() - 1;
+        bool bubbled{true};
+        while (bubbled) {
+          bubbled = tryBubbleBack(current);
+          current -= 1;
+        }
+      }
+    }
+  }
+}
+
+bool Chain::tryBubbleBack(uint64_t i1) {
+
+  // Cannot bubble back if already at the front.
+  if (i1 == 0) {
+    return false;
+  }
+
+  const auto i0 = i1 - 1;
+
+  auto &op0 = op(i0);
+  auto &op1 = op(i1);
+
+  const auto inShape0 = inShape(i0);
+
+  const auto t0 = op0.type();
+  const auto t1 = op1.type();
+
+  // Only back if (op0, op1) are not lexicographically sorted.
+  if (static_cast<uint64_t>(t0) <= static_cast<uint64_t>(t1)) {
+    return false;
+  }
+
+  switch (t1) {
+
+    // Try bubbling DimShuffle back.
+  case Type::DimShuffle: {
+    return Op::bubbleDimShuffleBack(inShape0, op0, op1);
+  }
+
+  case Type::Expand: {
+    return Op::bubbleExpandBack(inShape0, op0, op1);
+  }
+
+  case Type::Reduce: {
+    return Op::bubbleReduceBack(inShape0, op0, op1);
+  }
+
+  case Type::Reshape: {
+    return Op::bubbleReshapeBack(inShape0, op0, op1);
+  }
+
+  case Type::Reverse: {
+    return Op::bubbleReverseBack(inShape0, op0, op1);
+  }
+
+  case Type::SettSample: {
+    return Op::bubbleSettSampleBack(inShape0, op0, op1);
+  }
+
+  case Type::SettFillInto: {
+    return Op::bubbleSettFillIntoBack(inShape0, op0, op1);
+  }
+  }
+
+  throw error("Unhandled type in tryBubbleBack:  " + getTypeString(t1));
 }
 
 Shape Chain::inShape(uint64_t opIndex) const {
@@ -354,33 +410,25 @@ Shape Chain::outShape() const {
 
 void Chain::append(std::ostream &ost, uint64_t opIndex) const {
   const auto shape = outShape(opIndex);
+  ost << getTypeString(type(opIndex)) << '(';
   switch (type(opIndex)) {
-  case Chain::Type::Reshape: {
-    ost << "Reshape(" << shape << ')';
+  case Type::Reshape:
+  case Type::Expand:
+  case Type::Reduce: {
+    ost << shape << ')';
     break;
   }
-  case Chain::Type::Expand: {
-    ost << "Expand(" << shape << ')';
+  case Type::DimShuffle: {
+    ost << permutation(opIndex) << ')';
     break;
   }
-  case Chain::Type::Reduce: {
-    ost << "Reduce(" << shape << ')';
+  case Type::Reverse: {
+    ost << dimensions(opIndex) << ')';
     break;
   }
-  case Chain::Type::DimShuffle: {
-    ost << "DimShuffle(" << permutation(opIndex) << ')';
-    break;
-  }
-  case Chain::Type::Reverse: {
-    ost << "Reverse(" << dimensions(opIndex) << ')';
-    break;
-  }
-  case Chain::Type::SettSample: {
-    ost << "SettSample(" << region(opIndex).setts() << ')';
-    break;
-  }
-  case Chain::Type::SettFillInto: {
-    ost << "SettFillInto(" << region(opIndex).setts() << ')';
+  case Type::SettSample:
+  case Type::SettFillInto: {
+    ost << region(opIndex).setts() << ')';
     break;
   }
   }
@@ -426,53 +474,15 @@ Shape Chain::outShape(uint64_t opIndex) const {
 
 uint64_t Chain::nOps() const { return ops_.uptr->ops.size(); }
 
-Chain &Chain::slice(const Lower &l, const Upper &u) {
-  return settSample(Region::fromBounds(outShape(), l, u));
+void Chain::slice(const Lower &l, const Upper &u) {
+  settSample(Region::fromBounds(outShape(), l, u));
 }
 
-Chain &Chain::subSample(Stride s, Dimension d) {
-  return settSample(Region::fromStrideAndDim(outShape(), s, d));
+void Chain::subSample(Stride s, Dimension d) {
+  settSample(Region::fromStrideAndDim(outShape(), s, d));
 }
 
 Shape Chain::inShape() const { return inShape_; }
-
-namespace {
-
-template <typename> struct tag {};
-
-template <typename T, typename V> struct getIndex;
-
-template <typename T, typename... Ts>
-struct getIndex<T, std::variant<Ts...>>
-    : std::integral_constant<size_t,
-                             std::variant<tag<Ts>...>(tag<T>()).index()> {};
-
-template <typename T> struct getVariantIndex : getIndex<T, Variant> {};
-
-} // namespace
-
-bool Chain::Op::operator==(const Op &rhs) const {
-  if (type() != rhs.type()) {
-    return false;
-  }
-
-  switch (attr().var().index()) {
-  case (getVariantIndex<Region>()): {
-    return attr().region().equivalent(rhs.attr().region());
-  }
-  case (getVariantIndex<Shape>()): {
-    return attr().shape() == rhs.attr().shape();
-  }
-  case (getVariantIndex<Permutation>()): {
-    return attr().permutation() == rhs.attr().permutation();
-  }
-  case (getVariantIndex<Dimensions>()): {
-    return attr().dimensions() == rhs.attr().dimensions();
-  }
-  }
-
-  throw error("Exited switch in Chain::operator== without returning");
-}
 
 bool Chain::operator==(const Chain &rhs) const {
   if (inShape() != rhs.inShape()) {
@@ -503,8 +513,8 @@ void Chain::confirmEqual(const Chain &rhs) const {
   }
 }
 
-const Chain::Op &Chain::op(uint64_t i) const { return ops_.uptr->ops[i]; }
-Chain::Op &Chain::op(uint64_t i) { return ops_.uptr->ops[i]; }
+const Op &Chain::op(uint64_t i) const { return ops_.uptr->ops[i]; }
+Op &Chain::op(uint64_t i) { return ops_.uptr->ops[i]; }
 
 Region Chain::region(uint64_t id) const { return op(id).attr().region(); }
 Permutation Chain::permutation(uint64_t id) const {
@@ -513,7 +523,7 @@ Permutation Chain::permutation(uint64_t id) const {
 Dimensions Chain::dimensions(uint64_t id) const {
   return op(id).attr().dimensions();
 }
-Chain::Type Chain::type(uint64_t id) const { return op(id).type(); }
+Type Chain::type(uint64_t id) const { return op(id).type(); }
 
 Chain::~Chain()             = default;
 Chain::Chain(const Chain &) = default;
@@ -522,7 +532,7 @@ Chain::Chain(Chain &&)      = default;
 Chain &Chain::operator=(const Chain &) = default;
 Chain &Chain::operator=(Chain &&) = default;
 
-Chain &Chain::append(const Chain &rhs) {
+void Chain::append(const Chain &rhs) {
 
   if (outShape() != rhs.inShape()) {
 
@@ -537,9 +547,20 @@ Chain &Chain::append(const Chain &rhs) {
   ops_.uptr->ops.insert(ops_.uptr->ops.end(),
                         rhs.ops_.uptr->ops.cbegin(),
                         rhs.ops_.uptr->ops.cend());
-
-  return *this;
 }
+
+void Chain::mask(const Region &r) {
+  settSample(r);
+  settFillInto(r);
+}
+
+Chain Chain::canonicalized() const {
+  auto c = *this;
+  c.canonicalize();
+  return c;
+}
+
+void Chain::popBack() { ops_.uptr->ops.pop_back(); }
 
 Chain::Chain(const Shape &s) : ops_(std::make_unique<Ops>()), inShape_(s) {}
 

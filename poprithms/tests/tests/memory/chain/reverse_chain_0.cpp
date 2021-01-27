@@ -11,21 +11,20 @@ using namespace poprithms::memory::chain;
 
 void testReverseChain0() {
 
-  const auto chain = Chain({10, 20, 30})
-                         .reshape({5, 10, 120})
-                         .dimShuffle({{1, 2, 0}})
-                         .reverse(Dimensions({2}))
-                         .settSample({{{{1, 1, 0}}}, {{{1, 1, 0}}}, {{{}}}});
+  Chain chain({10, 20, 30});
+  chain.reshape({5, 10, 120});
+  chain.dimShuffle({{1, 2, 0}});
+  chain.reverse(Dimensions({2}));
+  chain.settSample({{{{1, 1, 0}}}, {{{1, 1, 0}}}, {{{}}}});
 
   const auto revChain = chain.mirror();
 
-  const auto expected =
-      Chain({5, 60, 5})
-          .settFillInto(
-              Region({10, 120, 5}, {{{{1, 1, 0}}}, {{{1, 1, 0}}}, {{{}}}}))
-          .reverse(Dimensions({2}))
-          .dimShuffle({{2, 0, 1}})
-          .reshape({10, 20, 30});
+  Chain expected({5, 60, 5});
+  expected.settFillInto(
+      Region({10, 120, 5}, {{{{1, 1, 0}}}, {{{1, 1, 0}}}, {{{}}}}));
+  expected.reverse(Dimensions({2}));
+  expected.dimShuffle({{2, 0, 1}});
+  expected.reshape({10, 20, 30});
 
   revChain.confirmEqual(expected);
 }
