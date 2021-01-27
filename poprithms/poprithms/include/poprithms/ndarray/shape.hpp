@@ -621,6 +621,15 @@ public:
   gatherRowMajorIndices(uint64_t dimension,
                         const std::vector<int64_t> &where) const;
 
+  /** Gather row major indices along all dimensions. See also the 1-d
+   * gatherRowMajorIndices.
+   *
+   * \param where The positions to gather in each dimension. This vector must
+   *              have size equal to this Shape's rank.
+   * */
+  std::vector<int64_t>
+  gatherRowMajorIndices(const std::vector<std::vector<int64_t>> &where) const;
+
   /**
    * Gather slices of the column major indices of this Shape
    *
@@ -817,6 +826,9 @@ public:
   void assertValidDimension(uint64_t d) const;
 
   void assertSameNumberOfElements(const Shape &) const;
+
+  void validateGatherIndices(uint64_t d,
+                             const std::vector<int64_t> &where) const;
 
   void assertCanExpandTo(const Shape &to) const;
 

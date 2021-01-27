@@ -1,12 +1,12 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_COMPUTE_HOST_ROWMAJOR_HPP
-#define POPRITHMS_COMPUTE_HOST_ROWMAJOR_HPP
-#include "ieeehalf.hpp"
-#include "typeddata.hpp"
-
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#ifndef POPRITHMS_COMPUTE_HOST_ORIGINDATA_HPP
+#define POPRITHMS_COMPUTE_HOST_ORIGINDATA_HPP
 #include <cstring>
 #include <memory>
 
+#include <compute/host/include/baseoperators.hpp>
+#include <compute/host/include/ieeehalf.hpp>
+#include <compute/host/include/typeddata.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/compute/host/viewchange.hpp>
 #include <poprithms/ndarray/dtype.hpp>
@@ -90,6 +90,14 @@ public:
                     const std::vector<int64_t> &where) const final {
     return std::make_shared<AllocData<T>>(
         ViewChange<T>::gather({from, dataPtr()}, dimension, where));
+  }
+
+  BaseDataSP
+  scatterToZero(const Shape &inShape,
+                const Shape &outShape,
+                const std::vector<std::vector<int64_t>> &where) const final {
+    return std::make_shared<AllocData<T>>(
+        ViewChange<T>::scatterToZero({inShape, dataPtr()}, outShape, where));
   }
 
   BaseDataSP

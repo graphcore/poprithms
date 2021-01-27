@@ -1,10 +1,10 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_TYPEDTENSORDATA_HPP
 #define POPRITHMS_COMPUTE_HOST_TYPEDTENSORDATA_HPP
-#include "basedata.hpp"
-#include "numpyformatter.hpp"
-
 #include <memory>
+
+#include <compute/host/include/basedata.hpp>
+#include <compute/host/include/numpyformatter.hpp>
 
 namespace poprithms {
 namespace compute {

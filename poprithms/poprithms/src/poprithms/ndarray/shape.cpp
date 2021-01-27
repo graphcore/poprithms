@@ -701,16 +701,8 @@ Shape Shape::subSample(const std::vector<uint64_t> &strides) const {
   return outShape;
 }
 
-std::vector<int64_t>
-Shape::gatherRowMajorIndices(uint64_t dimension,
-                             const std::vector<int64_t> &where) const {
-  if (dimension >= rank_u64()) {
-    std::ostringstream oss;
-    oss << "Invalid dimension (" << dimension << ") for Shape " << *this
-        << ", dimension must be less than rank (" << rank_u64() << ").";
-    throw error(oss.str());
-  }
-
+void Shape::validateGatherIndices(uint64_t dimension,
+                                  const std::vector<int64_t> &where) const {
   for (auto w : where) {
     if (w >= dim(dimension)) {
       std::ostringstream oss;
@@ -722,6 +714,19 @@ Shape::gatherRowMajorIndices(uint64_t dimension,
       throw error(oss.str());
     }
   }
+}
+
+std::vector<int64_t>
+Shape::gatherRowMajorIndices(uint64_t dimension,
+                             const std::vector<int64_t> &where) const {
+  if (dimension >= rank_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid dimension (" << dimension << ") for Shape " << *this
+        << ", dimension must be less than rank (" << rank_u64() << ").";
+    throw error(oss.str());
+  }
+
+  validateGatherIndices(dimension, where);
 
   const auto outerSize = dimProduct(0, dimension);
   const auto innerSize = dimProduct(dimension + 1, rank_u64());
@@ -734,6 +739,44 @@ Shape::gatherRowMajorIndices(uint64_t dimension,
       int64_t baseIndex = (w + dim(dimension) * outerIndex) * innerSize;
       for (int64_t innerIndex = 0; innerIndex < innerSize; ++innerIndex) {
         indices.push_back(baseIndex + innerIndex);
+      }
+    }
+  }
+
+  return indices;
+}
+
+std::vector<int64_t> Shape::gatherRowMajorIndices(
+    const std::vector<std::vector<int64_t>> &where) const {
+
+  if (where.size() != rank_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid vector `where`, of size " << where.size()
+        << ". Expected its size to be the same as this Shape's rank, "
+        << rank_u64() << '.';
+    throw error(oss.str());
+  }
+
+  for (uint64_t dimension = 0; dimension < where.size(); ++dimension) {
+    validateGatherIndices(dimension, where[dimension]);
+  }
+
+  std::vector<int64_t> indices{0};
+  std::vector<int64_t> prevIndices;
+
+  const auto rmStrides = getRowMajorStrides();
+
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    auto d = rank_u64() - i - 1;
+
+    std::swap(indices, prevIndices);
+    indices.clear();
+    indices.reserve(prevIndices.size() * where[d].size());
+
+    for (auto w : where[d]) {
+      const auto delta = w * rmStrides[d];
+      for (auto p : prevIndices) {
+        indices.push_back(p + delta);
       }
     }
   }

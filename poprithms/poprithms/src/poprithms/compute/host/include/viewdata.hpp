@@ -1,10 +1,9 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_VIEWDATA_HPP
 #define POPRITHMS_COMPUTE_HOST_VIEWDATA_HPP
-#include "baseoperators.hpp"
-#include "gridpointhelper.hpp"
-#include "typeddata.hpp"
-
+#include <compute/host/include/baseoperators.hpp>
+#include <compute/host/include/gridpointhelper.hpp>
+#include <compute/host/include/typeddata.hpp>
 #include <poprithms/compute/host/viewchange.hpp>
 
 namespace poprithms {
@@ -181,6 +180,13 @@ public:
                     uint64_t dimension,
                     const std::vector<int64_t> &where) const final {
     return toOriginData()->gather(from, dimension, where);
+  }
+
+  BaseDataSP
+  scatterToZero(const Shape &inShape,
+                const Shape &outShape,
+                const std::vector<std::vector<int64_t>> &where) const final {
+    return toOriginData()->scatterToZero(inShape, outShape, where);
   }
 
   BaseDataSP

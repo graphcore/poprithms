@@ -1,14 +1,13 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_BASEDATA_HPP
 #define POPRITHMS_COMPUTE_HOST_BASEDATA_HPP
-#include "baseoperators.hpp"
-#include "ieeehalf.hpp"
-
 #include <algorithm>
 #include <cstring>
 #include <memory>
 #include <random>
 
+#include <compute/host/include/baseoperators.hpp>
+#include <compute/host/include/ieeehalf.hpp>
 #include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/usings.hpp>
 #include <poprithms/compute/host/viewchange.hpp>
@@ -133,12 +132,17 @@ public:
   static BaseDataSP
   concat(const ConstDataPtrs &, const Shapes &, uint64_t axis);
   virtual BaseDataSP
-  slice(const Shape &, const Lower &, const Upper &) const                = 0;
+  slice(const Shape &, const Lower &, const Upper &) const           = 0;
   virtual BaseDataSP slice(const Shape &,
-                           const NormalizedSliceParams &) const           = 0;
+                           const NormalizedSliceParams &) const      = 0;
   virtual BaseDataSP gather(const Shape &,
                             uint64_t dimension,
-                            const std::vector<int64_t> &where) const      = 0;
+                            const std::vector<int64_t> &where) const = 0;
+  virtual BaseDataSP
+  scatterToZero(const Shape &inShape,
+                const Shape &outShape,
+                const std::vector<std::vector<int64_t>> &where) const = 0;
+
   virtual BaseDataSP expand(const Shape &from, const Shape &to) const     = 0;
   virtual BaseDataSP dimShuffle(const Shape &, const Permutation &) const = 0;
   virtual BaseDataSP

@@ -1,18 +1,17 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include "./include/allocdata.hpp"
-#include "./include/basedata.hpp"
-#include "./include/externdecl.hpp"
-#include "./include/ieeehalf.hpp"
-#include "./include/pointerdata.hpp"
-#include "./include/typeswitch.hpp"
-#include "./include/viewdata.hpp"
-
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <map>
 #include <memory>
 #include <random>
 #include <sstream>
 
+#include <compute/host/include/allocdata.hpp>
+#include <compute/host/include/basedata.hpp>
+#include <compute/host/include/externdecl.hpp>
+#include <compute/host/include/ieeehalf.hpp>
+#include <compute/host/include/pointerdata.hpp>
+#include <compute/host/include/typeswitch.hpp>
+#include <compute/host/include/viewdata.hpp>
 #include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/ndarray/dtype.hpp>
@@ -504,6 +503,86 @@ Tensor Tensor::gather_(uint64_t dimension,
   return {shape().resizeSingleDim(where.size(), dimension),
           dtype(),
           tData().gather_(shape(), dimension, where)};
+}
+
+void Tensor::verifyScatter(
+    const Shape &outShape,
+    const std::vector<std::vector<int64_t>> &where) const {
+
+  if (outShape.rank_u64() != rank_u64()) {
+    std::ostringstream oss;
+    oss << "outShape in verifyScatter has rank " << outShape.rank_u64()
+        << ", but this Tensor has rank " << rank_u64() << '.';
+    throw error(oss.str());
+  }
+
+  if (outShape.rank_u64() != where.size()) {
+    std::ostringstream oss;
+    oss << "outShape in verifyScatter has rank " << outShape.rank_u64()
+        << ", but scattering indices `where` has size " << where.size();
+    throw error(oss.str());
+  }
+
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+    if (where[d].size() != dim(d)) {
+      std::ostringstream oss;
+      oss << "Incorrect size of `where` in dimension " << d << ", "
+          << where[d] << ", for this Tensor which is of size " << dim(d)
+          << " in dimension " << d << '.';
+      throw error(oss.str());
+    }
+
+    for (auto i : where[d]) {
+      if (i >= outShape.dim(d)) {
+        std::ostringstream oss;
+        oss << "Invalid value in where[" << d << "] of " << i
+            << ". All values is where[" << d << "] must be less "
+            << outShape.dim(d) << ", the " << d
+            << "'th dimension of the target scatter Shape, " << outShape
+            << ". Failure in verifyScatter.";
+        throw error(oss.str());
+      }
+    }
+  }
+}
+
+Tensor
+Tensor::scatterToZero(const Shape &outShape,
+                      const std::vector<std::vector<int64_t>> &where) const {
+  verifyScatter(outShape, where);
+  return {outShape, dtype(), tData().scatterToZero(shape(), outShape, where)};
+}
+
+Tensor
+Tensor::scatterTo(const Tensor &target,
+                  const std::vector<std::vector<int64_t>> &where) const {
+  if (target.dtype() != dtype()) {
+    std::ostringstream oss;
+    oss << "Error in Tensor::scatterTo. "
+        << "The type of this Tensor is " << dtype()
+        << ", whilst the target (to be filled into) has type "
+        << target.dtype() << '.'
+        << " They should be the same, there is no implicit casting. ";
+    throw error(oss.str());
+  }
+  verifyScatter(target.shape(), where);
+  const auto scatteredToZeros = scatterToZero(target.shape(), where);
+  const auto mask = scatterMask(target.shape(), where).to(dtype());
+
+  return scatteredToZeros * mask +
+         (Tensor::scalar(dtype(), 1.) - mask) * target;
+}
+
+Tensor
+Tensor::scatterMask(const Shape &outShape,
+                    const std::vector<std::vector<int64_t>> &whereTrue) {
+  std::vector<int64_t> inShape_;
+  inShape_.reserve(whereTrue.size());
+  for (const auto &w : whereTrue) {
+    inShape_.push_back(static_cast<int64_t>(w.size()));
+  }
+  const auto ones = Tensor::boolean(true).expand(inShape_);
+  return ones.scatterToZero(outShape, whereTrue);
 }
 
 Tensor Tensor::slice(const Starts &starts,

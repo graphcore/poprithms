@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_TENSOR_HPP
 #define POPRITHMS_COMPUTE_HOST_TENSOR_HPP
 #include <memory>
@@ -368,6 +368,7 @@ public:
   const Shape &shape() const { return shape_; }
   uint64_t rank_u64() const { return shape().rank_u64(); }
   uint64_t nelms_u64() const { return shape().nelms_u64(); }
+  uint64_t dim(uint64_t d) const { return shape().dim(d); }
   uint64_t nbytes() const {
     return nelms_u64() * ndarray::nbytes_u64(dtype());
   }
@@ -611,6 +612,58 @@ public:
   Tensor gather(uint64_t dimension, const std::vector<int64_t> &where) const;
   Tensor gather_(uint64_t dimension, const std::vector<int64_t> &where) const;
 
+  /**
+   * Scatter all the values in this Tensor into a Tensor of zeros, of Shape \a
+   * outShape. The positions where this Tensor's values are scattered to are
+   * defined by \a where. Specifically, the offsets in dimension \a d which
+   * are scattered to are \a where[d]. As an example, if this Tensor is
+   *
+   * [[ 0 1 2 ]
+   *    3 4 5 ]],
+   *
+   * and outShape is (3, 4), and
+   *
+   * \a where is ((0,2), (0,2,3)), then the returned Tensor is
+   *
+   *               0 . 2 3
+   *               |   | |
+   *               |   | |
+   *    0 ----- [[ 0 0 1 2 ]
+   *    .        [ 0 0 0 0 ]
+   *    2 -----  [ 3 0 4 5 ]].
+   *
+   * */
+  Tensor scatterToZero(const Shape &outShape,
+                       const std::vector<std::vector<int64_t>> &where) const;
+
+  /**
+   * Scatter the values in this Tensor into the Tensor \a target. This is the
+   * same as the method \a scatterToZero, except instead of having zeros in
+   * the positions in the output Tensor which are not scattered to, the values
+   * are selected from \a target.
+   *
+   * All offsets in \a where[d] must be less than \a target.dim(d).
+   * */
+  Tensor scatterTo(const Tensor &target,
+                   const std::vector<std::vector<int64_t>> &where) const;
+
+  /**
+   * Create a boolean mask, which is true at position (p_0, ... p_{N-1}) if
+   * p_0 is in \a whereTrue[0] and,
+   * p_1 is in \a whereTrue[1] and,
+   *    .
+   *    .
+   * p_{N-1} is in \a whereTrue[N-1].
+   *
+   * Example: shape = (2,5), and where = ((1), (0,2,4)) produces the mask
+   *
+   *  [[ 0 0 0 0 0 ]
+   *   [ 1 0 1 0 1 ]].
+   * */
+  static Tensor
+  scatterMask(const Shape &shape,
+              const std::vector<std::vector<int64_t>> &whereTrue);
+
   /** A generalization of a matrix transpose. */
   Tensor dimShuffle(const Permutation &) const;
   Tensor dimShuffle_(const Permutation &) const;
@@ -789,6 +842,11 @@ private:
   std::shared_ptr<BaseData> tData_;
 
   void confirmValidReshape(const Shape &) const;
+
+  /** Verify that the values in this Tensor can be scattered into a Tensor of
+   * Shape \a out, at positions \a where. */
+  void verifyScatter(const Shape &out,
+                     const std::vector<std::vector<int64_t>> &where) const;
 
   class Caster;
   class ScalarCaster;

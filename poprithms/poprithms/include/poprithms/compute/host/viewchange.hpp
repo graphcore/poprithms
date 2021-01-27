@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_VIEWCHANGE_HPP
 #define POPRITHMS_COMPUTE_HOST_VIEWCHANGE_HPP
 
@@ -177,6 +177,18 @@ public:
                                     const std::vector<int64_t> &where) {
     return fromIndices(input,
                        input.shape.gatherRowMajorIndices(dimension, where));
+  }
+
+  static std::vector<Number>
+  scatterToZero(const Data &input,
+                const Shape &outShape,
+                const std::vector<std::vector<int64_t>> &where) {
+    const auto indices = outShape.gatherRowMajorIndices(where);
+    std::vector<Number> out(outShape.nelms(), Number(0));
+    for (uint64_t i = 0; i < indices.size(); ++i) {
+      out[indices[i]] = input.data[i];
+    }
+    return out;
   }
 
   /** \return values in row-major order obtained by concatenating arrays with

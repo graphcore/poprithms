@@ -37,6 +37,9 @@ add_compute_host_test(compute_host_tensor_basic_0
 add_compute_host_test(compute_host_tensor_gather_0 
                                           gather_0.cpp)
 
+add_compute_host_test(compute_host_tensor_scatter_0 
+                                          scatter_0.cpp)
+
 add_compute_host_test(compute_host_tensor_demo_0 
                                           demo_0.cpp)
 
