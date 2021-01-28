@@ -183,10 +183,32 @@ public:
   }
 
   BaseDataSP
+  gather(const Shape &from,
+         const std::vector<std::vector<int64_t>> &where) const final {
+    return toOriginData()->gather(from, where);
+  }
+
+  BaseDataSP
   scatterToZero(const Shape &inShape,
                 const Shape &outShape,
                 const std::vector<std::vector<int64_t>> &where) const final {
     return toOriginData()->scatterToZero(inShape, outShape, where);
+  }
+
+  BaseDataSP reduceSum(const Shape &from, const Shape &to) const final {
+    return toOriginData()->reduceSum(from, to);
+  }
+
+  BaseDataSP reduceProduct(const Shape &from, const Shape &to) const final {
+    return toOriginData()->reduceProduct(from, to);
+  }
+
+  BaseDataSP reduceMin(const Shape &from, const Shape &to) const final {
+    return toOriginData()->reduceMin(from, to);
+  }
+
+  BaseDataSP reduceMax(const Shape &from, const Shape &to) const final {
+    return toOriginData()->reduceMax(from, to);
   }
 
   BaseDataSP
@@ -218,6 +240,17 @@ public:
             {from, rowMajorOriginDataIndices.data()}, dimension, where),
         ViewChange<int64_t>::gather(
             {from, rowMajorOriginDataOffsets.data()}, dimension, where));
+  }
+
+  BaseDataSP
+  gather_(const Shape &from,
+          const std::vector<std::vector<int64_t>> &where) const final {
+    return std::make_shared<ViewData<T>>(
+        origins(),
+        ViewChange<uint64_t>::gather({from, rowMajorOriginDataIndices.data()},
+                                     where),
+        ViewChange<int64_t>::gather({from, rowMajorOriginDataOffsets.data()},
+                                    where));
   }
 
   BaseDataSP expand_(const Shape &from, const Shape &to) const final {

@@ -505,6 +505,46 @@ Tensor Tensor::gather_(uint64_t dimension,
           tData().gather_(shape(), dimension, where)};
 }
 
+namespace {
+template <typename T>
+Shape fromVecOfVecs(const std::vector<std::vector<T>> &ts) {
+  std::vector<int64_t> s;
+  s.reserve(ts.size());
+  for (const auto &w : ts) {
+    s.push_back(static_cast<int64_t>(w.size()));
+  }
+  return Shape(s);
+}
+} // namespace
+
+Tensor Tensor::gather(const std::vector<std::vector<int64_t>> &where) const {
+  return {fromVecOfVecs(where), dtype(), tData().gather(shape(), where)};
+}
+
+Tensor Tensor::gather_(const std::vector<std::vector<int64_t>> &where) const {
+  return {fromVecOfVecs(where), dtype(), tData().gather_(shape(), where)};
+}
+
+Tensor Tensor::reduceSum(const Shape &outShape) const {
+  shape().assertCanReduceTo(outShape);
+  return {outShape, dtype(), tData().reduceSum(shape(), outShape)};
+}
+
+Tensor Tensor::reduceProduct(const Shape &outShape) const {
+  shape().assertCanReduceTo(outShape);
+  return {outShape, dtype(), tData().reduceProduct(shape(), outShape)};
+}
+
+Tensor Tensor::reduceMin(const Shape &outShape) const {
+  shape().assertCanReduceTo(outShape);
+  return {outShape, dtype(), tData().reduceMin(shape(), outShape)};
+}
+
+Tensor Tensor::reduceMax(const Shape &outShape) const {
+  shape().assertCanReduceTo(outShape);
+  return {outShape, dtype(), tData().reduceMax(shape(), outShape)};
+}
+
 void Tensor::verifyScatter(
     const Shape &outShape,
     const std::vector<std::vector<int64_t>> &where) const {
@@ -576,12 +616,7 @@ Tensor::scatterTo(const Tensor &target,
 Tensor
 Tensor::scatterMask(const Shape &outShape,
                     const std::vector<std::vector<int64_t>> &whereTrue) {
-  std::vector<int64_t> inShape_;
-  inShape_.reserve(whereTrue.size());
-  for (const auto &w : whereTrue) {
-    inShape_.push_back(static_cast<int64_t>(w.size()));
-  }
-  const auto ones = Tensor::boolean(true).expand(inShape_);
+  const auto ones = Tensor::boolean(true).expand(fromVecOfVecs(whereTrue));
   return ones.scatterToZero(outShape, whereTrue);
 }
 

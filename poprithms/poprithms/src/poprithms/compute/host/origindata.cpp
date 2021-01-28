@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include "./include/basedata.hpp"
-#include "./include/externdecl.hpp"
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <compute/host/include/basedata.hpp>
+#include <compute/host/include/externdecl.hpp>
 
 namespace poprithms {
 namespace compute {

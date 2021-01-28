@@ -1,8 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <array>
-#include <iostream>
-#include <numeric>
-
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 

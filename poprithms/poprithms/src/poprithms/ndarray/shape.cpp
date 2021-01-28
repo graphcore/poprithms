@@ -601,6 +601,60 @@ std::vector<int64_t> getIndices(int64_t start,
 }
 } // namespace
 
+std::vector<int64_t>
+Shape::getReducedRowMajorIndices(const Shape &outShape_) const {
+
+  assertCanReduceTo(outShape_);
+
+  if (rank_u64() == 0) {
+    return {0};
+  }
+
+  // prepend 1's, to bump the rank of the output Shape up to rank of this
+  // Shape.
+  const auto outShape =
+      outShape_.prepend(Shape::singleton(rank_u64() - outShape_.rank_u64()));
+
+  const auto outStrides = outShape.getRowMajorStrides();
+  const auto inStrides  = getRowMajorStrides();
+
+  // Example:
+  //
+  //   4 5 3 2  this Shape
+  //      |
+  //      v
+  //   5 1 3 1  outShape.
+  //
+
+  std::vector<int64_t> indices{0};
+  std::vector<int64_t> prevIndices;
+
+  // Reserving the maximum number of elements indices will ever have.
+  indices.reserve(nelms_u64());
+
+  // Reserving the maximum number of elements prevIndices will ever have.
+  prevIndices.reserve(dimProduct_u64(1, rank_i64()));
+
+  for (uint64_t d_ = rank_u64(); d_ != 0; --d_) {
+    const auto d = d_ - 1;
+
+    std::swap(indices, prevIndices);
+    indices.clear();
+    for (uint64_t k = 0; k < dim_u64(d); ++k) {
+
+      // If the axis d is a reduction axis, then elements in the input (this
+      // Shape) get mapped to elements in the outShape independently of k.
+      const auto delta = outShape.dim(d) == 1 ? 0 : outStrides[d] * k;
+
+      for (auto p : prevIndices) {
+        indices.push_back(p + delta);
+      }
+    }
+  }
+
+  return indices;
+}
+
 std::vector<int64_t> Shape::getSlicedRowMajorIndices(const Lower &l,
                                                      const Upper &u) const {
   assertSliceBoundsAreValid(l, u);

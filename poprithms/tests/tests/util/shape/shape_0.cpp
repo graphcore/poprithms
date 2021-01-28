@@ -289,6 +289,29 @@ void testCanonicalReverseIndices() {
   }
 }
 
+void testReduceBase(const Shape &from,
+                    const Shape &to,
+                    const std::vector<int64_t> &expected) {
+  const auto observed = from.getReducedRowMajorIndices(to);
+  if (observed != expected) {
+    std::ostringstream oss;
+    oss << "Failed in testReduceBase(from=" << from << ", to=" << to
+        << "). Expected :\n"
+        << expected << ", and observed :\n"
+        << observed << '.';
+    throw error(oss.str());
+  }
+}
+
+void testReduce() {
+  testReduceBase({2, 3}, {2, 1}, {0, 0, 0, 1, 1, 1});
+  testReduceBase({2, 3}, {1, 3}, {0, 1, 2, 0, 1, 2});
+  testReduceBase({2, 2, 2}, {2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7});
+  testReduceBase({2, 2, 2}, {2, 2}, {0, 1, 2, 3, 0, 1, 2, 3});
+  testReduceBase({2, 2, 2}, {1, 2, 2}, {0, 1, 2, 3, 0, 1, 2, 3});
+  testReduceBase({2, 2, 2}, {2, 2, 1}, {0, 0, 1, 1, 2, 2, 3, 3});
+}
+
 } // namespace
 
 int main() {
@@ -308,5 +331,6 @@ int main() {
   testAddToDims();
   testCanReduceTo();
   testCanonicalReverseIndices();
+  testReduce();
   return 0;
 }

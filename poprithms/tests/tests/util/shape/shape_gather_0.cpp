@@ -50,6 +50,7 @@ void testGather0() {
     throw error(oss.str());
   }
 }
+
 } // namespace
 
 int main() {

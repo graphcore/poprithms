@@ -1,18 +1,16 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_TYPEDCONCAT_HPP
 #define POPRITHMS_COMPUTE_HOST_TYPEDCONCAT_HPP
-#include "basedata.hpp"
-#include "baseoperators.hpp"
-#include "ieeehalf.hpp"
-#include "viewdata.hpp"
-
 #include <algorithm>
 #include <cstring>
 #include <memory>
 #include <random>
 
+#include <compute/host/include/basedata.hpp>
+#include <compute/host/include/baseoperators.hpp>
+#include <compute/host/include/ieeehalf.hpp>
+#include <compute/host/include/viewdata.hpp>
 #include <poprithms/compute/host/error.hpp>
-#include <poprithms/compute/host/usings.hpp>
 #include <poprithms/compute/host/viewchange.hpp>
 #include <poprithms/util/printiter.hpp>
 

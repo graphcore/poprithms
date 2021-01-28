@@ -586,6 +586,25 @@ public:
   getSlicedRowMajorIndices(const NormalizedSliceParams &n) const;
 
   /**
+   * Suppose a reduction operation reduces a Tensor from this Shape to a
+   * Tensor of Shape \a outShape. Such a reduction defines a surjection
+   * (many-to-one) mapping from this Shape, to \a outShape.
+   *
+   * This class method returns indices in \a outShape, in row major order,
+   * which the elements in this Shape map to.
+   *
+   * Example: Suppose this Shape is (2,3) and outShape is (2,1). Then the
+   * returned vector is (0,0,0,1,1,1). In row major order, elements (0,1,2) in
+   * this Shape map to element 0 in outShape, and elements (3,4,5) map to
+   * element 1:
+   *
+   *   0 1 2  --> 0
+   *   3 4 5  --> 1
+   *
+   * */
+  std::vector<int64_t> getReducedRowMajorIndices(const Shape &outShape) const;
+
+  /**
    * \return The column major indices in this Shape obtained by slicing
    *
    * \sa Shape::getSlicedRowMajorIndices

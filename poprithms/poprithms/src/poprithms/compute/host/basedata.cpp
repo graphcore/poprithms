@@ -1,14 +1,12 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include "./include/basedata.hpp"
-
-#include "./include/allocdata.hpp"
-#include "./include/basedata.hpp"
-#include "./include/externdecl.hpp"
-#include "./include/pointerdata.hpp"
-#include "./include/typedconcat.hpp"
-#include "./include/typeswitch.hpp"
-#include "./include/viewdata.hpp"
-
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <compute/host/include/allocdata.hpp>
+#include <compute/host/include/basedata.hpp>
+#include <compute/host/include/externdecl.hpp>
+#include <compute/host/include/pointerdata.hpp>
+#include <compute/host/include/typedconcat.hpp>
+#include <compute/host/include/typeswitch.hpp>
+#include <compute/host/include/viewdata.hpp>
+#include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 
 namespace poprithms {

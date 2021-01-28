@@ -7,7 +7,6 @@
 #include <compute/host/include/baseoperators.hpp>
 #include <compute/host/include/ieeehalf.hpp>
 #include <compute/host/include/typeddata.hpp>
-#include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/compute/host/viewchange.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 
@@ -93,6 +92,13 @@ public:
   }
 
   BaseDataSP
+  gather(const Shape &from,
+         const std::vector<std::vector<int64_t>> &where) const final {
+    return std::make_shared<AllocData<T>>(
+        ViewChange<T>::gather({from, dataPtr()}, where));
+  }
+
+  BaseDataSP
   scatterToZero(const Shape &inShape,
                 const Shape &outShape,
                 const std::vector<std::vector<int64_t>> &where) const final {
@@ -118,6 +124,13 @@ public:
     return std::make_shared<ViewData<T>>(
         this->shared_from_this(),
         from.gatherRowMajorIndices(dimension, indices));
+  }
+
+  BaseDataSP
+  gather_(const Shape &from,
+          const std::vector<std::vector<int64_t>> &where) const final {
+    return std::make_shared<ViewData<T>>(this->shared_from_this(),
+                                         from.gatherRowMajorIndices(where));
   }
 
   BaseDataSP dimShuffle(const Shape &from, const Permutation &p) const final {
@@ -230,6 +243,7 @@ public:
     auto out = binary<Adder<T>>(rhs);
     return out;
   }
+
   BaseDataSP mul(const BaseData &rhs) const final {
     return binary<Multiplier<T>>(rhs);
   }
@@ -291,6 +305,22 @@ public:
       }
     }
     return true;
+  }
+
+  BaseDataSP reduceSum(const Shape &from, const Shape &to) const final {
+    return reduce<Adder<T>>(from, to);
+  }
+
+  BaseDataSP reduceProduct(const Shape &from, const Shape &to) const final {
+    return reduce<Multiplier<T>>(from, to);
+  }
+
+  BaseDataSP reduceMin(const Shape &from, const Shape &to) const final {
+    return reduce<MinTaker<T>>(from, to);
+  }
+
+  BaseDataSP reduceMax(const Shape &from, const Shape &to) const final {
+    return reduce<MaxTaker<T>>(from, to);
   }
 
 private:
@@ -356,6 +386,22 @@ private:
           << rhs << ") failed.";
       throw error(oss.str());
     }
+  }
+
+  template <class BinaryOp>
+  std::shared_ptr<AllocData<T>> reduce(const Shape &from,
+                                       const Shape &to) const {
+    const BinaryOp op;
+    const auto thisData_ = dataPtr();
+    std::vector<T> out(to.nelms_u64(), BinaryOp::identity());
+
+    const auto reducedIndices = from.getReducedRowMajorIndices(to);
+    for (uint64_t i = 0; i < nelms_u64(); ++i) {
+      auto outIndex = reducedIndices[i];
+      out[outIndex] = op(out[outIndex], thisData_[i]);
+    }
+
+    return std::make_shared<AllocData<T>>(std::move(out));
   }
 
   template <typename To> std::vector<To> castToVector() const {

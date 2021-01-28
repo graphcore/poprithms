@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <random>
 #include <set>
@@ -114,12 +115,38 @@ public:
 template <typename T> class Adder {
 public:
   T operator()(T a, T b) const { return a + b; }
+
+  // x + 0 = x : 0 is the identity under addition.
+  static T identity() { return T(0); }
   static std::string name() { return name_<T>("Adder"); }
+};
+
+template <typename T> class MinTaker {
+public:
+  T operator()(T a, T b) const { return std::min(a, b); }
+
+  // min(x, +inf) = x : +inf is the identity under min.
+  static T identity() { return std::numeric_limits<T>::max(); }
+  static std::string name() { return name_<T>("MinTaker"); }
+};
+
+template <typename T> class MaxTaker {
+public:
+  T operator()(T a, T b) const { return std::max(a, b); }
+
+  // Don't use numeric_limits<T>::min(), which is the machine epsilon for
+  // floating point numbers!
+  // max(x, -inf) = x : -inf is the identity under max.
+  static T identity() { return std::numeric_limits<T>::lowest(); }
+  static std::string name() { return name_<T>("MaxTaker"); }
 };
 
 template <typename T> class Multiplier {
 public:
   T operator()(T a, T b) const { return a * b; }
+
+  // x * 1 = x : 1 is the identity under multiplication.
+  static T identity() { return T(1); }
   static std::string name() { return name_<T>("Multiplier"); }
 };
 
@@ -150,12 +177,14 @@ public:
 
 template <> class Adder<bool> {
 public:
+  static bool identity() { return false; }
   bool operator()(bool a, bool b) const { return a || b; }
   static std::string name() { return name_<bool>("Adder"); }
 };
 
 template <> class Multiplier<bool> {
 public:
+  static bool identity() { return true; }
   bool operator()(bool a, bool b) const { return a && b; }
   static std::string name() { return name_<bool>("Multiplier"); }
 };

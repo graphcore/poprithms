@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_EXTERNDECL_HPP
 #define POPRITHMS_COMPUTE_HOST_EXTERNDECL_HPP
 
@@ -6,15 +6,13 @@
 // of these templates are guarenteed to be instantiated elsewhere (see types
 // directory).
 
-#include "allocdata.hpp"
-#include "basedata.hpp"
-#include "origindata.hpp"
-#include "pointerdata.hpp"
-#include "typedconcat.hpp"
-#include "typeddata.hpp"
-#include "viewdata.hpp"
-
-#include <poprithms/compute/host/usings.hpp>
+#include <compute/host/include/allocdata.hpp>
+#include <compute/host/include/basedata.hpp>
+#include <compute/host/include/origindata.hpp>
+#include <compute/host/include/pointerdata.hpp>
+#include <compute/host/include/typedconcat.hpp>
+#include <compute/host/include/typeddata.hpp>
+#include <compute/host/include/viewdata.hpp>
 #include <poprithms/compute/host/viewchange.hpp>
 
 namespace poprithms {

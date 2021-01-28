@@ -46,5 +46,8 @@ add_compute_host_test(compute_host_tensor_demo_0
 add_compute_host_test(compute_host_tensor_unary_0 
                                           unary_0.cpp)
 
+add_compute_host_test(compute_host_tensor_reduce_0 
+                                          reduce_0.cpp)
+
 add_compute_host_test(compute_host_tensor_numpy_slice_0 
                                           numpy_slice_0.cpp)

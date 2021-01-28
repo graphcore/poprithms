@@ -9,7 +9,6 @@
 #include <compute/host/include/baseoperators.hpp>
 #include <compute/host/include/ieeehalf.hpp>
 #include <poprithms/compute/host/error.hpp>
-#include <poprithms/compute/host/usings.hpp>
 #include <poprithms/compute/host/viewchange.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -73,6 +72,15 @@ class BaseData {
 
 public:
   virtual ~BaseData() = default;
+
+  /**
+   * Reduction operators.
+   * */
+  virtual BaseDataSP reduceSum(const Shape &from, const Shape &to) const = 0;
+  virtual BaseDataSP reduceProduct(const Shape &from,
+                                   const Shape &to) const                = 0;
+  virtual BaseDataSP reduceMin(const Shape &from, const Shape &to) const = 0;
+  virtual BaseDataSP reduceMax(const Shape &from, const Shape &to) const = 0;
 
   /**
    * Binary operators.
@@ -139,6 +147,9 @@ public:
                             uint64_t dimension,
                             const std::vector<int64_t> &where) const = 0;
   virtual BaseDataSP
+  gather(const Shape &,
+         const std::vector<std::vector<int64_t>> &where) const = 0;
+  virtual BaseDataSP
   scatterToZero(const Shape &inShape,
                 const Shape &outShape,
                 const std::vector<std::vector<int64_t>> &where) const = 0;
@@ -156,12 +167,15 @@ public:
   static BaseDataSP
   concat_(const ConstDataPtrs &, const Shapes &, uint64_t axis);
   virtual BaseDataSP
-  slice_(const Shape &, const Lower &, const Upper &) const            = 0;
+  slice_(const Shape &, const Lower &, const Upper &) const           = 0;
   virtual BaseDataSP slice_(const Shape &,
-                            const NormalizedSliceParams &) const       = 0;
+                            const NormalizedSliceParams &) const      = 0;
   virtual BaseDataSP gather_(const Shape &,
                              uint64_t dimension,
-                             const std::vector<int64_t> &where) const  = 0;
+                             const std::vector<int64_t> &where) const = 0;
+  virtual BaseDataSP
+  gather_(const Shape &,
+          const std::vector<std::vector<int64_t>> &where) const        = 0;
   virtual BaseDataSP expand_(const Shape &from, const Shape &to) const = 0;
   virtual BaseDataSP dimShuffle_(const Shape &,
                                  const Permutation &) const            = 0;

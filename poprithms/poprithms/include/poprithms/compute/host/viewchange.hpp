@@ -1,19 +1,29 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_VIEWCHANGE_HPP
 #define POPRITHMS_COMPUTE_HOST_VIEWCHANGE_HPP
-
 #include <algorithm>
 #include <array>
 #include <cstring>
 #include <memory>
 #include <sstream>
 
-#include <poprithms/compute/host/usings.hpp>
 #include <poprithms/ndarray/shape.hpp>
+#include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
 namespace compute {
 namespace host {
+
+using poprithms::ndarray::Dims;
+using poprithms::ndarray::Ends;
+using poprithms::ndarray::Shape;
+using poprithms::ndarray::Shapes;
+using poprithms::ndarray::Starts;
+using poprithms::ndarray::Steps;
+using poprithms::util::Permutation;
+using NormalizedSliceParams = Shape::NormalizedSliceParams;
+using Lower                 = Shape::Lower;
+using Upper                 = Shape::Upper;
 
 /** A class to help the ViewChange<Number> class with functionality which does
  * not depend on its template parameter Number. */
@@ -169,9 +179,10 @@ public:
         input.shape.getNormalizedSliceParams(starts, ends, steps, dims));
   }
 
-  /** \return values in row-major order obtained by gathering and
-   *          concatenating all slices in dimension \a dimension at indices \a
-   *          where */
+  /**
+   * \return The values obtained by gathering and concatenating all slices in
+   *          dimension \a dimension at indices \a where
+   * */
   static std::vector<Number> gather(const Data &input,
                                     uint64_t dimension,
                                     const std::vector<int64_t> &where) {
@@ -179,10 +190,46 @@ public:
                        input.shape.gatherRowMajorIndices(dimension, where));
   }
 
+  /**
+   * Gather values in \a input along all multiple dimensions.
+   *
+   * \param where A vector, whose size is the rank of \a input, which defines
+   *              which elements to gather. Specifically, where[d] contains
+   * the positions in the d'th dimension of \a input to gather, so the set of
+   * gathered values is the outer product of the vectors in where.
+   *
+   * \return The row-major values of the output. It's size is equal to the
+   *         product of the sizes of the vectors in \a where.
+   *
+   * Example: if data is of Shape (2,5) with values:
+   *
+   *   0 1 2 3 4
+   *   5 6 7 7 8
+   *
+   * and where is {{1}, {0,1,4}}, then the returned values are {5,6,8}:
+   *
+   *       0 1     4
+   *       | |     |
+   *       | |     |
+   *       . . . . .
+   *  1 -- 5 6 . . 8
+   * */
+  static std::vector<Number>
+  gather(const Data &input, const std::vector<std::vector<int64_t>> &where) {
+    return fromIndices(input, input.shape.gatherRowMajorIndices(where));
+  }
+
+  /**
+   * Scatter the values in \a input into an array of zeros of Shape \a
+   * outShape. This is inverse operation of gather.
+   * */
   static std::vector<Number>
   scatterToZero(const Data &input,
                 const Shape &outShape,
                 const std::vector<std::vector<int64_t>> &where) {
+
+    // The row major indices in the output array at which values from input
+    // will be inserted:
     const auto indices = outShape.gatherRowMajorIndices(where);
     std::vector<Number> out(outShape.nelms(), Number(0));
     for (uint64_t i = 0; i < indices.size(); ++i) {

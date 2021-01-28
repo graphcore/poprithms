@@ -4,12 +4,30 @@
 #include <memory>
 #include <sstream>
 
-#include <poprithms/compute/host/usings.hpp>
+#include <poprithms/ndarray/dtype.hpp>
+#include <poprithms/ndarray/shape.hpp>
+#include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
 namespace compute {
 namespace host {
 
+using poprithms::ndarray::Dimension;
+using poprithms::ndarray::Dims;
+using poprithms::ndarray::DType;
+using poprithms::ndarray::Ends;
+using poprithms::ndarray::Shape;
+using poprithms::ndarray::Shapes;
+using poprithms::ndarray::Starts;
+using poprithms::ndarray::Steps;
+using poprithms::ndarray::Stride;
+using poprithms::util::Permutation;
+using NormalizedSliceParams = Shape::NormalizedSliceParams;
+using Lower                 = Shape::Lower;
+using Upper                 = Shape::Upper;
+
+class Tensor;
+using Tensors = std::vector<Tensor>;
 class BaseData;
 
 /**
@@ -491,6 +509,23 @@ public:
   Tensor slice_(const Lower &l, const Upper &u) const;
 
   /**
+   * Reduction methods.
+   *
+   * The values in this Tensor are accumulated along singleton dimensions of
+   * the output Shape, \a outShape.
+   *
+   * \param outShape The output Shape. It must be numpy broadcastable to this
+   *                 Tensor's Shape. For example, if this Tensor has Shape
+   *                 (2,3,5), then valid output Shapes are (2,1,5), (3,1),
+   *                 (5,), (), etc. (2,3) and (2,5) are invalid Shapes.
+   *
+   * */
+  Tensor reduceSum(const Shape &outShape) const;
+  Tensor reduceMin(const Shape &outShape) const;
+  Tensor reduceMax(const Shape &outShape) const;
+  Tensor reduceProduct(const Shape &outShape) const;
+
+  /**
    * Numpy-style [start:stop:step] slicing,
    * https://numpy.org/doc/stable/reference/arrays.indexing.html
    *
@@ -611,6 +646,14 @@ public:
    * */
   Tensor gather(uint64_t dimension, const std::vector<int64_t> &where) const;
   Tensor gather_(uint64_t dimension, const std::vector<int64_t> &where) const;
+
+  /**
+   * Gather along all dimensions of this Tensor. This is equivalent to looping
+   * over the vectors in \a where and applying the 1-d version of gather,
+   * above.
+   * */
+  Tensor gather(const std::vector<std::vector<int64_t>> &where) const;
+  Tensor gather_(const std::vector<std::vector<int64_t>> &where) const;
 
   /**
    * Scatter all the values in this Tensor into a Tensor of zeros, of Shape \a
