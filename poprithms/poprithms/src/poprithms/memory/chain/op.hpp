@@ -4,7 +4,6 @@
 #include <ostream>
 #include <variant>
 
-#include <poprithms/memory/chain/disjointregionsmapper.hpp>
 #include <poprithms/memory/chain/type.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/ndarray/shape.hpp>

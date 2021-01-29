@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_CHAIN_CHAIN_HPP
 #define POPRITHMS_MEMORY_CHAIN_CHAIN_HPP
-#include <poprithms/memory/chain/disjointregionsmapper.hpp>
+#include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/memory/chain/type.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/ndarray/shape.hpp>
@@ -101,23 +101,35 @@ public:
   Chain mirror() const;
 
   /**
-   * Template class requirements: `ViewChanger' and `Tensor' must both have
+   * Template class requirements: `ViewChanger' and 'View' must both have
    * methods reshape, expand, reduce, settSample, settFillInto, reverse, and
-   * dimShuffle. See for example DisjointRegionsMapper and DisjointRegions.
+   * dimShuffle. Two example uses cases are
+   *
+   * 1) ViewChanger=DisjointRegionsMapper and View=DisjointRegions
+   * 2) ViewChanger=HostTensorMapper and View=compute::host::Tensor.
    *  */
-  template <typename ViewChanger, typename Tensor>
-  Tensor apply(const Tensor &t_) const {
-    static ViewChanger v;
+  template <typename ViewChanger, typename View>
+  View apply(const View &t_) const {
+    const ViewChanger v;
     auto t = t_;
     for (uint64_t opIndex = 0; opIndex < nOps(); ++opIndex) {
-      t = get<ViewChanger, Tensor>(opIndex, v, t);
+      t = get<ViewChanger, View>(opIndex, v, t);
     }
     return t;
   }
 
-  DisjointRegions apply(const DisjointRegions &rIn) const {
-    return apply<DisjointRegionsMapper, DisjointRegions>(rIn);
-  }
+  /**
+   * A method to sequentially apply each link in this Chain to
+   * DijsointRegions. It is an instantiation of the template `apply` method.
+   * */
+  DisjointRegions apply(const DisjointRegions &rIn) const;
+
+  /**
+   * A method to sequentially apply each link in this Chain to a
+   * compute::host::Tensor. It is an instantiation of the template `apply`
+   * method.
+   * */
+  compute::host::Tensor apply(const compute::host::Tensor &) const;
 
   void append(std::ostream &) const;
   void appendCompact(std::ostream &) const;

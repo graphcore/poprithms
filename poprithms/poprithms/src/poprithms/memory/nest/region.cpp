@@ -77,6 +77,15 @@ std::vector<int64_t> Region::nelms() const {
   return ns;
 }
 
+std::vector<std::vector<int64_t>> Region::getOns() const {
+  std::vector<std::vector<int64_t>> ons;
+  ons.reserve(rank_u64());
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+    ons.push_back(sett(d).getOns(0, dim(d)));
+  }
+  return ons;
+}
+
 int64_t Region::totalElms() const {
   int64_t n = 1;
   for (uint64_t d = 0; d < rank_u64(); ++d) {

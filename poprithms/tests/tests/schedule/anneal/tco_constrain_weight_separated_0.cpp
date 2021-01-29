@@ -8,17 +8,17 @@
 poprithms::schedule::anneal::Graph
 getGraph(bool with_4_7_edge, bool constrainWSGs, bool bigDrop_6 = false) {
   //
-  //                0
-  //               / \
-  //              /    \
-  //            1       2
-  //           /\      / \
-  //          3   4   5   6
-  //          \  . \ /   /
-  //           7    8   9
-  //             \     /
-  //               \  /
-  //                10
+  //                0       .
+  //               / \      .
+  //              /    \    .
+  //            1       2   .
+  //           /\      / \  .
+  //          3   4   5   6 .
+  //          \  . \ /   /  .
+  //           7    8   9   .
+  //             \     /    .
+  //               \  /     .
+  //                10      .
   //
   // 1,3,4 and 7 all have big negative drops (~ -1000)
   // 10 has a gigantic negative drop (~ -100000)

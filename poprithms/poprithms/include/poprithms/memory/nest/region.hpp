@@ -7,15 +7,7 @@
 #include <poprithms/memory/nest/optionalset.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/ndarray/shape.hpp>
-
-namespace poprithms {
-namespace util {
-class Permutation;
-}
-namespace ndarray {
-class Shape;
-}
-} // namespace poprithms
+#include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -193,6 +185,29 @@ public:
    *         elements in the Region is the product of these values.
    * */
   std::vector<int64_t> nelms() const;
+
+  /**
+   * Recall that a Region is defined as the outer product of independent
+   * Setts. Recall too that s Sett defines a 1-d set. For example, the Region
+   *
+   *       .........      0
+   *       11.11.11.   -- 1
+   *       .........      2
+   *       .........   -- 3
+   *       11.11.11.      4
+   *
+   *       012345678
+   *        __ __ __
+   *
+   * , which contains 12 elements, is defined by a Sett in the vertical
+   * dimension, which represents the set (1,4), and a Sett in the
+   * horizontal direction, which represents the set (0,1,3,4,6,7). The method
+   * therefore returns {{1,4},{0,1,3,4,6,7}}.
+   *
+   * The method is called "getOns" as it returns the indices which are "on" in
+   * each dimension.
+   * */
+  std::vector<std::vector<int64_t>> getOns() const;
 
   const std::vector<Sett> &setts() const { return setts_; }
 

@@ -188,6 +188,7 @@ set(memory_alias_sources
 set(memory_chain_sources
 	${memory_src_dir}/chain/chain.cpp
 	${memory_src_dir}/chain/error.cpp
+	${memory_src_dir}/chain/hosttensormapper.cpp
 	${memory_src_dir}/chain/logging.cpp
 	${memory_src_dir}/chain/op.cpp
 	${memory_src_dir}/chain/type.cpp
@@ -223,6 +224,7 @@ add_library(poprithms-memory-alias SHARED
 
 add_library(poprithms-memory-chain-objlib OBJECT ${memory_chain_sources})
 add_library(poprithms-memory-chain SHARED
+  $<TARGET_OBJECTS:poprithms-compute-host-objlib>
   $<TARGET_OBJECTS:poprithms-memory-chain-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>

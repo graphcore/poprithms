@@ -3,6 +3,8 @@
 #include <sstream>
 #include <variant>
 
+#include <memory/chain/disjointregionsmapper.hpp>
+#include <memory/chain/hosttensormapper.hpp>
 #include <memory/chain/op.hpp>
 #include <poprithms/memory/chain/chain.hpp>
 #include <poprithms/memory/chain/error.hpp>
@@ -12,6 +14,14 @@
 namespace poprithms {
 namespace memory {
 namespace chain {
+
+DisjointRegions Chain::apply(const DisjointRegions &rIn) const {
+  return apply<DisjointRegionsMapper, DisjointRegions>(rIn);
+}
+
+compute::host::Tensor Chain::apply(const compute::host::Tensor &t) const {
+  return apply<HostTensorMapper, compute::host::Tensor>(t);
+}
 
 class Chain::Ops {
 public:

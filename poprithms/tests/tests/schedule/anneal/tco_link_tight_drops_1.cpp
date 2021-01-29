@@ -8,13 +8,13 @@
 #include <poprithms/schedule/anneal/graph.hpp>
 
 //
-//         A
-//        / \
-//       B0 B1
-//       |   |
-//       C0 C1
-//        \ /
-//         D
+//         A    .
+//        / \   .
+//       B0 B1  .
+//       |   |  .
+//       C0 C1  .
+//        \ /   .
+//         D    .
 //
 // alloc0  : A, B0, B1
 // alloc10 :    B0, C0
