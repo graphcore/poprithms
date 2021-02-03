@@ -59,8 +59,12 @@ public:
    *  */
   Permutation mul(const Permutation &rhs) const { return apply(rhs.get()); }
 
+  /** Multiply this Permutation by itself \a p times. */
+  Permutation pow(int64_t p) const;
+
   /**
-   * Accumulate the Permutations in \a prms using multiplication/composition.
+   * Accumulate the Permutations in \a prms using multiplication, also known
+   * as composition.
    * */
   static Permutation prod(const std::vector<Permutation> &prms);
 

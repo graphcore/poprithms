@@ -266,6 +266,12 @@ public:
   Tensor toInt32() const;
   std::vector<int32_t> getInt32Vector() const;
 
+  /** \return A Tensor of zeros, of type \a d and shape \a s. */
+  static Tensor zeros(DType d, const Shape &s);
+
+  /** \return A Tensor of ones, of type \a d and shape \a s. */
+  static Tensor ones(DType, const Shape &);
+
   /** Unsigned32 type specific Tensor methods and factory functions.
    *
    * \see the corresponding Float64 methods.
@@ -507,6 +513,9 @@ public:
    * */
   Tensor slice(const Lower &l, const Upper &u) const;
   Tensor slice_(const Lower &l, const Upper &u) const;
+
+  Tensor slice(Dimension, uint64_t l, uint64_t u) const;
+  Tensor slice_(Dimension, uint64_t l, uint64_t u) const;
 
   /**
    * Reduction methods.
@@ -809,9 +818,9 @@ public:
   /**
    * Throw an error with a descriptive message if the DType argument differs
    * from this Tensor's type. Recall that DType is the numerical type. */
-  void confirmType(DType) const;
+  void assertType(DType) const;
 
-  static void confirmNonEmptyConcat(uint64_t nToCat);
+  static void assertNonEmptyConcat(uint64_t nToCat);
 
   /** Tensor concatenation. */
   static Tensor concat(const std::vector<Tensor> &, uint64_t axis);
@@ -884,15 +893,18 @@ private:
   DType dtype_;
   std::shared_ptr<BaseData> tData_;
 
-  void confirmValidReshape(const Shape &) const;
+  void assertValidReshape(const Shape &) const;
 
   /** Verify that the values in this Tensor can be scattered into a Tensor of
    * Shape \a out, at positions \a where. */
-  void verifyScatter(const Shape &out,
+  void
+  assertValidScatter(const Shape &out,
                      const std::vector<std::vector<int64_t>> &where) const;
 
   class Caster;
   class ScalarCaster;
+  class Zeros;
+  class Ones;
 };
 
 class OptionalTensor {

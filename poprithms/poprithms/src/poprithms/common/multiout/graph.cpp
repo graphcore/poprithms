@@ -156,6 +156,26 @@ void Graph::verifyTensorId(const TensorId &tId) const {
   }
 }
 
+TensorIds Graph::tensorIds() const {
+  TensorIds ids;
+  ids.reserve(nTensors());
+  for (uint64_t i = 0; i < nOps(); ++i) {
+    for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
+      ids.push_back({i, o});
+    }
+  }
+  return ids;
+}
+
+OpIds Graph::opIds() const {
+  OpIds ids;
+  ids.reserve(nOps());
+  for (uint64_t i = 0; i < nOps(); ++i) {
+    ids.push_back(OpId(i));
+  }
+  return ids;
+}
+
 } // namespace multiout
 } // namespace common
 

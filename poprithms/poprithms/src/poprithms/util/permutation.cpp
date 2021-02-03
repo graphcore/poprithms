@@ -1,7 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <numeric>
-#include <sstream>
 
 #include <poprithms/util/error.hpp>
 #include <poprithms/util/permutation.hpp>
@@ -114,6 +113,18 @@ Permutation::mapForward(const std::vector<uint64_t> &indicesBefore) const {
 std::ostream &operator<<(std::ostream &ost, const Permutation &p) {
   p.append(ost);
   return ost;
+}
+
+Permutation Permutation::pow(int64_t p) const {
+  p = p % size();
+  p += size();
+  p %= size();
+
+  Permutation s = Permutation::identity(size());
+  for (int64_t i = 0; i < p; ++i) {
+    s = s.mul(*this);
+  }
+  return s;
 }
 
 } // namespace util

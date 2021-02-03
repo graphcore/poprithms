@@ -881,8 +881,9 @@ void Shape::assertNumpyBroadcastable(const std::vector<int64_t> &a,
       std::ostringstream oss;
       oss << "Failure in "
           << "Shape::assertNumpyBroadcastable, "
-          << "with a=" << a << " and b=" << b << ". "
-          << "Failed at index " << i << '.';
+          << "with `a`=" << a << " and `b`=" << b << ". "
+          << "Failed at index " << i << '.'
+          << " `a` and `b` cannot be numpy added. ";
       throw error(oss.str());
     }
   }
@@ -1080,6 +1081,29 @@ Shape Shape::slice(const Lower &l, const Upper &u) const {
   return Shape(out);
 }
 
+std::pair<Shape::Lower, Shape::Upper>
+Shape::getFullSliceBounds(Dimension d, uint64_t l, uint64_t u) const {
+  if (d.get() >= rank_u64()) {
+    std::ostringstream oss;
+    oss << "Cannot slice this Shape, " << *this << ", in Dimension "
+        << d.get() << ", as it is only of rank " << rank_u64() << '.';
+    throw error(oss.str());
+  }
+
+  Lower lows(rank_u64(), 0);
+  lows[d.get()] = static_cast<int64_t>(l);
+
+  Upper upps    = get();
+  upps[d.get()] = static_cast<int64_t>(u);
+
+  return {lows, upps};
+}
+
+Shape Shape::slice(Dimension d, uint64_t l, uint64_t u) const {
+  const auto lowsUpps = getFullSliceBounds(d, l, u);
+  return slice(std::get<0>(lowsUpps), std::get<1>(lowsUpps));
+}
+
 namespace {
 // Number of elements in [start, end) with stride of step. step may be
 // negative, and start may be greater than end. The return value cannot be
@@ -1176,8 +1200,9 @@ void Shape::assertSliceBoundsAreValid(const Lower &l, const Upper &u) const {
     }
 
     if (dim(i) < u[i]) {
-      ss << "Upper bound cannot exceed dimension size (in dimension " << i
-         << ") "
+      ss << "Failure in Shape::assertSliceBoundsAreValid. "
+         << "Upper bound cannot exceed dimension size "
+         << "(in dimension " << i << ") "
          << "This for Shape = " << *this << ", lower=" << l
          << " and upper=" << u << '.';
       throw error(ss.str());

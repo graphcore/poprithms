@@ -359,7 +359,7 @@ private:
                      [op](T a, T b) { return op(a, b); });
     } else {
       std::ostringstream oss;
-      oss << "Call to " << *this << ".binary<" << BinaryOp::name() << ">("
+      oss << "Call to " << *this << ".binary_<" << BinaryOp::name() << ">("
           << rhs << ") failed.";
       throw error(oss.str());
     }

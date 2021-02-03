@@ -191,20 +191,21 @@ set(memory_chain_sources
 	${memory_src_dir}/chain/hosttensormapper.cpp
 	${memory_src_dir}/chain/logging.cpp
 	${memory_src_dir}/chain/op.cpp
+	${memory_src_dir}/chain/settutil.cpp
 	${memory_src_dir}/chain/type.cpp
-)
+ )
 
 set(memory_inplace_sources
-       ${memory_src_dir}/inplace/crosslink.cpp
-       ${memory_src_dir}/inplace/tensor.cpp
-       ${memory_src_dir}/inplace/error.cpp
-       ${memory_src_dir}/inplace/graph.cpp
-       ${memory_src_dir}/inplace/logging.cpp
-       ${memory_src_dir}/inplace/op.cpp
-       ${memory_src_dir}/inplace/ops.cpp
-       ${memory_src_dir}/inplace/proposal.cpp
-       ${memory_src_dir}/inplace/result.cpp
-       ${memory_src_dir}/inplace/tensormap.cpp
+   ${memory_src_dir}/inplace/crosslink.cpp
+   ${memory_src_dir}/inplace/tensor.cpp
+   ${memory_src_dir}/inplace/error.cpp
+   ${memory_src_dir}/inplace/graph.cpp
+   ${memory_src_dir}/inplace/logging.cpp
+   ${memory_src_dir}/inplace/op.cpp
+   ${memory_src_dir}/inplace/ops.cpp
+   ${memory_src_dir}/inplace/proposal.cpp
+   ${memory_src_dir}/inplace/result.cpp
+   ${memory_src_dir}/inplace/tensormap.cpp
 )
 
 
@@ -239,6 +240,7 @@ add_library(poprithms-memory-inplace SHARED
   $<TARGET_OBJECTS:poprithms-schedule-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
+
 
 
 add_library(poprithms SHARED 

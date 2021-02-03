@@ -95,13 +95,13 @@ bool Op::bubbleDimShuffleBack(const Shape &inShape0, Op &op0, Op &op1) {
   //   DimShuffle -> "SettOp",
   // to
   //   "SettOp"   -> DimShuffle,
-  // where the Region of the "SettOp" is permuted when the 2 Ops swap
+  // where the Region of the "SettOp" is dimShuffled when the 2 Ops swap
   // positions.
   //
   case Type::SettFillInto:
   case Type::SettSample: {
     const auto oldSettOp = op0;
-    const auto r         = oldSettOp.attr().region().permute(p);
+    const auto r         = oldSettOp.attr().region().dimShuffle(p);
     op0                  = {Type::DimShuffle, inShape0.dimShuffle(p), p};
     op1                  = {t0, outShape1, r};
     return true;

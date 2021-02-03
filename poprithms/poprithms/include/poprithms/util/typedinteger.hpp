@@ -40,7 +40,11 @@ public:
   TypedInteger()        = default;
   TypedInteger &operator=(const TypedInteger &x) = default;
   TypedInteger(const TypedInteger &x)            = default;
-  TypedInteger(INT v_) : v(v_) {}
+
+  template <typename INT2> TypedInteger(INT2 v_) : v(static_cast<INT>(v_)) {
+    static_assert(std::is_integral<INT2>::value,
+                  "TypedIntegers can only be constructed from integer types");
+  }
 
   INT get() const { return static_cast<INT>(v); }
 

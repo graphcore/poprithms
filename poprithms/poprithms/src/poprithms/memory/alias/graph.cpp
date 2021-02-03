@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <array>
 #include <memory>
@@ -553,7 +553,11 @@ std::map<TensorId, std::set<TensorId>> Graph::allAliasesMap() const {
   const auto v = allAliases();
   std::map<TensorId, std::set<TensorId>> m;
   for (uint64_t i = 0; i < v.size(); ++i) {
-    m.insert({TensorId(i), {v[i].cbegin(), v[i].cend()}});
+    std::set<TensorId> ids;
+    for (auto id : v[i]) {
+      ids.emplace(id);
+    }
+    m.insert({TensorId(i), ids});
   }
   return m;
 }

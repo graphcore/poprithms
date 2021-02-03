@@ -107,6 +107,12 @@ public:
   /** In set notation: a \ b */
   static TensorIds setDifference(const TensorIds &a, const TensorIds &b);
 
+  /** The TensorIds of all Tensors in this Graph */
+  TensorIds tensorIds() const;
+
+  /** The OpIds of all Ops in this Graph */
+  OpIds opIds() const;
+
 protected:
   /** Insert \a op into this Graph, and add it to the consumer lists of its
    * inputs' creators. */

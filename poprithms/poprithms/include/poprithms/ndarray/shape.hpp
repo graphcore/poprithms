@@ -192,6 +192,25 @@ public:
   Shape slice(const Lower &l, const Upper &u) const;
 
   /**
+   * Slice this shape in a single dimension. The returned Shape is the same
+   * rank as this Shape, and the same size in all dimensions other that \a d,
+   * which is of size u - l. */
+  Shape slice(Dimension, uint64_t l, uint64_t u) const;
+
+  /**
+   * Convert a slice in one dimension into a slice in all dimensions. Example.
+   * If this is (2,3,4) and \a d = 1 and \a l = 1 and \a u = 2, then
+   * ((0,1,0),(2,2,4)) is returned.
+   * */
+  std::pair<Lower, Upper>
+  getFullSliceBounds(Dimension d, uint64_t l, uint64_t u) const;
+
+  /** Slice this Shape only in dimension 0.*/
+  Shape slice(uint64_t l, uint64_t u) const {
+    return slice(Dimension(0), l, u);
+  }
+
+  /**
    * Pad this Shape above by \a u and below by \a l
    *
    * \return A Shape of the same rank as this Shape, and of size in dimension
@@ -287,6 +306,7 @@ public:
 
   int64_t dim(uint64_t d) const { return shp[d]; }
   uint64_t dim_u64(uint64_t d) const { return static_cast<uint64_t>(dim(d)); }
+  int64_t finalDim() const { return shp.back(); }
 
   const std::vector<int64_t> &get() const { return shp; }
   std::vector<uint64_t> get_u64() const { return {shp.cbegin(), shp.cend()}; }

@@ -103,7 +103,7 @@ std::string Region::str() const {
   return oss.str();
 }
 
-Region Region::permute(const Permutation &p) const {
+Region Region::dimShuffle(const Permutation &p) const {
   return {p.apply(shape().get()), p.apply(setts())};
 }
 
@@ -558,6 +558,20 @@ Region Region::fromBounds(const Shape &sh,
   return Region(sh, slices);
 }
 
+Region
+Region::fromBounds(const Shape &s, Dimension d, uint64_t l, uint64_t u) {
+
+  // Easy check for validity of d, l, u:
+  s.slice(d, l, u);
+
+  std::vector<Sett> setts(s.rank_u64(), Sett::createAlwaysOn());
+  int64_t on     = u - l;
+  int64_t off    = s.dim(d.get()) - on;
+  int64_t phase  = l;
+  setts[d.get()] = {{{on, off, phase}}};
+  return Region(s, setts);
+}
+
 // TODO(T32863) use Dimension instead of uint64_t.
 Region Region::fromStripe(const Shape &sh,
                           uint64_t dimension,
@@ -717,12 +731,12 @@ DisjointRegions::reverse(const std::vector<uint64_t> &dimensions) const {
   return DisjointRegions(shape(), oRegs);
 }
 
-DisjointRegions DisjointRegions::permute(const Permutation &p) const {
+DisjointRegions DisjointRegions::dimShuffle(const Permutation &p) const {
   std::vector<Region> oRegs;
   oRegs.reserve(size());
   for (const auto &reg : get()) {
-    const auto inReg = reg.permute(p);
-    oRegs.push_back(reg.permute(p));
+    const auto inReg = reg.dimShuffle(p);
+    oRegs.push_back(reg.dimShuffle(p));
   }
   return DisjointRegions(p.apply(shape().get()), oRegs);
 }
@@ -873,6 +887,10 @@ Region Region::fromStrides(const Shape &shape, const Strides &strides) {
 
 Region Region::fromStride(const Shape &shape, Stride s, Dimension d) {
   return Region::fromStripe(shape, d.get_i64(), {1, s.get_i64() - 1, 0});
+}
+
+DisjointRegions DisjointRegions::getComplement() const {
+  return DisjointRegions::createFull(shape()).subtract(*this);
 }
 
 } // namespace nest

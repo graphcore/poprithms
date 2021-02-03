@@ -61,9 +61,36 @@ void test1() {
   assertSubtract(r0, r2, {r1});
 }
 
+void test2() {
+  // 1111111111
+  //
+  // .111......
+  // ..1111....
+  // ........11
+  //
+  // 1.....11..
+
+  const auto r = DisjointRegions::createFull({10});
+  const auto out =
+      r.subtract(DisjointRegions({10},
+                                 {Region::fromBounds({10}, {1}, {4}),
+                                  Region::fromBounds({10}, {2}, {6}),
+                                  Region::fromBounds({10}, {8}, {10})}));
+
+  const auto rExpected = Region::fromStripe({10}, 0, {2, 5, -1});
+  if (r.equivalent(rExpected)) {
+    std::ostringstream oss;
+    oss << "Failure in test of subtract for DisjointRegions. "
+        << "Expected observed " << r << " and expected " << rExpected
+        << " to be equivalent. ";
+    throw error(oss.str());
+  }
+}
+
 } // namespace
 
 int main() {
   test0();
   test1();
+  test2();
 }

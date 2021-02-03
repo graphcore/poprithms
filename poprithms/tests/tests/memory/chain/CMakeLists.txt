@@ -2,7 +2,7 @@ include(EnableCompilerWarnings)
 
 function(add_memory_chain_test_executable name source)
   add_executable(${name} ${source})
-  target_link_libraries(${name} poprithms-memory-chain)
+  target_link_libraries(${name} poprithms-memory-chain memory-nest-test-util)
   target_include_directories (${name} PRIVATE ${poprithms_src_dir}/poprithms)
 endfunction()
 
@@ -33,4 +33,7 @@ add_memory_chain_test(memory_chain_canonicalize_0
 
 add_memory_chain_test(memory_chain_hosttensor_0  
                                    hosttensor_0.cpp)
+
+add_memory_chain_test(memory_chain_settutil_0.cpp  
+                                   settutil_0.cpp)
 

@@ -188,7 +188,7 @@ DisjointRegions Expand::getInRegions(InIndex,
 
 DisjointRegions Permute::getInRegions(InIndex,
                                       const DisjointRegions &outRegs) const {
-  return outRegs.permute(permutation().inverse());
+  return outRegs.dimShuffle(permutation().inverse());
 }
 
 } // namespace alias

@@ -79,6 +79,20 @@ template <typename T> Tensor Tensor::tCopyData(const Shape &s, const T *d) {
                 std::make_shared<AllocData<T>>(std::move(vData_)));
 }
 
+class Tensor::Zeros {
+public:
+  template <typename T> static Tensor go(const Shape &s) {
+    return Tensor::tScalar(T(0)).expand(s);
+  }
+};
+
+class Tensor::Ones {
+public:
+  template <typename T> static Tensor go(const Shape &s) {
+    return Tensor::tScalar(T(1)).expand(s);
+  }
+};
+
 class Tensor::Caster {
 public:
   template <typename T> static Tensor go(const Shape &s, const void *vp) {
@@ -94,6 +108,14 @@ Tensor Tensor::Caster::go<IeeeHalf>(const Shape &s, const void *vp) {
 
 Tensor Tensor::copy(DType t, const Shape &s, const void *vp) {
   return typeSwitch<Caster, Tensor>(t, s, vp);
+}
+
+Tensor Tensor::zeros(DType t, const Shape &s) {
+  return typeSwitch<Zeros, Tensor>(t, s);
+}
+
+Tensor Tensor::ones(DType t, const Shape &s) {
+  return typeSwitch<Ones, Tensor>(t, s);
 }
 
 Tensor Tensor::to(DType t) const {
@@ -150,10 +172,10 @@ Tensor concat_(const Tensors &ts, uint64_t axis) {
   return Tensor::concat_(ts, axis);
 }
 
-void Tensor::confirmNonEmptyConcat(uint64_t nToCat) {
+void Tensor::assertNonEmptyConcat(uint64_t nToCat) {
   if (nToCat == 0) {
     std::ostringstream oss;
-    oss << "Failed in Tensor::confirmNonEmptyConcat(nToCat = " << nToCat
+    oss << "Failed in Tensor::assertNonEmptyConcat(nToCat = " << nToCat
         << "). Only a non-empty vector of Tensors "
         << "can be concatenated.";
     throw error(oss.str());
@@ -165,10 +187,10 @@ std::ostream &operator<<(std::ostream &ost, const Tensor &t) {
   return ost;
 }
 
-void Tensor::confirmType(DType t) const {
+void Tensor::assertType(DType t) const {
   if (dtype() != t) {
     std::ostringstream oss;
-    oss << "Failed in " << *this << ".confirmType(" << t << ')'
+    oss << "Failed in " << *this << ".assertType(" << t << ')'
         << ", as this Tensor is of type " << dtype() << '.';
     throw error(oss.str());
   }
@@ -201,6 +223,22 @@ Tensor Tensor::expand_(const Shape &to) const {
 }
 
 namespace {
+
+void verifySameTypeBinary(const Tensor &lhs, const Tensor &rhs) {
+  if (rhs.dtype() != lhs.dtype()) {
+    std::ostringstream oss;
+    oss << "Failed in Tensor::verifySameTypeBinary, "
+        << "where `lhs` Tensor is of type " << lhs.dtype()
+        << ", but `rhs` Tensor is of type " << rhs.dtype() << ". "
+        << "Implicit casting is not supported in this Tensor class. "
+        << "`lhs` Tensor is \n"
+        << lhs << ", and `rhs` Tensor is \n"
+        << rhs << '.' << " Consider explicitly casting one of them before "
+        << "performing this binary operation. ";
+    throw error(oss.str());
+  }
+}
+
 struct CoRowMaj {
   CoRowMaj(Tensor &&arg0_, Tensor &&arg1_, Shape &&shape_)
       : arg0(arg0_), arg1(arg1_), shape(shape_) {}
@@ -214,6 +252,7 @@ struct CoRowMaj {
 //         2) of the same shape (numpy broadcast their Shapes together).
 //
 CoRowMaj getRowMajorPair(const Tensor &a, const Tensor &b) {
+  verifySameTypeBinary(a, b);
   auto outShape = a.shape().numpyBinary(b.shape());
   auto arg0     = a.shape() == outShape ? a : a.expand(outShape);
   auto arg1     = b.shape() == outShape ? b : b.expand(outShape);
@@ -360,14 +399,16 @@ Tensor Tensor::floor_() const {
   return *this;
 }
 
-void Tensor::confirmValidReshape(const Shape &s) const {
+void Tensor::assertValidReshape(const Shape &s) const {
   if (s.nelms_u64() != nelms_u64()) {
     std::ostringstream oss;
-    oss << "Failed in " << *this << ".confirmValidReshape(" << s
-        << ") as number of elements not preserved. "
-        << " Cannot go from Shape " << shape() << " with "
+    oss << "Invalid Reshape. "
+        << "Failed in \n(" << *this << ").assertValidReshape(" << s
+        << ") \nas number of elements is not preserved. "
+        << " \nCannot go from Shape " << shape() << " with "
         << shape().nelms_u64() << " elements, to Shape " << s << " with "
         << s.nelms_u64() << '.';
+    throw error(oss.str());
   }
 }
 
@@ -376,11 +417,11 @@ bool Tensor::allZero() const { return tData().allZero(); }
 bool Tensor::allNonZero() const { return tData().allNonZero(); }
 
 Tensor Tensor::reshape_(const Shape &s) const {
-  confirmValidReshape(s);
+  assertValidReshape(s);
   return {s, dtype(), tData_};
 }
 Tensor Tensor::reshape(const Shape &s) const {
-  confirmValidReshape(s);
+  assertValidReshape(s);
   return {s, dtype(), tData().toOriginData()};
 }
 
@@ -488,6 +529,16 @@ Tensor Tensor::slice(const Lower &l, const Upper &u) const {
   return {shape().slice(l, u), dtype(), tData().slice(shape(), l, u)};
 }
 
+Tensor Tensor::slice(Dimension d, uint64_t l, uint64_t u) const {
+  const auto bounds = shape().getFullSliceBounds(d, l, u);
+  return slice(std::get<0>(bounds), std::get<1>(bounds));
+}
+
+Tensor Tensor::slice_(Dimension d, uint64_t l, uint64_t u) const {
+  const auto bounds = shape().getFullSliceBounds(d, l, u);
+  return slice_(std::get<0>(bounds), std::get<1>(bounds));
+}
+
 Tensor Tensor::slice_(const Lower &l, const Upper &u) const {
   return {shape().slice(l, u), dtype(), tData().slice_(shape(), l, u)};
 }
@@ -545,20 +596,24 @@ Tensor Tensor::reduceMax(const Shape &outShape) const {
   return {outShape, dtype(), tData().reduceMax(shape(), outShape)};
 }
 
-void Tensor::verifyScatter(
+void Tensor::assertValidScatter(
     const Shape &outShape,
     const std::vector<std::vector<int64_t>> &where) const {
 
   if (outShape.rank_u64() != rank_u64()) {
     std::ostringstream oss;
-    oss << "outShape in verifyScatter has rank " << outShape.rank_u64()
-        << ", but this Tensor has rank " << rank_u64() << '.';
+    oss << "outShape in assertValidScatter has rank " << outShape.rank_u64()
+        << ", but this Tensor has rank " << rank_u64() << '.'
+        << " Cannot scatter from a rank " << rank_u64() << " Tensor into a "
+        << outShape.rank_u64() << " Tensor. "
+        << "This Tensor has Shape " << shape() << ", outShape is " << outShape
+        << '.';
     throw error(oss.str());
   }
 
   if (outShape.rank_u64() != where.size()) {
     std::ostringstream oss;
-    oss << "outShape in verifyScatter has rank " << outShape.rank_u64()
+    oss << "outShape in assertValidScatter has rank " << outShape.rank_u64()
         << ", but scattering indices `where` has size " << where.size();
     throw error(oss.str());
   }
@@ -579,7 +634,7 @@ void Tensor::verifyScatter(
             << ". All values is where[" << d << "] must be less "
             << outShape.dim(d) << ", the " << d
             << "'th dimension of the target scatter Shape, " << outShape
-            << ". Failure in verifyScatter.";
+            << ". Failure in assertValidScatter.";
         throw error(oss.str());
       }
     }
@@ -589,7 +644,7 @@ void Tensor::verifyScatter(
 Tensor
 Tensor::scatterToZero(const Shape &outShape,
                       const std::vector<std::vector<int64_t>> &where) const {
-  verifyScatter(outShape, where);
+  assertValidScatter(outShape, where);
   return {outShape, dtype(), tData().scatterToZero(shape(), outShape, where)};
 }
 
@@ -605,7 +660,7 @@ Tensor::scatterTo(const Tensor &target,
         << " They should be the same, there is no implicit casting. ";
     throw error(oss.str());
   }
-  verifyScatter(target.shape(), where);
+  assertValidScatter(target.shape(), where);
   const auto scatteredToZeros = scatterToZero(target.shape(), where);
   const auto mask = scatterMask(target.shape(), where).to(dtype());
 
@@ -656,7 +711,7 @@ std::vector<const BaseData *> Tensor::getBaseDataPtrs(const Tensors &tIns) {
 
 Tensor Tensor::concat(const Tensors &tIns, uint64_t axis) {
 
-  confirmNonEmptyConcat(tIns.size());
+  assertNonEmptyConcat(tIns.size());
   const auto shapes      = getShapes(tIns);
   const auto tDatas      = Tensor::getBaseDataPtrs(tIns);
   const auto tDataConcat = BaseData::concat(tDatas, shapes, axis);
@@ -666,7 +721,7 @@ Tensor Tensor::concat(const Tensors &tIns, uint64_t axis) {
 
 Tensor Tensor::concat_(const Tensors &tIns, uint64_t axis) {
 
-  confirmNonEmptyConcat(tIns.size());
+  assertNonEmptyConcat(tIns.size());
   const auto shapes      = getShapes(tIns);
   const auto tDatas      = Tensor::getBaseDataPtrs(tIns);
   const auto tDataConcat = BaseData::concat_(tDatas, shapes, axis);
@@ -724,9 +779,10 @@ std::string
 getBadSizeString(const Shape &s, const std::string &tString, uint64_t n) {
   std::ostringstream oss;
   oss << "Error in " << tString << ", where Shape is " << s
-      << ", with number of elements " << s.nelms_u64()
-      << ", and the data vector has length " << n << '.'
-      << " There should be exactly 1 element in the data vector "
+      << ", which has number of elements " << s.nelms_u64()
+      << ". The data vector has length " << n << ", which is not "
+      << s.nelms_u64() << '.'
+      << " There must be exactly 1 element in the data vector "
       << "per element in the Shape. ";
   return oss.str();
 }

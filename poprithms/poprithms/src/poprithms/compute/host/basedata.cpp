@@ -42,14 +42,14 @@ void BaseData::assertForConcat(const ConstDataPtrs &datas,
                 "BaseDatas must have same sizes.");
   }
   BaseData::assertSameTypes(datas);
-  Tensor::confirmNonEmptyConcat(datas.size());
+  Tensor::assertNonEmptyConcat(datas.size());
 }
 
 // Aliasing concatenation
 BaseDataSP BaseData::concat_(const ConstDataPtrs &datas,
                              const Shapes &shapes,
                              uint64_t axis) {
-  Tensor::confirmNonEmptyConcat(datas.size());
+  Tensor::assertNonEmptyConcat(datas.size());
   return typeSwitch<TypedConcat_, BaseDataSP>(
       datas[0]->dtype(), datas, shapes, axis);
 }
@@ -57,7 +57,7 @@ BaseDataSP BaseData::concat_(const ConstDataPtrs &datas,
 BaseDataSP BaseData::concat(const ConstDataPtrs &datas,
                             const Shapes &shapes,
                             uint64_t axis) {
-  Tensor::confirmNonEmptyConcat(datas.size());
+  Tensor::assertNonEmptyConcat(datas.size());
   return typeSwitch<TypedConcat, BaseDataSP>(
       datas[0]->dtype(), datas, shapes, axis);
 }

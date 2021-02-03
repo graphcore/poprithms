@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved
 #ifndef POPRITHMS_MEMORY_NEST_REGION_HPP
 #define POPRITHMS_MEMORY_NEST_REGION_HPP
 #include <sstream>
@@ -119,9 +119,12 @@ public:
    *           constructing with setts=((on=6, off=4, phase=3)).
    *
    * */
-  static Region fromBounds(const Shape &shape,
+  static Region fromBounds(const Shape &,
                            const std::vector<int64_t> &lower,
                            const std::vector<int64_t> &upper);
+
+  /** Slice in a single dimension. */
+  static Region fromBounds(const Shape &, Dimension, uint64_t l, uint64_t u);
 
   /**
    * Construct a Region with always-on Setts in all dimensions, except in
@@ -347,7 +350,7 @@ public:
   /**
    * A generalized transpose, where the axes are permuted.
    * */
-  Region permute(const Permutation &) const;
+  Region dimShuffle(const Permutation &) const;
 
   /**
    * Expand this Region. This is equivalent to numpy.broadcast_to
@@ -524,12 +527,18 @@ public:
 
   DisjointRegions reshape(const Shape &) const;
 
-  DisjointRegions permute(const Permutation &) const;
+  DisjointRegions dimShuffle(const Permutation &) const;
+
+  DisjointRegions getComplement() const;
 
   DisjointSetts flattenToSetts() const;
 
   bool equivalent(const DisjointRegions &rhs) const {
     return Region::equivalent(*this, rhs);
+  }
+
+  bool equivalent(const Region &rhs) const {
+    return equivalent(DisjointRegions(rhs));
   }
 
   /**

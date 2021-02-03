@@ -51,7 +51,7 @@ public:
   }
   static DisjointRegions dimShuffle(const DisjointRegions &x,
                                     const Permutation &p) {
-    return x.permute(p);
+    return x.dimShuffle(p);
   }
 };
 
