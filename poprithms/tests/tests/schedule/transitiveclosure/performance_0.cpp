@@ -45,4 +45,4 @@ int main(int argc, char **argv) {
   std::cout << "Total time to construct TransitiveClosure = "
             << elapsed.count() << " [s]" << std::endl;
   return 0;
-};
+}

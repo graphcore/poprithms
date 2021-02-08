@@ -8,7 +8,6 @@ int main() {
 
   auto wLargeNeg = AllocWeight(-.001, -2);
   auto wNegOne   = AllocWeight::negativeOne();
-  auto wSmallNeg = AllocWeight(-10.0, +2);
   auto wZero     = AllocWeight::zero();
   auto wSmallPos = AllocWeight(100.0, +2);
   auto wLargePos = AllocWeight(.0001, -2);

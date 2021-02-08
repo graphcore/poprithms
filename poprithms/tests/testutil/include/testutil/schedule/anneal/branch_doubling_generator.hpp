@@ -31,7 +31,7 @@ namespace anneal {
 // Example with nBranches = 6, offset = +1
 //
 //            root -------
-//           /  \   ....   \
+//           /  \   ....   \.
 //          |    |          |
 //      Op_0_0 Op_1_0 ... Op_5_0
 //        |      |          |

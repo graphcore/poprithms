@@ -9,17 +9,20 @@ poprithms::schedule::anneal::Graph
 
 getGraph() {
 
-  //       0--6
-  //      /|   \
-  //    /  3    7
-  //   1   |   /
-  //   |   4  8
-  //   2   |   \
-  //   |   5    9
-  //   |   |   /
-  //    \  |  /
-  //      10
-  //
+  /*
+
+         0--6
+        /|   \
+      /  3    7
+     1   |   /
+     |   4  8
+     2   |   \
+     |   5    9
+     |   |   /
+      \  |  /
+        10
+
+   */
 
   using namespace poprithms::schedule::anneal;
   Graph g;

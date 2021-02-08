@@ -27,13 +27,16 @@ void test(int c,
 
 int main() {
 
-  //    0
-  //   / \
-  //  1   2
-  //  |   |\
-  //  3   4 6
-  //   \ / \|
-  //    5   7
+  /*
+       0
+      / \
+     1   2
+     |   |\
+     3   4 6
+      \ / \|
+       5   7
+
+  */
 
   using namespace poprithms::schedule::anneal;
 

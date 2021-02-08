@@ -8,23 +8,22 @@
 #include <poprithms/schedule/anneal/graph.hpp>
 #include <poprithms/util/printiter.hpp>
 
-//
-//
-//
-//      0
-//     / \
-//    1   4--5--6      .
-//    |    \    |      .
-//    2     8   7      .
-//     \     \  |      .
-//      3     9 10     .
-//       \     \/      .
-//        11   12      .
-//         \   /       .
-//           13        .
-//
-//
-//
+/*
+
+      0
+     / \
+    1   4--5--6
+    |    \    |
+    2     8   7
+     \     \  |
+      3     9 10
+       \     \/
+        11   12
+         \   /
+           13
+
+
+ */
 
 namespace {
 poprithms::schedule::anneal::Graph
@@ -106,17 +105,20 @@ getLinkChains(const std::vector<std::vector<uint64_t>> &tiers) {
 
 void test0() {
 
-  //      0
-  //     / \
-  //    1   4--5--6
-  //    |    \    |
-  //    2     8   7
-  //     \     \  |
-  //      3     9 10
-  //       \     \/
-  //        11   12
-  //         \   /
-  //           13
+  /*
+
+       0
+      / \
+     1   4--5--6
+     |    \    |
+     2     8   7
+      \     \  |
+       3     9 10
+        \     \/
+         11   12
+          \   /
+            13
+  */
 
   using namespace poprithms::schedule::anneal;
   using LChains = std::vector<std::vector<uint64_t>>;

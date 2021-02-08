@@ -24,22 +24,27 @@ namespace anneal {
 // d = 2D-1 : 1 Op with 2 producers and 0 consumers
 //
 // For D = 4;
-//
-//                o
-//
-//        o0              o1
-//    o00     o01    o10      o11
-//                            / \
-//  o   o   o   o   o   o    o   o
-//                              / \
-// o o o o o o o o o o o o o o o   o
-//                              \ /
-//  o   o   o   o   o   o    o   o
-//                            \ /
-//    o       o       o        o
-//
-//        o               o
-//                o
+
+/*
+
+              o
+
+      o0              o1
+  o00     o01    o10      o11
+                          / \
+o   o   o   o   o   o    o   o
+                            / \
+o o o o o o o o o o o o o o o   o
+                            \ /
+o   o   o   o   o   o    o   o
+                          \ /
+  o       o       o        o
+
+      o               o
+              o
+
+*/
+
 //
 // All Ops are non-inplace and produce 1 allocation of weight 1.
 //

@@ -12,20 +12,23 @@ using namespace poprithms::memory::inplace;
 
 void testStaggered0() {
 
-  //
-  //                       [m0]
-  //  x0  -- dimShuffle -- mux -- flatten
-  //    \                            |
-  //    reverse                     unary
-  //       \
-  //       mux [m1]
-  //         \
-  //         reshape
-  //            \
-  //            unary
-  //              \
-  //              unary [u0]
-  //
+  /*
+
+                         [m0]
+    x0  -- dimShuffle -- mux -- flatten
+      \                            |
+      reverse                     unary
+         \
+         mux [m1]
+           \
+           reshape
+              \
+              unary
+                \
+                unary [u0]
+
+   */
+
   Graph g;
   const auto x0 = Tensor::variable(g, {3, 3});
   const auto m0 = x0.dimShuffle({{1, 0}}).closedMux();

@@ -24,7 +24,7 @@ int main() {
   //    X
   //   / \
   //  X   X
-  //   \ /
+  //   \ /.
   //    X
   //
   auto op2 = g.insertOp("op2");
@@ -41,7 +41,7 @@ int main() {
   //    X
   //   / \
   //  X   X
-  //   \ /
+  //   \ /.
   //    X
   //    |
   //    X
