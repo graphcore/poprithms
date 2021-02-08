@@ -429,6 +429,19 @@ public:
   void append(std::ostream &outputStream) const;
 
   /**
+   * Return string such as
+   *
+   *  """   [[ 1 2 ]
+   *         [ 3 4 ]]  """
+   *
+   * containing the values of this Tensor.
+   *
+   * See also the method \a append, which additionally adds information about
+   * the Tensor (shape, type, allocation type, etc.)
+   * */
+  std::string values() const;
+
+  /**
    * \return A copy of this Tensor. The returned Tensor is a new memory
    *         allocation. This is consistent with the PyTorch '_' notation used
    *         for all Tensor methods.

@@ -201,6 +201,12 @@ void Tensor::append(std::ostream &ost) const {
   tData().appendValues(ost, shape());
 }
 
+std::string Tensor::values() const {
+  std::ostringstream oss;
+  tData().appendValues(oss, shape());
+  return oss.str();
+}
+
 const Tensor &OptionalTensor::value() const {
   if (!has_value()) {
     throw error(
