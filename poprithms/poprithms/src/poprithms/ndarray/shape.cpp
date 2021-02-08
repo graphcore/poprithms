@@ -286,6 +286,11 @@ Shape::getDimShuffledRowMajorIndices(const Permutation &p) const {
       p.apply(getRowMajorStrides()));
 }
 
+Shape Shape::dimRoll(Dimension dimIdx, Dimension newIdx) const {
+  return dimShuffle(
+      Permutation::dimRoll(rank_u64(), {dimIdx.get(), newIdx.get()}));
+}
+
 Shape Shape::dimShuffle(const Permutation &p) const {
   return {p.apply(get())};
 }
@@ -1514,6 +1519,14 @@ void Shape::assertCanReduceTo(const Shape &outShape) const {
 
 Shape Shape::scale(Stride s, Dimension d) const {
   auto x = get();
+  if (d.get() >= rank_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid Dimension for this Shape, in " << *this
+        << ".scale(Stride = " << s.get() << ", Dimension = " << d.get()
+        << "). For this Shape, Dimension must be less than the rank, "
+        << rank_u64() << '.';
+    throw error(oss.str());
+  }
   x[d.get()] *= s.get();
   return x;
 }

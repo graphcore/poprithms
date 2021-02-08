@@ -439,6 +439,39 @@ Tensor Tensor::dimShuffle_(const Permutation &p) const {
   return {shape().dimShuffle(p), dtype(), tData().dimShuffle_(shape(), p)};
 }
 
+Tensor Tensor::dimRoll(Dimension from, Dimension to) const {
+  return dimShuffle(Permutation::dimRoll(rank_u64(), {from.get(), to.get()}));
+}
+Tensor Tensor::dimRoll_(Dimension from, Dimension to) const {
+  return dimShuffle_(
+      Permutation::dimRoll(rank_u64(), {from.get(), to.get()}));
+}
+
+Tensor Tensor::resizeFinalDim(Stride s) const {
+  const auto t0 = reshape({nelms(), 1});
+  const auto t1 = t0.expand(Shape{nelms(), s.get_i64()});
+  const auto t2 = t1.reshape(shape().scale(s, Dimension(rank_u64() - 1)));
+  return t2;
+}
+
+Tensor Tensor::resize(Dimension d, Stride s) const {
+  return dimRoll(d, Dimension(rank_u64() - 1))
+      .resizeFinalDim(s)
+      .dimRoll(Dimension(rank_u64() - 1), d);
+}
+
+Tensor Tensor::resize_(Dimension d, Stride s) const {
+  return dimRoll_(d, Dimension(rank_u64() - 1))
+      .resizeFinalDim_(s)
+      .dimRoll_(Dimension(rank_u64() - 1), d);
+}
+
+Tensor Tensor::resizeFinalDim_(Stride s) const {
+  return reshape_({nelms(), 1})
+      .expand_({nelms(), s.get_i64()})
+      .reshape_(shape().scale(s, Dimension(rank_u64() - 1)));
+}
+
 Tensor Tensor::dimShuffle() const {
   return dimShuffle(Permutation::reverse(rank_u64()));
 }

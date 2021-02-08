@@ -51,3 +51,6 @@ add_compute_host_test(compute_host_tensor_reduce_0
 
 add_compute_host_test(compute_host_tensor_numpy_slice_0 
                                           numpy_slice_0.cpp)
+
+add_compute_host_test(compute_host_tensor_resize_0
+                                          resize_0.cpp)

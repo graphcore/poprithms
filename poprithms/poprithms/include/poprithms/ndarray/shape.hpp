@@ -550,6 +550,21 @@ public:
   Shape dimShuffle(const Permutation &p) const;
 
   /**
+   * Roll dimension \a dimIdx to the dimension \a newIdx
+   *
+   * The other dimensions remain in the same relative order
+   *
+   *  \param dimIdx     The dimension to move from
+   *  \param newIdx     The dimension to move to
+   *  \returns          The shuffled Tensor
+   *
+   * Example. If this Shape is (2,3,5,7,11) then dimRool with
+   *          \a dimIdx = 1 and \a newIdx = 3 results in Shape (2,5,7,3,11).
+   *
+   */
+  Shape dimRoll(Dimension dimIdx, Dimension newIdx) const;
+
+  /**
    * Subsample elements from this Shape.
    *
    * \param strides The interval in each dimension between the elements to

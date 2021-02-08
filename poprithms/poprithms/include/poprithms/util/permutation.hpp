@@ -26,6 +26,27 @@ public:
   static Permutation identity(uint64_t rnk);
 
   /**
+   * A pair of indices for a dimesion roll.
+   * */
+  struct DimRollPair {
+    template <typename T>
+    DimRollPair(T f, T t)
+        : from_(static_cast<uint64_t>(f)), to_(static_cast<uint64_t>(t)) {}
+    uint64_t from() const { return from_; }
+    uint64_t to() const { return to_; }
+
+  private:
+    uint64_t from_;
+    uint64_t to_;
+  };
+
+  /**
+   * A special kind of Permutation, where one dimension migrates, and all
+   * other dimensions retain their relative order.
+   * */
+  static Permutation dimRoll(uint64_t rnk, DimRollPair p);
+
+  /**
    * \return true if and only if (iff) this Permutation is
    *         (0 1 2 ... size() -1)
    * */

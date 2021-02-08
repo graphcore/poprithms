@@ -1,4 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <sstream>
+
 #include <poprithms/util/error.hpp>
 #include <poprithms/util/permutation.hpp>
 
@@ -36,10 +38,35 @@ void testProd0() {
     throw error("Expected (1 2 3 0) o (1 2 3 0) == (2 3 0 1)");
   }
 }
+
+void testDimRoll(const uint64_t rnk,
+                 const uint64_t from,
+                 const uint64_t to,
+                 const Permutation &expected) {
+  const auto p = Permutation::dimRoll(rnk, {from, to});
+  if (p != expected) {
+    std::ostringstream oss;
+    oss << "Failed in test of Permutation's dimRoll. "
+        << "With rnk = " << rnk << ", from = " << from << ", to = " << to
+        << ", and expected = " << expected << "observed " << p
+        << ", but expected " << expected << '.';
+    throw error(oss.str());
+  }
+}
+
+void testDimRoll0() {
+  testDimRoll(3, 0, 2, {{1, 2, 0}});
+  testDimRoll(3, 2, 0, {{2, 0, 1}});
+  testDimRoll(3, 0, 0, {{0, 1, 2}});
+  testDimRoll(3, 2, 2, {{0, 1, 2}});
+  testDimRoll(3, 0, 1, {{1, 0, 2}});
+  testDimRoll(3, 1, 0, {{1, 0, 2}});
+}
 } // namespace
 
 int main() {
   test0();
   testProd0();
+  testDimRoll0();
   return 0;
 }

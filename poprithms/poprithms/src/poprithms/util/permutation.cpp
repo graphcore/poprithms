@@ -9,6 +9,31 @@
 namespace poprithms {
 namespace util {
 
+Permutation Permutation::dimRoll(uint64_t rnk, DimRollPair p) {
+  if (p.from() >= rnk) {
+    std::ostringstream oss;
+    oss << "Invalid source of dimRoll, " << p.from()
+        << ". Source must be less than rank, " << rnk << '.';
+    throw error(oss.str());
+  }
+
+  if (p.to() >= rnk) {
+    std::ostringstream oss;
+    oss << "Invalid destination of dimRoll, " << p.to()
+        << ". Destination must be less than rank, " << rnk << '.';
+    throw error(oss.str());
+  }
+
+  auto perm = identity(rnk).get();
+
+  const int64_t fwd = p.from() < p.to() ? +1 : -1;
+  for (auto i = p.from(); i != p.to(); i += fwd) {
+    perm[i] += fwd;
+  }
+  perm[p.to()] = p.from();
+  return Permutation(perm);
+}
+
 Permutation Permutation::identity(uint64_t rnk) {
   std::vector<uint64_t> p(rnk, 0);
   std::iota(p.begin(), p.end(), 0);

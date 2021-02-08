@@ -1,9 +1,11 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_TENSOR_HPP
 #define POPRITHMS_COMPUTE_HOST_TENSOR_HPP
+
 #include <memory>
 #include <sstream>
 
+#include <poprithms/ndarray/accessors.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
@@ -392,6 +394,7 @@ public:
   const Shape &shape() const { return shape_; }
   uint64_t rank_u64() const { return shape().rank_u64(); }
   uint64_t nelms_u64() const { return shape().nelms_u64(); }
+  int64_t nelms() const { return shape().nelms(); }
   uint64_t dim(uint64_t d) const { return shape().dim(d); }
   uint64_t nbytes() const {
     return nelms_u64() * ndarray::nbytes_u64(dtype());
@@ -732,6 +735,40 @@ public:
   /** A generalization of a matrix transpose. */
   Tensor dimShuffle(const Permutation &) const;
   Tensor dimShuffle_(const Permutation &) const;
+
+  /**
+   * Roll dimension \a dimIdx to the dimension \a newIdx
+   *
+   * The other dimensions remain in the same relative order
+   *
+   *  \param dimIdx     The dimension to move from
+   *  \param newIdx     The dimension to move to
+   *  \returns          The shuffled Tensor
+   *  */
+  Tensor dimRoll(Dimension dimIdx, Dimension newIdx) const;
+  Tensor dimRoll_(Dimension dimIdx, Dimension newIdx) const;
+
+  /**
+   * Resize, or tile, this Tensor in a certain Dimension.
+   *
+   * As an example, if this Tensor is
+   *   [[ 0 1 ]
+   *    [ 2 3 ]],
+   *
+   * then resizing in Dimension \a d = 0 (horizontal) with Stride \a s = 2
+   * results in
+   *   [[ 0 0 1 1 ]
+   *    [ 2 2 3 3 ]].
+   *
+   * */
+  Tensor resize(Dimension d, Stride s) const;
+  Tensor resize_(Dimension d, Stride s) const;
+
+  /**
+   * Resize the final dimension of this Tensor.
+   * */
+  Tensor resizeFinalDim(Stride) const;
+  Tensor resizeFinalDim_(Stride) const;
 
   /** Reverse the dimensions of this Tensor.
    *
