@@ -231,5 +231,8 @@ Logger::~Logger() = default;
 Logger::Logger(const std::string &id) {
   impl = implContainer.getLoggerImpl(id);
 }
+
+std::string Logger::id() const { return impl->getId(); }
+
 } // namespace logging
 } // namespace poprithms

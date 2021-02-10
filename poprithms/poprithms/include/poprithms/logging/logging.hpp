@@ -73,6 +73,12 @@ public:
   bool shouldLogDebug() const { return shouldLog(Level::Debug); }
   bool shouldLogTrace() const { return shouldLog(Level::Trace); }
 
+  /**
+   * Return the unique identifier of this Logger. This is the same string as
+   * was passed into the constructor.
+   * */
+  std::string id() const;
+
 private:
   LoggerImpl *impl;
 };
