@@ -18,7 +18,7 @@ message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
 find_package(Threads REQUIRED)
 
 set(logging_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/timeinscopeslogger.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/timepartitionlogger.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/logging.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/error.cpp
 )

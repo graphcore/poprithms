@@ -3,41 +3,53 @@
 #include <thread>
 
 #include <poprithms/logging/error.hpp>
-#include <poprithms/logging/timeinscopeslogger.hpp>
+#include <poprithms/logging/timepartitionlogger.hpp>
 
 namespace {
 
 using namespace poprithms::logging;
 
-void summarizerTest0() {
-  TimeInScopesLogger summarizer("myTimeInScopesLogger");
+using Event = TimePartitionLogger::Event;
+using Type  = Event::Type;
 
-  summarizer.start("first-stopwatch");
+void summarizerTest0() {
+  ManualTimePartitionLogger summarizer("myManualTimePartitionLogger");
+
+  const auto sw0 = "first-sw";
+  const auto sw1 = "my-chrometer";
+  const auto sw2 = "second-sw";
+
+  summarizer.start(sw0);
   std::this_thread::sleep_for(std::chrono::milliseconds(1));
   summarizer.stop();
 
-  summarizer.start("un-autre-chronometre");
+  summarizer.start(sw1);
   std::this_thread::sleep_for(std::chrono::milliseconds(2));
   summarizer.stop();
 
-  summarizer.start("first-stopwatch");
+  summarizer.start(sw2);
   std::this_thread::sleep_for(std::chrono::milliseconds(3));
   summarizer.stop();
 
-  //  [myTimeInScopesLogger]
-  //         first-stopwatch          : 0.005311 [s]     : 66.257112 %
-  //         un-autre-chronometre     : 0.002646 [s]     : 33.015471 %
-  //         unaccounteded time       : 0.000058 [s]     : 0.727417 %
-  //         total time               : 0.008015 [s]     : 100.000000 %.
+  const auto events = summarizer.events();
 
-  summarizer.summarize();
+  summarizer.verifyEvents({
+      {sw0, Type::Start},
+      {sw0, Type::Stop},
+      {sw1, Type::Start},
+      {sw1, Type::Stop},
+      {sw2, Type::Start},
+      {sw2, Type::Stop},
+  });
+
+  // Print the events to std::cout.
+  summarizer.summarizeInfo(0.0);
 }
 
-// This is how the TimeInScopesLogger will be unsed in, for example, PopART. A
-// global summarizer is constructed and accessed in the various parts of the
+// A global summarizer is constructed and accessed in the various parts of the
 // codebase.
-TimeInScopesLogger &summarizer() {
-  static TimeInScopesLogger s("globby-globulus");
+ManualTimePartitionLogger &summarizer() {
+  static ManualTimePartitionLogger s("global-time-partitioner");
   return s;
 }
 
@@ -63,7 +75,9 @@ void globalTest() {
   const auto t0 = summarizer().get("part0");
   const auto t1 = summarizer().get("part1");
 
-  // we test with 1 millisecond margin for error.
+  // we test with 1 millisecond margin for error. Note that for this to fail,
+  // the recorded time would need to be less than the pause, which is
+  // presumably impossible.
   if (t0 < 2e-3) {
     std::ostringstream oss;
     oss << "part0 ran for a total for 3 milliseconds, "
@@ -78,12 +92,12 @@ void globalTest() {
     throw error(oss.str());
   }
 
-  summarizer().summarize();
+  summarizer().summarizeInfo(0.0);
 }
 
 void noDoubleStart() {
 
-  TimeInScopesLogger s("foo");
+  ManualTimePartitionLogger s("noDoubleStartTest");
   s.start("scope0");
   bool caught{false};
   try {
@@ -96,19 +110,24 @@ void noDoubleStart() {
   }
 }
 
-void doubleSameOk() {
-  TimeInScopesLogger s("foo2");
-  s.start("a");
-  s.start("a");
+void noDoubleStop() {
+
+  ManualTimePartitionLogger s("noDoubleStopTest");
+  s.start("scope0");
   s.stop();
-  s.start("a");
-  s.stop();
-  s.stop();
-  s.start("a");
+  bool caught{false};
+  try {
+    s.stop();
+  } catch (const poprithms::error::error &err) {
+    caught = true;
+  }
+  if (!caught) {
+    throw error("Failed in test that stop cannot be called without start");
+  }
 }
 
 void timeRegisteredBeforeStop() {
-  TimeInScopesLogger s("foo3");
+  ManualTimePartitionLogger s("foo3");
   s.start("a");
   std::this_thread::sleep_for(std::chrono::milliseconds(2));
   if (s.get("a") < 1e-3) {
@@ -118,21 +137,38 @@ void timeRegisteredBeforeStop() {
 }
 
 // This is really a repeat test of Logger's functionality.
-void noTwoTimeInScopesLoggersWithSameId() {
+void noTwoManualTimePartitionLoggersWithSameId() {
 
-  TimeInScopesLogger a("new101");
+  ManualTimePartitionLogger a("new101");
 
   bool caught{false};
   try {
-    TimeInScopesLogger b("new101");
+    ManualTimePartitionLogger b("new101");
   } catch (const poprithms::error::error &err) {
     caught = true;
   }
 
   if (!caught) {
-    throw error("Failed to catch error when TimeInScopesLoggers of same "
-                "names constructed");
+    throw error(
+        "Failed to catch error when ManualTimePartitionLoggers of same "
+        "names constructed");
   }
+}
+
+void testScopedStopwatch0() {
+
+  ManualTimePartitionLogger l("scopeStowatchTest0");
+  { auto a = l.scopedStopwatch("a"); }
+
+  { auto b = l.scopedStopwatch("b"); }
+
+  auto c = l.scopedStopwatch("c");
+
+  l.verifyEvents({{"a", Type::Start},
+                  {"a", Type::Stop},
+                  {"b", Type::Start},
+                  {"b", Type::Stop},
+                  {"c", Type::Start}});
 }
 
 } // namespace
@@ -143,8 +179,9 @@ int main() {
   summarizerTest0();
   globalTest();
   noDoubleStart();
-  doubleSameOk();
+  noDoubleStop();
   timeRegisteredBeforeStop();
-  noTwoTimeInScopesLoggersWithSameId();
+  noTwoManualTimePartitionLoggersWithSameId();
+  testScopedStopwatch0();
   poprithms::logging::setGlobalLevel(poprithms::logging::Level::Off);
 }
