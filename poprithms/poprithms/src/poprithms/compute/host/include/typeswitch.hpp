@@ -34,7 +34,9 @@ ReturnType typeSwitch(ndarray::DType t, Args &&... args) {
   case (ndarray::DType::Float16): {
     return F::template go<IeeeHalf>(std::forward<Args>(args)...);
   }
-
+  case (ndarray::DType::Boolean): {
+    return F::template go<bool>(std::forward<Args>(args)...);
+  }
   case (ndarray::DType::Int8): {
     return F::template go<int8_t>(std::forward<Args>(args)...);
   }

@@ -4,6 +4,7 @@
 #include <memory>
 #include <random>
 #include <sstream>
+#include <type_traits>
 
 #include <compute/host/include/allocdata.hpp>
 #include <compute/host/include/basedata.hpp>
@@ -106,6 +107,10 @@ Tensor Tensor::Caster::go<IeeeHalf>(const Shape &s, const void *vp) {
   return Tensor::copyFloat16(s, asu16);
 }
 
+template <> Tensor Tensor::Caster::go<bool>(const Shape &, const void *) {
+  throw error("Cannot reinterpret data as bools");
+}
+
 Tensor Tensor::copy(DType t, const Shape &s, const void *vp) {
   return typeSwitch<Caster, Tensor>(t, s, vp);
 }
@@ -152,9 +157,33 @@ Tensor Tensor::to(DType t) const {
   }
 }
 
+// template class to assert that a negative double can be cast to a new type.
+// Default behaviour is to always allow:
+template <typename T, class Enable = void> class AssertSign {
+public:
+  void operator()(double) const {}
+};
+
+// Unsigned integers: cannot cast to them from a negative double.
+template <class T>
+class AssertSign<T, typename std::enable_if_t<std::is_unsigned_v<T>>> {
+public:
+  void operator()(double a) const {
+    if (a < 0.) {
+      std::ostringstream oss;
+      oss << "Failed in AssertSign for DTtype "
+          << poprithms::ndarray::pcase<T>() << ": the value " << a
+          << " is negative. "
+          << "Cannot cast from negative double. ";
+      throw error(oss.str());
+    }
+  }
+};
+
 class Tensor::ScalarCaster {
 public:
   template <typename T> static Tensor go(const double v) {
+    AssertSign<T>()(v);
     const T v_ = static_cast<T>(v);
     return tScalar<T>(v_);
   }

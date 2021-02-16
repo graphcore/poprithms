@@ -2,9 +2,11 @@
 #include <array>
 #include <iostream>
 #include <numeric>
+#include <sstream>
 
 #include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 using namespace poprithms::compute::host;
@@ -36,9 +38,30 @@ void testFromFloat64() {
     throw error("Error in the casting chain in cast_0");
   }
 }
+
+void testScalarCreation() {
+
+  for (auto t : {DType::Boolean, DType::Unsigned16}) {
+
+    bool caught{false};
+    try {
+      Tensor::scalar(t, -1.0);
+    } catch (const poprithms::error::error &) {
+      std::ostringstream oss;
+      caught = true;
+    }
+    if (!caught) {
+      std::ostringstream oss;
+      oss << "Failed to catch error creating " << t
+          << " from negative double";
+      throw error(oss.str());
+    }
+  }
+}
 } // namespace
 
 int main() {
   testFromFloat64();
+  testScalarCreation();
   return 0;
 }
