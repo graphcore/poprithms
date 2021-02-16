@@ -154,8 +154,14 @@ void TimePartitionLogger::append(std::ostream &ost,
 
   const auto total = sinceConstruction();
 
-  const std::string totalTime{"total"};
-  const std::string unaccountedTime{"unaccounted"};
+  auto ensureUnique = [this](std::string x) {
+    while (stopwatches.count(x) > 0) {
+      x = x + ' ';
+    }
+    return x;
+  };
+  std::string totalTime       = ensureUnique("Total");
+  std::string unaccountedTime = ensureUnique("Unaccounted for");
 
   stopwatchesCopy.emplace(totalTime, total);
   stopwatchesCopy.emplace(unaccountedTime, unaccounted());
@@ -238,6 +244,7 @@ void TimePartitionLogger::summarize(double minPercentage, Level l) const {
 
 void TimePartitionLogger::registerStartEvent(const std::string &stopwatch) {
   std::lock_guard<std::mutex> m(mut);
+
   clockState        = ClockState::On;
   currentStopwatch_ = stopwatch;
   lastEventTime     = std::chrono::high_resolution_clock::now();

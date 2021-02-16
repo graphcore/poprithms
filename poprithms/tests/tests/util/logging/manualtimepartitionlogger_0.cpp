@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <chrono>
+#include <iostream>
 #include <thread>
 
 #include <poprithms/logging/error.hpp>
@@ -171,6 +172,27 @@ void testScopedStopwatch0() {
                   {"c", Type::Start}});
 }
 
+void testReservedNames() {
+
+  ManualTimePartitionLogger l("x");
+  for (auto n : {"Total", "total", "Unaccounted for"}) {
+    l.start(n);
+    l.stop();
+  }
+
+  if (l.get("Total") > l.sinceConstruction()) {
+    throw error("User chose to have Total as one of their scopes, not "
+                "working as expected");
+  }
+
+  l.verifyEvents({{"Total", Type::Start},
+                  {"Total", Type::Stop},
+                  {"total", Type::Start},
+                  {"total", Type::Stop},
+                  {"Unaccounted for", Type::Start},
+                  {"Unaccounted for", Type::Stop}});
+}
+
 } // namespace
 
 int main() {
@@ -183,5 +205,6 @@ int main() {
   timeRegisteredBeforeStop();
   noTwoManualTimePartitionLoggersWithSameId();
   testScopedStopwatch0();
+  testReservedNames();
   poprithms::logging::setGlobalLevel(poprithms::logging::Level::Off);
 }
