@@ -165,9 +165,10 @@ void TimePartitionLogger::append(std::ostream &ost,
   uint64_t maxScopeLength{0};
   uint64_t maxTimeLength{0};
   for (const auto &[scope, delta] : stopwatchesCopy) {
-    const auto perc = 100. * delta / delta >= minPercentage;
-    if (perc >= minPercentage) { //&& delta >= minTime) {
-      const auto timeStr = std::to_string(delta) + " [s]";
+    const auto perc    = 100. * delta / total;
+    const auto timeStr = std::to_string(delta) + " [s]";
+    if (perc >= minPercentage || scope == totalTime ||
+        scope == unaccountedTime) {
       stopwatchTimeStrings.emplace(scope, timeStr);
       stopwatchPercs.emplace(scope, perc);
       maxScopeLength = std::max<uint64_t>(maxScopeLength, scope.size());
@@ -175,7 +176,6 @@ void TimePartitionLogger::append(std::ostream &ost,
     }
   }
 
-  ost << "[" << id() << "]\n";
   auto append = [maxScopeLength,
                  maxTimeLength,
                  &ost,
@@ -183,7 +183,7 @@ void TimePartitionLogger::append(std::ostream &ost,
                  &stopwatchTimeStrings](const std::string &scope) {
     const auto timeStr = stopwatchTimeStrings.at(scope);
     const auto perc    = stopwatchPercs.at(scope);
-    const auto percStr = std::to_string(perc);
+    const auto percStr = std::to_string(int(perc));
 
     ost << "       " << scope << util::spaceString(maxScopeLength + 2, scope)
         << " : " << timeStr << util::spaceString(maxTimeLength + 2, timeStr)
@@ -193,10 +193,13 @@ void TimePartitionLogger::append(std::ostream &ost,
   for (const auto &[scope, timeStr] : stopwatchTimeStrings) {
     (void)timeStr;
     if (scope != totalTime && scope != unaccountedTime) {
-      append(scope);
-      ost << '\n';
+      if (stopwatchPercs.at(scope) >= minPercentage) {
+        append(scope);
+        ost << '\n';
+      }
     }
   }
+
   append(unaccountedTime);
   ost << '\n';
   append(totalTime);

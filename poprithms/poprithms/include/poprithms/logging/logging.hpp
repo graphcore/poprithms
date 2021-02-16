@@ -43,8 +43,36 @@ void enableTotalTime(bool);
 
 class Logger {
 public:
-  Logger(const std::string &id);
-  ~Logger();
+  /**
+   * Create a Logger with a unique id.
+   *
+   * \param id The id of the Logger, must be unique. If another Logger exists
+   *           with this id, an error is thrown.
+   * */
+  explicit Logger(const std::string &id) : Logger(id, false) {}
+
+  /**
+   * Create a Logger from a proposed id, with the option to extend the
+   * proposed id with a random character string if there is already Logger
+   * with the the id \a id.
+   *
+   * \param id The proposed id for the Logger
+   *
+   * \param extendIdToMakeUnique if false, and there is already a Logger with
+   *                             id \a id, then throw an error. if true, and
+   *                             there is already a Logger with id \a id, then
+   *                             try adding a random character string to \a id
+   *                             to fond a unique id. Try this until a unique
+   *                             id is found.
+   * */
+  explicit Logger(const std::string &id, bool extendIdToMakeUnique);
+
+  /**
+   * Create a Logger with a unique name of random characters.
+   * */
+  Logger() : Logger({}, true){};
+
+  virtual ~Logger();
   void info(const std::string &) const;
   void debug(const std::string &) const;
   void trace(const std::string &) const;

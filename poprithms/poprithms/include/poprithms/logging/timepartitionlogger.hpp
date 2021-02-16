@@ -52,6 +52,10 @@ private:
 class TimePartitionLogger : public Logger {
 
 public:
+  TimePartitionLogger(const std::string &id, bool extendIdToMakeUnique)
+      : Logger(id, extendIdToMakeUnique),
+        constructionTime(std::chrono::high_resolution_clock::now()) {}
+
   /**
    * Start the stopwatch \a stopwatch. The behaviour in the case where there
    * is already a stopwatch on depends on the inheriting class's
@@ -66,10 +70,6 @@ public:
    * postHandleStartFromOn.
    * */
   void stop();
-
-  explicit TimePartitionLogger(const std::string &id)
-      : Logger(id),
-        constructionTime(std::chrono::high_resolution_clock::now()) {}
 
   /**
    * A summary of the times on each stopwatch. An example might be:
@@ -232,8 +232,13 @@ private:
  * */
 class ManualTimePartitionLogger : public TimePartitionLogger {
 public:
+  ManualTimePartitionLogger(const std::string &id, bool extendIdToMakeUnique)
+      : TimePartitionLogger(id, extendIdToMakeUnique) {}
+
   explicit ManualTimePartitionLogger(const std::string &id)
-      : TimePartitionLogger(id) {}
+      : ManualTimePartitionLogger(id, false) {}
+
+  ManualTimePartitionLogger() : ManualTimePartitionLogger({}, true) {}
 
 private:
   void preHandleStartFromOn(const std::string &stopwatch) final;
@@ -247,8 +252,14 @@ private:
 
 class SwitchingTimePartitionLogger : public TimePartitionLogger {
 public:
+  SwitchingTimePartitionLogger(const std::string &id,
+                               bool extendIdToMakeUnique)
+      : TimePartitionLogger(id, extendIdToMakeUnique) {}
+
   explicit SwitchingTimePartitionLogger(const std::string &id)
-      : TimePartitionLogger(id) {}
+      : SwitchingTimePartitionLogger(id, false) {}
+
+  SwitchingTimePartitionLogger() : SwitchingTimePartitionLogger({}, true) {}
 
 private:
   void preHandleStartFromOn(const std::string &stopwatch) final;

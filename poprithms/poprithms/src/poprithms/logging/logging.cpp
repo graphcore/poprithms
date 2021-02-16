@@ -1,10 +1,13 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <array>
 #include <chrono>
+#include <cstddef>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <ostream>
+#include <random>
 #include <sstream>
 
 #include <poprithms/logging/error.hpp>
@@ -108,6 +111,18 @@ Level getInitialLevel() {
   return Level::Off;
 }
 
+namespace {
+std::string randomLowerCase(uint64_t len) {
+  std::random_device r;
+  std::mt19937 gen(r());
+  std::string out;
+  out.reserve(len);
+  for (uint64_t i = 0; i < len; ++i)
+    out += ('a' + gen() % 26);
+  return out;
+}
+} // namespace
+
 class LoggerImplContainer {
 
 public:
@@ -117,13 +132,25 @@ public:
     tZ = std::chrono::high_resolution_clock::now();
   }
 
-  LoggerImpl *getLoggerImpl(const std::string &id) {
+  LoggerImpl *getLoggerImpl(const std::string &id_, bool extendToMakeUnique) {
+
+    std::lock_guard<std::mutex> g(mut);
+    auto id    = id_;
     auto found = impls.find(id);
-    if (found != impls.cend()) {
+
+    if (!extendToMakeUnique && found != impls.cend()) {
       throw logging::error("There is already a Logger with id `" + id + "'.");
     }
-    impls[id] = std::make_unique<LoggerImpl>(id, this);
-    return impls[id].get();
+
+    uint64_t nExtra{2};
+    while (found != impls.cend()) {
+      id    = id_ + "_" + randomLowerCase(nExtra);
+      found = impls.find(id);
+      ++nExtra;
+    }
+
+    auto iter = impls.emplace(id, std::make_unique<LoggerImpl>(id, this));
+    return iter.first->second.get();
   }
 
   void setGlobalLevel(Level l) {
@@ -166,6 +193,9 @@ private:
 
   bool deltaTime{false};
   bool totalTime{false};
+
+  // Mutex used when constructing new Loggers, to handle name clashes.
+  std::mutex mut;
 
 } implContainer;
 
@@ -228,8 +258,8 @@ bool Logger::shouldLog(Level atLevel) const {
 
 Logger::~Logger() = default;
 
-Logger::Logger(const std::string &id) {
-  impl = implContainer.getLoggerImpl(id);
+Logger::Logger(const std::string &id, bool extendIdToMakeUnique) {
+  impl = implContainer.getLoggerImpl(id, extendIdToMakeUnique);
 }
 
 std::string Logger::id() const { return impl->getId(); }
