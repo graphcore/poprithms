@@ -211,6 +211,20 @@ void Tensor::assertNonEmptyConcat(uint64_t nToCat) {
   }
 }
 
+void Tensor::assertContainsAliases() const { assertContainsAliases(true); }
+void Tensor::assertContainsNoAliases() const { assertContainsAliases(false); }
+
+void Tensor::assertContainsAliases(bool expected) const {
+  if (containsAliases() != expected) {
+    std::ostringstream oss;
+    const auto expStr = expected ? "" : " NOT";
+    oss << "Error in assertContainsAliases. "
+        << "Tensor " << *this << " was" << expStr
+        << " expected to contain aliases. ";
+    throw error(oss.str());
+  }
+}
+
 std::ostream &operator<<(std::ostream &ost, const Tensor &t) {
   t.append(ost);
   return ost;
@@ -364,6 +378,23 @@ Tensor Tensor::operator<=(const Tensor &rhs) const {
   return {co.shape,
           DType::Boolean,
           co.arg0.tData().lessThanOrEqualTo(co.arg1.tData())};
+}
+
+Tensor Tensor::reciprocal() const {
+  return host::Tensor::scalar(dtype(), 1.0) / (*this);
+}
+
+Tensor Tensor::reciprocal_() const {
+  tData().reciprocal_();
+  return *this;
+}
+
+Tensor Tensor::neg() const {
+  return host::Tensor::scalar(dtype(), -1.0) * (*this);
+}
+
+Tensor Tensor::neg_() const {
+  return mul_(host::Tensor::scalar(dtype(), -1.0));
 }
 
 Tensor Tensor::relu() const {

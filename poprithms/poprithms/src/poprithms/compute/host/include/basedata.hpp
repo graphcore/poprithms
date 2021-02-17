@@ -129,10 +129,11 @@ public:
   /**
    * Unary modifiers.
    * */
-  virtual void abs_() const   = 0;
-  virtual void sqrt_() const  = 0;
-  virtual void ceil_() const  = 0;
-  virtual void floor_() const = 0;
+  virtual void abs_() const        = 0;
+  virtual void sqrt_() const       = 0;
+  virtual void ceil_() const       = 0;
+  virtual void floor_() const      = 0;
+  virtual void reciprocal_() const = 0;
 
   /**
    * Non-aliasing, view-changing operators.

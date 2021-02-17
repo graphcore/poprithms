@@ -847,8 +847,20 @@ public:
   Tensor mod(int64_t modulo) const;
   Tensor mod_(int64_t modulo) const;
 
+  /**
+   * The negative of this Tensor.
+   * */
+  Tensor neg() const;
+  Tensor neg_() const;
+
   Tensor sqrt() const;
   Tensor sqrt_() const;
+
+  /**
+   * The reciprocal of this Tensor.
+   * */
+  Tensor reciprocal() const;
+  Tensor reciprocal_() const;
 
   /**
    * relu(x) = x*(x > 0)
@@ -871,6 +883,13 @@ public:
   void assertType(DType) const;
 
   static void assertNonEmptyConcat(uint64_t nToCat);
+
+  /**
+   * Throw an error with a descriptive message if this Tensor does (not)
+   * contain aliases.
+   * */
+  void assertContainsAliases() const;
+  void assertContainsNoAliases() const;
 
   /** Tensor concatenation. */
   static Tensor concat(const std::vector<Tensor> &, uint64_t axis);
@@ -955,6 +974,8 @@ private:
   class ScalarCaster;
   class Zeros;
   class Ones;
+
+  void assertContainsAliases(bool) const;
 };
 
 class OptionalTensor {

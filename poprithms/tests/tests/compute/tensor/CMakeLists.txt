@@ -54,3 +54,9 @@ add_compute_host_test(compute_host_tensor_numpy_slice_0
 
 add_compute_host_test(compute_host_tensor_resize_0
                                           resize_0.cpp)
+
+add_compute_host_test(compute_host_tensor_reciprocal_0
+                                          reciprocal_0.cpp)
+
+add_compute_host_test(compute_host_tensor_neg_0
+                                          neg_0.cpp)

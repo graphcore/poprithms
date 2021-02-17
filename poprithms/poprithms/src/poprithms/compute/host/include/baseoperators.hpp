@@ -112,6 +112,12 @@ public:
   static std::string name() { return name_<T>("Floor"); }
 };
 
+template <typename T> class Reciprocal {
+public:
+  T operator()(T a) const { return T(1) / a; }
+  static std::string name() { return name_<T>("Reciprocal"); }
+};
+
 template <typename T> class Adder {
 public:
   T operator()(T a, T b) const { return a + b; }
@@ -274,6 +280,14 @@ template <> class Sqrt<bool> {
 public:
   bool operator()(bool a) const { return a; }
   static std::string name() { return name_<bool>("Sqrt"); }
+};
+
+template <> class Reciprocal<bool> {
+public:
+  [[noreturn]] bool operator()(bool) const {
+    throw error("No Reciprocal defined for bool");
+  }
+  static std::string name() { return name_<bool>("Reciprocal"); }
 };
 
 template <typename T, class Enable = void> class Modder {};

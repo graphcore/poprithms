@@ -239,6 +239,8 @@ public:
   BaseDataSP floor() const final { return unary<Floor<T>>(); }
   void floor_() const final { unary_<Floor<T>>(); }
 
+  void reciprocal_() const final { unary_<Reciprocal<T>>(); }
+
   BaseDataSP add(const BaseData &rhs) const final {
     auto out = binary<Adder<T>>(rhs);
     return out;
