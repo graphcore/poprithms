@@ -108,6 +108,19 @@ public:
   Shape flattenTo2d(uint64_t axis) const;
 
   /**
+   * Reshape by collapsing all dimensions in [from, to) into a single
+   * dimensions. For example, if this Shape is (2,3,5,7). then flatten(1,3) is
+   * (2,15,7).
+   *
+   * \param from The first dimension in the collapse sequence.
+   * \param to One past the final dimension to collapse.
+   *
+   * It is required that 0 <= from < to <= rank().
+   */
+  Shape flatten(uint64_t from, uint64_t to) const &;
+  Shape &&flatten(uint64_t from, uint64_t to) &&;
+
+  /**
    * \return A Shape which is the same as this, but with all `1's removed.
    *         Note that `0's are not removed.
    * */
@@ -161,11 +174,25 @@ public:
   Shape prepend(const Shape &dims0) const;
 
   /**
+   * Increase this Shape's rank by 1, by adding the dimension \a dimEnd to the
+   * end. For example, this Shape is (2,3) and \a dimEnd is 5, then the
+   * returned Shape is (2,3,5).
+   * */
+  Shape append(int64_t dimEnd) const &;
+  Shape &&append(int64_t dimEnd) &&;
+
+  /**
    * Throw an error if the size of \a l or the size of \a u is not the same as
    * the rank of this Tensor, or if l[i] > u[i] or l[i] < 0 or u[i] > dim(i),
    * for a dimension "i" less than the rank of this Shape.
    * */
   void assertSliceBoundsAreValid(const Lower &l, const Upper &u) const;
+  void assertSliceBoundsAreValid(Dimension d, uint64_t l, uint64_t u) const;
+
+  /**
+   * Throw an error if from >= to or if to >= rank.
+   * */
+  void assertValidFlatten(uint64_t from, uint64_t to) const;
 
   /**
    * Project the Shape into \a x1 - \a x0 dimensions, by retaining
@@ -195,7 +222,9 @@ public:
    * Slice this shape in a single dimension. The returned Shape is the same
    * rank as this Shape, and the same size in all dimensions other that \a d,
    * which is of size u - l. */
-  Shape slice(Dimension, uint64_t l, uint64_t u) const;
+  Shape slice(Dimension, uint64_t l, uint64_t u) const &;
+
+  Shape &&slice(Dimension, uint64_t l, uint64_t u) &&;
 
   /**
    * Convert a slice in one dimension into a slice in all dimensions. Example.
@@ -221,7 +250,7 @@ public:
   /**
    * Pad/trim this Shape.
    *
-   * \return A shape with has size in dimension d of dim(d) + delta[d].
+   * \return A shape which has size in dimension d of dim(d) + delta[d].
    * */
   Shape addToDims(const std::vector<int64_t> &delta) const;
 
@@ -233,7 +262,8 @@ public:
    *
    * \return The scaled Shape.
    * */
-  Shape scale(Stride s, Dimension d) const;
+  Shape scale(Stride s, Dimension d) const &;
+  Shape &&scale(Stride s, Dimension d) &&;
 
   /**
    * Starting indices of a numpy-slice
@@ -310,6 +340,21 @@ public:
 
   const std::vector<int64_t> &get() const { return shp; }
   std::vector<uint64_t> get_u64() const { return {shp.cbegin(), shp.cend()}; }
+
+  /**
+   * \return true if this Shape contains no 1's.
+   * */
+  bool isSqueezed() const;
+
+  /**
+   * \return All dimensions which are of size 1, in ascending order.
+   * */
+  std::vector<uint64_t> singletonDimensions() const;
+
+  /**
+   * \return All dimensions which are not of size 1, in ascending order.
+   * */
+  std::vector<uint64_t> nonSingletonDimensions() const;
 
   /**
    * Perform numpy binary broadcasting between this Shape and \a rhs. See
@@ -527,7 +572,8 @@ public:
    *         larger by a factor \a N. The retured Shape has the same rank as
    *         this Shape.
    * */
-  Shape broadcast(int64_t N, uint64_t dimension) const;
+  Shape broadcast(int64_t N, uint64_t dimension) const &;
+  Shape &&broadcast(int64_t N, uint64_t dimensions) &&;
 
   /** \return A copy of this Shape, but with the dimension \a dimension
    *          resized to be N.

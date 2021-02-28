@@ -209,6 +209,17 @@ Shape Shape::prepend(const Shape &dims0) const {
   return outShape_;
 }
 
+Shape Shape::append(int64_t dimEnd) const & {
+  auto outShape_ = get();
+  outShape_.push_back(dimEnd);
+  return outShape_;
+}
+
+Shape &&Shape::append(int64_t dimEnd) && {
+  shp.push_back(dimEnd);
+  return std::move(*this);
+}
+
 Shape Shape::prepend(int64_t dim0) const {
   decltype(shp) prepended{dim0};
   prepended.insert(prepended.cend(), shp.cbegin(), shp.cend());
@@ -427,11 +438,17 @@ Shape Shape::squeeze(const std::vector<uint64_t> &dims) const {
   return squeezed;
 }
 
-Shape Shape::broadcast(int64_t N, uint64_t dimension) const {
+Shape Shape::broadcast(int64_t N, uint64_t dimension) const & {
   assertValidDimension(dimension);
   auto s = get();
   s[dimension] *= N;
   return s;
+}
+
+Shape &&Shape::broadcast(int64_t N, uint64_t dimension) && {
+  assertValidDimension(dimension);
+  shp[dimension] *= N;
+  return std::move(*this);
 }
 
 Shape Shape::resizeSingleDim(int64_t N, uint64_t dimension) const {
@@ -1104,9 +1121,16 @@ Shape::getFullSliceBounds(Dimension d, uint64_t l, uint64_t u) const {
   return {lows, upps};
 }
 
-Shape Shape::slice(Dimension d, uint64_t l, uint64_t u) const {
+Shape Shape::slice(Dimension d, uint64_t l, uint64_t u) const & {
   const auto lowsUpps = getFullSliceBounds(d, l, u);
   return slice(std::get<0>(lowsUpps), std::get<1>(lowsUpps));
+}
+
+Shape &&Shape::slice(Dimension d, uint64_t l, uint64_t u) && {
+  assertValidDimension(d.get());
+  assertSliceBoundsAreValid(d, l, u);
+  shp[d.get()] = u - l;
+  return std::move(*this);
 }
 
 namespace {
@@ -1186,10 +1210,9 @@ std::vector<int64_t> Shape::getSlicedRowMajorIndices(const Starts &starts,
 
 void Shape::assertSliceBoundsAreValid(const Lower &l, const Upper &u) const {
 
-  std::ostringstream ss;
-
   // same rank for lower and upper
   if (l.size() != u.size() || u.size() != rank_u64()) {
+    std::ostringstream ss;
     ss << "lower and upper must both be of size "
        << " " << rank_u64() << ". This ia not true for lower=" << l
        << " and upper=" << u << '.';
@@ -1198,20 +1221,29 @@ void Shape::assertSliceBoundsAreValid(const Lower &l, const Upper &u) const {
 
   // lower less than or equal to upper
   for (auto i = 0ul; i < rank_u64(); ++i) {
-    if (l[i] > u[i]) {
-      ss << "lower bound cannot exceed upper bound. "
-         << "This for lower=" << l << " and upper=" << u << '.';
-      throw error(ss.str());
-    }
+    assertSliceBoundsAreValid(Dimension(i), l[i], u[i]);
+  }
+}
 
-    if (dim(i) < u[i]) {
-      ss << "Failure in Shape::assertSliceBoundsAreValid. "
-         << "Upper bound cannot exceed dimension size "
-         << "(in dimension " << i << ") "
-         << "This for Shape = " << *this << ", lower=" << l
-         << " and upper=" << u << '.';
-      throw error(ss.str());
-    }
+void Shape::assertSliceBoundsAreValid(Dimension d,
+                                      uint64_t l,
+                                      uint64_t u) const {
+
+  std::ostringstream ss;
+
+  if (l > u) {
+    ss << "lower bound cannot exceed upper bound. "
+       << "This for lower=" << l << " and upper=" << u << '.';
+    throw error(ss.str());
+  }
+
+  if (dim_u64(d.get()) < u) {
+    ss << "Failure in Shape::assertSliceBoundsAreValid. "
+       << "Upper bound cannot exceed dimension size "
+       << "(in dimension " << d.get() << ") "
+       << "This for Shape = " << *this << ", lower=" << l
+       << " and upper=" << u << '.';
+    throw error(ss.str());
   }
 }
 
@@ -1517,18 +1549,76 @@ void Shape::assertCanReduceTo(const Shape &outShape) const {
   }
 }
 
-Shape Shape::scale(Stride s, Dimension d) const {
+Shape Shape::scale(Stride s, Dimension d) const & {
+  assertValidDimension(d.get());
   auto x = get();
-  if (d.get() >= rank_u64()) {
-    std::ostringstream oss;
-    oss << "Invalid Dimension for this Shape, in " << *this
-        << ".scale(Stride = " << s.get() << ", Dimension = " << d.get()
-        << "). For this Shape, Dimension must be less than the rank, "
-        << rank_u64() << '.';
-    throw error(oss.str());
-  }
   x[d.get()] *= s.get();
   return x;
+}
+
+Shape &&Shape::scale(Stride s, Dimension d) && {
+  assertValidDimension(d.get());
+  shp[d.get()] *= s.get();
+  return std::move(*this);
+}
+
+bool Shape::isSqueezed() const {
+  return std::all_of(shp.cbegin(), shp.cend(), [](auto x) { return x != 1; });
+}
+
+std::vector<uint64_t> Shape::singletonDimensions() const {
+  std::vector<uint64_t> singletons;
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    if (dim(i) == 1) {
+      singletons.push_back(i);
+    }
+  }
+  return singletons;
+}
+
+std::vector<uint64_t> Shape::nonSingletonDimensions() const {
+  std::vector<uint64_t> nonSingletons;
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    if (dim(i) != 1) {
+      nonSingletons.push_back(i);
+    }
+  }
+  return nonSingletons;
+}
+
+void Shape::assertValidFlatten(uint64_t from, uint64_t to) const {
+
+  if (from >= to || to > rank_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid call for this Shape: " << *this
+        << ". Call to flatten(from = " << from << ", to = " << to
+        << ") is invalid as it does not satisfy the requirement that "
+        << "0 <= from < to <= rank. ";
+    throw error(oss.str());
+  }
+}
+
+Shape Shape::flatten(uint64_t from, uint64_t to) const & {
+
+  assertValidFlatten(from, to);
+
+  std::vector<int64_t> dims;
+  dims.reserve(rank_u64() - (to - from - 1));
+  dims.insert(dims.end(), shp.cbegin(), shp.cbegin() + from);
+  dims.push_back(dimProduct(from, to));
+  dims.insert(dims.end(), shp.begin() + to, shp.cend());
+  return dims;
+}
+
+Shape &&Shape::flatten(uint64_t from, uint64_t to) && {
+  assertValidFlatten(from, to);
+  shp[from]         = dimProduct(from, to);
+  const auto offset = to - from - 1;
+  for (uint64_t i = to; i < rank_u64(); ++i) {
+    shp[i - offset] = shp[i];
+  }
+  shp.resize(rank_u64() - offset);
+  return std::move(*this);
 }
 
 } // namespace ndarray

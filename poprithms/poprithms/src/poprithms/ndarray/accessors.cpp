@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <ostream>
 
 #include <poprithms/ndarray/accessors.hpp>
 #include <poprithms/ndarray/error.hpp>
@@ -57,6 +58,12 @@ std::ostream &operator<<(std::ostream &o, const Strides &s) {
 std::ostream &operator<<(std::ostream &o, const Dimensions &s) {
   util::append(o, s.get());
   return o;
+}
+
+std::ostream &operator<<(std::ostream &ost,
+                         const std::vector<Dimensions> &dimss) {
+  util::append(ost, dimss);
+  return ost;
 }
 
 Dimensions Dimensions::append(const Dimensions &rhs) const {

@@ -125,6 +125,7 @@ struct Dimensions : public BaseVectorU64 {
   Dimensions append(const Dimensions &rhs) const;
 };
 std::ostream &operator<<(std::ostream &, const Dimensions &);
+std::ostream &operator<<(std::ostream &, const std::vector<Dimensions> &);
 
 } // namespace ndarray
 } // namespace poprithms

@@ -117,6 +117,26 @@ void testSqueeze2() {
   }
 }
 
+void testSqueeze3() {
+  //
+  //       0  1  2  3  4  5  6  7
+  Shape s({1, 4, 1, 3, 2, 4, 1, 1});
+
+  if (s.isSqueezed()) {
+    throw error("s is not squeezed, it contains 1's");
+  }
+
+  const auto singletons = s.singletonDimensions();
+  if (singletons != std::vector<uint64_t>({0, 2, 6, 7})) {
+    throw error("Incorrect singleton dimension in squeeze test");
+  }
+
+  const auto nonSingletons = s.nonSingletonDimensions();
+  if (nonSingletons != std::vector<uint64_t>({1, 3, 4, 5})) {
+    throw error("Incorrect non-singleton dimension in squeeze test");
+  }
+}
+
 void assertDimProduct(uint64_t x0, uint64_t x1, int64_t expected) {
   const Shape s0({4, 3});
   if (s0.dimProduct(x0, x1) != expected) {
@@ -312,6 +332,70 @@ void testReduce() {
   testReduceBase({2, 2, 2}, {2, 2, 1}, {0, 0, 1, 1, 2, 2, 3, 3});
 }
 
+void testAppend() {
+
+  Shape s0({2});
+  Shape expected({2, 3, 4, 5});
+  auto x = s0.append(3);
+  x      = x.append(4);
+  x      = x.append(5);
+  if (x != expected) {
+    throw error("l-value style append : incorrect result");
+  }
+
+  auto y = Shape({2}).append(3).append(4).append(5);
+  if (y != expected) {
+    throw error("l-value style append : incorrect result");
+  }
+}
+
+void testFlattenRange() {
+
+  Shape s{0, 1, 2, 3, 4, 5};
+
+  auto f0 = s.flatten(1, 5);
+  Shape expected{0, 2 * 3 * 4, 5};
+  if (f0 != expected) {
+    std::ostringstream oss;
+    oss << "Failed in call, " << s << ".flatten(1,5). "
+        << "Expected " << expected << ", but observed " << f0 << '.';
+    throw error(oss.str());
+  }
+
+  auto f1 = s.flatten(1, 3).flatten(1, 4);
+  if (f1 != expected) {
+    std::ostringstream oss;
+    oss << "Failed in call, " << s << ".flatten(1,3).flatten(1,4). "
+        << "Expected " << expected << ", but observed " << f0 << '.';
+    throw error(oss.str());
+  }
+
+  auto f2 = s.flatten(0, 6);
+  if (f2 != Shape({s.nelms()})) {
+    throw error("Flatten(0, rank()) should be same as flatten()");
+  }
+
+  bool caught{false};
+  try {
+    auto f3 = s.flatten(0, 7);
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw error("Failed to catch error of flatten beyond range");
+  }
+
+  caught = false;
+  try {
+    auto f3 = s.flatten(4, 4);
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw error("Failed to catch error of flatten with from=to.");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -321,6 +405,7 @@ int main() {
   testConcat();
   testSqueeze();
   testSqueeze2();
+  testSqueeze3();
   testDimProduct();
   testReverse();
   testGetRowMajorIndices();
@@ -332,5 +417,7 @@ int main() {
   testCanReduceTo();
   testCanonicalReverseIndices();
   testReduce();
+  testAppend();
+  testFlattenRange();
   return 0;
 }
