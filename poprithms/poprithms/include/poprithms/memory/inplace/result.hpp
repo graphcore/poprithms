@@ -1,6 +1,7 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_INPLACE_RESULT_HPP
 #define POPRITHMS_MEMORY_INPLACE_RESULT_HPP
+
 #include <algorithm>
 
 #include <poprithms/memory/inplace/constraint.hpp>

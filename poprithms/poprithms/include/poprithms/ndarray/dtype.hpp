@@ -1,6 +1,7 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef GUARD_POPRITHMS_NDARRAY_DTYPE_HPP
 #define GUARD_POPRITHMS_NDARRAY_DTYPE_HPP
+
 #include <sstream>
 #include <string>
 

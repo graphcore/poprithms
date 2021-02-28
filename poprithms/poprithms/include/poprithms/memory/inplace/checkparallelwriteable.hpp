@@ -1,6 +1,7 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_INPLACE_CHECK_PARALLEL_WRITEABLE_HPP
 #define POPRITHMS_MEMORY_INPLACE_CHECK_PARALLEL_WRITEABLE_HPP
+
 #include <ostream>
 
 namespace poprithms {

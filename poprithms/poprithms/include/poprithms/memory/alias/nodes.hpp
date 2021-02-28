@@ -1,6 +1,7 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_MEMORY_ALIAS_OPS_HPP
-#define POPRITHMS_MEMORY_ALIAS_OPS_HPP
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#ifndef POPRITHMS_MEMORY_ALIAS_NODES_HPP
+#define POPRITHMS_MEMORY_ALIAS_NODES_HPP
+
 #include <memory>
 
 #include <poprithms/memory/alias/node.hpp>

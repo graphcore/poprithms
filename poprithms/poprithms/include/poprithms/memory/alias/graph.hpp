@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_ALIAS_GRAPH_HPP
 #define POPRITHMS_MEMORY_ALIAS_GRAPH_HPP
+
 #include <array>
 #include <map>
 #include <set>

@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_TYPEDTENSORDATA_HPP
 #define POPRITHMS_COMPUTE_HOST_TYPEDTENSORDATA_HPP
+
 #include <memory>
 
 #include <compute/host/include/basedata.hpp>

@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_VIEWDATA_HPP
 #define POPRITHMS_COMPUTE_HOST_VIEWDATA_HPP
+
 #include <compute/host/include/baseoperators.hpp>
 #include <compute/host/include/gridpointhelper.hpp>
 #include <compute/host/include/typeddata.hpp>

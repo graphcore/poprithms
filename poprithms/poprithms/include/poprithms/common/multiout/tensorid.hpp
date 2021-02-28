@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMMON_MULTIOUT_TENSORID_HPP
 #define POPRITHMS_COMMON_MULTIOUT_TENSORID_HPP
+
 #include <ostream>
 #include <tuple>
 #include <vector>

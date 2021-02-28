@@ -1,7 +1,8 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_POINTERDATA_HPP
 #define POPRITHMS_COMPUTE_HOST_POINTERDATA_HPP
-#include "basedata.hpp"
+
+#include <compute/host/include/basedata.hpp>
 
 namespace poprithms {
 namespace compute {

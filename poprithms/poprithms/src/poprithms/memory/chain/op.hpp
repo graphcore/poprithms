@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_CHAIN_OP_HPP
 #define POPRITHMS_MEMORY_CHAIN_OP_HPP
+
 #include <ostream>
 #include <variant>
 

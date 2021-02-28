@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMMON_MULTIOUT_UTIL_UTIL_HPP
 #define POPRITHMS_COMMON_MULTIOUT_UTIL_UTIL_HPP
+
 #include <vector>
 
 namespace poprithms {

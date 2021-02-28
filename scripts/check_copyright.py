@@ -1,4 +1,4 @@
-# Copyright (c) 2019 Graphcore Ltd. All rights reserved.
+# Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 from pathlib import Path
 cppfiles = list(Path("../poprithms").rglob("*.[ch][p][p]"))
 pyfiles = list(Path("../poprithms").rglob("*.py"))

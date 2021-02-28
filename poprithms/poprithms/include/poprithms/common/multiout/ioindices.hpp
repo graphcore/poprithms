@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_COMMON_MULTIOUT_USINGS_HPP
-#define POPRITHMS_COMMON_MULTIOUT_USINGS_HPP
+#ifndef POPRITHMS_COMMON_MULTIOUT_IOINDICES_HPP
+#define POPRITHMS_COMMON_MULTIOUT_IOINDICES_HPP
+
 #include <vector>
 
 #include <poprithms/util/typedinteger.hpp>

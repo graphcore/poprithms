@@ -1,6 +1,7 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_MEMORY_INPLACE_OPID_HPP
-#define POPRITHMS_MEMORY_INPLACE_OPID_HPP
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#ifndef POPRITHMS_MEMORY_INPLACE_CONSTRAINT_HPP
+#define POPRITHMS_MEMORY_INPLACE_CONSTRAINT_HPP
+
 #include <utility>
 #include <vector>
 

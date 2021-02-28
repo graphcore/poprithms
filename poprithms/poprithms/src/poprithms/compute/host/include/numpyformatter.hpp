@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_NUMPYFORMATTER_HPP
 #define POPRITHMS_COMPUTE_HOST_NUMPYFORMATTER_HPP
+
 #include <ostream>
 #include <sstream>
 #include <string>

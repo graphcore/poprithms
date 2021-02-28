@@ -1,6 +1,7 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_COMPUTE_HOST_TENSORUSINGS_HPP
-#define POPRITHMS_COMPUTE_HOST_TENSORUSINGS_HPP
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#ifndef POPRITHMS_COMPUTE_HOST_USINGS_HPP
+#define POPRITHMS_COMPUTE_HOST_USINGS_HPP
+
 #include <memory>
 #include <sstream>
 

@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_CHAIN_CHAIN_HPP
 #define POPRITHMS_MEMORY_CHAIN_CHAIN_HPP
+
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/memory/chain/type.hpp>
 #include <poprithms/memory/nest/region.hpp>

@@ -1,11 +1,12 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_ROWMAJORALLOC_HPP
 #define POPRITHMS_COMPUTE_HOST_ROWMAJORALLOC_HPP
-#include "origindata.hpp"
 
 #include <system_error>
 
 #include <boost/container/vector.hpp>
+
+#include <compute/host/include/origindata.hpp>
 
 namespace poprithms {
 namespace compute {

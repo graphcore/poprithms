@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_CHAIN_DISJOINTREGIONSMAPPER_HPP
 #define POPRITHMS_MEMORY_CHAIN_DISJOINTREGIONSMAPPER_HPP
+
 #include <numeric>
 #include <sstream>
 #include <variant>

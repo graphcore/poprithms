@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMMON_MULTIOUT_OP_HPP
 #define POPRITHMS_COMMON_MULTIOUT_OP_HPP
+
 #include <algorithm>
 #include <ios>
 #include <map>

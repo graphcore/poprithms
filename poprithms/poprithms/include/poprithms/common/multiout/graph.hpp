@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMMON_MULTIOUT_GRAPH_HPP
 #define POPRITHMS_COMMON_MULTIOUT_GRAPH_HPP
+
 #include <memory>
 #include <sstream>
 #include <string>

@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_ALIAS_ALIASUSINGS_HPP
 #define POPRITHMS_MEMORY_ALIAS_ALIASUSINGS_HPP
+
 #include <vector>
 
 #include <poprithms/util/typedinteger.hpp>

@@ -1,8 +1,8 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_INPLACE_OPS_HPP
 #define POPRITHMS_MEMORY_INPLACE_OPS_HPP
-#include "op.hpp"
 
+#include <memory/inplace/op.hpp>
 #include <poprithms/memory/inplace/crosslink.hpp>
 #include <poprithms/util/permutation.hpp>
 

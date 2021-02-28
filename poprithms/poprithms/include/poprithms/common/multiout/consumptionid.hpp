@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_COMMON_MULTIOUT_CONSUMER_HPP
-#define POPRITHMS_COMMON_MULTIOUT_CONSUMER_HPP
+#ifndef POPRITHMS_COMMON_MULTIOUT_CONSUMPTIONID_HPP
+#define POPRITHMS_COMMON_MULTIOUT_CONSUMPTIONID_HPP
+
 #include <ostream>
 #include <tuple>
 #include <vector>

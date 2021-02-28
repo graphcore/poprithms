@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_COMPUTE_HOST_TYPESWITCH_HPP
 #define POPRITHMS_COMPUTE_HOST_TYPESWITCH_HPP
+
 #include <algorithm>
 #include <cstring>
 #include <memory>

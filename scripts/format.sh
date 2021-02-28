@@ -11,6 +11,15 @@ echo "${copyright_return}"
 exit
 fi
 
+
+header_guard_spacing_return=$(python3 check_header_guard_spacing.py)
+if [[ "${header_guard_spacing_return:0:1}" -gt 0 ]];
+then 
+echo "Incorrect header guard spacing in one or several .hpp files"
+echo "${header_guard_spacing_return}"
+exit
+fi
+
 cf_version=$(python3 get_clang_format_version.py)
 if [[ "${cf_version}" -lt 8 ]];
 then 

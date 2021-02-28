@@ -1,6 +1,7 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_INPLACE_PADDING_HPP
 #define POPRITHMS_MEMORY_INPLACE_PADDING_HPP
+
 #include <poprithms/common/multiout/ioindices.hpp>
 #include <poprithms/util/typedinteger.hpp>
 #include <poprithms/util/typedvector.hpp>

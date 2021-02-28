@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_SCHEDULE_VANILLA_VANILLA_HPP
 #define POPRITHMS_SCHEDULE_VANILLA_VANILLA_HPP
+
 #include <vector>
 
 namespace poprithms {
