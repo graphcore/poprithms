@@ -9,6 +9,73 @@
 namespace poprithms {
 namespace util {
 
+bool Permutation::containsSubSequence(
+    const std::vector<uint64_t> &query) const {
+  if (query.empty()) {
+    return true;
+  }
+
+  // Find the unique point in this Permutation which is the same as the start
+  // of the query, if the start of the query appears on this Permutation at
+  // all.
+  auto found = std::find(permutation.cbegin(), permutation.cend(), query[0]);
+
+  // If the distance to the end from the found position is less than the query
+  // length, then it's impossible for the query to be in this permutation
+  if (std::distance(found, permutation.cend()) <
+      static_cast<int64_t>(query.size())) {
+    return false;
+  }
+
+  // Check for the match
+  return std::vector<uint64_t>(found, std::next(found, query.size())) ==
+         query;
+}
+
+Permutation
+Permutation::subPermutation(const std::vector<uint64_t> &where) const {
+
+  for (auto w : where) {
+    if (w >= size()) {
+      std::ostringstream oss;
+      oss << "Invalid element of `where` in subPermutation for "
+          << "this Permutation, " << *this << ". The element " << w
+          << " is too large to index into this Permutation, "
+          << "which is only of rank " << size() << '.';
+      throw error(oss.str());
+    }
+  }
+
+  //  this   (4 2 5 1 3 0)
+  //          =   =     =
+  //  where  (0,4,5)
+  //
+  //  inv    (5 3 1 4 0 2)
+  //          ^       ^ ^
+  //          |       | |
+  //          0       4 5
+  const auto inv = inverse();
+
+  constexpr int64_t blank{-1};
+  std::vector<int64_t> mapping(size(), blank);
+  for (uint64_t i = 0; i < where.size(); ++i) {
+    // mapping[5] = 0
+    // mapping[0] = 1
+    // mapping[2] = 2
+    mapping[inv.get(where[i])] = i;
+  }
+
+  std::vector<uint64_t> subPerm;
+  subPerm.reserve(where.size());
+  for (auto x : mapping) {
+    if (x != blank) {
+      subPerm.push_back(x);
+    }
+  }
+
+  return subPerm;
+}
+
 Permutation Permutation::dimRoll(uint64_t rnk, DimRollPair p) {
   if (p.from() >= rnk) {
     std::ostringstream oss;

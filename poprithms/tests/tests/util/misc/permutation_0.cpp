@@ -3,10 +3,17 @@
 
 #include <poprithms/util/error.hpp>
 #include <poprithms/util/permutation.hpp>
+#include <poprithms/util/printiter.hpp>
 
 namespace {
 
-using namespace poprithms::util;
+using poprithms::util::error;
+using poprithms::util::Permutation;
+
+std::ostream &operator<<(std::ostream &ost, const std::vector<uint64_t> &v) {
+  poprithms::util::append(ost, v);
+  return ost;
+}
 
 void test0() {
   Permutation p({1, 2, 0, 4, 5, 3});
@@ -62,11 +69,84 @@ void testDimRoll0() {
   testDimRoll(3, 0, 1, {{1, 0, 2}});
   testDimRoll(3, 1, 0, {{1, 0, 2}});
 }
+
+void runSubsequenceBase(const Permutation &p,
+                        const std::vector<uint64_t> &where,
+                        const Permutation &expected) {
+  const Permutation observed = p.subPermutation(where);
+  if (observed != expected) {
+    std::ostringstream oss;
+    oss << "Failure in runSubsequenceBase, where Permutation p = " << p
+        << ", where = " << where << ", and expected = " << expected
+        << ". The observed solution is " << observed << '.';
+    throw error(oss.str());
+  }
+}
+
+void testSubsequence() {
+
+  //     This is (4 2 5 1 3 0) and where is (0,4,5)
+  //              =   =     =
+  //                         -> (1 2 0)
+  runSubsequenceBase({{4, 2, 5, 1, 3, 0}}, {0, 4, 5}, {{1, 2, 0}});
+  runSubsequenceBase({{4, 2, 5, 1, 3, 0}}, {5, 4, 0}, {{1, 0, 2}});
+
+  runSubsequenceBase({{1, 2, 0}}, {0, 2}, {{1, 0}});
+  runSubsequenceBase({{2, 1, 0}}, {0, 2}, {{1, 0}});
+  runSubsequenceBase({{2, 1, 3, 0}}, {0, 2, 3}, {{1, 2, 0}});
+
+  //    This is  (4 6 0 5 2 1 3) and where is (2,3,5,6)
+  //                =   = =   =
+  //                        -> (3 2 0 1)
+  runSubsequenceBase({{4, 6, 0, 5, 2, 1, 3}},
+                     {
+                         2,
+                         3,
+                         5,
+                         6,
+                     },
+                     {{3, 2, 0, 1}});
+  runSubsequenceBase({{1, 2, 0}}, {0, 1}, {{1, 0}});
+  runSubsequenceBase({{1, 2, 0}}, {1, 0}, {{0, 1}});
+}
+
+void testContainsSubsequenceBase(const Permutation &p,
+                                 const std::vector<uint64_t> &x,
+                                 bool expected) {
+
+  const auto observed = p.containsSubSequence(x);
+  if (observed != expected) {
+    std::ostringstream oss;
+    oss << "Testing if " << p << " contains " << x
+        << ", expected : " << (expected ? "YES" : "NO");
+    throw error(oss.str());
+  }
+}
+
+void testContainsSubsequence0() {
+
+  Permutation p({3, 5, 6, 1, 4, 2, 0});
+
+  testContainsSubsequenceBase(p, {5, 6, 1}, true);
+  testContainsSubsequenceBase(p, {5}, true);
+  testContainsSubsequenceBase(p, {}, true);
+  testContainsSubsequenceBase(p, {0}, true);
+  testContainsSubsequenceBase(p, {4, 2, 0}, true);
+  testContainsSubsequenceBase(p, p.get(), true);
+
+  testContainsSubsequenceBase(p, {100}, false);
+  testContainsSubsequenceBase(p, {0, 3}, false);
+  testContainsSubsequenceBase(p, {3, 6}, false);
+  testContainsSubsequenceBase(p, {0, 1}, false);
+}
+
 } // namespace
 
 int main() {
   test0();
   testProd0();
   testDimRoll0();
+  testSubsequence();
+  testContainsSubsequence0();
   return 0;
 }
