@@ -52,7 +52,7 @@ public:
   /** The number of elements of a Tensor #x in this Graph. */
   uint64_t nelms_u64(const TensorId &x) const { return shape(x).nelms_u64(); }
 
-  uint64_t nelms(const TensorId &x) const { return shape(x).nelms(); }
+  int64_t nelms(const TensorId &x) const { return shape(x).nelms(); }
 
   /** The rank of a Tensor in this Graph. */
   uint64_t rank_u64(const TensorId &x) const { return shape(x).rank_u64(); }
@@ -76,6 +76,12 @@ public:
 
   /** \return The number of inputs of the Op #id.*/
   uint64_t nInTensors(OpId id) const;
+
+  /** \return The number of outputs of the Op #id.*/
+  uint64_t nOutTensors(OpId id) const;
+
+  TensorIds outTensorIds(OpId) const;
+  TensorIds inTensorIds(OpId) const;
 
   /** \return The string description of the Op #id. */
   std::string typeString(OpId id) const;

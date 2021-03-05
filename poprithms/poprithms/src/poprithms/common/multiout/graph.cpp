@@ -20,6 +20,7 @@ namespace common {
 namespace multiout {
 
 uint64_t Graph::nInTensors(OpId id) const { return op(id).nInTensors(); }
+uint64_t Graph::nOutTensors(OpId id) const { return op(id).nOutTensors(); }
 
 OpId Graph::insertMultioutOp(std::unique_ptr<Op> createdOp) {
 
@@ -175,6 +176,9 @@ OpIds Graph::opIds() const {
   }
   return ids;
 }
+
+TensorIds Graph::outTensorIds(OpId id) const { return op(id).outTensorIds(); }
+TensorIds Graph::inTensorIds(OpId id) const { return op(id).inTensorIds(); }
 
 } // namespace multiout
 } // namespace common

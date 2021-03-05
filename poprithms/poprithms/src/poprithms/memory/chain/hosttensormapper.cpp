@@ -1,5 +1,4 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-
 #include <memory/chain/hosttensormapper.hpp>
 #include <poprithms/memory/chain/error.hpp>
 
