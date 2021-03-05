@@ -57,6 +57,10 @@ public:
   }
 
   void operator+=(INT q) { v += q; }
+  void operator-=(INT q) { v -= q; }
+
+  void operator++() { v += 1; }
+  void operator--() { v -= 1; }
 
   bool operator!=(const TypedInteger &rhs) const { return !operator==(rhs); }
   bool operator>(const TypedInteger &rhs) const { return !operator<=(rhs); }

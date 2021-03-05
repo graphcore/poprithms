@@ -209,6 +209,18 @@ set(memory_inplace_sources
    ${memory_src_dir}/inplace/tensormap.cpp
 )
 
+set(memory_unwind_sources
+  ${memory_src_dir}/unwind/subgraphid.cpp
+  ${memory_src_dir}/unwind/hosttensorhelper.cpp
+  ${memory_src_dir}/unwind/logging.cpp
+  ${memory_src_dir}/unwind/graph.cpp
+  ${memory_src_dir}/unwind/error.cpp
+  ${memory_src_dir}/unwind/path.cpp
+  ${memory_src_dir}/unwind/ops.cpp
+  ${memory_src_dir}/unwind/op.cpp
+  ${memory_src_dir}/unwind/solution.cpp
+  ${memory_src_dir}/unwind/valuedtensorid.cpp
+)
 
 
 add_library(poprithms-memory-nest-objlib OBJECT ${memory_nest_sources})
@@ -242,6 +254,15 @@ add_library(poprithms-memory-inplace SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
+add_library(poprithms-memory-unwind-objlib OBJECT ${memory_unwind_sources})
+add_library(poprithms-memory-unwind SHARED
+  $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
+  $<TARGET_OBJECTS:poprithms-compute-host-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-unwind-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-chain-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
 
 
 add_library(poprithms SHARED 
@@ -253,6 +274,7 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
   $<TARGET_OBJECTS:poprithms-memory-chain-objlib>
   $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-unwind-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -282,6 +304,8 @@ foreach(tgt IN ITEMS
   poprithms-memory-chain
   poprithms-memory-inplace-objlib
   poprithms-memory-inplace
+  poprithms-memory-unwind-objlib
+  poprithms-memory-unwind
   poprithms-util-objlib
   poprithms-util
   poprithms)
