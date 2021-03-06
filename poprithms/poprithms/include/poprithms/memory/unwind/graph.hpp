@@ -307,16 +307,19 @@ class Op;
  *                     which layouts are set.
  *
  *
- * Third type: fixed point.
+ * Third type: fixed-point.
  * = = = = = = = = = = = = =
  * This third category is quite similar to a barrier, except it is not
  * forwards-non-local. In fact, the layout of the output is completely
  * independent of any of the inputs, and so layouts can be derived from the
- * output of a fixed point operation before any of the inputs' layouts are
+ * output of a fixed-point operation before any of the inputs' layouts are
  * known.
  *
- * We will model matmuls as fixed point operations. See the discussion in
+ * We will model matmuls as fixed-point operations. See the discussion in
  * T32143 for why we think this is possible and a good idea.
+ *
+ * Not that the fixed-point type is an abstraction which is not implemented in
+ * class, as it is identical to a source Tensor.
  *
  *
  * Dependencies of layouts
@@ -424,11 +427,6 @@ class Op;
  * elements (forwards-non-local). Moreover, the layouts of inputs cannot be
  * inferred from output layouts (backwards-opaque).
  *
- * FixedPoint
- * ==========
- * Ops for which output layouts are independent of input layouts. A FixedPoint
- * is represented as a Barrier, followed by a Source.
- *
  * SumLike
  * =======
  * A variadic elementwise operator, such as sum, add, mul, pow, etc.
@@ -525,46 +523,28 @@ public:
    * user to know the layout of the output until the layout of the entire
    * input is known.
    *
-   * Note that Barrer is different to FixedPoint (see below). For outputs
-   * of FixedPoint the layout is independent of the input layouts. An example
-   * of FixedPoint might be Poplibs' matmul (see the discussion in T32143).
-   *
-   * It can be advantageous to create a Tensor as a FixedPoint instead of a
-   * Barrier if an input to FixedPoint or any Tensor preceding it in the
-   * DAG, might benefit from having a layout derived from the output of the
-   * FixedPoint Such an unwinding, to a Tensor earlier in a DAG, is not
-   * possible for FixedPoint outputs, as their layouts depend on the Tensors
-   * earlier in the DAG. Example:
+   * Note that sometimes a Barrier might not be best Op to represent an
+   * operation when the output layout is independent of the input layouts. An
+   * example is Poplibs' matmul (see the discussion in T32143). In particular,
+   * it is advantageous to create a operation as a Source instead of a Barrier
+   * when an input to the operation or any Tensor preceding it in the DAG
+   * might benefit from having a layout derived from the output. Example:
    *
    *
    *       X . . . . +
    *       |         .
    *       |         .
-   *    barrier   valued pairn connecting X and Y.
+   *    barrier   valued pair connecting X and Y.
    *       |         .
    *       v         .
    *       |         .
    *       Y . . . . +
    *
    * In the above case, it is not possible to have X and Y have the same
-   * layout and obtain the associated value in the final score. This is
-   * because layout(Y) = f(layout(X)) for some unkowable function f.
+   * layout and obtain the associated value in the final score, because a
+   * barrier assumes layout(Y) = f(layout(X)) for some unkowable function f.
    * */
   OpId barrier(const TensorIds &inputs, const Shapes &outputShapes);
-
- //  /**
- //   * \sa barrier
- //   * \sa source
- //   * See also the introductory discussion.
- //   * */
- //  TensorId fixedPoint(const TensorIds &inputs, const Shape &out) {
- //    return source(out, subGraphIdFromTensorIds(inputs));
- //  }
- //  TensorId fixedPoint(const TensorIds &inputs,
- //                      const Shape &out,
- //                      const std::string &name){
- //    return source(out, subGraphIdFromTensorIds(inputs), name);
- //  }
 
   /**
    * Insert a ValuedPair. A ValuedPair signfiies that having the same layouts
@@ -881,6 +861,17 @@ public:
    * */
   void setSubGraphName(SubGraphId i, const std::string &n) { sgNames[i] = n; }
 
+  /**
+   * If \a ids is empty, or not all Tensors in \a ids have the same
+   * SubGraphId, then an error is thrown. Otherwise, the SubGraphId which is
+   * common th all Tensors is returned.
+   *
+   * This method can be useful when determining what subgraph to add a Source
+   * Tensor to, based on a set of Tensors which should be in the same
+   *subgraph.
+   **/
+  SubGraphId subGraphIdFromTensorIds(const TensorIds &ids) const;
+
 private:
   /**
    * Specialized Barrier in sumReduce.
@@ -908,8 +899,6 @@ private:
       const common::multiout::Graph &rhs) const final {
     return sgNames == static_cast<const Graph &>(rhs).sgNames;
   }
-
-  SubGraphId subGraphIdFromTensorIds(const TensorIds &) const;
 
   Op &op(OpId);
   const Op &op(OpId) const;

@@ -174,7 +174,7 @@ private:
   const Graph graph_;
 };
 
-std::ostream & operator<<(std::ostream &, const Solution &);
+std::ostream &operator<<(std::ostream &, const Solution &);
 
 } // namespace unwind
 } // namespace memory

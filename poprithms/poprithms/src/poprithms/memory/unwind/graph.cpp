@@ -538,7 +538,6 @@ void Graph::append(std::ostream &ost) const {
       ost << frags[fi][i] << util::spaceString(lens[fi], frags[fi][i]);
     }
   }
-
 }
 
 std::ostream &operator<<(std::ostream &ost, const Graph &g) {
