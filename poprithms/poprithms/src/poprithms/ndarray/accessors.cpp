@@ -66,12 +66,5 @@ std::ostream &operator<<(std::ostream &ost,
   return ost;
 }
 
-Dimensions Dimensions::append(const Dimensions &rhs) const {
-  auto a       = get();
-  const auto b = rhs.get();
-  a.insert(a.end(), b.cbegin(), b.cend());
-  return Dimensions(a);
-}
-
 } // namespace ndarray
 } // namespace poprithms

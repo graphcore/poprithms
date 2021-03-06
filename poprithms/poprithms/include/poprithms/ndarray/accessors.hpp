@@ -2,17 +2,17 @@
 #ifndef POPRITHMS_NDARRAY_ACCESSORS_HPP
 #define POPRITHMS_NDARRAY_ACCESSORS_HPP
 
+#include <algorithm>
 #include <array>
 #include <initializer_list>
 #include <ostream>
 #include <vector>
 
 /**
- * These structs wrap integer and std::vector types, and are used to
+ * Structs which wrap integer and std::vector types, and can be used to
  * safeguard against user bugs arising from accidentally permuting arguments
  * to methods with multiple inputs of the same type.
  * */
-
 namespace poprithms {
 namespace ndarray {
 
@@ -46,83 +46,114 @@ struct Dilation : BaseScalarU64 {
   explicit Dilation(uint64_t s_);
 };
 
-template <typename T> struct BaseVector {
-  BaseVector(const std::vector<T> &vs_) : vals(vs_) {}
+/**
+ * Using the curiously recurring template pattern (CRTP) to reduce code
+ * duplication. The template parameter D is the leaf class which derives from
+ * BaseVector.
+ * */
+template <typename T, typename D> struct BaseVector {
+
   BaseVector() = default;
+  BaseVector(const std::vector<T> &vs_) : vals(vs_) {}
   BaseVector(std::vector<T> &&vs_) : vals(std::move(vs_)) {}
   std::vector<T> get() const { return vals; }
-  std::vector<T> vals;
   uint64_t size() const { return vals.size(); }
   bool empty() const { return vals.empty(); }
-  bool operator==(const BaseVector<T> &rhs) const { return vals == rhs.vals; }
-  bool operator!=(const BaseVector<T> &rhs) const { return !operator==(rhs); }
+  bool operator==(const BaseVector<T, D> &rhs) const {
+    return vals == rhs.vals;
+  }
+  bool operator!=(const BaseVector<T, D> &rhs) const {
+    return !operator==(rhs);
+  }
+
+  D sorted() const {
+    auto a = get();
+    std::sort(a.begin(), a.end());
+    return D(a);
+  }
+
+  /** Concatenate the Dimensions in \a rhs to these Dimensions. */
+  D append(const BaseVector<T, D> &rhs) const {
+    auto a       = get();
+    const auto b = rhs.get();
+    a.insert(a.end(), b.cbegin(), b.cend());
+    return D(a);
+  }
+
+  std::vector<T> vals;
 };
 
-using BaseVectorI64 = BaseVector<int64_t>;
-using BaseVectorU64 = BaseVector<uint64_t>;
-
-struct Starts : public BaseVectorI64 {
-  explicit Starts(const std::vector<int64_t> &s) : BaseVectorI64(s) {}
-  Starts() : BaseVectorI64() {}
+struct Starts : public BaseVector<int64_t, Starts> {
+  explicit Starts(const std::vector<int64_t> &s)
+      : BaseVector<int64_t, Starts>(s) {}
+  Starts() : BaseVector<int64_t, Starts>() {}
   explicit Starts(const std::vector<int64_t> &&s)
-      : BaseVectorI64(std::move(s)) {}
+      : BaseVector<int64_t, Starts>(std::move(s)) {}
 };
 
-struct Ends : public BaseVectorI64 {
-  explicit Ends(const std::vector<int64_t> &s) : BaseVectorI64(s) {}
-  Ends() : BaseVectorI64() {}
+struct Ends : public BaseVector<int64_t, Ends> {
+  explicit Ends(const std::vector<int64_t> &s)
+      : BaseVector<int64_t, Ends>(s) {}
+  Ends() : BaseVector<int64_t, Ends>() {}
   explicit Ends(const std::vector<int64_t> &&s)
-      : BaseVectorI64(std::move(s)) {}
+      : BaseVector<int64_t, Ends>(std::move(s)) {}
 };
 
-struct Dims : public BaseVectorI64 {
-  explicit Dims(const std::vector<int64_t> &s) : BaseVectorI64(s) {}
-  Dims() : BaseVectorI64() {}
+struct Dims : public BaseVector<int64_t, Dims> {
+  explicit Dims(const std::vector<int64_t> &s)
+      : BaseVector<int64_t, Dims>(s) {}
+  Dims() : BaseVector<int64_t, Dims>() {}
   explicit Dims(const std::vector<int64_t> &&s)
-      : BaseVectorI64(std::move(s)) {}
+      : BaseVector<int64_t, Dims>(std::move(s)) {}
 };
 
-struct Steps : public BaseVectorI64 {
-  explicit Steps(const std::vector<int64_t> &s) : BaseVectorI64(s) {}
-  Steps() : BaseVectorI64() {}
+struct Steps : public BaseVector<int64_t, Steps> {
+  explicit Steps(const std::vector<int64_t> &s)
+      : BaseVector<int64_t, Steps>(s) {}
+  Steps() : BaseVector<int64_t, Steps>() {}
   explicit Steps(const std::vector<int64_t> &&s)
-      : BaseVectorI64(std::move(s)) {}
+      : BaseVector<int64_t, Steps>(std::move(s)) {}
 };
 
-struct Strides : public BaseVectorU64 {
-  Strides() : BaseVectorU64() {}
-  explicit Strides(const std::vector<uint64_t> &d) : BaseVectorU64(d) {}
-  explicit Strides(std::initializer_list<uint64_t> d) : BaseVectorU64(d) {}
-  explicit Strides(std::vector<uint64_t> &&d) : BaseVectorU64(std::move(d)) {}
+template <typename T, typename D, typename S>
+struct VU64 : public BaseVector<T, D> {
+  VU64() : BaseVector<T, D>() {}
+  explicit VU64(const std::vector<T> &d) : BaseVector<T, D>(d) {}
+  explicit VU64(std::initializer_list<T> d) : BaseVector<T, D>(d) {}
+  explicit VU64(std::vector<T> &&d) : BaseVector<T, D>(std::move(d)) {}
+  explicit VU64(const std::vector<D> &d) : VU64(get_u64(d)) {}
+  S at(uint64_t d) const { return S(BaseVector<T, D>::vals[d]); }
+};
+
+struct Strides : public VU64<uint64_t, Strides, Stride> {
+  using Base = VU64<uint64_t, Strides, Stride>;
+  Strides() : Base() {}
+  explicit Strides(const std::vector<uint64_t> &d) : Base(d) {}
+  explicit Strides(std::initializer_list<uint64_t> d) : Base(d) {}
+  explicit Strides(std::vector<uint64_t> &&d) : Base(std::move(d)) {}
   explicit Strides(const std::vector<Stride> &d) : Strides(get_u64(d)) {}
-  Stride at(uint64_t d) const { return Stride(vals[d]); }
 };
-std::ostream &operator<<(std::ostream &, const Stride &);
+std::ostream &operator<<(std::ostream &, const Strides &);
 
-struct Dilations : public BaseVectorU64 {
-  Dilations() : BaseVectorU64() {}
-  explicit Dilations(const std::vector<uint64_t> &d) : BaseVectorU64(d) {}
-  explicit Dilations(std::initializer_list<uint64_t> d) : BaseVectorU64(d) {}
-  explicit Dilations(std::vector<uint64_t> &&d)
-      : BaseVectorU64(std::move(d)) {}
+struct Dilations : public VU64<uint64_t, Dilations, Dilation> {
+  using Base = VU64<uint64_t, Dilations, Dilation>;
+  Dilations() : Base() {}
+  explicit Dilations(const std::vector<uint64_t> &d) : Base(d) {}
+  explicit Dilations(std::initializer_list<uint64_t> d) : Base(d) {}
+  explicit Dilations(std::vector<uint64_t> &&d) : Base(std::move(d)) {}
   explicit Dilations(const std::vector<Dilation> &d)
       : Dilations(get_u64(d)) {}
-  Dilation at(uint64_t d) const { return Dilation(vals[d]); }
 };
 std::ostream &operator<<(std::ostream &, const Dilations &);
 
-struct Dimensions : public BaseVectorU64 {
-  Dimensions() : BaseVectorU64() {}
-  explicit Dimensions(const std::vector<uint64_t> &d) : BaseVectorU64(d) {}
-  explicit Dimensions(std::initializer_list<uint64_t> d) : BaseVectorU64(d) {}
-  explicit Dimensions(std::vector<uint64_t> &&d)
-      : BaseVectorU64(std::move(d)) {}
+struct Dimensions : public VU64<uint64_t, Dimensions, Dimension> {
+  using Base = VU64<uint64_t, Dimensions, Dimension>;
+  Dimensions() : Base() {}
+  explicit Dimensions(const std::vector<uint64_t> &d) : Base(d) {}
+  explicit Dimensions(std::initializer_list<uint64_t> d) : Base(d) {}
+  explicit Dimensions(std::vector<uint64_t> &&d) : Base(std::move(d)) {}
   explicit Dimensions(const std::vector<Dimension> &d)
       : Dimensions(get_u64(d)) {}
-  Dimension at(uint64_t d) const { return Dimension(vals[d]); }
-
-  /** Concatenate the Dimensions in \a rhs to these Dimensions. */
-  Dimensions append(const Dimensions &rhs) const;
 };
 std::ostream &operator<<(std::ostream &, const Dimensions &);
 std::ostream &operator<<(std::ostream &, const std::vector<Dimensions> &);

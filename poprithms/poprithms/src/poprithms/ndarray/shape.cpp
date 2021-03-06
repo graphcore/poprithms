@@ -17,11 +17,6 @@ std::ostream &operator<<(std::ostream &ost, const std::vector<uint64_t> &x) {
   util::append(ost, x);
   return ost;
 }
-template <typename T>
-std::ostream &operator<<(std::ostream &ost, const BaseVector<T> &x) {
-  util::append(ost, x.vals);
-  return ost;
-}
 
 } // namespace
 
@@ -1360,8 +1355,9 @@ Shape::NormalizedSliceParams::NormalizedSliceParams(const Starts &starts_,
   auto getBase = [&shape, &starts_, &ends_, &steps_, &dims_]() {
     std::ostringstream oss;
     oss << "In NormalizedSliceParams constructor, with "
-        << "starts=" << starts_ << ", ends=" << ends_ << ", steps=" << steps_
-        << ", dims=" << dims_ << ", shape=" << shape << ". ";
+        << "starts=" << starts_.get() << ", ends=" << ends_.get()
+        << ", steps=" << steps_.get() << ", dims=" << dims_.get()
+        << ", shape=" << shape.get() << ". ";
     return oss.str();
   };
 
