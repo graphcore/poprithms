@@ -25,10 +25,16 @@ using util::Permutation;
 
 class Op;
 
-/** A sequence of view-changing operations (Ops).
+/**
+ * A Chain is a sequence of operations (Ops). Each Op has 1 output Shape, and
+ * 1 input Shape which is the output of the preceding Op. A Chain also has an
+ * input, which is the input to the first Op.
  *
  * The class has a template method which can be used to apply the Ops in
- * sequence to a Tensor-like class. */
+ * sequence to a Tensor-like class.
+ *
+ * Chains can be canonicalized. For more information see Chain.md
+ * */
 class Chain {
 
 public:
@@ -153,6 +159,8 @@ public:
    *    preserve the Chain's behaviour.
    *
    * These passes are repeated until the Chain is unchanged.
+   *
+   *  For more information see Chain.md
    **/
   void canonicalize();
 

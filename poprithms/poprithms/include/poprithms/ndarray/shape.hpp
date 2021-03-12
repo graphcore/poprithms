@@ -22,7 +22,7 @@ using Shapes = std::vector<Shape>;
 using poprithms::util::Permutation;
 
 /**
- * A class to represent a N-dimensional rectangular volume.
+ * A class to represent a N-dimensional rectangular volume of elements.
  * */
 class Shape {
 
@@ -115,8 +115,7 @@ public:
    * \param from The first dimension in the collapse sequence.
    * \param to One past the final dimension to collapse.
    *
-   * It is required that 0 <= from < to <= rank().
-   */
+   * It is required that 0 <= from < to <= rank(). */
   Shape flatten(uint64_t from, uint64_t to) const &;
   Shape &&flatten(uint64_t from, uint64_t to) &&;
 
@@ -183,7 +182,7 @@ public:
 
   /**
    * Throw an error if the size of \a l or the size of \a u is not the same as
-   * the rank of this Tensor, or if l[i] > u[i] or l[i] < 0 or u[i] > dim(i),
+   * the rank of this Shape, or if l[i] > u[i] or l[i] < 0 or u[i] > dim(i),
    * for a dimension "i" less than the rank of this Shape.
    * */
   void assertSliceBoundsAreValid(const Lower &l, const Upper &u) const;
@@ -223,7 +222,6 @@ public:
    * rank as this Shape, and the same size in all dimensions other that \a d,
    * which is of size u - l. */
   Shape slice(Dimension, uint64_t l, uint64_t u) const &;
-
   Shape &&slice(Dimension, uint64_t l, uint64_t u) &&;
 
   /**
@@ -590,7 +588,7 @@ public:
   /**
    * Permute the dimensions of this Shape.
    *
-   * Example: If this is (2,3,5) and \a p is (1,2,0), then (3,5,2) is
+   * Example: If this is (2,3,5) and \a p is (1 2 0), then (3,5,2) is
    *          returned.
    **/
   Shape dimShuffle(const Permutation &p) const;
@@ -602,9 +600,9 @@ public:
    *
    *  \param dimIdx     The dimension to move from
    *  \param newIdx     The dimension to move to
-   *  \returns          The shuffled Tensor
+   *  \returns          The Shape of the dimshuffled Tensor
    *
-   * Example. If this Shape is (2,3,5,7,11) then dimRool with
+   * Example. If this Shape is (2,3,5,7,11) then dimRoll with
    *          \a dimIdx = 1 and \a newIdx = 3 results in Shape (2,5,7,3,11).
    *
    */
@@ -743,7 +741,7 @@ public:
    * \return The row major indices in the Shape resulting from applying
    *         Permutation \a p to this Shape.
    *
-   * Example. If this is (2,3), and p is (1,0) -- this corresponds to a simple
+   * Example. If this is (2,3), and p is (1 0) -- this corresponds to a simple
    * 2-D transpose -- then the returned vector is {0,3,1,4,2,5}.
    *
    *  [[0 1 2]        [[0 3]
@@ -953,6 +951,106 @@ public:
    * */
   std::vector<uint64_t>
   getCanonicalReverseIndices(const std::vector<uint64_t> &indices) const;
+
+  /**
+   * If this Shape is reshaped to Shape \a to, how are the dimensions
+   * distributed?
+   *
+   * This method assumes that this and \a to are fully squeezed. That is, they
+   * contain no singleton dimensions. It also assumes that neither is empty,
+   * that is neither contains zero elements.
+   *
+   * Example 1.
+   * this Shape :  (6, 2, 4), and
+   * to   Shape :  (2, 3, 8).
+   * The first dimension of size 6 is split into 2 dimensions of size 2 and 3,
+   * and the second and third dimensions of sizes 2 and 4 respectively are
+   * merged into a dimension of size 8:
+   *
+   *     6   2  4   this Shape
+   *    / \  \ /
+   *   2   3  8     to
+   *
+   *  returns ((0),(0),(1,2)).
+   *            |   |    |
+   *  output dimension 0 comes from input dimension 0
+   *                |    |
+   *    output dimension 1 comes from input dimension 0
+   *                     |
+   *       output dimension 2 comes from input dimensions 1 and 2.
+   *
+   *
+   * Example 2. The dimensions are not split cleanly; some input dimensions
+   * map to multiple output dimensions. The dimensions are thus distributed
+   * multiple times.
+   *
+   *   2   3   5   7   this
+   *    \  |  /|  /|
+   *      10   7   3   to
+   *
+   * returns ((0,1,2),(2,3),(3)). The binning is based on cumulative
+   * products of Shapes:
+   *
+   *  this prod       to prod
+   *  ==========      ========
+   *  2            <  10       => 0 goes to 0
+   *  2*3          <  10       => 1 goes to 0
+   *  2*3*5        <  10*7     => 2 goes to 0 and 1
+   *  2*3*5*7      =  10*7*3   => 3 goes to 1 and 2.
+   *
+   *  In this third example, some dimensions factorize cleanly, and others do
+   *  not:
+   *
+   *   2 3 5     6   5  4   this
+   *   | | |    / \ / \ |
+   *   2 3 5   4   5    6   to
+   *
+   *  returns ((0),(1),(2),(3),(3,4),(4,5)).
+   *
+   * This method assumes that neither this Shape nor \a to contain any 1's.
+   */
+  std::vector<Dimensions> getReshapeFactorization(const Shape &to) const;
+
+  /**
+   * Do the reshape dimensions factorize (as in the first example above), or
+   * do they straddle (like the second and third examples above) ?
+   * */
+  bool isOrthogonalReshape(const Shape &to) const;
+
+  /**
+   * Consider a tensor of Shape inShape, to which we apply in series:
+   *
+   * 1) a reshape, to \a shapePreDimShuffle, and then
+   * 2) a dimension shuffle by Permutation \a endPerm,
+   *
+   * to produce an output Tensor of Shape \a outShape. It is sometimes
+   * possible to replace this with
+   *
+   * 1) a dimension shuffle by Permutation \a beginPerm
+   * 2) a reshape to Shape \a outShape.
+   *
+   * That is, it is sometimes possible to swap the positions of the reshape
+   * and the dimShuffle while preserving the final positions of elements in
+   * the final tensor.
+   *
+   * For example, for a tensor of shape (2,5),
+   *
+   * t0.reshape(2,3,5).dimShuffle(1 2 0),
+   *    is equivalent to,
+   *
+   * t0.dimShuffle(1 0).reshape(3,5,2).
+   *
+   * An example where it is not possible to reverse the order is,
+   * t0.reshape(2,3,5).dimShuffle(2 0 1).
+   *
+   * This method returns a tuple, whose bool denotes if the switching of order
+   * is possible, and whose Permutation is the one required if the dimShuffle
+   * is performed before the reshape.
+   *
+   * */
+  std::pair<bool, Permutation>
+  moveDimShuffleFirst(const Shape &shapePreDimShuffle,
+                      const Permutation &tailPerm) const;
 
   bool operator==(const Shape &rhs) const { return shp == rhs.shp; }
   bool operator!=(const Shape &rhs) const { return shp != rhs.shp; }

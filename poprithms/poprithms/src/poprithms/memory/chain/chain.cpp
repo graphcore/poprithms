@@ -330,7 +330,7 @@ void Chain::canonicalize() {
         }
       }
 
-      // try bubbling the back Op backwards, towards the front of the Chain.
+      // try bubbling the Op backwards, towards the front of the Chain.
       // we try and keep Ops in alphabetical order. This makes the pass which
       // merges compatible Ops more likely to succeed, so that even though
       // this pass does not reduce the number of Ops in this Chain, it makes
@@ -340,6 +340,7 @@ void Chain::canonicalize() {
         bool bubbled{true};
         while (bubbled) {
           bubbled = tryBubbleBack(current);
+          changed = changed || bubbled;
           current -= 1;
         }
       }

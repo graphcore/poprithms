@@ -69,12 +69,67 @@ bool Op::bubbleDimShuffleBack(const Shape &inShape0, Op &op0, Op &op1) {
 
   switch (t0) {
 
-  case Type::Expand:
-    return false;
+  case Type::Expand: {
+    const auto p_ = p.get();
+    // This can be solved in the case where the new dimensions are all
+    // constrained to the start.
+    std::vector<uint64_t> pNew(
+        p_.cbegin() + outShape0.rank_u64() - inShape0.rank_u64(), p_.cend());
+
+    if (std::any_of(pNew.cbegin(), pNew.cend(), [&inShape0](auto v) {
+          return v >= inShape0.rank_u64();
+        })) {
+      return false;
+    }
+    op0 = {Type::DimShuffle,
+           inShape0.dimShuffle(Permutation(pNew)),
+           Permutation(pNew)};
+    op1 = {Type::Expand, outShape1, outShape1};
+    return true;
+  }
   case Type::Reduce:
     return false;
-  case Type::Reshape:
-    return false;
+
+  //
+  // From
+  //    DimShuffle -> Reshape,
+  // To
+  //    Reshape -> DimShuffle.
+  //
+  // Example 1:
+  //    (2,3,5) -> reshape    -> (2,3,1,5)
+  //            -> dimshuffle -> (5,1,3,2)
+  //  becomes
+  //    (2,3,5) -> dimshuffle -> (5,3,2)
+  //            -> reshape    -> (5,1,3,2).
+  //
+  //
+  // Example 2:
+  //   (2,3,25) -> reshape             -> (6,5,5)
+  //            -> dimShuffle((1,2,0)  -> (5,5,6)
+  // becomes
+  //   (2,3,25) -> dimShuffle(2,0,1) -> (25,2,3)
+  //            -> reshape           -> (5,5,6)
+  //
+  //
+  // Example 3:
+  //   (2,3,35,11) -> reshape    -> (6,5,7,11)
+  //               -> dimshuffle -> (11,6,5,7)
+  // becomes
+  //   (2,3,35,11) -> dimShuffle -> (11,2,3,35)
+  //               -> reshape    -> (11,6,5,7)
+  //
+  //
+  case Type::Reshape: {
+    auto x = inShape0.moveDimShuffleFirst(outShape0, p);
+    if (!x.first) {
+      return false;
+    }
+    const auto permBack = x.second;
+    op0 = {Type::DimShuffle, inShape0.dimShuffle(permBack), permBack};
+    op1 = {Type::Reshape, outShape1, outShape1};
+    return true;
+  }
 
   // From
   //   DimShuffle -> Reverse,
@@ -87,7 +142,8 @@ bool Op::bubbleDimShuffleBack(const Shape &inShape0, Op &op0, Op &op1) {
     op0                   = oldDimShuffle;
     op1                   = {Type::Reverse,
            outShape1,
-           Dimensions(p.mapForward(oldReverse.attr().dimensions().get()))};
+           Dimensions(p.mapForward(oldReverse.attr().dimensions().get()))
+               .sorted()};
     return true;
   }
 
@@ -235,7 +291,7 @@ bool Op::bubbleReverseBack(const Shape &inShape0, Op &op0, Op &op1) {
   }
 
   default:
-    throw error("Unhandled case in bubbleDimShuffleBack");
+    throw error("Unhandled case in bubbleExpandBack");
   }
 }
 

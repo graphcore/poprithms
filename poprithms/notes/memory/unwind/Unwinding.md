@@ -370,5 +370,5 @@ It will be users responsibility to choose the 3 scalar values `vTargetLayout`, `
 
 Hopefully this brief introduction to unwinding has given you a basic idea of what the problem is, and how we try to solve it. A good place to get even more familiar with unwinding is the unwinding test directory. 
 
-TODO: spend more time describing the actual algorithms used to solve the problem. 
+TODO(jn) spend more time describing the actual algorithms used to solve the problem. 
 

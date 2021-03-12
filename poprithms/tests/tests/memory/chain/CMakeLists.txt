@@ -34,6 +34,12 @@ add_memory_chain_test(memory_chain_canonicalize_0
 add_memory_chain_test(memory_chain_hosttensor_0  
                                    hosttensor_0.cpp)
 
-add_memory_chain_test(memory_chain_settutil_0.cpp  
+add_memory_chain_test(memory_chain_settutil_0
                                    settutil_0.cpp)
+
+add_memory_chain_test(memory_chain_resize_0
+                                   resize_0.cpp)
+
+add_memory_chain_test(memory_chain_bubble_dimshuffle_back_0
+                                   bubble_dimshuffle_back_0.cpp)
 

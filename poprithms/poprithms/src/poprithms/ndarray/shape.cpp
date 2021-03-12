@@ -4,6 +4,7 @@
 #include <ostream>
 #include <sstream>
 
+#include <poprithms/ndarray/accessors.hpp>
 #include <poprithms/ndarray/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
@@ -1558,10 +1559,6 @@ Shape &&Shape::scale(Stride s, Dimension d) && {
   return std::move(*this);
 }
 
-bool Shape::isSqueezed() const {
-  return std::all_of(shp.cbegin(), shp.cend(), [](auto x) { return x != 1; });
-}
-
 std::vector<uint64_t> Shape::singletonDimensions() const {
   std::vector<uint64_t> singletons;
   for (uint64_t i = 0; i < rank_u64(); ++i) {
@@ -1592,6 +1589,167 @@ void Shape::assertValidFlatten(uint64_t from, uint64_t to) const {
         << "0 <= from < to <= rank. ";
     throw error(oss.str());
   }
+}
+
+// Examples:
+// If this is (2,3,5,7) and rhs = (6,35), then return ((0),(0),(1),(1))
+// If rhs is (2,3,5,7) and this (6,35), then return ((0,1),(2,3))
+std::vector<Dimensions>
+Shape::getReshapeFactorization(const Shape &to) const {
+
+  if (!isSqueezed() || nelms_u64() == 0) {
+    std::ostringstream oss;
+    oss << "Expected source Shape " << *this << "to be squeezed and empty.";
+    throw error(oss.str());
+  }
+
+  if (!to.isSqueezed() || to.nelms_u64() == 0) {
+    std::ostringstream oss;
+    oss << "Expected destination Shape " << to << "to be squeezed and empty.";
+    throw error(oss.str());
+  }
+
+  if (nelms() != to.nelms()) {
+    std::ostringstream oss;
+    oss << "Invalid Reshape in getReshapeFactorization: This Shape has "
+        << nelms() << " elements and to=" << to << " has " << to.nelms()
+        << " elements. ";
+    throw error(oss.str());
+  }
+
+  // keep track of the cumulative totals, as we move from left to right
+  // (column major).
+  auto fromCum = dim(0);
+  auto toCum   = to.dim(0);
+
+  uint64_t iFrom = 0;
+  uint64_t iTo   = 0;
+
+  std::vector<Dimensions> soln;
+  soln.reserve(to.rank_u64());
+  std::vector<uint64_t> buck;
+  while (iFrom < rank_u64() && iTo < to.rank_u64()) {
+    buck.push_back(iFrom);
+    if (fromCum < toCum) {
+      ++iFrom;
+      fromCum *= dim(iFrom);
+    }
+
+    else {
+      if (toCum == fromCum) {
+        ++iFrom;
+        fromCum *= dim(iFrom);
+      }
+      soln.push_back(Dimensions(buck));
+      buck.clear();
+      ++iTo;
+      toCum *= to.dim(iTo);
+    }
+  }
+  return soln;
+}
+
+bool Shape::isOrthogonalReshape(const Shape &to) const {
+  if (nelms_u64() != to.nelms_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid Reshape in Shape::isOrthogonalReshape, from this Shape "
+        << *this << ", to " << to << '.';
+    throw error(oss.str());
+  }
+
+  if (nelms_u64() == 0) {
+    return true;
+  }
+  const auto factorization = squeeze().getReshapeFactorization(to.squeeze());
+
+  for (uint64_t i = 1; i < factorization.size(); ++i) {
+    if (factorization[i].size() > 1 || factorization[i - 1].size() > 1) {
+      for (auto x : factorization[i].vals) {
+        for (auto y : factorization[i - 1].vals) {
+          if (x == y) {
+            return false;
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
+
+bool Shape::isSqueezed() const {
+  return std::all_of(shp.cbegin(), shp.cend(), [](auto x) { return x != 1; });
+}
+
+std::pair<bool, Permutation>
+Shape::moveDimShuffleFirst(const Shape &reshape,
+                           const Permutation &perm) const {
+
+  // If the reshape is not orthogonal, it is impossible to change the order.
+  // Example (3,4).reshape(4,3).dimshuffle(1,0) is NOT equivalent to
+  // (3,4).dimsuffle(0,1).reshape(3,4), even if the output Shapes are the
+  // same.
+  if (!isOrthogonalReshape(reshape)) {
+    return {false, Permutation::identity(1)};
+  }
+
+  // We first Squeeze out 1's.
+  //
+  // (1,3,4,30).reshape(12,1,5,2,3).perm(2 3 4 0 1)
+  //   is equivalent to,
+  //
+  // (1,3,4,30).squeeze().reshape(12,5,2,3).perm(1 2 3 0).unsqueeze().
+  // What is this (1 2 3 0) in terms of the knowns?
+  //
+  const auto subPerm0 = perm.subPermutation(reshape.nonSingletonDimensions());
+
+  // (3,4,30)->(12,5,2,3) : ((0,1),(2),(2),(2))
+  const auto facts = squeeze().getReshapeFactorization(reshape.squeeze());
+
+  // (12,5,2,3)->(3,4,30) : ((0),(0),(1,2,3))
+  const auto invFacts = reshape.squeeze().getReshapeFactorization(squeeze());
+
+  // To be possible, we must be able to map all elements in invFacts to
+  // subPerm0.
+  for (auto invFactor : invFacts) {
+    if (!subPerm0.containsSubSequence(invFactor.vals)) {
+      return {false, Permutation::identity(1)};
+    }
+  }
+
+  // instead of (3,4,30) -> (12,4,2,3) -> (1 2 3 0) we want
+  //            (3,4,30) ->   perm1    -> (4,2,3,12):
+  //
+  // (1 2 3 0)
+  //  = = = =
+  //  2 2 2 0,1
+
+  std::vector<uint64_t> perm1;
+
+  for (uint64_t pi = 0; pi < subPerm0.size(); ++pi) {
+    auto p   = subPerm0.get(pi);
+    auto nxt = facts[p].vals;
+    if (nxt.size() > 1) {
+      perm1.insert(perm1.end(), nxt.cbegin(), nxt.cend());
+    } else {
+      auto nxtv = nxt[0];
+      if (perm1.empty() || perm1.back() != nxtv) {
+        perm1.push_back(nxtv);
+      }
+    }
+  }
+
+  // Finally, we must fill perm1 with 1's. We choose to push all 1's to end in
+  // permutation, although we could do something else.
+  const auto nonSingleIn = nonSingletonDimensions();
+  const auto singleIn    = singletonDimensions();
+  std::vector<uint64_t> perm2;
+  perm2.reserve(rank_u64());
+  for (auto p : perm1) {
+    perm2.push_back(nonSingleIn[p]);
+  }
+  perm2.insert(perm2.end(), singleIn.cbegin(), singleIn.cend());
+
+  return {true, perm2};
 }
 
 Shape Shape::flatten(uint64_t from, uint64_t to) const & {
