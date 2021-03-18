@@ -26,19 +26,19 @@ class Tensor;
 class Proposal;
 using Proposals = std::vector<Proposal>;
 
-/** A proposal to open a Mux at a specific InIndex */
+/** A proposal to open an AliasGate at a specific InIndex */
 class Proposal {
 public:
-  Proposal(OpId id_, InIndex index) : muxId_(id_), index_(index) {}
+  Proposal(OpId id_, InIndex index) : aliasGateId_(id_), index_(index) {}
   Proposal(const Tensor &, InIndex index);
   static Proposals open0(const OpIds &);
   static Proposals open0(const TensorIds &);
   InIndex inIndex() const { return index_; }
-  OpId muxId() const { return muxId_; }
+  OpId aliasGateId() const { return aliasGateId_; }
   void append(std::ostream &) const;
 
 private:
-  OpId muxId_;
+  OpId aliasGateId_;
   InIndex index_;
 };
 

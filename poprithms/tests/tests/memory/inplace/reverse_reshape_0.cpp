@@ -11,9 +11,9 @@ using namespace poprithms::memory::inplace;
 void testReverse0() {
   //
   //       "2"                     "1"
-  //  v0 - mux - reverse - slice - mux - unary
+  //  v0 - aliasGate - reverse - slice - aliasGate - unary
   //  |
-  // slice - mux - unary
+  // slice - aliasGate - unary
   //         "0"
   //
   // Depending on slice width, "2" will be opened.
@@ -22,25 +22,27 @@ void testReverse0() {
   for (int64_t sliceSize : {3, 5, 7}) {
 
     Graph g;
-    const auto v0        = Tensor::variable(g, {10});
-    const auto v0Mux     = v0.slice({0}, {sliceSize}).closedMux();
-    const auto preRevMux = v0.closedMux();
-    const auto postRevMux =
-        preRevMux.reverse(0).slice({0}, {sliceSize}).closedMux();
-    v0Mux.modify();
-    postRevMux.modify();
+    const auto v0              = Tensor::variable(g, {10});
+    const auto v0AliasGate     = v0.slice({0}, {sliceSize}).closedAliasGate();
+    const auto preRevAliasGate = v0.closedAliasGate();
+    const auto postRevAliasGate =
+        preRevAliasGate.reverse(0).slice({0}, {sliceSize}).closedAliasGate();
+    v0AliasGate.modify();
+    postRevAliasGate.modify();
 
     // "0", "1", "2":
-    OpIds muxs{v0Mux.opId(), postRevMux.opId(), preRevMux.opId()};
-    g.tryOpenings0(muxs, CheckParallelWriteable::Yes);
+    OpIds aliasGates{
+        v0AliasGate.opId(), postRevAliasGate.opId(), preRevAliasGate.opId()};
+    g.tryOpenings0(aliasGates, CheckParallelWriteable::Yes);
 
-    if (v0Mux.muxIsClosed() || postRevMux.muxIsClosed()) {
+    if (v0AliasGate.aliasGateIsClosed() ||
+        postRevAliasGate.aliasGateIsClosed()) {
       throw error("slices should both be inplace");
     }
 
     bool expectReverseInplace = sliceSize <= 5;
 
-    if (preRevMux.muxIsOpen() != expectReverseInplace) {
+    if (preRevAliasGate.aliasGateIsOpen() != expectReverseInplace) {
       throw error("expect reverse inplace iff sliceSize <= 5");
     }
   }
@@ -66,15 +68,15 @@ void testReshape0() {
   //     nl0        s2 - nl2
   //
 
-  auto s0 = v0.slice({0, 2}, {14, 3}).closedMux();
+  auto s0 = v0.slice({0, 2}, {14, 3}).closedAliasGate();
   s0.modify();
 
-  auto r0 = v0.reshape({5, 14}).closedMux();
+  auto r0 = v0.reshape({5, 14}).closedAliasGate();
 
-  auto s1 = r0.slice({0, 3}, {5, 4}).closedMux();
+  auto s1 = r0.slice({0, 3}, {5, 4}).closedAliasGate();
   s1.modify();
 
-  auto s2 = r0.slice({0, 11}, {5, 12}).closedMux();
+  auto s2 = r0.slice({0, 11}, {5, 12}).closedAliasGate();
   s2.modify();
 
   const auto &gBase = g;
@@ -83,7 +85,7 @@ void testReshape0() {
     auto g2 = gBase;
     g2.tryOpenings0(ts, CheckParallelWriteable::Yes);
     for (uint64_t i = 0; i < ts.size(); ++i) {
-      if (g2.muxIsOpen(ts[i].opId()) != expectedOpen[i]) {
+      if (g2.aliasGateIsOpen(ts[i].opId()) != expectedOpen[i]) {
         std::ostringstream oss;
         oss << "With initial Graph " << gBase << ", final Graph is " << g2
             << ".";
@@ -101,18 +103,18 @@ void testReshape0() {
 void testEmptySlice0() {
 
   Graph g;
-  auto a      = Tensor::variable(g, {10, 10});
-  auto b      = a.slice({0, 0}, {10, 0}).closedMux();
-  auto c      = b.reverse(1).closedMux();
-  auto d      = b.dimShuffle({{1, 0}}).closedMux();
-  auto e      = d.reshape({5, 0}).closedMux();
-  auto f      = e.modify().closedMux();
-  auto g_     = b.modify().closedMux();
-  auto muxIds = Tensor::opIds({b, c, d, e, f, g_});
-  g.tryOpenings0(muxIds, CheckParallelWriteable::Yes);
+  auto a            = Tensor::variable(g, {10, 10});
+  auto b            = a.slice({0, 0}, {10, 0}).closedAliasGate();
+  auto c            = b.reverse(1).closedAliasGate();
+  auto d            = b.dimShuffle({{1, 0}}).closedAliasGate();
+  auto e            = d.reshape({5, 0}).closedAliasGate();
+  auto f            = e.modify().closedAliasGate();
+  auto g_           = b.modify().closedAliasGate();
+  auto aliasGateIds = Tensor::opIds({b, c, d, e, f, g_});
+  g.tryOpenings0(aliasGateIds, CheckParallelWriteable::Yes);
   std::cout << g << std::endl;
-  for (auto id : muxIds) {
-    if (g.muxIsClosed(id)) {
+  for (auto id : aliasGateIds) {
+    if (g.aliasGateIsClosed(id)) {
       throw error("Failed to inplace all in testEmptySlice0");
     }
   }

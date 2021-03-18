@@ -25,16 +25,16 @@ void test0() {
   for (uint64_t i = 0; i < 8; ++i) {
     vars.push_back(Tensor::variable(g, {1, 5}));
     if (i % 2 == 1) {
-      cats2.push_back(
-          Tensor::concat({vars.cend() - 2, vars.cend()}, 0).closedMux());
+      cats2.push_back(Tensor::concat({vars.cend() - 2, vars.cend()}, 0)
+                          .closedAliasGate());
     }
     if (i % 4 == 3) {
-      cats4.push_back(
-          Tensor::concat({cats2.cend() - 2, cats2.cend()}, 0).closedMux());
+      cats4.push_back(Tensor::concat({cats2.cend() - 2, cats2.cend()}, 0)
+                          .closedAliasGate());
     }
     if (i % 8 == 7) {
-      cats8.push_back(
-          Tensor::concat({cats4.cend() - 2, cats4.cend()}, 0).closedMux());
+      cats8.push_back(Tensor::concat({cats4.cend() - 2, cats4.cend()}, 0)
+                          .closedAliasGate());
     }
   }
 
@@ -45,7 +45,7 @@ void test0() {
   g.tryOpenings0(Tensor::opIds(allCats), CheckParallelWriteable::Yes);
 
   for (auto id : allCats) {
-    if (id.muxIsClosed()) {
+    if (id.aliasGateIsClosed()) {
       throw error("expected all concats to be inplaced");
     }
   }
@@ -57,7 +57,7 @@ void test1() {
   //        /     \        .
   //    modify  transpose  .
   //       \       |       .
-  //        \     mux      .
+  //        \     aliasGate      .
   //         \   /         .
   //         concat        .
 
@@ -65,13 +65,13 @@ void test1() {
   auto X0 = Tensor::variable(g, {4, 4});
   auto u  = X0.modify();
   auto t  = X0.dimShuffle({{1, 0}});
-  auto m  = t.closedMux();
+  auto m  = t.closedAliasGate();
   g.constraint(m.opId(), u.opId());
   Tensor::concat({m, u}, 0);
 
   auto trial = g.tryOpenings0({m.opId()}, CheckParallelWriteable::No);
   if (trial.size() != 1 || trial[0] != OpeningStatus::Cycle) {
-    throw error("Opening the mux makes the concat invalid. ");
+    throw error("Opening the aliasGate makes the concat invalid. ");
   }
 }
 

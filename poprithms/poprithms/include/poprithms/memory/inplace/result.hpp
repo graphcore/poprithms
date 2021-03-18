@@ -11,15 +11,15 @@ namespace memory {
 namespace inplace {
 
 enum OpeningStatus {
-  Valid = 0,   ///< Opening the Mux is valid
-  Cycle,       ///< Opening the Mux is invalid, as the additional
+  Valid = 0,   ///< Opening the AliasGate is valid
+  Cycle,       ///< Opening the AliasGate is invalid, as the additional
                ///< constraints required will result in a cycle
-  AlreadyOpen, ///< Opening is invalid, because the Mux is already open
+  AlreadyOpen, ///< Opening is invalid, because the AliasGate is already open
   NotParallelWriteable, ///< The opening is invalid, as it results in writing
                         ///< a Tensor which is not parallel writeable.
 };
 
-/** A summary of the result of attempting to open a Mux.
+/** A summary of the result of attempting to open an AliasGate.
  *
  * This class consists of
  * 1) OpeningStatus (see above), and

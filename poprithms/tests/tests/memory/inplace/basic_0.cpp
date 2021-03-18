@@ -10,19 +10,19 @@ namespace {
 
 using namespace poprithms::memory::inplace;
 
-// Check that all Muxes are open.
+// Check that all AliasGatees are open.
 void testUnaryChainBase(Graph g, const TensorIds &idOrder) {
 
   const auto order = Tensor::tensors(g, idOrder);
   const auto statuses =
       g.tryOpenings0(Tensor::tensorIds(order), CheckParallelWriteable::Yes);
   for (auto t : order) {
-    if (t.muxIsClosed()) {
+    if (t.aliasGateIsClosed()) {
       std::ostringstream oss;
       oss << "In this test, "
           << " which consists of a simple chain of "
-          << " unary and mux, "
-          << " all muxs should be opened. "
+          << " unary and aliasGate, "
+          << " all aliasGates should be opened. "
           << "With order = " << order
           << ", failed to open all, statuses = " << statuses;
       throw error(oss.str());
@@ -40,9 +40,9 @@ void testUnaryChainBase(Graph g, const TensorIds &idOrder) {
 
 void testUnaryChain() {
   Graph g;
-  auto x1 = Tensor::variable(g, {4, 4}).closedMux();
-  auto x2 = x1.modify().closedMux();
-  auto x3 = x2.modify().closedMux();
+  auto x1 = Tensor::variable(g, {4, 4}).closedAliasGate();
+  auto x2 = x1.modify().closedAliasGate();
+  auto x3 = x2.modify().closedAliasGate();
   x3.modify();
 
   testUnaryChainBase(g, Tensor::tensorIds({x3, x1, x2}));
@@ -60,14 +60,14 @@ void testUnaryTriFork0Base(Graph g, const TensorIds &idOrder) {
   }
 
   // We expect only the first proposal to be accepted:
-  if (order[0].muxIsClosed()) {
+  if (order[0].aliasGateIsClosed()) {
     std::ostringstream oss;
     oss << "With order = " << order << ", failed to inplace first";
     throw error(oss.str());
   }
 
   for (auto i : {1, 2}) {
-    if (order[i].muxIsOpen()) {
+    if (order[i].aliasGateIsOpen()) {
       std::ostringstream oss;
       oss << "With order = " << order << ", incorrectly inplaced non-first";
       throw error(oss.str());
@@ -84,9 +84,9 @@ void testUnaryTriFork0() {
   //    x1     x2      x3
   Graph g;
   auto x0 = Tensor::variable(g, {3});
-  auto x1 = x0.closedMux();
-  auto x2 = x0.closedMux();
-  auto x3 = x0.closedMux();
+  auto x1 = x0.closedAliasGate();
+  auto x2 = x0.closedAliasGate();
+  auto x3 = x0.closedAliasGate();
   x1.modify();
   x2.modify();
   x3.modify();
@@ -100,13 +100,13 @@ void testUnaryTriLongFork0() {
 
   //     +----- x0 -----+
   //     |      |       |
-  //    mux    mux     mux
+  //    aliasGate    aliasGate     aliasGate
   //     |      |       |
   //   unary  unary   unary
   //     |      |       |
   //    x1     x3      x5
   //     |      |       |
-  //    mux    mux     mux
+  //    aliasGate    aliasGate     aliasGate
   //     |      |       |
   //   unary  unary   unary
   //     |      |       |
@@ -123,7 +123,7 @@ void testUnaryTriLongFork0() {
   for (uint64_t i = 0; i < 3; ++i) {
     auto t = x0;
     for (uint64_t j = 0; j < 2; ++j) {
-      const auto m = t.closedMux();
+      const auto m = t.closedAliasGate();
       outs.push_back(m.id());
       if (j % 2 == 0) {
         forkers.push_back(m.id());
@@ -141,14 +141,14 @@ void testUnaryTriLongFork0() {
                                             {4, 5, 2, 3, 1, 0},
                                             {5, 3, 2, 1, 0, 4}};
   for (auto order : orders) {
-    TensorIds muxOrder;
-    muxOrder.reserve(6);
+    TensorIds aliasGateOrder;
+    aliasGateOrder.reserve(6);
     for (auto i : order) {
-      muxOrder.push_back(outs[i]);
+      aliasGateOrder.push_back(outs[i]);
     }
 
     auto g = g0_;
-    g.tryOpenings0(muxOrder, CheckParallelWriteable::Yes);
+    g.tryOpenings0(aliasGateOrder, CheckParallelWriteable::Yes);
 
     auto firstForker = [&outs, &order, &isForker]() {
       for (auto x : order) {
@@ -162,16 +162,16 @@ void testUnaryTriLongFork0() {
     for (auto x : order) {
       const auto id = outs[x];
       if (isForker(id) && id != firstForker) {
-        if (g.muxIsOpen(id.opId())) {
+        if (g.aliasGateIsOpen(id.opId())) {
           std::ostringstream oss;
-          oss << "With order = " << muxOrder << ", expected " << x
+          oss << "With order = " << aliasGateOrder << ", expected " << x
               << " to be outplace";
           throw error(oss.str());
         }
       } else {
-        if (g.muxIsClosed(id.opId())) {
+        if (g.aliasGateIsClosed(id.opId())) {
           std::ostringstream oss;
-          oss << "With order = " << muxOrder << ", expected " << x
+          oss << "With order = " << aliasGateOrder << ", expected " << x
               << " to be inplace";
           throw error(oss.str());
         }
@@ -186,24 +186,25 @@ void testMixedBiFork0Base(Graph g,
                           const TensorIds &idsExpected) {
   const auto gIn = g;
 
-  const auto order              = Tensor::tensors(g, idsOrder);
-  const auto expectedClosedMuxs = Tensor::tensors(g, idsExpected);
+  const auto order                    = Tensor::tensors(g, idsOrder);
+  const auto expectedClosedAliasGates = Tensor::tensors(g, idsExpected);
 
   const auto statuses = g.tryOpenings0(Tensor::tensorIds(order), obey);
 
-  auto getBaseString = [&gIn, &order, &expectedClosedMuxs]() {
+  auto getBaseString = [&gIn, &order, &expectedClosedAliasGates]() {
     std::ostringstream oss;
     oss << "For Initial Graph=" << gIn << ", and order=" << order
-        << " expected only " << expectedClosedMuxs << " to be outplace. ";
+        << " expected only " << expectedClosedAliasGates
+        << " to be outplace. ";
     return oss.str();
   };
 
   for (auto tId : order) {
 
-    if (std::find(expectedClosedMuxs.cbegin(),
-                  expectedClosedMuxs.cend(),
-                  tId) != expectedClosedMuxs.cend()) {
-      if (!tId.muxIsClosed()) {
+    if (std::find(expectedClosedAliasGates.cbegin(),
+                  expectedClosedAliasGates.cend(),
+                  tId) != expectedClosedAliasGates.cend()) {
+      if (!tId.aliasGateIsClosed()) {
         std::ostringstream oss;
         oss << getBaseString() << "\nFailed, as " << tId
             << " is not outplace. "
@@ -211,7 +212,7 @@ void testMixedBiFork0Base(Graph g,
         throw error(oss.str());
       }
     } else {
-      if (tId.muxIsClosed()) {
+      if (tId.aliasGateIsClosed()) {
         std::ostringstream oss;
         oss << getBaseString() << "\nFailed, as " << tId
             << " is outplace. Results were " << statuses;
@@ -228,24 +229,24 @@ void testMixedBiFork0() {
   //      /.    \.
   //    rsh    rev    // view change copies
   //     |      |
-  //    mux    mux
+  //    aliasGate    aliasGate
   //     |      |
   //  unary   unary   // unary modfiers
   //     |      |
-  //    mux    mux
+  //    aliasGate    aliasGate
   //      \   /.
   //       cat      // concatenation copy
   //        |
-  //       mux
+  //       aliasGate
   //
   //
   //
   const auto alloc    = Tensor::variable(g, {7}); // .variable({7});
-  const auto rsh      = alloc.reshape({7}).closedMux();
-  const auto rev      = alloc.reverse(0).closedMux();
-  const auto rshUnary = rsh.modify().closedMux();
-  const auto revUnary = rev.modify().closedMux();
-  const auto cat      = Tensor::concat({rshUnary, revUnary}, 0).closedMux();
+  const auto rsh      = alloc.reshape({7}).closedAliasGate();
+  const auto rev      = alloc.reverse(0).closedAliasGate();
+  const auto rshUnary = rsh.modify().closedAliasGate();
+  const auto revUnary = rev.modify().closedAliasGate();
+  const auto cat = Tensor::concat({rshUnary, revUnary}, 0).closedAliasGate();
 
   for (auto pll : {CheckParallelWriteable::Yes, CheckParallelWriteable::No}) {
     testMixedBiFork0Base(
@@ -273,32 +274,33 @@ void testMixedBiFork0() {
 
 void testConstraint0() {
   Graph g;
-  const auto alloc = Tensor::variable(g, {3});
-  const auto x0mux = alloc.closedMux();
-  x0mux.modify();
-  const auto x1mux = alloc.closedMux();
-  const auto x11   = x1mux.modify();
+  const auto alloc       = Tensor::variable(g, {3});
+  const auto x0aliasGate = alloc.closedAliasGate();
+  x0aliasGate.modify();
+  const auto x1aliasGate = alloc.closedAliasGate();
+  const auto x11         = x1aliasGate.modify();
 
   //
   //      alloc
   //      /.   \.
-  //    mux    mux
+  //    aliasGate    aliasGate
   //     |      |
   //   unary  unary
   //     |      |
   //    x0  <-  x1
   //
-  g.constraint(x11.opId(), x0mux.opId());
+  g.constraint(x11.opId(), x0aliasGate.opId());
 
   // The attempt to inplace x1 fails, as it
   // is constrained to be before x0.
-  g.tryOpenings0({x1mux.opId(), x0mux.opId()}, CheckParallelWriteable::Yes);
-  if (x1mux.muxIsOpen()) {
+  g.tryOpenings0({x1aliasGate.opId(), x0aliasGate.opId()},
+                 CheckParallelWriteable::Yes);
+  if (x1aliasGate.aliasGateIsOpen()) {
     throw error(
         "Failed to inplace correctly with constraint - x0 not outplace");
   }
 
-  if (x0mux.muxIsClosed()) {
+  if (x0aliasGate.aliasGateIsClosed()) {
     throw error(
         "Failed to inplace correctly with constraint - x1 not outplace");
   }

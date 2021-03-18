@@ -60,7 +60,7 @@ using ndarray::Strides;
 using util::Permutation;
 
 class Op;
-class Mux;
+class AliasGate;
 
 /**
  * This graph class extends the functionality of the alias::Graph class, by
@@ -75,12 +75,12 @@ class Mux;
  * allocations. That is, almost all outputs of an Op are aliases of the Op's
  * inputs. The 2 exceptions are,
  *
- * 1) mux. This method takes N inputs, and creates one output whose Shape is
- *         inferred by numpy-broadcasting the N inputs. The output is
- *         optionally aliased to one of the inputs with the same Shape. So
- *         with N inputs of the same Shape, there are N + 1 Mux possibilities:
- *         one "closed" variant, and N "open" variants, which respectively
- *         alias one of the N inputs.
+ * 1) aliasGate. This method takes N inputs, and creates one output whose
+ *    Shape is inferred by numpy-broadcasting the N inputs. The output is
+ *    optionally aliased to one of the inputs with the same Shape. So with N
+ *    inputs of the same Shape, there are N + 1 AliasGate possibilities: one
+ *    "closed" variant, and N "open" variants, which respectively alias one of
+ *    the N inputs.
  *
  * 2) multi. This Op has N inputs and creates M outputs, of user specified
  *           Shapes. How inputs and outpus are are aliased, if at all, is also
@@ -155,32 +155,34 @@ public:
              const CrossLinks &mapping);
 
   /**
-   * A mux represents a variadic elementwise numpy-broadcast operation, where
-   * the output may optionally alias, but not modify, one of the inputs. In
-   * other words:
-   *   1) it has N inputs and 1 output whose Shape is inferred by
-   *      numpy-broadcasting the N inputs.
-   *   2) The output is optionally aliased to one of the inputs with the same
-   *      Shape. If the N inputs all have the same Shape, there are N + 1 Mux
-   *      variants: one "closed" variant, and N "open" variants, which
-   *      each respectively alias one of the N inputs.
+   * An aliasGate represents a variadic elementwise numpy-broadcast operation,
+   * where the output may optionally alias, but not modify, one of the inputs.
+   * In other words:
+   * 1) it has N inputs and 1 output whose Shape is inferred  by
+   *    numpy-broadcasting the N inputs.
+   * 2) The output is optionally aliased to one of the inputs with the same
+   *    Shape. If the N inputs all have the same Shape, there are N + 1
+   *    AliasGate variants: one "closed" variant, and N "open" variants, which
+   *    each respectively alias one of the N inputs.
    *
-   * This method creates a closed (non-aliasing) mux operation in this Graph.
-   * In terms of aliasing, it is equivalent to allocating a new variable
-   * Tensor.
+   * This method creates a closed (non-aliasing) aliasGate operation in this
+   * Graph. In terms of aliasing, it is equivalent to allocating a new
+   * variable Tensor.
    * */
-  TensorId mux(const TensorIds &);
+  TensorId aliasGate(const TensorIds &);
 
-  /** An open Mux, where the output is aliased to the \a i'th input. The Shape
-   * of the i'th input must be same as the output Shape.
+  /** An open AliasGate, where the output is aliased to the \a i'th input. The
+   * Shape of the i'th input must be same as the output Shape.
    * https://numpy.org/doc/stable/user/basics.broadcasting.html */
-  TensorId mux(const TensorIds &input, InIndex i);
+  TensorId aliasGate(const TensorIds &input, InIndex i);
 
-  /** Mux state queries. These methods throw errors if the OpId is not a Mux.
+  /**
+   * AliasGate state queries. These methods throw errors if the OpId is not
+   * an AliasGate.
    */
-  bool muxIsClosed(OpId) const;
-  bool muxIsOpen(OpId id) const { return !muxIsClosed(id); }
-  InIndex muxInIndex(OpId) const;
+  bool aliasGateIsClosed(OpId) const;
+  bool aliasGateIsOpen(OpId id) const { return !aliasGateIsClosed(id); }
+  InIndex aliasGateInIndex(OpId) const;
 
   /** The ConsumptionIds of a Tensor which modify it. */
   ConsumptionIds modifiers(const TensorId &) const;
@@ -219,14 +221,15 @@ public:
   void constraints(const Constraints &);
 
   /**
-   * Attempt to open a Mux at a specific InIndex.
+   * Attempt to open an AliasGate at a specific InIndex.
    *
-   * If the proposed change is accepted, the Mux is opened at the proposed
-   * InIndex, and new constraints are inserted between Ops if necessary. If
-   * the proposed opening is rejected, the proposed Op is unchanged, and
-   * no constraints are inserted.
+   * If the proposed change is accepted, the AliasGate is opened at the
+   * proposed InIndex, and new constraints are inserted between Ops if
+   * necessary. If the proposed opening is rejected, the proposed Op is
+   * unchanged, and no constraints are inserted.
    *
-   * \param proposal The proposed Mux to open, and the InIndex to open at.
+   * \param proposal The proposed AliasGate to open, and the InIndex to open
+   *                 at.
    *
    * \param check Whether to disallow the opening if it results in
    *              non-parallel writes.
@@ -234,18 +237,18 @@ public:
    * \return The status of the attempt, describing whether or not the change
    *         took place. Possible failure Statuses:
    *
-   * Cycle: Sometimes, opening a Mux results in new constraints
+   * Cycle: Sometimes, opening an AliasGate results in new constraints
    *        between Ops, to ensure that Tensors are not modified too
    *        early, trashing memory which is used later. Sometimes, these
    *        constraints result in cycles, in which case the inplacing is
    *        rejected.
    *
-   * NotParallelWriteable: Sometimes, opening a Mux results in a
+   * NotParallelWriteable: Sometimes, opening an AliasGate results in a
    *                       Tensor which is not parallel writeable being
    *                       modified. If this happens, and \a check is Yes, the
    *                       proposal is rejected.
    *
-   * AlreadyOpen: If the Mux is already open, the proposal is rejected.
+   * AlreadyOpen: If the AliasGate is already open, the proposal is rejected.
    *
    * \see OpeningResult
    * \see Proposal
@@ -254,18 +257,18 @@ public:
                            CheckParallelWriteable check);
 
   /**
-   * Attempt to open a Mux, without inserting final constraints and without
-   * changing this Graph's representation. Only limited changes are made. In
-   * pseudocode, the code flow might be:
+   * Attempt to open an AliasGate, without inserting final constraints and
+   * without changing this Graph's representation. Only limited changes are
+   * made. In pseudocode, the code flow might be:
    *
    * def tryOpening(.)
    *  result = tryOpeningPartial(.)
    *  if (result.valid):
    *    completeOpening(.);
    *
-   * There are certain use cases (PopART) where one wants to leave a Mux
-   * closed even after tryOpening has confirmed that it is valid. This method
-   * makes such use cases possible.
+   * There are certain use cases (PopART) where one wants to leave an
+   * AliasGate closed even after tryOpening has confirmed that it is valid.
+   * This method makes such use cases possible.
    * */
   OpeningResult tryOpeningPartial(const Proposal &, CheckParallelWriteable);
 
@@ -321,9 +324,9 @@ private:
   // the current schedule.
   bool satisifedWithoutAnyChange(const Constraints &constraints) const;
 
-  // This Graph class represents a DAG. The algorithm which opens Muxs uses a
-  // schedule, which is a linearization of the DAG, to ensure that no cycles
-  // are created. This should remain private to this class.
+  // This Graph class represents a DAG. The algorithm which opens AliasGates
+  // uses a schedule, which is a linearization of the DAG, to ensure that no
+  // cycles are created. This should remain private to this class.
   void setSchedule(OpIds &&);
   uint64_t scheduleIndex(OpId id) const;
 
@@ -338,9 +341,9 @@ private:
   const alias::Graph &aGraph() const { return aGraph_; }
   TensorMap tensorMap;
 
-  // Dynamically cast to a Mux.
-  Mux &asMux(OpId);
-  const Mux &asMux(OpId) const;
+  // Dynamically cast to an AliasGate.
+  AliasGate &asAliasGate(OpId);
+  const AliasGate &asAliasGate(OpId) const;
 };
 
 std::ostream &operator<<(std::ostream &, const Graph &);

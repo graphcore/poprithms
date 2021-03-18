@@ -20,25 +20,25 @@ void test0() {
   //        1.    .1   11    sett samples.
   //        ..    ..   11
   //        |     |    |
-  //       mux   mux  mux   [x00, x11, xSS]
+  //       aliasGate   aliasGate  aliasGate   [x00, x11, xSS]
   //        |     |    |
-  //       mux   mux  mux   [n00, n11, nSS]
+  //       aliasGate   aliasGate  aliasGate   [n00, n11, nSS]
   //        |     |    |
   //      unary unary unary
   //
 
-  const auto x00 =
-      x.settSample({{10, 10}, {{{{1, 1, 0}}}, {{{1, 1, 0}}}}}).closedMux();
+  const auto x00 = x.settSample({{10, 10}, {{{{1, 1, 0}}}, {{{1, 1, 0}}}}})
+                       .closedAliasGate();
 
-  const auto x11 =
-      x.settSample({{10, 10}, {{{{1, 1, 1}}}, {{{1, 1, 1}}}}}).closedMux();
+  const auto x11 = x.settSample({{10, 10}, {{{{1, 1, 1}}}, {{{1, 1, 1}}}}})
+                       .closedAliasGate();
 
-  const auto xSS =
-      x.settSample({{10, 10}, {{{{2, 3, 0}}}, {{{2, 3, 0}}}}}).closedMux();
+  const auto xSS = x.settSample({{10, 10}, {{{{2, 3, 0}}}, {{{2, 3, 0}}}}})
+                       .closedAliasGate();
 
-  const auto n00 = x00.closedMux();
-  const auto n11 = x11.closedMux();
-  const auto nSS = xSS.closedMux();
+  const auto n00 = x00.closedAliasGate();
+  const auto n11 = x11.closedAliasGate();
+  const auto nSS = xSS.closedAliasGate();
 
   n00.modify();
   n11.modify();
@@ -52,7 +52,7 @@ void test0() {
         g0.tryOpenings0(Tensor::opIds(order), CheckParallelWriteable::Yes);
     for (uint64_t i = 0; i < expectedInplace.size(); ++i) {
       auto id = order[i];
-      if (id.muxIsOpen() != expectedInplace[i]) {
+      if (id.aliasGateIsOpen() != expectedInplace[i]) {
         std::ostringstream oss;
         oss << "Failure with input graph " << gStart
             << ", which was inplaced to " << g0 << ". Expected "

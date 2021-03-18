@@ -8,7 +8,7 @@ namespace memory {
 namespace inplace {
 
 void Proposal::append(std::ostream &ost) const {
-  ost << "(id=" << muxId() << ", index=" << inIndex() << ')';
+  ost << "(id=" << aliasGateId() << ", index=" << inIndex() << ')';
 }
 
 std::ostream &operator<<(std::ostream &ost, const Proposal &p) {

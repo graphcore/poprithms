@@ -13,7 +13,7 @@ void testBadShape() {
   Graph g;
   const auto a = Tensor::variable(g, {3, 1});
   const auto b = Tensor::variable(g, {3, 3});
-  const auto c = Tensor::mux({a, b});
+  const auto c = Tensor::aliasGate({a, b});
   bool caught{false};
   try {
     g.tryOpening({c, 0}, CheckParallelWriteable::Yes);
@@ -31,12 +31,12 @@ void testNoConst() {
   //
   // a.
   //   \.
-  //     mux -> unary
+  //     aliasGate -> unary
   //   /.
   // b
   const auto a = Tensor::constant(g, {3});
   const auto b = Tensor::variable(g, {3});
-  const auto c = Tensor::mux({a, b});
+  const auto c = Tensor::aliasGate({a, b});
   c.modify();
   g.tryOpenings({{c, 0}, {c, 1}}, CheckParallelWriteable::Yes);
   auto alis = c.allAliases();
@@ -52,7 +52,7 @@ void testMultiplePossibilities() {
   Graph g;
   const auto a = Tensor::variable(g, {3});
   const auto b = Tensor::variable(g, {3});
-  const auto c = Tensor::mux({a, b});
+  const auto c = Tensor::aliasGate({a, b});
   // Both valid inplacings, but only the first one should be applied.
   g.tryOpenings({{c, 0}, {c, 1}}, CheckParallelWriteable::Yes);
   auto alis = c.allAliases();
@@ -65,20 +65,20 @@ void testMultiplePossibilities() {
 void testChain0() {
   Graph g;
   Tensors all{Tensor::variable(g, {7})};
-  Tensors muxs{};
-  while (muxs.size() < 6) {
+  Tensors aliasGates{};
+  while (aliasGates.size() < 6) {
     all.push_back(Tensor::variable(g, {7}));
-    auto m   = Tensor::mux({*(all.cend() - 2), all.back()});
+    auto m   = Tensor::aliasGate({*(all.cend() - 2), all.back()});
     auto mun = m.modify();
     all.push_back(mun);
-    muxs.push_back(m);
+    aliasGates.push_back(m);
   }
   std::mt19937_64 generator(1015);
-  std::shuffle(muxs.begin(), muxs.end(), generator);
-  g.tryOpenings0(Tensor::opIds(muxs), CheckParallelWriteable::Yes);
-  for (auto m : muxs) {
-    if (m.muxIsClosed()) {
-      throw error("Expected all mux ops to be inplaced");
+  std::shuffle(aliasGates.begin(), aliasGates.end(), generator);
+  g.tryOpenings0(Tensor::opIds(aliasGates), CheckParallelWriteable::Yes);
+  for (auto m : aliasGates) {
+    if (m.aliasGateIsClosed()) {
+      throw error("Expected all aliasGate ops to be inplaced");
     }
   }
 }

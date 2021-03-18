@@ -76,12 +76,13 @@ public:
   /** The name of the Graph to which this Tensor belongs */
   std::string graphName() const;
 
-  /** A 1-input Mux on this Tensor. If \a isOpen is true, the returned Tensor
-   * is an alias of this Tensor, otherwise it is a new allocation.
+  /**
+   * A 1-input AliasGate on this Tensor. If \a isOpen is true, the returned
+   * Tensor is an alias of this Tensor, otherwise it is a new allocation.
    * */
-  Tensor mux(bool isOpen) const;
-  Tensor openMux() const { return mux(true); }
-  Tensor closedMux() const { return mux(false); }
+  Tensor aliasGate(bool isOpen) const;
+  Tensor openAliasGate() const { return aliasGate(true); }
+  Tensor closedAliasGate() const { return aliasGate(false); }
 
   /** Sample this Tensor. This generalizes slice and subSample. */
   Tensor settSample(const Region &) const;
@@ -197,18 +198,18 @@ public:
   /** Create a variable Tensor in the same Graph as this Tensor */
   Tensor variable(const Shape &) const;
 
-  /** Queries for the case where this Tensor is the output of a Mux */
-  bool muxIsClosed() const;
-  bool muxIsOpen() const { return !muxIsClosed(); }
+  /** Queries for the case where this Tensor is the output of an AliasGate */
+  bool aliasGateIsClosed() const;
+  bool aliasGateIsOpen() const { return !aliasGateIsClosed(); }
 
-  /** Create a Mux from a non-empty vector of inputs.
+  /** Create an AliasGate from a non-empty vector of inputs.
    *
-   * Recall that a Mux takes N inputs, and creates an output whose Shape is
-   * the numpy-style reduction of the inputs. The output is optionally aliased
-   * to one of the inputs.
+   * Recall that an AliasGate takes N inputs, and creates an output whose
+   * Shape is the numpy-style reduction of the inputs. The output is
+   * optionally aliased to one of the inputs.
    * */
-  static Tensor mux(const Tensors &, InIndex);
-  static Tensor mux(const Tensors &);
+  static Tensor aliasGate(const Tensors &, InIndex);
+  static Tensor aliasGate(const Tensors &);
 
   /**
    * A general purpose Op which can be used to represent operations such as

@@ -16,13 +16,13 @@ using util::Permutation;
 
 using UpBop = std::unique_ptr<poprithms::common::multiout::Op>;
 
-class Mux : public Op {
+class AliasGate : public Op {
 public:
-  /** An open Mux, flowing from input at index i_, to output. */
-  Mux(const State &st, InIndex i_);
+  /** An open AliasGate, flowing from input at index i_, to output. */
+  AliasGate(const State &st, InIndex i_);
 
-  /** A closed Mux */
-  Mux(const State &st);
+  /** A closed AliasGate */
+  AliasGate(const State &st);
 
   std::string typeString() const final;
   UpBop clone() const final;

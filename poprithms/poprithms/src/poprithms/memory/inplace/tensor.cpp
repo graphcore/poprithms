@@ -55,19 +55,19 @@ void Tensor::assertSameGraph(const Tensors &ts) {
   }
 }
 
-Tensor Tensor::mux(const Tensors &ts, InIndex inIndex) {
+Tensor Tensor::aliasGate(const Tensors &ts, InIndex inIndex) {
   if (ts.empty()) {
-    throw error("Cannot create Mux with 0 inputs");
+    throw error("Cannot create AliasGate with 0 inputs");
   }
   assertSameGraph(ts);
-  return {ts[0].graph().mux(tensorIds(ts), inIndex), ts[0].graph()};
+  return {ts[0].graph().aliasGate(tensorIds(ts), inIndex), ts[0].graph()};
 }
 
-Tensor Tensor::mux(const Tensors &ts) {
+Tensor Tensor::aliasGate(const Tensors &ts) {
   if (ts.empty()) {
-    throw error("Cannot create Mux with 0 inputs");
+    throw error("Cannot create AliasGate with 0 inputs");
   }
-  return {ts[0].graph().mux(tensorIds(ts)), ts[0].graph()};
+  return {ts[0].graph().aliasGate(tensorIds(ts)), ts[0].graph()};
 }
 
 Tensors Tensor::multi(Graph &g,
@@ -98,11 +98,11 @@ Tensor Tensor::settSample(const Region &r) const {
   return {graph().settSample(id(), r), graph()};
 }
 
-Tensor Tensor::mux(bool isOpen) const {
+Tensor Tensor::aliasGate(bool isOpen) const {
   if (!isOpen) {
-    return {graph().mux({id()}), graph()};
+    return {graph().aliasGate({id()}), graph()};
   }
-  return {graph().mux({id()}, 0), graph()};
+  return {graph().aliasGate({id()}, 0), graph()};
 }
 
 Tensor Tensor::modify() const { return {graph().modify(id()), graph()}; }
@@ -205,7 +205,9 @@ Tensor Tensor::constant(Graph &g, const Shape &shape) {
   return {g.constant(shape), g};
 }
 
-bool Tensor::muxIsClosed() const { return graph().muxIsClosed(opId()); }
+bool Tensor::aliasGateIsClosed() const {
+  return graph().aliasGateIsClosed(opId());
+}
 
 Tensors Tensor::tensors(Graph &g, const TensorIds &ids) {
   Tensors ts_;

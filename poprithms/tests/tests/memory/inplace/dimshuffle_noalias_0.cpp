@@ -10,36 +10,38 @@ using namespace poprithms::memory::inplace;
 void testDimShuffle0() {
   Graph g;
 
-  //    x0  -> mux -> dimShuffle -> slice -> mux +
-  //    |                                        + - concat -> mux -> unary.
-  //  slice -> mux ------------------------------+
+  //    x0  -> aliasGate -> dimShuffle -> slice -> aliasGate +
+  //    |                                        + - concat -> aliasGate ->
+  //    unary.
+  //  slice -> aliasGate ------------------------------+
   //
   //  The 2 slices slice the exact same elements from x0.
   //
 
-  const auto x0    = Tensor::variable(g, {2, 3, 5});
-  const auto x0Mux = x0.closedMux();
-  const auto d0    = x0Mux.dimShuffle({{1, 2, 0}});
+  const auto x0          = Tensor::variable(g, {2, 3, 5});
+  const auto x0AliasGate = x0.closedAliasGate();
+  const auto d0          = x0AliasGate.dimShuffle({{1, 2, 0}});
   if (d0.shape() != Shape{3, 5, 2}) {
     throw error("dimShuffle shape incorrect");
   }
-  const auto s0Mux  = d0.slice({2, 2, 1}, {3, 3, 2}).closedMux();
-  const auto s1Mux  = x0.slice({1, 2, 2}, {2, 3, 3}).closedMux();
-  const auto catMux = Tensor::concat({s0Mux, s1Mux}, 0).closedMux();
-  catMux.modify();
-  Tensors order{s1Mux, s0Mux, x0Mux, catMux};
+  const auto s0AliasGate = d0.slice({2, 2, 1}, {3, 3, 2}).closedAliasGate();
+  const auto s1AliasGate = x0.slice({1, 2, 2}, {2, 3, 3}).closedAliasGate();
+  const auto catAliasGate =
+      Tensor::concat({s0AliasGate, s1AliasGate}, 0).closedAliasGate();
+  catAliasGate.modify();
+  Tensors order{s1AliasGate, s0AliasGate, x0AliasGate, catAliasGate};
 
   std::cout << g.tryOpenings0(Tensor::opIds(order),
                               CheckParallelWriteable::Yes)
             << std::endl;
   for (auto id : order) {
-    if (id != catMux) {
+    if (id != catAliasGate) {
 
-      if (id.muxIsClosed()) {
+      if (id.aliasGateIsClosed()) {
         throw error("Expected all except cat to be inplace");
       }
     } else {
-      if (id.muxIsOpen()) {
+      if (id.aliasGateIsOpen()) {
         throw error("Expected cat to be outplace (otherwise alias modified)");
       }
     }

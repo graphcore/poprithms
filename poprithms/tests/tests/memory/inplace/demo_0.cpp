@@ -25,11 +25,11 @@ int main() {
   //           /.     \.
   //     slice[0:7]  slice[3:10]
   //         |         |
-  //        mux       mux
+  //        aliasGate       aliasGate
   //         |         |
   //       unary      unary
   //         |         |
-  //        mux       mux
+  //        aliasGate       aliasGate
   //           \.     /.
   //            noAlias
   //
@@ -39,13 +39,13 @@ int main() {
   // Add a variable Tensor to the graph.
   const auto var = Tensor::variable(g, {10});
 
-  // Create slices followed by copies (closed muxes)
-  const auto slice0 = var.slice({0}, {7}).closedMux();
-  const auto slice1 = var.slice({3}, {10}).closedMux();
+  // Create slices followed by copies (closed aliasGatees)
+  const auto slice0 = var.slice({0}, {7}).closedAliasGate();
+  const auto slice1 = var.slice({3}, {10}).closedAliasGate();
 
   // Create the unary operations which act on the copied slices.
-  const auto unary0 = slice0.modify().closedMux();
-  const auto unary1 = slice1.modify().closedMux();
+  const auto unary0 = slice0.modify().closedAliasGate();
+  const auto unary1 = slice1.modify().closedAliasGate();
 
   // Create the operation (greaterThan) which we know will never create
   // aliases.
@@ -70,7 +70,7 @@ int main() {
   // Now from g and results, we can apply the changes to the popart graph,
   // which should be simple.
 
-  if (g.muxIsOpen(slice1.opId())) {
+  if (g.aliasGateIsOpen(slice1.opId())) {
     throw error("Expected the final inplacing attempt to fail");
   }
 

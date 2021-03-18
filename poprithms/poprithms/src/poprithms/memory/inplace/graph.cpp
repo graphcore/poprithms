@@ -326,44 +326,52 @@ uint64_t Graph::scheduleIndex(OpId id) const {
 // 2) use the DAG structure to reduce alias computation, and sparsify
 //    constraint calculation and insertion (T29080)
 
-const Mux &Graph::asMux(OpId mid) const {
-  auto proposedBaseOp   = &op(mid);
-  auto proposedMuxOpPtr = dynamic_cast<const Mux *>(proposedBaseOp);
-  if (!proposedMuxOpPtr) {
+const AliasGate &Graph::asAliasGate(OpId mid) const {
+  auto proposedBaseOp = &op(mid);
+  auto proposedAliasGateOpPtr =
+      dynamic_cast<const AliasGate *>(proposedBaseOp);
+  if (!proposedAliasGateOpPtr) {
     std::ostringstream oss;
-    oss << "Failure to cast Op to Mux. This for OpId = " << mid
-        << ", where the Op trying to cast to Mux is " << *proposedBaseOp;
+    oss << "Failure to cast Op to AliasGate. This for OpId = " << mid
+        << ", where the Op trying to cast to AliasGate is "
+        << *proposedBaseOp;
     throw error(oss.str());
   }
-  auto &mux = *proposedMuxOpPtr;
-  return mux;
+  auto &aliasGate = *proposedAliasGateOpPtr;
+  return aliasGate;
 }
 
-InIndex Graph::muxInIndex(OpId mid) const { return asMux(mid).inIndex(); }
+InIndex Graph::aliasGateInIndex(OpId mid) const {
+  return asAliasGate(mid).inIndex();
+}
 
-bool Graph::muxIsClosed(OpId mid) const { return asMux(mid).closed(); }
+bool Graph::aliasGateIsClosed(OpId mid) const {
+  return asAliasGate(mid).closed();
+}
 
 // See Scott Meyers' "Effective C++"
-Mux &Graph::asMux(OpId mid) {
-  return const_cast<Mux &>(static_cast<const Graph &>(*this).asMux(mid));
+AliasGate &Graph::asAliasGate(OpId mid) {
+  return const_cast<AliasGate &>(
+      static_cast<const Graph &>(*this).asAliasGate(mid));
 }
 
 OpeningResult Graph::tryOpeningPartial(const Proposal &p,
                                        CheckParallelWriteable check) {
 
-  auto &mux_ = asMux(p.muxId());
+  auto &aliasGate_ = asAliasGate(p.aliasGateId());
 
-  if (mux_.nInTensors() <= p.inIndex().get()) {
+  if (aliasGate_.nInTensors() <= p.inIndex().get()) {
     std::ostringstream oss;
     oss << "Invalid proposal input index, " << p.inIndex()
-        << ", for mux with only " << mux_.nInTensors() << " input Tensors. ";
+        << ", for aliasGate with only " << aliasGate_.nInTensors()
+        << " input Tensors. ";
     throw error(oss.str());
   }
 
-  const auto inTensorToAlias  = mux_.inTensorId(p.inIndex());
-  const auto outTensorToAlias = mux_.outTensorId(0);
+  const auto inTensorToAlias  = aliasGate_.inTensorId(p.inIndex());
+  const auto outTensorToAlias = aliasGate_.outTensorId(0);
 
-  if (mux_.open()) {
+  if (aliasGate_.open()) {
     return OpeningResult::alreadyOpen();
   }
 
@@ -402,8 +410,8 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
 
   // Aliases of inputs which have modifiers, under the proposal.
   //
-  // Example: proposal to open mux.
-  //          input to mux is X
+  // Example: proposal to open aliasGate.
+  //          input to aliasGate is X
   //          Y is an alias of X, and Y has a modifier, so AliInfo of Y will
   //          be in the returned vector.
   //
@@ -413,7 +421,7 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   //        |             .
   //        X             .
   //        |             .
-  //       mux (proposal to make reshape_)
+  //       aliasGate (proposal to make reshape_)
   //
   std::vector<AliInfo> inAliasModified;
   for (auto ali : allAliases(inTensorToAlias)) {
@@ -425,14 +433,14 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
 
   // Aliases of outputs which have modifiers under the proposal.
   //
-  // Example: proposal to open mux.
+  // Example: proposal to open aliasGate.
   //          output of slice is Y
   //          Z is an alias of Y, and Z has a modifier, so AliInfo of Z will
   //          be in the returned vector.
   //
   //     X
   //     |
-  //    mux
+  //    aliasGate
   //     |
   //     Y
   //      \.
@@ -450,8 +458,8 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
     }
   }
 
-  // Open the Mux, let the aliases "flow"
-  mux_.openAt(aGraph(), tensorMap, p.inIndex());
+  // Open the AliasGate, let the aliases "flow"
+  aliasGate_.openAt(aGraph(), tensorMap, p.inIndex());
 
   if (check == CheckParallelWriteable::Yes) {
 
@@ -467,13 +475,13 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
     }
 
     // Check that no modifiers modify a Tensor with a constant or a self-alias
-    // If they do, mux will remain close.
+    // If they do, aliasGate will remain close.
     for (auto m : allModifiers) {
       const auto &op_ = op(m.opId());
       const auto tId  = tensorMap.toAliasGraphId(op_.inTensorId(m.inIndex()));
       if (aGraph().containsColor(tId, ConstantColor) ||
           aGraph().containsAliases(tId)) {
-        mux_.close(aGraph(), tensorMap);
+        aliasGate_.close(aGraph(), tensorMap);
         return OpeningResult::notParallelWriteable();
       }
     }
@@ -482,8 +490,8 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   Constraints newConstraints;
 
   // The modifiers of output aliases might have new aliases: Tensors which are
-  // aliased to the inputs of mux. ConsumptionIds of these new aliases must
-  // execute before the modifier, so that behaviour is unchanged.
+  // aliased to the inputs of aliasGate. ConsumptionIds of these new aliases
+  // must execute before the modifier, so that behaviour is unchanged.
   for (const auto &x : outAliasModified) {
     for (auto newAlias : setDifference(allAliases(x.id), x.aliases)) {
       for (auto c : consumptionIds(newAlias)) {
@@ -495,8 +503,8 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   }
 
   // The modifiers of input aliases might have new aliases: Tensors which are
-  // aliased to outputs of the mux.  If the modifiers were scheduled
-  // after mux, they must be scheduled after the new aliases too, so
+  // aliased to outputs of the aliasGate.  If the modifiers were scheduled
+  // after aliasGate, they must be scheduled after the new aliases too, so
   // that behaviour is unchanged.
   //
   // optimization here: don't need to go
@@ -505,11 +513,11 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   for (const auto &x : inAliasModified) {
     auto diff = setDifference(allAliases(x.id), x.aliases);
     for (auto m : x.modifiers) {
-      if (scheduleIndex(m.opId()) > scheduleIndex(mux_.id())) {
+      if (scheduleIndex(m.opId()) > scheduleIndex(aliasGate_.id())) {
 
         // remoteinplace (popart) test requires this constraint TODO(T29862):
         // as follow-up, remove this.
-        newConstraints.push_back({mux_.id(), m.opId()});
+        newConstraints.push_back({aliasGate_.id(), m.opId()});
 
         for (auto newAlias : diff) {
           for (auto c : consumptionIds(newAlias)) {
@@ -539,7 +547,7 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
           schedule::vanilla::VerifyEdges::No));
 
   if (proposedSchedule.size() != nOps()) {
-    mux_.close(aGraph(), tensorMap);
+    aliasGate_.close(aGraph(), tensorMap);
     return OpeningResult::cycle();
   }
 
@@ -573,7 +581,7 @@ void Graph::completeOpening(const OpeningResult &r) {
 }
 
 void Graph::backoutOpening(const Proposal &proposal) {
-  asMux(proposal.muxId()).close(aGraph(), tensorMap);
+  asAliasGate(proposal.aliasGateId()).close(aGraph(), tensorMap);
 }
 
 void Graph::setSchedule(OpIds &&schedule_) {
@@ -754,17 +762,17 @@ OpId Graph::multi(const TensorIds &inIds,
   return createOp<Multi>(inIds, outShapes, mapping);
 }
 
-TensorId Graph::mux(const TensorIds &ids) {
-  return {createOp<Mux>(ids, {Shape::numpyVariadic(shapes(ids))}), 0};
+TensorId Graph::aliasGate(const TensorIds &ids) {
+  return {createOp<AliasGate>(ids, {Shape::numpyVariadic(shapes(ids))}), 0};
 }
 
-TensorId Graph::mux(const TensorIds &ids, InIndex inInd) {
+TensorId Graph::aliasGate(const TensorIds &ids, InIndex inInd) {
   if (inInd < 0) {
-    return mux(ids);
+    return aliasGate(ids);
   }
 
   const auto outShape = Shape::numpyVariadic(shapes(ids));
-  return {createOp<Mux>(ids, {outShape}, inInd), 0};
+  return {createOp<AliasGate>(ids, {outShape}, inInd), 0};
 }
 
 TensorId Graph::slice(const TensorId &id, const Lower &l, const Upper &u) {

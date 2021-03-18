@@ -311,25 +311,26 @@ Multi::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
 // ViewChange1to1 //
 
 /////////
-// Mux //
+// AliasGate //
 /////////
-std::vector<alias::TensorId> Mux::typeSpecificGrow(alias::Graph &g,
-                                                   const TensorMap &m) const {
+std::vector<alias::TensorId>
+AliasGate::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   if (closed()) {
     return {g.allocate(outShape(0), VariableColor)};
   }
   return {g.identity(m.toAliasGraphId(inTensorId(inIndex())))};
 }
-void Mux::close(alias::Graph &g, TensorMap &m) {
+void AliasGate::close(alias::Graph &g, TensorMap &m) {
   inIndex_ = -1;
   g.toAllocation(m.toAliasGraphId(outTensorId(0)), VariableColor);
 }
 
-void Mux::openAt(alias::Graph &g, TensorMap &m, InIndex index) {
+void AliasGate::openAt(alias::Graph &g, TensorMap &m, InIndex index) {
   if (index.get() >= nInTensors()) {
     std::ostringstream oss;
-    oss << "Invalid InIndex (" << index << ") in Mux::openAt. For Mux with "
-        << nInTensors() << '.';
+    oss << "Invalid InIndex (" << index
+        << ") in AliasGate::openAt. For AliasGate with " << nInTensors()
+        << '.';
     throw error(oss.str());
   }
   inIndex_ = index.get();
@@ -337,15 +338,16 @@ void Mux::openAt(alias::Graph &g, TensorMap &m, InIndex index) {
                m.toAliasGraphId(outTensorId(0)));
 }
 
-Mux::Mux(const State &st) : Op(st), inIndex_(-1) {}
+AliasGate::AliasGate(const State &st) : Op(st), inIndex_(-1) {}
 
-Mux::Mux(const State &st, InIndex i_) : Op(st) {
+AliasGate::AliasGate(const State &st, InIndex i_) : Op(st) {
   if (static_cast<uint64_t>(i_.get()) >= nInTensors()) {
     std::ostringstream oss;
-    oss << "Invalid InIndex " << i_ << " in Mux constructor. "
+    oss << "Invalid InIndex " << i_ << " in AliasGate constructor. "
         << "Expected value in range [0, " << nInTensors()
-        << ") for this Mux, which has " << nInTensors() << " inputs. "
-        << "Note that closed Muxes must be created with the other (single "
+        << ") for this AliasGate, which has " << nInTensors() << " inputs. "
+        << "Note that closed AliasGatees must be created with the other "
+           "(single "
            "input) constructor. ";
     throw error(oss.str());
   }
@@ -353,9 +355,9 @@ Mux::Mux(const State &st, InIndex i_) : Op(st) {
   inIndex_ = static_cast<int64_t>(i_.get());
 }
 
-std::string Mux::typeString() const {
+std::string AliasGate::typeString() const {
   std::ostringstream oss;
-  oss << "Mux(";
+  oss << "AliasGate(";
   if (closed()) {
     oss << "closed";
   } else {
@@ -365,10 +367,10 @@ std::string Mux::typeString() const {
   return oss.str();
 }
 
-UpBop Mux::clone() const { return mu<Mux>(this); }
+UpBop AliasGate::clone() const { return mu<AliasGate>(this); }
 
-bool Mux::inplaceTypeSpecificEqualTo(const Op &rhs) const {
-  const auto &rhs_ = static_cast<const Mux &>(rhs);
+bool AliasGate::inplaceTypeSpecificEqualTo(const Op &rhs) const {
+  const auto &rhs_ = static_cast<const AliasGate &>(rhs);
 
   // one open, one closed
   if (closed() != rhs_.closed()) {
@@ -384,9 +386,9 @@ bool Mux::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   return true;
 }
 
-InIndex Mux::inIndex() const {
+InIndex AliasGate::inIndex() const {
   if (closed()) {
-    throw error("Invalid call, Mux::inIndex for closed Mux. ");
+    throw error("Invalid call, AliasGate::inIndex for closed AliasGate. ");
   }
   return inIndex_;
 }

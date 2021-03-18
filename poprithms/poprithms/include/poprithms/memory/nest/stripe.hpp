@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_NEST_STRIPE_HPP
 #define POPRITHMS_MEMORY_NEST_STRIPE_HPP
 
@@ -16,23 +16,41 @@ namespace nest {
  * Letting '.' denote 0 for improved diagrams, here are some examples.
  *
  * Example 1: {on, off, phase} = {2, 3, 0}
- *  (on for 2, then off 3, repeated, with no offset).
- *  0 1 2 3 4 5 6 7 8 9 etc.
- *  1 1 . . . 1 1 . . . 1 1 . . . 1 1 . . . 1 1 . .
+ *  (on for 2, then off for 3, repeated, with no phase shift).
+ *
+ *  index :        ...   0 1 2 3 4 5 6 7 8 9    ...
+ *  on/off:  ...   . . . 1 1 . . . 1 1 . . . 1 1 . . .   ...
+ *
  *
  * Example 2: {on, off, phase} = {4, 2, 1}
- * (on for 4, then off for 2, repeated, with offset of 1).
- * 0 1 2 3 4 5 6 7 8 9 etc.
- * . 1 1 1 1 . . 1 1 1 1 . . 1 1 1 1 . . 1 1 1 1 . . 1 1 1 1 . .
+ * (on for 4, then off for 2, repeated, with phase shift of 1 to the right).
+ *
+ * index :               ...   0 1 2 3 4 5 6 7 8 9   ...
+ * on/off:.  ...   . 1 1 1 1 . . 1 1 1 1 . . 1 1 1 1 . . 1 1 1 1 .  ...
+ *                             -> (phase = 1)
+ *
+ * Example 3: {on, off, phase} = {3, 1, 2}
+ * (on for 3, off for 1, with phase shift 2 to the right).
+ *
+ * index :                 ...   0 1 2 3 4 5 6 7 9   ...
+ * on/off:  ...  1 . 1 1 1 . 1 1 1 . 1 1 1 . 1 1 1 . 1 1 1   ...
+ *                               ---> (phase = 2)
+ *
+ * Note that the above example could be defined as
+ * {on, off, phase} =  {3, 1, -1}.
+ *
  */
 class Stripe {
 public:
-  /**Construct a Stripe
+  /**
+   * Construct a Stripe
    *
    * \param on The number of contiguous integers for which the Stripe is '1'.
    *           Must be non-negative.
+   *
    * \param off The number of contiguous integers for which the Stripe's '0'.
    *            Must be non-negative.
+   *
    * \param phase The offset from 0 to the first '1'.
    */
   Stripe(int64_t on, int64_t off, int64_t phase);
@@ -55,23 +73,29 @@ public:
    */
   int64_t nFullPeriods(int64_t start, int64_t end) const;
 
-  /**  smallest y such that y >= x and y = phase + k*(on + off) */
+  /**
+   * smallest y such that y >= x and y = phase + k*(on + off)
+   * */
   int64_t firstStartNotBefore(int64_t x) const;
 
-  /** largest y such that y <= x and y = phase * k*period */
+  /**
+   * largest y such that y <= x and y = phase * k*period */
   int64_t lastStartNotAfter(int64_t x) const;
 
-  /** The number of integers in [start, end) where the Stripe is on ('1') */
+  /**
+   * The number of integers in [start, end) where the Stripe is on ('1') */
   int64_t nOn(int64_t start, int64_t end) const;
   bool alwaysOn() const { return off() == 0; }
 
-  /** Returns true iff all Stripe values for integers in [x, y) are on ('1')
+  /**
+   * Returns true iff all Stripe values for integers in [x, y) are on ('1')
    */
   bool allOn(int64_t x, int64_t y) const {
     return y <= lastStartNotAfter(x) + on();
   }
 
-  /** Returns true iff all Stripe values for integers in [x, y) are off ('0')
+  /**
+   * Returns true iff all Stripe values for integers in [x, y) are off ('0')
    */
   bool allOff(int64_t x, int64_t y) const {
     return firstStartNotBefore(x) >= y && (x - lastStartNotAfter(x) >= on());

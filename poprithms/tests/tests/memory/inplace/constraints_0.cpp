@@ -13,10 +13,10 @@ void test0() {
   //   v0---------->  (unary_) -> x1
   //    |                ^
   //    |                |
-  //    +--> (mux) -> (unary_) -> x2
+  //    +--> (aliasGate) -> (unary_) -> x2
   //    |                ^
   //    |                |
-  //    +--> (mux) -> (unary_) -> x3
+  //    +--> (aliasGate) -> (unary_) -> x3
   //
 
   Graph g;
@@ -24,10 +24,10 @@ void test0() {
 
   const auto x1 = v0.modify();
 
-  const auto x2m = v0.closedMux();
+  const auto x2m = v0.closedAliasGate();
   const auto x2  = x2m.modify();
 
-  const auto x3m = v0.closedMux();
+  const auto x3m = v0.closedAliasGate();
   const auto x3  = x3m.modify();
 
   // confirm that inserting the same constraint multiple times is ok.
@@ -36,7 +36,7 @@ void test0() {
   }
 
   g.tryOpening({x2m, 0}, CheckParallelWriteable::No);
-  if (x2m.muxIsOpen()) {
+  if (x2m.aliasGateIsOpen()) {
     throw error("cannot inplace x2, as constrained to be before x1");
   }
 }
@@ -44,39 +44,39 @@ void test0() {
 void testLateConstraint() {
 
   //          3
-  //  v0 -> (mux) -> (unary_) -> x0 -+
+  //  v0 -> (aliasGate) -> (unary_) -> x0 -+
   //   |       ^                     |
   //   |       |                     |
-  //   |       +-------+             +-- (cat_) -> (mux) -> output
+  //   |       +-------+             +-- (cat_) -> (aliasGate) -> output
   //   |               |             |               1
-  //   + -> (mux) -> (unary_) -> x1 -+
+  //   + -> (aliasGate) -> (unary_) -> x1 -+
   //          2
   //
-  // mux 1 ? yes
-  // mux 2 ? no
-  // mux 3 ? yes
+  // aliasGate 1 ? yes
+  // aliasGate 2 ? no
+  // aliasGate 3 ? yes
   //
 
   Graph g;
 
-  const auto v0     = Tensor::variable(g, {3});
-  const auto x0mux  = v0.closedMux();
-  const auto x1mux  = v0.closedMux();
-  const auto x0_    = x0mux.modify();
-  const auto x1_    = x1mux.modify();
-  const auto cat    = Tensor::concat({x0_, x1_}, 0);
-  const auto catMux = cat.closedMux();
+  const auto v0           = Tensor::variable(g, {3});
+  const auto x0aliasGate  = v0.closedAliasGate();
+  const auto x1aliasGate  = v0.closedAliasGate();
+  const auto x0_          = x0aliasGate.modify();
+  const auto x1_          = x1aliasGate.modify();
+  const auto cat          = Tensor::concat({x0_, x1_}, 0);
+  const auto catAliasGate = cat.closedAliasGate();
 
   // inplace
-  g.tryOpening({catMux, 0}, CheckParallelWriteable::No);
-  g.constraint(x1_.opId(), x0mux.opId());
+  g.tryOpening({catAliasGate, 0}, CheckParallelWriteable::No);
+  g.constraint(x1_.opId(), x0aliasGate.opId());
 
   // not inplace, as x0 must be before it
-  g.tryOpening({x1mux, 0}, CheckParallelWriteable::No);
+  g.tryOpening({x1aliasGate, 0}, CheckParallelWriteable::No);
 
   // inplace
-  g.tryOpening({x0mux, 0}, CheckParallelWriteable::No);
-  if (x0mux.muxIsClosed() || x1mux.muxIsOpen()) {
+  g.tryOpening({x0aliasGate, 0}, CheckParallelWriteable::No);
+  if (x0aliasGate.aliasGateIsClosed() || x1aliasGate.aliasGateIsOpen()) {
     throw error("incorrect logic in testLateConstraint");
   }
 }

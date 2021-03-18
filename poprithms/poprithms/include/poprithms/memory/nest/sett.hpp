@@ -58,17 +58,17 @@ int64_t smallestCommonMultiple_i64(int64_t a, int64_t b);
  * .11.11...11.11...11.11...11.11       phase is relative to the first's.
  *
  * Note that nesting of Stripes is not intersection of Stripes. The second
- * Stripe above is "restarted" every time the first (nesting Stripe
- * transitions from off to on):
+ * Stripe above is "restarted" every time the first (nesting) Stripe
+ * transitions from off to on:
  *
- * 11111...11111...11111...11111...11111  the first / outermost Stripe above
- * 11.11.11.11                            the inner Stripe, nesting 1
- * =====
- *      11.11.11.1                        nesting 2
- *         =====
- *              11.11.11.11.              nesting 3
- *                 =====
- * 11.11   11.11   11.11   11.11          Sett described by the 2 Stripes.
+ * .11111...11111...11111...11111...11111  the first / outermost Stripe above
+ *  11.11.11.11                            the inner Stripe, nesting 1
+ *  =====
+ *       11.11.11.1                        nesting 2
+ *          =====
+ *               11.11.11.11.              nesting 3
+ *                  =====
+ *  11.11   11.11   11.11   11.11          Sett described by the 2 Stripes.
  *
  * As another example
  * {{on=1,off=2,phase=0},{on=1,off=0,phase=0}} is equivalent to

@@ -43,22 +43,24 @@ void graphCopyTest0() {
   }
 }
 
-void graphMuxTest0() {
+void graphAliasGateTest0() {
   Graph g0;
-  const auto m0 = Tensor::variable(g0, {15}).closedMux();
+  const auto m0 = Tensor::variable(g0, {15}).closedAliasGate();
 
   Graph g1;
-  Tensor::variable(g1, {15}).openMux();
+  Tensor::variable(g1, {15}).openAliasGate();
 
   if (g0 == g1) {
-    throw error("The 2 Mux's are different : 1 is open and 1 is closed. The "
-                "Graph comparison should have been different");
+    throw error(
+        "The 2 AliasGate's are different : 1 is open and 1 is closed. The "
+        "Graph comparison should have been different");
   }
 
   g0.tryOpening(Proposal(m0, 0), CheckParallelWriteable::Yes);
   if (g0 != g1) {
-    throw error("g0 should have succeeded inplacing its Mux, thus removinf "
-                "the only difference between the graphs g0 and g1. ");
+    throw error(
+        "g0 should have succeeded inplacing its AliasGate, thus removinf "
+        "the only difference between the graphs g0 and g1. ");
   }
 }
 
@@ -81,7 +83,7 @@ void graphVarTest0() {
 int main() {
 
   graphCopyTest0();
-  graphMuxTest0();
+  graphAliasGateTest0();
   graphVarTest0();
 
   return 0;
