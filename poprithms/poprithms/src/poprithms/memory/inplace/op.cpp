@@ -6,6 +6,7 @@
 #include <sstream>
 #include <type_traits>
 
+#include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/util.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/inplace/error.hpp>
@@ -76,8 +77,7 @@ void Op::grow(alias::Graph &g, TensorMap &m) const {
 Op::State Op::getStartingState(const OpId opId,
                                const TensorIds &inIds,
                                const Shapes &inShapes,
-                               const Shapes &outShapes,
-                               const OpIds &opIns) {
+                               const Shapes &outShapes) {
 
   const OpIds opOuts{};
   const std::string name{};
@@ -85,8 +85,14 @@ Op::State Op::getStartingState(const OpId opId,
   // No consumptionIds at any of the output indices.
   const std::vector<ConsumptionIds> consumptionIds(outShapes.size());
 
-  return State(
-      opId, inIds, consumptionIds, inShapes, outShapes, name, opIns, opOuts);
+  return State(opId,
+               inIds,
+               consumptionIds,
+               inShapes,
+               outShapes,
+               name,
+               common::multiout::Graph::opIds(inIds),
+               opOuts);
 }
 
 bool Op::multiOutTypeSpecificEqualTo(const common::multiout::Op &rhs_) const {

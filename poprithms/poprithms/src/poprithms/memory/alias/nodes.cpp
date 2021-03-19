@@ -14,9 +14,9 @@ std::ostream &operator<<(std::ostream &ost, const std::vector<int64_t> &x) {
   poprithms::util::append(ost, x);
   return ost;
 }
-std::string Permute::typeString() const {
+std::string DimShuffle::typeString() const {
   std::ostringstream oss;
-  oss << "Permute " << permutation();
+  oss << "DimShuffle " << permutation();
   return oss.str();
 }
 
@@ -80,9 +80,9 @@ std::unique_ptr<Node> Reshape::clone(const State &state,
   return std::make_unique<Reshape>(state, oris);
 }
 
-std::unique_ptr<Node> Permute::clone(const State &state,
-                                     const Origins &oris) const {
-  return std::make_unique<Permute>(state, oris, permutation());
+std::unique_ptr<Node> DimShuffle::clone(const State &state,
+                                        const Origins &oris) const {
+  return std::make_unique<DimShuffle>(state, oris, permutation());
 }
 
 std::unique_ptr<Node> Expand::clone(const State &state,
@@ -186,8 +186,8 @@ DisjointRegions Expand::getInRegions(InIndex,
   return outRegs.reduce(inShape(0));
 }
 
-DisjointRegions Permute::getInRegions(InIndex,
-                                      const DisjointRegions &outRegs) const {
+DisjointRegions
+DimShuffle::getInRegions(InIndex, const DisjointRegions &outRegs) const {
   return outRegs.dimShuffle(permutation().inverse());
 }
 

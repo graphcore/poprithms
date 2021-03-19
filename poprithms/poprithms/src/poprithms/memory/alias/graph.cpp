@@ -144,7 +144,7 @@ void Graph::allocationToDimshuffle(TensorId inTensor,
                                    const Permutation &p,
                                    TensorId allocId) {
   assertFromAllocation(allocId, shape(inTensor).dimShuffle(p));
-  completeInputlessReplacement<Permute>(allocId, {inTensor}, p);
+  completeInputlessReplacement<DimShuffle>(allocId, {inTensor}, p);
 }
 
 void Graph::allocationToReshape(TensorId inTensor, TensorId allocId) {
@@ -247,7 +247,8 @@ TensorId Graph::settsample(TensorId id, const Region &f) {
 }
 
 TensorId Graph::dimshuffle(TensorId id, const Permutation &perm) {
-  return createNode<Permute>({id}, perm.apply(node(id).shape().get()), perm);
+  return createNode<DimShuffle>(
+      {id}, perm.apply(node(id).shape().get()), perm);
 }
 
 template <class T, class... Args>
@@ -314,14 +315,6 @@ void Graph::Workspace::reserve(uint64_t nArrs) {
   wsUint64_.reserve(nArrs);
 }
 
-namespace {
-template <typename T> std::string getStr(const std::vector<T> &X) {
-  std::ostringstream ost;
-  poprithms::util::append(ost, X);
-  return ost.str();
-}
-} // namespace
-
 void Graph::appendOrigins(std::ostream &oss, bool bitwise) const {
   std::string spc(7, ' ');
 
@@ -387,7 +380,7 @@ void Graph::append(std::ostream &oss) const {
     types__[i + 2]       = node(i).typeString();
     ins__[i + 2]         = getStr(node(i).ins());
     outs__[i + 2]        = getStr(node(i).outs());
-    shapes__[i + 2]      = getStr(node(i).shape().get());
+    shapes__[i + 2]      = util::getStr(node(i).shape().get());
     std::string sa       = containsAliases(i) ? "yes" : "no";
     selfAliases__[i + 2] = sa;
     aliasedTo__[i + 2]   = getStr(aliasedTo[i]);

@@ -437,107 +437,25 @@ const Op &Graph::op(OpId a) const {
 }
 Op &Graph::op(OpId a) { return static_cast<Op &>(multioutOp(a)); }
 
-namespace {
-template <typename T> std::string getStr(const std::vector<T> &X) {
-  std::ostringstream ost;
-  poprithms::util::append(ost, X);
-  return ost.str();
-}
-} // namespace
-
 void Graph::append(std::ostream &ost) const {
 
-  const auto nLines = nTensors() + 5;
+  auto cols = getMultioutColumns();
+  std::vector<std::string> copyAttractors(nTensors(), "");
 
-  using Strings = std::vector<std::string>;
-  Strings opId__(nLines, "");
-  opId__[0] = "OpId";
-
-  Strings opDebugString__(nLines, "");
-  opDebugString__[0] = "Name";
-
-  Strings opType__(nLines, "");
-  opType__[0] = "OpType";
-
-  Strings inTensors__(nLines, "");
-  inTensors__[0] = "InTensors";
-
-  Strings outIndex__(nLines, "");
-  outIndex__[0] = "OutIndex";
-
-  Strings tensorShape__(nLines, "");
-  tensorShape__[0] = "Shape";
-
-  // extensions:
-
-  Strings copyAttractors__(nLines, "");
-  copyAttractors__[0] = "Attractors";
-
-  uint64_t l = 2;
+  // copy the pattern from multiout Graph:
+  uint64_t ti = 0;
   for (uint64_t i = 0; i < nOps(); ++i) {
-
-    opId__[l]          = std::to_string(i);
-    opType__[l]        = op(i).typeString();
-    opDebugString__[l] = op(i).getName();
-    inTensors__[l]     = getStr((op(i).inTensorIds()));
-    // ++l;
     for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
-      outIndex__[l]       = std::to_string(o);
-      tensorShape__[l]    = getStr(shape({i, o}).get());
-      copyAttractors__[l] = getStr(op(i).valuedPartners());
-      ++l;
+      copyAttractors[ti] = util::getStr(op(i).valuedPartners(o));
+      ++ti;
     }
     if (op(i).nOutTensors() == 0) {
-      ++l;
+      ++ti;
     }
   }
 
-  std::vector<Strings> frags;
-  frags.push_back(opId__);
-
-  // only add debug strings if at least one has:
-  if (std::any_of(opDebugString__.cbegin() + 2,
-                  opDebugString__.cend(),
-                  [](const auto &x) { return !x.empty(); })) {
-    frags.push_back(opDebugString__);
-  }
-
-  frags.push_back(opType__);
-  frags.push_back(inTensors__);
-
-  if (std::any_of(
-          outIndex__.cbegin() + 2, outIndex__.cend(), [](const auto &x) {
-            return (!x.empty() && x[0] != '0');
-          })) {
-    frags.push_back(outIndex__);
-  }
-
-  frags.push_back(tensorShape__);
-
-  frags.push_back(copyAttractors__);
-
-  const auto getLen = [](const Strings &v) {
-    return 1 + std::accumulate(v.cbegin(),
-                               v.cend(),
-                               0ULL,
-                               [](size_t n, const std::string &x) {
-                                 return std::max(n, x.size());
-                               });
-  };
-
-  std::vector<uint64_t> lens;
-  for (auto &f : frags) {
-    const auto lw = getLen(f);
-    lens.push_back(lw);
-    f[1] = std::string(lw, '-');
-  }
-
-  for (uint64_t i = 0; i < nLines; ++i) {
-    ost << "\n       ";
-    for (uint64_t fi = 0; fi < frags.size(); ++fi) {
-      ost << frags[fi][i] << util::spaceString(lens[fi], frags[fi][i]);
-    }
-  }
+  cols.push_back({"Attractors", copyAttractors});
+  ost << alignedColumns(cols);
 }
 
 std::ostream &operator<<(std::ostream &ost, const Graph &g) {

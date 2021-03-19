@@ -128,8 +128,7 @@ public:
   static State getStartingState(const OpId opId,
                                 const TensorIds &tensorIns,
                                 const Shapes &inShapes,
-                                const Shapes &outShapes,
-                                const OpIds &opIns);
+                                const Shapes &outShapes);
 
   using AliasTensorIds = std::vector<alias::TensorId>;
 

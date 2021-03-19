@@ -12,6 +12,7 @@
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/copybyclone.hpp>
+#include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace common {
@@ -42,6 +43,7 @@ public:
 
   /** Set the name of the Op #id in this Graph. */
   void setName(OpId id, const std::string &);
+  void setName(const TensorId &id, const std::string &);
 
   /** The name of an Op #id in this Graph. */
   const std::string &getName(OpId id) const;
@@ -129,6 +131,12 @@ protected:
   /** Methods to access Ops in this Graph as multiout::Ops. */
   Op &multioutOp(OpId id) { return op(id); }
   const Op &multioutOp(OpId id) const { return op(id); }
+
+  /**
+   * For each Op attribute, return a util::StringColumn containing the string
+   * summary for each Op.
+   * */
+  std::vector<poprithms::util::StringColumn> getMultioutColumns() const;
 
 private:
   /** Derived classes must define what it means to be equivalent in this

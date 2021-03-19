@@ -5,6 +5,7 @@
 #include <memory>
 
 #include <poprithms/memory/alias/node.hpp>
+
 namespace poprithms {
 namespace memory {
 namespace alias {
@@ -150,9 +151,9 @@ private:
   const std::vector<uint64_t> dims_;
 };
 
-class Permute : public Node {
+class DimShuffle : public Node {
 public:
-  Permute(const State &ob, const Origins &oris, const Permutation &p_)
+  DimShuffle(const State &ob, const Origins &oris, const Permutation &p_)
       : Node(ob, oris), p(p_) {}
   const Permutation &permutation() const { return p; }
   std::string typeString() const final;

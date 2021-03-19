@@ -42,6 +42,8 @@ void test0() {
   const auto f = g.source0({2, 4});
   g.insertValuedPair(e, f, 10);
 
+  std::cout << g << std::endl;
+
   const auto hosts = HostTensorHelper::arangeSourcesAndBarriers(g);
   const Solution s(std::move(g));
 

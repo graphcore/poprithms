@@ -187,7 +187,7 @@ OpId Graph::createOp(const TensorIds &inIds,
                      Args... args) {
   return insertOp(std::make_unique<T>(
       Op::getStartingState(
-          nOps_i64(), inIds, shapes(inIds), outShapes, opIds(inIds)),
+          nOps_i64(), inIds, shapes(inIds), outShapes), // opIds(inIds)),
       args...));
 }
 
@@ -610,104 +610,44 @@ Graph::FwdEdges Graph::getFwdEdges(const Constraints &additional) const {
   return fwdEdges;
 }
 
-namespace {
-template <typename T> std::string getStr(const std::vector<T> &X) {
-  std::ostringstream ost;
-  poprithms::util::append(ost, X);
-  return ost.str();
-}
-} // namespace
-
 void Graph::append(std::ostream &ost) const {
 
+  const auto nTens     = nTensors();
   const auto aliasedTo = aGraph().allAliases();
 
-  const auto nLines = nOps() + nTensors() + 2;
+  auto cols = getMultioutColumns();
 
   using Strings = std::vector<std::string>;
-  Strings opId__(nLines, "");
-  opId__[0] = "OpId";
-
-  Strings opDebugString__(nLines, "");
-  opDebugString__[0] = "Name";
-
-  Strings opType__(nLines, "");
-  opType__[0] = "OpType";
-
-  Strings inTensors__(nLines, "");
-  inTensors__[0] = "InTensors";
-
-  Strings outIndex__(nLines, "");
-  outIndex__[0] = "OutIndex";
-
-  Strings tensorShape__(nLines, "");
-  tensorShape__[0] = "Shape";
 
   // extensions:
+  Strings tensorId__(nTens, "");
+  Strings inOps__(nTens, "");
+  Strings tensorType__(nTens, "");
+  Strings selfAliases__(nTens, "");
+  Strings constants__(nTens, "");
+  Strings aliasedTo__(nTens, "");
 
-  Strings tensorId__(nLines, "");
-  tensorId__[0] = "TensorId";
-
-  Strings inOps__(nLines, "");
-  inOps__[0] = "InOps";
-
-  Strings tensorType__(nLines, "");
-  tensorType__[0] = "TensorType";
-
-  Strings selfAliases__(nLines, "");
-  selfAliases__[0] = "Aliases";
-
-  Strings constants__(nLines, "");
-  constants__[0] = "Constants";
-
-  Strings aliasedTo__(nLines, "");
-  aliasedTo__[0] = "AliasedTo";
-
-  uint64_t l = 2;
+  uint ti = 0;
   for (uint64_t i = 0; i < nOps(); ++i) {
-
-    opId__[l]      = std::to_string(i);
-    opType__[l]    = op(i).typeString();
-    inTensors__[l] = getStr(tensorMap.toAliasGraphIds(op(i).inTensorIds()));
-    inOps__[l]     = getStr(op(i).ins());
-    opDebugString__[l] = op(i).getName();
-    // ++l;
+    inOps__[ti] = util::getStr(op(i).ins());
     for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
       const auto aliasId = tensorMap.toAliasGraphId(op(i).outTensorId(o));
-      outIndex__[l]      = std::to_string(o);
-      tensorId__[l]      = std::to_string(aliasId.get());
-      tensorShape__[l]   = getStr(aGraph().shape(aliasId).get());
-      tensorType__[l]    = aGraph().typeString(aliasId);
-      selfAliases__[l]   = aGraph().containsAliases(aliasId) ? "yes" : "no";
-      constants__[l] =
+      tensorId__[ti]     = std::to_string(aliasId.get());
+      tensorType__[ti]   = aGraph().typeString(aliasId);
+      selfAliases__[ti]  = aGraph().containsAliases(aliasId) ? "yes" : "no";
+      constants__[ti] =
           aGraph().containsColor(aliasId, ConstantColor) ? "yes" : "no";
-      aliasedTo__[l] = getStr(aliasedTo[aliasId.get()]);
-      ++l;
+      aliasedTo__[ti] = getStr(aliasedTo[aliasId.get()]);
+      ++ti;
     }
     if (op(i).nOutTensors() == 0) {
-      ++l;
+      ++ti;
     }
   }
 
-  std::vector<Strings> frags;
-  frags.push_back(opId__);
-
-  // Only add logging about which Tensors self-alias if any of them actually
-  // do.
-  if (std::any_of(opDebugString__.cbegin() + 2,
-                  opDebugString__.cend(),
-                  [](const auto &x) { return !x.empty(); })) {
-    frags.push_back(opDebugString__);
-  }
-
-  frags.push_back(opType__);
-  frags.push_back(inTensors__);
-  frags.push_back(outIndex__);
-  frags.push_back(tensorShape__);
-  frags.push_back(tensorId__);
-  frags.push_back(inOps__);
-  frags.push_back(tensorType__);
-  frags.push_back(aliasedTo__);
+  cols.push_back({"TensorId", tensorId__});
+  cols.push_back({"InOps", inOps__});
+  cols.push_back({"Type", tensorType__});
 
   // Only add logging about which Tensors self-alias if any of them actually
   // do.
@@ -715,7 +655,7 @@ void Graph::append(std::ostream &ost) const {
           selfAliases__.cbegin(), selfAliases__.cend(), [](const auto &x) {
             return x.find("yes") != std::string::npos;
           })) {
-    frags.push_back(selfAliases__);
+    cols.push_back({"SelfAliases", aliasedTo__});
   }
 
   // Only add logging about which Tensors contain constants if any of them
@@ -724,31 +664,10 @@ void Graph::append(std::ostream &ost) const {
           constants__.cbegin(), constants__.cend(), [](const auto &x) {
             return x.find("yes") != std::string::npos;
           })) {
-    frags.push_back(constants__);
+    cols.push_back({"Constant", constants__});
   }
 
-  const auto getLen = [](const Strings &v) {
-    return 1 + std::accumulate(v.cbegin(),
-                               v.cend(),
-                               0ULL,
-                               [](size_t n, const std::string &x) {
-                                 return std::max(n, x.size());
-                               });
-  };
-
-  std::vector<uint64_t> lens;
-  for (auto &f : frags) {
-    const auto lw = getLen(f);
-    lens.push_back(lw);
-    f[1] = std::string(lw, '-');
-  }
-
-  for (uint64_t i = 0; i < nLines; ++i) {
-    ost << "\n       ";
-    for (uint64_t fi = 0; fi < frags.size(); ++fi) {
-      ost << frags[fi][i] << util::spaceString(lens[fi], frags[fi][i]);
-    }
-  }
+  ost << alignedColumns(cols);
 }
 
 std::ostream &operator<<(std::ostream &ost, const Graph &g) {

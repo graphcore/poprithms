@@ -25,6 +25,12 @@ template <typename T> void append(std::ostream &os, const std::vector<T> &t) {
   os << ')';
 }
 
+template <typename T> std::string getStr(const std::vector<T> &X) {
+  std::ostringstream ost;
+  append(ost, X);
+  return ost.str();
+}
+
 extern template void append<>(std::ostream &, const std::vector<int64_t> &);
 extern template void append<>(std::ostream &, const std::vector<uint64_t> &);
 extern template void append<>(std::ostream &, const std::vector<int> &);

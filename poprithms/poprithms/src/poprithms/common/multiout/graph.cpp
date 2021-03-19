@@ -13,6 +13,7 @@
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/op.hpp>
 #include <poprithms/util/printiter.hpp>
+#include <poprithms/util/stringutil.hpp>
 #include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
@@ -179,6 +180,68 @@ OpIds Graph::opIds() const {
 
 TensorIds Graph::outTensorIds(OpId id) const { return op(id).outTensorIds(); }
 TensorIds Graph::inTensorIds(OpId id) const { return op(id).inTensorIds(); }
+void Graph::setName(const TensorId &id, const std::string &name) {
+  if (op(id.opId()).nOutTensors() != 1) {
+    std::ostringstream oss;
+    oss << "Cannot call Graph::setName(TensorId=" << id << ", name=" << name
+        << '.' << "), because the Op creator has multiple outputs. "
+        << "Call "
+        << "setName(OpId=" << id.opId() << ", name=" << name << ") instead.";
+    throw error(oss.str());
+  }
+  setName(id.opId(), name);
+}
+
+std::vector<util::StringColumn> Graph::getMultioutColumns() const {
+  const auto nTens = nTensors();
+
+  using Strings = std::vector<std::string>;
+  Strings opId(nTens, "");
+  Strings name(nTens, "");
+  Strings opType(nTens, "");
+  Strings inTensors(nTens, "");
+  Strings outIndex(nTens, "");
+  Strings tensorShape(nTens, "");
+
+  uint64_t ti = 0;
+  for (uint64_t i = 0; i < nOps(); ++i) {
+    opId[ti]      = std::to_string(i);
+    opType[ti]    = op(i).typeString();
+    name[ti]      = op(i).getName();
+    inTensors[ti] = util::getStr((op(i).inTensorIds()));
+    for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
+      outIndex[ti]    = std::to_string(o);
+      tensorShape[ti] = util::getStr(shape({i, o}).get());
+      ++ti;
+    }
+    if (op(i).nOutTensors() == 0) {
+      ++ti;
+    }
+  }
+
+  std::vector<util::StringColumn> cols;
+  cols.push_back({"OpId", opId});
+
+  // only add debug strings if at least one has:
+  if (std::any_of(name.cbegin(), name.cend(), [](const auto &x) {
+        return !x.empty();
+      })) {
+    cols.push_back({"Name", name});
+  }
+
+  cols.push_back({"OpType", opType});
+  cols.push_back({"InTensors", inTensors});
+
+  if (std::any_of(outIndex.cbegin(), outIndex.cend(), [](const auto &x) {
+        return (!x.empty() && x[0] != '0');
+      })) {
+    cols.push_back({"OutIndex", outIndex});
+  }
+
+  cols.push_back({"Shape", tensorShape});
+
+  return cols;
+}
 
 } // namespace multiout
 } // namespace common
