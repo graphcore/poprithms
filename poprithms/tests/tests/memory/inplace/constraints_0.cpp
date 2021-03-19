@@ -81,9 +81,43 @@ void testLateConstraint() {
   }
 }
 
+void testConstraintsNotSetInPartialOpening() {
+  // Construct a "diamond" test case with an extra constraint across the two
+  // branches. This gives a test case where opening ag0 will not change the
+  // schedule but will result in new constraints.
+  Graph g;
+  auto x   = Tensor::variable(g, {1}).closedAliasGate();
+  auto ag0 = x.closedAliasGate();
+  auto ag1 = x.closedAliasGate();
+  auto c0  = ag0.modify();
+  auto c1  = ag1.modify();
+  g.concat(Tensor::tensorIds({c0, c1}), 0);
+  g.constraint(c1.id(), ag0.id());
+
+  // Save original graph.
+  Graph h = g;
+
+  Proposal p{ag0, 0};
+
+  const auto status = g.tryOpeningPartial(p, CheckParallelWriteable::No);
+
+  if (!status.isValid()) {
+    throw error("incorrect logic in testConstraintsNotSetInPartialOpening: "
+                "Opening was invalid.");
+  }
+
+  g.backoutOpening(p);
+
+  if (h != g) {
+    throw error("invariant g == g.tryOpeningPartial(p).backoutOpening(p) has "
+                "failed.");
+  }
+}
+
 } // namespace
 
 int main() {
   test0();
   testLateConstraint();
+  testConstraintsNotSetInPartialOpening();
 }

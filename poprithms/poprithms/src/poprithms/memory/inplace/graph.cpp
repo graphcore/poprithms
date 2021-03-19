@@ -534,8 +534,6 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   newConstraints.erase(E, newConstraints.cend());
 
   if (satisifedWithoutAnyChange(newConstraints)) {
-    constraints(newConstraints);
-    scheduleIsValid = true;
     return OpeningResult::validWithUnchangedSchedule(
         std::move(newConstraints));
   }
