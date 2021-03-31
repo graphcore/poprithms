@@ -93,14 +93,14 @@ public:
    *
    * \return The TensorId of the new Tensor.
    * */
-  TensorId dimshuffle(TensorId, const Permutation &);
+  TensorId dimShuffle(TensorId, const Permutation &);
 
   /** Sample elements from a Tensor. This is a generalization
    * of slicing and subsampling. See sett.hpp for details.
    *
    * \return The TensorId of the new Tensor.
    * */
-  TensorId settsample(TensorId, const Region &);
+  TensorId settSample(TensorId, const Region &);
 
   /** Reverse a Tensor along the dimensions `dimensions'.
    *

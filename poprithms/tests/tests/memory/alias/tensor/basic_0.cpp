@@ -64,14 +64,14 @@ int main() {
   const auto arr5  = arr3.concat({arr3}, 0, 1).flatten();
   const auto shape = arr5.shape();
   const auto arr8  = arr5.reshape({shape.nelms(), 1})
-                        .dimshuffle({{1, 0}})
+                        .dimShuffle({{1, 0}})
                         .reverse(std::vector<uint64_t>(1, 0));
 
   auto sh = arr8.shape().get();
   std::replace(sh.begin(), sh.end(), 1, 10);
 
   const auto arr9  = arr8.expand(sh);
-  const auto arr10 = arr9.settsample(
+  const auto arr10 = arr9.settSample(
       {arr9.shape(), std::vector<Sett>(arr9.rank_u64(), {{{1, 1, 0}}})});
 
   const auto alloc1 = g.tensor(g.allocate(arr10.shape()));

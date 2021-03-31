@@ -242,11 +242,11 @@ TensorId Graph::reverse(TensorId id, const std::vector<uint64_t> &dims) {
   return createNode<Reverse>({id}, node(id).shape(), dims);
 }
 
-TensorId Graph::settsample(TensorId id, const Region &f) {
+TensorId Graph::settSample(TensorId id, const Region &f) {
   return createNode<SettSample>({id}, {f.nelms()}, f);
 }
 
-TensorId Graph::dimshuffle(TensorId id, const Permutation &perm) {
+TensorId Graph::dimShuffle(TensorId id, const Permutation &perm) {
   return createNode<DimShuffle>(
       {id}, perm.apply(node(id).shape().get()), perm);
 }
@@ -444,7 +444,7 @@ void Graph::setOrigins(TensorId id) {
   //
   // Example:
   //
-  // allocate(5,7) - dimshuffle({1,0}) - slice((1,2), (3,5))
+  // allocate(5,7) - dimShuffle({1,0}) - slice((1,2), (3,5))
   // (5,7)         - (7,5)             - (2,3)
   //
   // what region in the allocation does the sliced Tensor of shape (2,3)

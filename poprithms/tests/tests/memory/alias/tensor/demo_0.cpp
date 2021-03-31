@@ -87,7 +87,7 @@ int main() {
   // 111122
   // 111122
   // 000022
-  const auto prm = flp.dimshuffle({{1, 0}});
+  const auto prm = flp.dimShuffle({{1, 0}});
 
   // 000022000022000022111122111122000022
   const auto flat = prm.flatten();

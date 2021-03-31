@@ -41,7 +41,7 @@ void test0() {
     throw error("filled is aliased to 4 inputs and itself");
   }
 
-  const auto x2 = g.settsample(filled, r2);
+  const auto x2 = g.settSample(filled, r2);
   auto aliases  = g.allAliases(x2);
   std::sort(aliases.begin(), aliases.end());
   if (aliases != std::vector<TensorId>{alloc2.id(), filled, x2}) {

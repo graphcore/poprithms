@@ -24,7 +24,7 @@ void test0() {
                         .slice({5, 5}, {45, 45})
                         .flatten()
                         .reshape({20, 80})
-                        .dimshuffle({{1, 0}});
+                        .dimShuffle({{1, 0}});
 
   const auto arr1 = arr0.clone();
   if (arr1.intersectsWith(arr0)) {

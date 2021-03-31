@@ -119,7 +119,7 @@ bool SettSample::inplaceTypeSpecificEqualTo(const Op &rhs) const {
 }
 std::vector<alias::TensorId>
 SettSample::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
-  return {g.settsample(m.toAliasGraphId(inTensorId(0)), region())};
+  return {g.settSample(m.toAliasGraphId(inTensorId(0)), region())};
 }
 UpBop SettSample::clone() const { return mu<SettSample>(this); }
 
@@ -135,7 +135,7 @@ bool DimShuffle::inplaceTypeSpecificEqualTo(const Op &rhs) const {
 }
 std::vector<alias::TensorId>
 DimShuffle::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
-  return {g.dimshuffle(m.toAliasGraphId(inTensorId(0)), permutation())};
+  return {g.dimShuffle(m.toAliasGraphId(inTensorId(0)), permutation())};
 }
 UpBop DimShuffle::clone() const { return mu<DimShuffle>(this); }
 

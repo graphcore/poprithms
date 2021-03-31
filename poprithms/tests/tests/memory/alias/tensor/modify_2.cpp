@@ -25,7 +25,7 @@ void testToSettSample() {
   const auto id0 = g.allocate({10, 10}, 0);
   const auto id1 = g.allocate({5, 5}, 1);
   const auto id2 = g.tensor(id0)
-                       .settsample({{10, 10}, {{{{1, 1, 1}}}, {{{1, 1, 0}}}}})
+                       .settSample({{10, 10}, {{{{1, 1, 1}}}, {{{1, 1, 0}}}}})
                        .id();
 
   g.allocationToSettsample(

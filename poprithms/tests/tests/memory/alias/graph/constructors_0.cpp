@@ -18,7 +18,7 @@ int main() {
   auto arr0 = g.allocate({200});
   auto arr1 = g.concat({arr0, arr0, arr0}, 0);
   auto arr2 = g.reshape({arr1}, {100, 6});
-  auto arr3 = g.dimshuffle({arr2}, {{1, 0}});
+  auto arr3 = g.dimShuffle({arr2}, {{1, 0}});
   g.reverse(arr3, {0});
   g.allocate({1, 2, 3});
   auto ali2 = g.allAliases(arr2);
@@ -52,7 +52,7 @@ int main() {
   arr0 = g6.allocate({200});
   arr1 = g6.concat({arr0, arr0, arr0}, 0);
   arr2 = g6.reshape({arr1}, {100, 6});
-  arr3 = g6.dimshuffle({arr2}, {{0, 1}});
+  arr3 = g6.dimShuffle({arr2}, {{0, 1}});
   g6.reverse(arr3, {0});
   g6.allocate({1, 2, 3});
   if (g6 == g2) {

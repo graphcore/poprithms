@@ -28,7 +28,7 @@ int main() {
     auto id = id0;
     for (int64_t i = 0; i < static_cast<int64_t>(sh.size()) * 5 + offset;
          ++i) {
-      id = g.dimshuffle(id, permutation);
+      id = g.dimShuffle(id, permutation);
     }
     if (offset == 0 && g.tensor(id).shape() != g.tensor(id0).shape()) {
       std::ostringstream oss;

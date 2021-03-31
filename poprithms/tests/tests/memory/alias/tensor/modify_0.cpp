@@ -34,7 +34,7 @@ void test0() {
   const auto foo_ = in1_.reshape({20, 1});
   auto id_        = concat({in0_, in1_}, 0);
 
-  const auto out0_ = id_.dimshuffle({{1, 0}});
+  const auto out0_ = id_.dimShuffle({{1, 0}});
   const auto out1_ = id_.flatten();
 
   const auto in0  = in0_.id();

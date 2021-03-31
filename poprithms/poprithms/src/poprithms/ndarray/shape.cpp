@@ -1685,7 +1685,7 @@ Shape::moveDimShuffleFirst(const Shape &reshape,
                            const Permutation &perm) const {
 
   // If the reshape is not orthogonal, it is impossible to change the order.
-  // Example (3,4).reshape(4,3).dimshuffle(1,0) is NOT equivalent to
+  // Example (3,4).reshape(4,3).dimShuffle(1,0) is NOT equivalent to
   // (3,4).dimsuffle(0,1).reshape(3,4), even if the output Shapes are the
   // same.
   if (!isOrthogonalReshape(reshape)) {

@@ -1,4 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <sstream>
 #include <poprithms/memory/alias/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/alias/node.hpp>
@@ -12,6 +13,25 @@ namespace alias {
 std::ostream &operator<<(std::ostream &oss, const Tensor &x) {
   oss << "tensor:" << x.id();
   return oss;
+}
+
+Tensor Tensor::slice(uint64_t start, uint64_t end, Dimension sliceDim) const {
+  if (sliceDim.get() >= rank_u64()) {
+    std::ostringstream oss;
+    oss << "Cannot slice this Tensor of rank " << rank_u64()
+        << " in dimension " << sliceDim.get() << '.';
+    throw error(oss.str());
+  }
+
+  // The lower and upper bounds to slice between are:
+  // lower = (0, ..., 0,              start, ..., 0)
+  // upper = (d0, ... d_{sliceDim-1}, end,   .... d_{rank-1})
+
+  Lower l(rank_u64(), 0);
+  l[sliceDim.get()] = start;
+  Upper u    = shape().get();
+  u[sliceDim.get()] = end;
+  return slice(l, u);
 }
 
 Tensor concat(Tensors &&tensors, uint64_t axis) {
@@ -154,7 +174,7 @@ Tensor Tensor::subsample(int64_t stride, uint64_t dimension) const {
   }
 
   return {
-      pgraph->settsample(
+      pgraph->settSample(
           id(), Region::fromStripe(shape(), dimension, {1, stride - 1, 0})),
       pgraph};
 }
@@ -176,16 +196,16 @@ bool Tensor::intersectsWith(const Tensor &rhs) const {
 Tensor Tensor::squeeze() const { return reshape(shape().squeeze()); }
 
 Tensor Tensor::slice(const Lower &l, const Upper &u) const {
-  return {pgraph->settsample(id(), Region::fromBounds(shape(), l, u)),
+  return {pgraph->settSample(id(), Region::fromBounds(shape(), l, u)),
           pgraph};
 }
 
-Tensor Tensor::settsample(const Region &r) const {
-  return {pgraph->settsample(id(), r), pgraph};
+Tensor Tensor::settSample(const Region &r) const {
+  return {pgraph->settSample(id(), r), pgraph};
 }
 
-Tensor Tensor::dimshuffle(const Permutation &perm) const {
-  return {pgraph->dimshuffle(id(), perm), pgraph};
+Tensor Tensor::dimShuffle(const Permutation &perm) const {
+  return {pgraph->dimShuffle(id(), perm), pgraph};
 }
 
 Tensor Tensor::clone() const { return {pgraph->clone(id()), pgraph}; }

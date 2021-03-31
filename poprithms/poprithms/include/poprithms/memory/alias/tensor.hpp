@@ -19,6 +19,7 @@ using memory::nest::Region;
 using ndarray::Shape;
 using util::Permutation;
 using Lower = poprithms::ndarray::Shape::Lower;
+using poprithms::ndarray::Dimension;
 using Upper = poprithms::ndarray::Shape::Upper;
 
 class Graph;
@@ -97,6 +98,9 @@ public:
   /** Example {10,16}.slice((2,4),(8,7))->{6,3}. */
   Tensor slice(const Lower &, const Upper &) const;
 
+  /** Slice in a single dimension. */
+  Tensor slice(uint64_t start, uint64_t end, Dimension) const;
+
   /** Example {10,16}.flatten()->{160}. */
   Tensor flatten() const;
 
@@ -120,8 +124,8 @@ public:
    *           {10,16}.subsample(3,0)->{3,16}. */
   Tensor subsample(int64_t stride, uint64_t dimension) const;
 
-  /** Example {3,5,16}.dimshuffle((1,2,0))->{5,16,3}. */
-  Tensor dimshuffle(const Permutation &) const;
+  /** Example {3,5,16}.dimShuffle((1,2,0))->{5,16,3}. */
+  Tensor dimShuffle(const Permutation &) const;
 
   /** Example {4,6}.reshape((3,8))->{3,8}. */
   Tensor reshape(const Shape &) const;
@@ -130,7 +134,7 @@ public:
    * A generalization of the subsample and slice operators. See region.hpp for
    * details.
    * */
-  Tensor settsample(const Region &) const;
+  Tensor settSample(const Region &) const;
 
   /**
    * Concatenate this Tensor to those in `others', with this Tensor appearing
