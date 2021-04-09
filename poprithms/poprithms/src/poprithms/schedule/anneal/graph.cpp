@@ -1635,7 +1635,7 @@ void Graph::initialize(KahnTieBreaker kahnTie,
   std::ostringstream oss;
   oss << "Graph::initialize() entered for Graph with " << nOps() << " Ops, "
       << nAllocs() << " Allocs, " << nConstraints() << " constraints. ";
-  log().trace(oss.str());
+  log().info(oss.str());
 
   if (!isFinalized) {
     finalize();
@@ -1711,6 +1711,7 @@ void Graph::initialize(KahnTieBreaker kahnTie,
       {-1, AllocWeight::negativeOne(), AllocWeight::negativeOne(), false});
 
   isInitialized = true;
+  assertCorrectness();
 }
 
 void Graph::setCanCan(int nToShift) {
@@ -2229,6 +2230,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
       if (shiftAndCost.getCost() < AllocWeight(0)) {
         auto start1 = start0 + shiftAndCost.getShift();
         ScheduleChange scheduleChange{start0, start1, nToShift};
+
         applyChange(scheduleChange);
 
         if (debug) {

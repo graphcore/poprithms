@@ -27,19 +27,19 @@ enum class TransitiveClosureOptim {
 // liveness less than a, then upgrade (a,b) to a linked pair.
 //
 // LinkCloseTightPairs: if (a,b) is a tight pair, and there is no Op c in the
-// unconstrained dual of a which can have an in increase in liveness equal to
-// or between those of a and b, then upgrade (a,b) to a linked pair.
+// unconstrained dual of a which can have an increase in liveness equal to
+// or inbetween those of a and b, then upgrade (a,b) to a linked pair.
 //
-// ConstrainWeightSeparatedGroups: If a and b have common inputs, and there is
-// guaranteed to the increases in livenesses in PostUnconstrained(a,b) are all
-// less than or equal to those in PostUnconstrained(b,a), then insert a
-// constraint a->b and some related constraints
+// ConstrainWeightSeparatedGroups: If a and b have common inputs, and it is
+// guarenteed that the increases in livenesses in PostUnconstrained(a,b) are
+// all less than or equal to those in PostUnconstrained(b,a), then insert a
+// constraint a->b and some related constraints.
 //
 // ConstrainParallelChains: If a and b have common inputs, and both belong to
 // tight chains with common inputs, and if (1) a's chain is not shorter than
 // b's and (2) the cumulative increase in liveness along a's chain is never
-// greater than along b's, the insert constrains from a's chain to b's chain,
-// to form a ladder of constraints
+// greater than along b's, then insert constraints from a's chain to b's
+// chain, to form a ladder of constraints
 //
 // Proofs of global optimality are currently being worked on.
 //

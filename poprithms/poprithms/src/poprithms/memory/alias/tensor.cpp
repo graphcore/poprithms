@@ -1,5 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <sstream>
+
 #include <poprithms/memory/alias/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/alias/node.hpp>
@@ -29,7 +30,7 @@ Tensor Tensor::slice(uint64_t start, uint64_t end, Dimension sliceDim) const {
 
   Lower l(rank_u64(), 0);
   l[sliceDim.get()] = start;
-  Upper u    = shape().get();
+  Upper u           = shape().get();
   u[sliceDim.get()] = end;
   return slice(l, u);
 }

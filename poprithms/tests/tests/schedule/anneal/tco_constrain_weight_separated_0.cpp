@@ -22,11 +22,11 @@ getGraph(bool with_4_7_edge, bool constrainWSGs, bool bigDrop_6 = false) {
   //
   // 1,3,4 and 7 all have big negative drops (~ -1000)
   // 10 has a gigantic negative drop (~ -100000)
-  // As {1,3,4,7} all have bigger drops than {2,4,6,9}, we expect an edge to
-  // inserted: 1->2.
-  // Moreover, when there is an edge 4->7 in the initial graph, we expect an
-  // edge 4->2 to be inserted too, as with the edge 4->7, 8 and 10 (the only
-  // ops downstream of both 1 and 2) are also downstream of 4.
+  // As {1,3,4,7} all have bigger drops than {2,5,6,9}, we expect an edge to
+  // be inserted: 1->2. Moreover, when there is an edge 4->7 in the initial
+  // graph, we expect an edge 4->2 to be inserted too, as with the edge 4->7,
+  // 8 and 10 (the only ops downstream of both 1 and 2) are also downstream
+  // of 4.
 
   using namespace poprithms::schedule::anneal;
   Graph g;
