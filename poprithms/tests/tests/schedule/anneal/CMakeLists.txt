@@ -49,6 +49,9 @@ add_schedule_test(schedule_anneal_tco_constrain_weight_separated_2
                                         tco_constrain_weight_separated_2.cpp)
 add_schedule_test(schedule_anneal_tco_constrain_weight_separated_3
                                         tco_constrain_weight_separated_3.cpp)
+add_schedule_test(schedule_anneal_tco_constrain_weight_separated_4
+                                        tco_constrain_weight_separated_4.cpp)
+
 add_schedule_test(schedule_anneal_tco_constrain_parallel_chains_0
                                         tco_constrain_parallel_chains_0.cpp)
 

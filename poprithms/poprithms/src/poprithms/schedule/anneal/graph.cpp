@@ -1314,36 +1314,51 @@ void Graph::processWeightSeparatedIdenticalIns(
   // for (a,b) can we insert a'->b for any a' which are post a?
   for (auto a : identicalIns) {
     for (auto b : identicalIns) {
+      if (upperBoundChange[a] <= lowerBoundChange[b] && a != b) {
 
-      // after (or equal to) b, and unconstrained w.r.t. a:
-      const auto postBs = getFilteredSchedule(*this, b, [](OpAddress) {
-        // any Op which is after a will not be returned, as it will never
-        // have all its input deps satisfied. Thus we do not need to check
-        // unconstrained(a,x) here
-        return true;
-      });
+        // Here we do a depth first search, starting at b, stopping when we
+        // reach an Op with is unconstrained with respect to t a.
+        //
+        // The Ops found end up in this vector:
+        std::vector<OpAddress> postBs;
+        std::vector<OpAddress> toProcess{b};
+        std::vector<OpAddress> seen{b};
+        while (!toProcess.empty()) {
+          const auto nxt = toProcess.back();
+          toProcess.pop_back();
+          if (!transitiveClosure.constrained(a, nxt)) {
+            postBs.push_back(nxt);
+            for (auto out : getOp(nxt).getOuts()) {
+              if (std::find(seen.cbegin(), seen.cend(), out) == seen.cend()) {
+                seen.push_back(out);
+                toProcess.push_back(out);
+              }
+            }
+          }
+        }
 
-      auto lb = lowerBoundChange[b];
-      for (auto postB : postBs) {
-        lb = std::min(lb, lowerBoundChange[postB]);
-      }
+        auto lb = lowerBoundChange[b];
+        for (auto postB : postBs) {
+          lb = std::min(lb, lowerBoundChange[postB]);
+        }
 
-      if (upperBoundChange[a] <= lb) {
-        auto nPostBoth  = transitiveClosure.nPostPost(a, b);
-        auto candidates = getFilteredSchedule(
-            *this, a, [this, lb, b, nPostBoth](OpAddress x) {
-              return upperBoundChange[x] <= lb &&
-                     (transitiveClosure.nPostPost(b, x) == nPostBoth);
-            });
+        if (upperBoundChange[a] <= lb) {
 
-        if (std::any_of(candidates.cbegin(),
-                        candidates.cend(),
-                        [lb, this](OpAddress postA) {
-                          return upperBoundChange[postA] < lb;
-                        }) ||
-            a < b) {
-          for (auto aPrime : candidates) {
-            newConstraints.push_back({aPrime, b});
+          auto nPostBoth  = transitiveClosure.nPostPost(a, b);
+          auto candidates = getFilteredSchedule(
+              *this, a, [this, lb, b, nPostBoth](OpAddress x) {
+                return upperBoundChange[x] <= lb &&
+                       (transitiveClosure.nPostPost(b, x) == nPostBoth);
+              });
+
+          if (a < b || std::any_of(candidates.cbegin(),
+                                   candidates.cend(),
+                                   [lb, this](OpAddress postA) {
+                                     return upperBoundChange[postA] < lb;
+                                   })) {
+            for (auto aPrime : candidates) {
+              newConstraints.push_back({aPrime, b});
+            }
           }
         }
       }
@@ -1394,8 +1409,8 @@ bool Graph::constrainParallelChains() {
     if (identicalIns.size() <= 1) {
       continue;
     }
-    auto aChain = tightChainFrom(a);
-    auto aEnd   = aChain.back();
+    const auto aChain = tightChainFrom(a);
+    const auto aEnd   = aChain.back();
     for (auto b : identicalIns) {
       if (b == a) {
         continue;
@@ -1436,22 +1451,21 @@ bool Graph::constrainParallelChains() {
           // Remove shared: alloc contribution
           const auto &alloc = getAlloc(allocAddress);
           const auto &all   = alloc.getOps();
-          auto relPoss      = transitiveClosure.getExtremumStatuses(all);
           auto negW         = -1 * alloc.getWeight();
 
           AllocWeight dummy = AllocWeight::zero();
           {
-            auto fnd = std::find(all.cbegin(), all.cend(), aChain[i]);
-            auto dst = std::distance(all.cbegin(), fnd);
-            auto idx = static_cast<uint64_t>(dst);
-            updateFromFirstFinal(dummy, uppA, negW, relPoss[idx]);
+
+            const auto relPoss =
+                transitiveClosure.getExtremumStatus(aChain[i], all);
+            updateFromFirstFinal(dummy, uppA, negW, relPoss);
           }
 
           {
-            auto fnd = std::find(all.cbegin(), all.cend(), bChain[i]);
-            auto dst = std::distance(all.cbegin(), fnd);
-            auto idx = static_cast<uint64_t>(dst);
-            updateFromFirstFinal(lowB, dummy, negW, relPoss[idx]);
+
+            const auto relPoss =
+                transitiveClosure.getExtremumStatus(bChain[i], all);
+            updateFromFirstFinal(lowB, dummy, negW, relPoss);
           }
         }
 
@@ -2161,6 +2175,7 @@ void Graph::minSumLivenessAnneal(MinSumLivenessAlgo algo,
   int64_t nChangesInTotal{0};
 
   std::vector<OpAddress> allOpAddresses(nOps());
+
   std::iota(allOpAddresses.begin(), allOpAddresses.end(), 0UL);
   // Randomize the order in which indices are processed:
   std::shuffle(allOpAddresses.begin(), allOpAddresses.end(), g);

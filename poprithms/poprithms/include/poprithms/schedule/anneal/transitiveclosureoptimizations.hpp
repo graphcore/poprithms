@@ -36,7 +36,7 @@ enum class TransitiveClosureOptim {
 // constraint a->b and some related constraints.
 //
 // ConstrainParallelChains: If a and b have common inputs, and both belong to
-// tight chains with common inputs, and if (1) a's chain is not shorter than
+// tight chains with common outputs, and if (1) a's chain is not shorter than
 // b's and (2) the cumulative increase in liveness along a's chain is never
 // greater than along b's, then insert constraints from a's chain to b's
 // chain, to form a ladder of constraints
