@@ -309,7 +309,7 @@ bool TransitiveClosure::same(IsFirst r, const std::vector<OpId> &ids) const {
 }
 
 std::vector<std::tuple<IsFirst, IsFinal>>
-TransitiveClosure::getRelativePositions(const std::vector<OpId> &ids) const {
+TransitiveClosure::getExtremumStatuses(const std::vector<OpId> &ids) const {
   std::vector<std::tuple<IsFirst, IsFinal>> rps;
   rps.resize(ids.size(), {IsFirst::Yes, IsFinal::Yes});
   for (uint64_t idIndex = 0; idIndex < ids.size(); ++idIndex) {
@@ -335,9 +335,9 @@ TransitiveClosure::getRelativePositions(const std::vector<OpId> &ids) const {
   return rps;
 }
 
-std::tuple<IsFirst, IsFinal> TransitiveClosure::getRelativePosition(
-    OpId a,
-    const std::vector<OpId> &subset) const {
+std::tuple<IsFirst, IsFinal>
+TransitiveClosure::getExtremumStatus(OpId a,
+                                     const std::vector<OpId> &subset) const {
 
   // For a to be IsFirst::Yes, constrained(a, b) must be true for ALL b. For a
   // to be IsFirst::No, constrained(b, a) must be true for at least 1 b.

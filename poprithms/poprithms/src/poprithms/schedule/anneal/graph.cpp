@@ -1202,13 +1202,13 @@ void Graph::finalizeTransitiveClosure() {
   log().debug("Initializing lowerBoundChange and upperBoundChange.");
   for (const auto &alloc : getAllocs()) {
     auto relativePositions =
-        transitiveClosure.getRelativePositions(alloc.getOps());
+        transitiveClosure.getExtremumStatuses(alloc.getOps());
 
     // Logic check:
     if (relativePositions.size() != alloc.getOps().size()) {
       std::ostringstream oss;
       oss << "There were " << alloc.getOps().size()
-          << " passed into the function getRelativePositions, but "
+          << " passed into the function getExtremumStatuses, but "
           << relativePositions.size()
           << " values were returned. There should be value entry returned "
           << "for every Op. ";
@@ -1436,7 +1436,7 @@ bool Graph::constrainParallelChains() {
           // Remove shared: alloc contribution
           const auto &alloc = getAlloc(allocAddress);
           const auto &all   = alloc.getOps();
-          auto relPoss      = transitiveClosure.getRelativePositions(all);
+          auto relPoss      = transitiveClosure.getExtremumStatuses(all);
           auto negW         = -1 * alloc.getWeight();
 
           AllocWeight dummy = AllocWeight::zero();

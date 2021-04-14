@@ -8,11 +8,11 @@ add_schedule_test(schedule_transitiveclosure_get_unconstrained_0
                         get_unconstrained_0.cpp)
 
 
-add_schedule_test(schedule_transitiveclosure_relative_positions_0 
-                        relative_positions_0.cpp)
+add_schedule_test(schedule_transitiveclosure_extremum_statuses_0 
+                        extremum_statuses_0.cpp)
 
-add_schedule_test(schedule_transitiveclosure_relative_position_0
-                        relative_position_0.cpp)
+add_schedule_test(schedule_transitiveclosure_extremum_status_0
+                        extremum_status_0.cpp)
 
 add_schedule_test(schedule_transitive_closure_post_0 
                         post_0.cpp)

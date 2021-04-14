@@ -20,9 +20,9 @@ int main() {
    *  */
   TransitiveClosure em{{{1, 2, 3}, {4}, {4}, {4}, {5}, {}}};
 
-  auto x0 = em.getRelativePositions({0, 2, 5});
+  auto x0 = em.getExtremumStatuses({0, 2, 5});
   if (x0.size() != 3) {
-    throw error("Expected output of getRelativePositions to 1-1 with input");
+    throw error("Expected output of getExtremumStatuses to 1-1 with input");
   }
 
   if (x0[0] != std::tuple{IsFirst::Yes, IsFinal::No}) {
@@ -35,27 +35,27 @@ int main() {
     throw error("Expected \"0\" to be final and not first");
   }
 
-  x0 = em.getRelativePositions({3});
+  x0 = em.getExtremumStatuses({3});
   if (x0[0] != std::tuple{IsFirst::Yes, IsFinal::Yes}) {
-    throw error("Exect getRelativePositions, called on a singleton, to "
+    throw error("Exect getExtremumStatuses, called on a singleton, to "
                 "always return {Yes, Yes}");
   }
 
-  x0 = em.getRelativePositions({1, 2, 3});
+  x0 = em.getExtremumStatuses({1, 2, 3});
   for (const auto &x : x0) {
     if (x != std::tuple{IsFirst::Maybe, IsFinal::Maybe}) {
       throw error("Expected {Maybe, Maybe} for all diamond edges");
     }
   }
 
-  x0 = em.getRelativePositions({2, 1});
+  x0 = em.getExtremumStatuses({2, 1});
   for (const auto &x : x0) {
     if (x != std::tuple{IsFirst::Maybe, IsFinal::Maybe}) {
       throw error("Expected {Maybe, Maybe} for all diamond edges");
     }
   }
 
-  x0 = em.getRelativePositions({5, 1, 2, 3});
+  x0 = em.getExtremumStatuses({5, 1, 2, 3});
   for (uint64_t i = 1; i < 4; ++i) {
     if (x0[i] != std::tuple{IsFirst::Maybe, IsFinal::No}) {
       throw error("Expected {Maybe, No} for diamond edge with peak");

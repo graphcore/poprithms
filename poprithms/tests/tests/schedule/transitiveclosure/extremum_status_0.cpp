@@ -32,7 +32,7 @@ int main() {
   auto assertSoln = [&em](OpId opId,
                           const std::vector<OpId> &subset,
                           std::tuple<IsFirst, IsFinal> expected) {
-    const auto observed = em.getRelativePosition(opId, subset);
+    const auto observed = em.getExtremumStatus(opId, subset);
     if (observed != expected) {
       std::ostringstream oss;
       oss << "For OpId opId = " << opId << ", expected " << expected

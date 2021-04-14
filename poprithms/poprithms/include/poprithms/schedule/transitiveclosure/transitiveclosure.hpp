@@ -129,11 +129,11 @@ public:
    * schedule relative to each of the other Ops in subOps? For example, if op
    * appears before all op2 in subOps (where op != op2) in all schedules, then
    * op has IsFirst::Yes returned from this function. As an example, suppose
-   * the DAG is a->{b,c} b->{d} c->{d} d->{}. Then getRelativePositions({a,b})
+   * the DAG is a->{b,c} b->{d} c->{d} d->{}. Then getExtremumStatuses({a,b})
    * is {{IsFirst::Yes, IsFinal::No}, {IsFirst::No, IsFinal::Yes}}.
    */
   std::vector<std::tuple<IsFirst, IsFinal>>
-  getRelativePositions(const std::vector<OpId> &subOps) const;
+  getExtremumStatuses(const std::vector<OpId> &subOps) const;
 
   /**
    * Get the relative position of #opId within #subset.
@@ -165,7 +165,7 @@ public:
    * In the above examples, #opId is included in #subset, but it needn't be.
    * */
   std::tuple<IsFirst, IsFinal>
-  getRelativePosition(OpId opId, const std::vector<OpId> &subset) const;
+  getExtremumStatus(OpId opId, const std::vector<OpId> &subset) const;
 
   /** Return a set of Edges which could be removed without changing the
    * Closure */
