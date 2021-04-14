@@ -335,6 +335,49 @@ TransitiveClosure::getRelativePositions(const std::vector<OpId> &ids) const {
   return rps;
 }
 
+std::tuple<IsFirst, IsFinal> TransitiveClosure::getRelativePosition(
+    OpId a,
+    const std::vector<OpId> &subset) const {
+
+  // For a to be IsFirst::Yes, constrained(a, b) must be true for ALL b. For a
+  // to be IsFirst::No, constrained(b, a) must be true for at least 1 b.
+  auto isFirst = IsFirst::Yes;
+  for (auto b : subset) {
+
+    if (a != b) {
+
+      // There's a b which is not constrained to be before a, so a is not
+      // IsFirst::Yes. We can't break from the loop with IsFirst::Maybe
+      // though, as we might still "drop" from IsFirst::Maybe to IsFirst::No.
+      if (!constrained(a, b)) {
+        isFirst = IsFirst::Maybe;
+      }
+
+      // There's a b which is before a, so therefore a is IsFirst::No.
+      if (constrained(b, a)) {
+        isFirst = IsFirst::No;
+        break;
+      }
+    }
+  }
+
+  // The logic for IsFinal is the same as for IsFirst.
+  auto isFinal = IsFinal::Yes;
+  for (auto b : subset) {
+    if (a != b) {
+      if (!constrained(b, a)) {
+        isFinal = IsFinal::Maybe;
+      }
+      if (constrained(a, b)) {
+        isFinal = IsFinal::No;
+        break;
+      }
+    }
+  }
+
+  return {isFirst, isFinal};
+}
+
 // TODO : there may be a more efficient way to implement this
 bool TransitiveClosure::asEarlyAsAllUnconstrained(OpId id) const {
   const auto e = earliest(id);
@@ -427,6 +470,12 @@ std::ostream &operator<<(std::ostream &os, IsFinal isFinal) {
   }
   }
   return os;
+}
+
+std::ostream &operator<<(std::ostream &ost,
+                         const std::tuple<IsFirst, IsFinal> &p) {
+  ost << '(' << std::get<0>(p) << ", " << std::get<1>(p) << ')';
+  return ost;
 }
 
 } // namespace transitiveclosure

@@ -11,6 +11,9 @@ add_schedule_test(schedule_transitiveclosure_get_unconstrained_0
 add_schedule_test(schedule_transitiveclosure_relative_positions_0 
                         relative_positions_0.cpp)
 
+add_schedule_test(schedule_transitiveclosure_relative_position_0
+                        relative_position_0.cpp)
+
 add_schedule_test(schedule_transitive_closure_post_0 
                         post_0.cpp)
 

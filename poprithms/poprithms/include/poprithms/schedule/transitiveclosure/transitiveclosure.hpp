@@ -24,6 +24,9 @@ using Edges = std::vector<std::vector<OpId>>;
 enum class IsFirst { No = 0, Maybe, Yes };
 enum class IsFinal { No = 0, Maybe, Yes };
 
+std::ostream &operator<<(std::ostream &,
+                         const std::tuple<IsFirst, IsFinal> &);
+
 /**
  * A class for compactly storing all indirect topological constraints between
  * Nodes (Ops) in a DAG. Example: suppose constraints between a,b and c are
@@ -49,7 +52,7 @@ public:
   void update(const Edges &newEdges);
 
   /**
-   * Return true if there a constraint (implicit or explicit) "from before
+   * Return true if there is a constraint (implicit or explicit) "from before
    * to", or from->to. In other words, return true if there exist no schedules
    * with "to" before "from". This query is performed on O(1) time.
    * */
@@ -131,6 +134,38 @@ public:
    */
   std::vector<std::tuple<IsFirst, IsFinal>>
   getRelativePositions(const std::vector<OpId> &subOps) const;
+
+  /**
+   * Get the relative position of #opId within #subset.
+   *
+   *
+   * Example 1:
+   *  subset = {opId, foo, bar} and the underlying DAG is,
+   *      opId -> foo -> bar
+   * then (IsFirst::Yes, IsFinal::No) is returned.
+   *
+   * Example 2:
+   *  subset = {opId, foo, bar} and the underlying DAG is,
+   *        +-> opId
+   *  bar --+
+   *        +-> foo
+   * then (IsFirst::No, IsFinal::Maybe) is returned. This is because there
+   * are 2 possible schedules, and opId doesn't appear first in either of
+   * them, but does appear last (final) in 1 of them.
+   *
+   *
+   * Example 3:
+   *  subset = {opId, foo, bar} and the underlying DAG is,
+   *  opId --+
+   *         +--> bar
+   *  foo ---+
+   *  then (IsFirst::Maybe, IsFinal::No) is returned.
+   *
+   *
+   * In the above examples, #opId is included in #subset, but it needn't be.
+   * */
+  std::tuple<IsFirst, IsFinal>
+  getRelativePosition(OpId opId, const std::vector<OpId> &subset) const;
 
   /** Return a set of Edges which could be removed without changing the
    * Closure */

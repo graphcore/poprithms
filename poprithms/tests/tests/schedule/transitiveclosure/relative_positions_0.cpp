@@ -1,5 +1,4 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <iostream>
 #include <sstream>
 
 #include <poprithms/schedule/transitiveclosure/error.hpp>
@@ -8,16 +7,17 @@
 int main() {
 
   using namespace poprithms::schedule::transitiveclosure;
-
-  //
-  //   0
-  //  /|\
-  // 1 2 3
-  //  \|/
-  //   4
-  //   |
-  //   5
-  //
+  /*
+   *
+   *     0
+   *    /|\
+   *   1 2 3
+   *    \|/
+   *     4
+   *     |
+   *     5
+   *
+   *  */
   TransitiveClosure em{{{1, 2, 3}, {4}, {4}, {4}, {5}, {}}};
 
   auto x0 = em.getRelativePositions({0, 2, 5});
