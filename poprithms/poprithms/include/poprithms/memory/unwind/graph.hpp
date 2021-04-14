@@ -43,24 +43,25 @@ class Op;
 /**
  * This is a Graph designed with the bare essentials for descibing algorithms
  * for determining good layouts of Graph inputs, based on desirable layouts of
- * internal Tensors. It doesn't define what \a layout means, this is
- * application specific, but it does describe the relationships between
- * Tensors of their layouts.
+ * internal Tensors. This project doesn't define what \a layout means, the
+ * specific definition is application specific. The project does however
+ * describe the relationships between Tensors and their layouts.
  *
- * This is a challenging problem faced by frameworks built on top of
- * Pop(lar/Libs). Poplibs provides APIs for setting Tensor layouts for certain
- * operations such as matmuls and convolutions. If a Graph input Tensor does
- * not go directly into a one of these special operations which has an API for
- * setting layouts, it is not obvious how the Tensor should be mapped to
- * tiles. The responsibility is on the user of Poplibs, i.e. the machine
- * learning framework, to map input Tensors to IPU tiles.
+ * The problem of setting input Tensor layouts is a challenging one for
+ * frameworks built on top of Pop(lar/Libs). Poplibs provides APIs for setting
+ * Tensor layouts for certain operations, such as matmuls and convolutions. If
+ * a Graph input Tensor does not go directly into a one of these special
+ * operations with an API for setting layouts, it is not immediately obvious
+ * how the input Tensor should be mapped to tiles. The responsibility is on
+ * the user of Poplibs, i.e. the machine learning framework, to map input
+ * Tensors to IPU tiles.
  *
  * This Graph class is for \a describing the unwinding problem. Solving the
- * problem is the responsibility of the \a Solution class.
+ * problem is the responsibility of the \a Solution class (see solution.hpp).
  *
  * This documentation is complemented by the markdown file,
- * notes/unwinding/Unwinding.md, which contains clear diagrams and more
- * indepth examples.
+ * notes/unwinding/Unwinding.md, which contains diagrams and some more in
+ * depth examples.
  * */
 
 /**
@@ -88,7 +89,7 @@ class Op;
  *             matmul.
  *
  * The graph for this computation has 3 inputs, X, Y, and Z. These 3 inputs
- * need to have their inputs set.
+ * need to have their inputs set by the user (the machine learning framework).
  *
  * Poplibs' matmul is optimised for inputs which have very specific layouts.
  * To help the user of Poplibs create Tensors with these layout, there are
@@ -111,9 +112,9 @@ class Op;
  *
  * which is exactly what we want for the lhs input to the matmul.
  *
- * The general approach is to start from points where the desired layout is
- * known, such as LHS, and then "unwind" back to the inputs. This is what we
- * did to find the layout of X.
+ * The general approach is to start from internal points where the desired
+ * layout is known, such as LHS, and then "unwind" back to the inputs. This is
+ * what we did to find the layout of X.
  *
  * Poplibs also provides an API to set the layout for the RHS input of a
  * matmul. Using the same unwinding approach as for LHS, we see that
