@@ -34,6 +34,7 @@ public:
 
 private:
   ScopedStopwatch(const std::string &, TimePartitionLogger &);
+  std::unique_ptr<int> hasNotMoved;
   TimePartitionLogger *pLogger;
   friend class TimePartitionLogger;
 };

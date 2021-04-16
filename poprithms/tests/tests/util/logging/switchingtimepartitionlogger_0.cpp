@@ -149,6 +149,23 @@ void scopeStopwatch1() {
   std::cout << logger.eventsStr() << std::endl;
 }
 
+void moveScopeStopwatch0() {
+  // Check there is no stopping conflict if you move a scope stopwatch.
+  SwitchingTimePartitionLogger logger("moveScopeStopwatch0");
+
+  {
+    // start scoped stopwatch
+    auto sw0 = logger.scopedStopwatch("sw");
+
+    // move to another stopwatch.
+    auto sw1 = std::move(sw0);
+
+    // Both sw0 and sw1 will go out of scope here, but only sw1 should stop
+    // "sw" on the logger. If sw0 also calls stop despite being moved then an
+    // error will be thrown at this when the second stop is called.
+  }
+}
+
 void testConstructors0() {
 
   SwitchingTimePartitionLogger a("x", false);
@@ -187,6 +204,7 @@ int main() {
 
   scopeStopwatch0();
   scopeStopwatch1();
+  moveScopeStopwatch0();
   testConstructors0();
   testPercentage();
 

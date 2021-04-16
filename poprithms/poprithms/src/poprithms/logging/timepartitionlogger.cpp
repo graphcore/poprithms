@@ -20,11 +20,15 @@ using Events = std::vector<TimePartitionLogger::Event>;
 
 ScopedStopwatch::ScopedStopwatch(const std::string &s,
                                  TimePartitionLogger &logger)
-    : pLogger(&logger) {
+    : hasNotMoved(std::make_unique<int>()), pLogger(&logger) {
   logger.start(s);
 }
 
-ScopedStopwatch::~ScopedStopwatch() { pLogger->stop(); }
+ScopedStopwatch::~ScopedStopwatch() {
+  if (hasNotMoved) {
+    pLogger->stop();
+  }
+}
 
 ScopedStopwatch
 TimePartitionLogger::scopedStopwatch(const std::string &stopwatch) {
