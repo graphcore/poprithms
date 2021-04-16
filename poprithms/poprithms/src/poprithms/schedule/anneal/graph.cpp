@@ -1274,16 +1274,19 @@ bool Graph::linkCloseTightPairs() {
           for (uint64_t shift = 0; shift < BitSetSize; ++shift) {
             auto id = i * BitSetSize + shift;
 
-            //      L     U
-            //  ....xxxxxxx..  -- a
-            //  ..xxxxx......  -- b
-            //    l   u
-            //  ==> intersection if L < u && l < U
-            auto l = lowerBoundChange[id];
-            auto u = upperBoundChange[id];
-            if (id != opId && id < nOps() && neither[shift] && L < u &&
-                l < U) {
-              return false;
+            if (id != opId && id < nOps() && neither[shift]) {
+
+              //      L     U
+              //  ....xxxxxxx..  -- a
+              //  ..xxxxx......  -- b
+              //    l   u
+              //  ==> intersection if L < u && l < U
+              const auto u = upperBoundChange[id];
+              const auto l = lowerBoundChange[id];
+
+              if (L < u && l < U) {
+                return false;
+              }
             }
           }
         }
@@ -1299,6 +1302,7 @@ bool Graph::linkCloseTightPairs() {
       }
     }
   }
+
   for (auto link : newLinks) {
     insertLink(std::get<0>(link), std::get<1>(link));
   }
