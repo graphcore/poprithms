@@ -19,9 +19,9 @@ int main() {
   //    \                   .                                  \.
   //   slice                             settsample ---------  cat
   //     \  \                                |                  |
-  //     vstack                            expand               |
+  //     concatFinalDim                    expand               |
   //      \   \                              |                 out
-  //      hstack                          reverse
+  //      concatFirstDim                  reverse
   //       \   \                             |
   //       concat -- flatten  - reshape -- dimshuffle
   //
@@ -59,8 +59,8 @@ int main() {
 
   const auto arr0  = g.tensor(alloc0);
   const auto arr1  = arr0.slice({0, 1, 1}, {2, 3, 3});
-  const auto arr2  = arr1.vstack({arr1}, 0);
-  const auto arr3  = arr2.hstack({arr2}, 1);
+  const auto arr2  = arr1.concatFinalDim({arr1}, 0);
+  const auto arr3  = arr2.concatFirstDim({arr2}, 1);
   const auto arr5  = arr3.concat({arr3}, 0, 1).flatten();
   const auto shape = arr5.shape();
   const auto arr8  = arr5.reshape({shape.nelms(), 1})

@@ -128,7 +128,7 @@ Tensors Tensor::getNonDisjoint() const {
 
 const Shape &Tensor::shape() const { return pgraph->shape(id()); }
 
-Tensor Tensor::hstack(const Tensors &tensors_, uint64_t index) const {
+Tensor Tensor::concatFirstDim(const Tensors &tensors_, uint64_t index) const {
   return concat(tensors_, index, 0);
 }
 
@@ -211,7 +211,7 @@ Tensor Tensor::dimShuffle(const Permutation &perm) const {
 
 Tensor Tensor::clone() const { return {pgraph->clone(id()), pgraph}; }
 
-Tensor Tensor::vstack(const Tensors &tensors_, uint64_t index) const {
+Tensor Tensor::concatFinalDim(const Tensors &tensors_, uint64_t index) const {
   if (tensors_.empty()) {
     return *this;
   }

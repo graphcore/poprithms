@@ -146,12 +146,12 @@ public:
   /**
    * Concatenate on axis = rank - 1
    * */
-  Tensor vstack(const Tensors &, uint64_t index) const;
+  Tensor concatFinalDim(const Tensors &, uint64_t index) const;
 
   /**
    * Concatenate on axis = 0
    * */
-  Tensor hstack(const Tensors &, uint64_t index) const;
+  Tensor concatFirstDim(const Tensors &, uint64_t index) const;
 
   /**
    * A generalization of concatenation, where the input Tensors map to
