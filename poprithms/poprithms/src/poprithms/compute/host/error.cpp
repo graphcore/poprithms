@@ -6,8 +6,8 @@ namespace compute {
 namespace host {
 
 poprithms::error::error error(const std::string &what) {
-  static const std::string anneal("compute::host");
-  return poprithms::error::error(anneal, what);
+  static const std::string shift("compute::host");
+  return poprithms::error::error(shift, what);
 }
 
 } // namespace host

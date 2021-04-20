@@ -24,7 +24,7 @@ std::string getCxxVersionSting() {
 
 int main() {
   // Verify that we have included the headers
-  poprithms::schedule::anneal::AllocAddress address = 4;
+  poprithms::schedule::shift::AllocAddress address = 4;
   (void)address;
   auto pm = poprithms::schedule::transitiveclosure::TransitiveClosure({});
 

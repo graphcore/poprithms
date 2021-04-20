@@ -18,7 +18,7 @@ function(add_schedule_test_from_params name exe)
 endfunction()
 
 
-add_subdirectory(anneal)
+add_subdirectory(shift)
 add_subdirectory(transitiveclosure)
 add_subdirectory(supercon)
 add_subdirectory(dfs)
