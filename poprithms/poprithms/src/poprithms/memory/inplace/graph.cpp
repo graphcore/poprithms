@@ -683,6 +683,11 @@ TensorId Graph::aliasGate(const TensorIds &ids) {
   return {createOp<AliasGate>(ids, {Shape::numpyVariadic(shapes(ids))}), 0};
 }
 
+bool Graph::isAliasGate(OpId id) const {
+  const auto &op_ = op(id);
+  return (dynamic_cast<const AliasGate *>(&op_) != nullptr);
+}
+
 TensorId Graph::aliasGate(const TensorIds &ids, InIndex inInd) {
   if (inInd < 0) {
     return aliasGate(ids);

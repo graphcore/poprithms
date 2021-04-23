@@ -27,7 +27,7 @@ std::ostream &operator<<(std::ostream &ost, const Constraints &constraints) {
 }
 
 void OpeningResult::append(std::ostream &ost) const {
-  ost << status();
+  ost << status() << ' ';
   if (status() == OpeningStatus::Valid) {
     ost << "(";
     ost << constraints() << ")";
