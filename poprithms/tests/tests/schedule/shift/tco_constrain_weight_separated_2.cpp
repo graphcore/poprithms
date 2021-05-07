@@ -31,11 +31,11 @@ void test(
 
   // The classic diamond:
   //
-  //        0
-  //       / \
-  //      1   2
-  //       \ /
-  //        3
+  //        0     .
+  //       / \    .
+  //      1   2   .
+  //       \ /    .
+  //        3     .
   //
   Graph g;
   auto ops = g.insertOps({"op0", "op1", "op2", "op3"});

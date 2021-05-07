@@ -20,6 +20,19 @@ public:
     return {60. * 60. * n, std::numeric_limits<int64_t>::max()};
   }
 
+  /**
+   * Return true if this RotationTermination condition is greater than \a r in
+   * all dimensions (both time threshold and maximum number of rotations
+   * threshold).
+   * */
+  bool longerThan(const RotationTermination &r) const {
+    return maxSeconds() > r.maxSeconds() && maxRotations() > r.maxRotations();
+  }
+
+  bool shorterThan(const RotationTermination &r) const {
+    return maxSeconds() < r.maxSeconds() && maxRotations() < r.maxRotations();
+  }
+
   void setMaxSeconds(double s) { tSeconds_ = s; }
   void setMaxRotations(int64_t r) { maxRotations_ = r; }
 

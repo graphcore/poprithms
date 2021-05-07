@@ -177,7 +177,7 @@ public:
   TensorId aliasGate(const TensorIds &input, InIndex i);
 
   /**
-   * \return true if the Op #id is an AliasGate, false otherwise. 
+   * \return true if the Op #id is an AliasGate, false otherwise.
    * */
   bool isAliasGate(OpId id) const;
 
@@ -188,7 +188,6 @@ public:
   bool aliasGateIsClosed(OpId) const;
   bool aliasGateIsOpen(OpId id) const { return !aliasGateIsClosed(id); }
   InIndex aliasGateInIndex(OpId) const;
-
 
   /** The ConsumptionIds of a Tensor which modify it. */
   ConsumptionIds modifiers(const TensorId &) const;

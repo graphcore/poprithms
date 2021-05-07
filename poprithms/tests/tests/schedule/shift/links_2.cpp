@@ -13,11 +13,11 @@ void test0() {
 
   // The linked diamond,
   //
-  //    X0
-  //  //  \
-  // X1    X2
-  //  \  //
-  //    X3
+  //    X0    .
+  //  //  \   .
+  // X1    X2 .
+  //  \  //   .
+  //    X3    .
   //
   // but with allocs which would prefer the mirror-image linkage. Are the
   // links preserved?
