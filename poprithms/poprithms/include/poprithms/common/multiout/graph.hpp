@@ -74,6 +74,9 @@ public:
   /** The total number of Ops in this Graph. */
   uint64_t nOps() const { return ops.size(); }
 
+  /** The total number of Ops in this Graph which have 0 outputs. */
+  uint64_t nOpsWithZeroOutputs() const;
+
   int64_t nOps_i64() const { return static_cast<int64_t>(ops.size()); }
 
   /** \return The number of inputs of the Op #id.*/
@@ -122,6 +125,37 @@ public:
   /** The OpIds of all Ops in this Graph */
   OpIds opIds() const;
 
+  /**
+   * Consider a table summarising the Graph, where for each Tensor, and for
+   * each Op without any output, there is a row of information.
+   *
+   * This method returns the columns of such a table. The table might be,
+   *
+   *  OpId OpType      InTensors OutIndex Shape
+   *  ---- ------      --------- -------- -----
+   *  0    Foo         ()
+   *  1    Bar         ()        0        (1)
+   *                             1        (1,2)
+   *                             2        (1,1,1)
+   *
+   * if there are 2 Ops, one with 0 outputs and one with 3 outputs. Each of
+   * the 5 columns will then have 6 strings in it. The first column will have
+   * ("OpId ", "---- ", "0    ", "1    ", "     ", "     ", "     "), etc.
+   *
+   * */
+  std::vector<poprithms::util::StringColumn> getMultioutColumns() const;
+
+  /**
+   * \sa getMultioutColumns
+   *
+   * There is an entry (a row) for
+   *  1) every Tensor,
+   *  2) every Op which has no outputs.
+   * */
+  uint64_t nMultioutRows() const {
+    return nTensors() + nOpsWithZeroOutputs();
+  }
+
 protected:
   /** Insert \a op into this Graph, and add it to the consumer lists of its
    * inputs' creators. */
@@ -131,12 +165,6 @@ protected:
   /** Methods to access Ops in this Graph as multiout::Ops. */
   Op &multioutOp(OpId id) { return op(id); }
   const Op &multioutOp(OpId id) const { return op(id); }
-
-  /**
-   * For each Op attribute, return a util::StringColumn containing the string
-   * summary for each Op.
-   * */
-  std::vector<poprithms::util::StringColumn> getMultioutColumns() const;
 
 private:
   /** Derived classes must define what it means to be equivalent in this

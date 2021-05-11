@@ -19,7 +19,7 @@ void test0() {
   //
   //  [[ 6 7 0 1 ]
   //   [ 2 3 4 5 ]]
-  const auto a = g.sink0({2, 4});
+  const auto a = g.sink({2, 4});
 
   //  [[ . . 0 1 ]
   //   [ . . 4 5 ]]
@@ -39,12 +39,12 @@ void test0() {
 
   //  [[ 0 1 2 3 ]
   //   [ 4 5 6 7 ]]
-  const auto f = g.source0({2, 4});
+  const auto f = g.source({2, 4});
   g.insertValuedPair(e, f, 10);
 
   std::cout << g << std::endl;
 
-  const auto hosts = HostTensorHelper::arangeSourcesAndBarriers(g);
+  const auto hosts = HostTensorHelper::arangeBarriers(g);
   const Solution s(std::move(g));
 
   HostTensorHelper::get(s, a, hosts)
@@ -57,7 +57,7 @@ void test1() {
 
   // [[ 0 ]  or  [[ 1 ]
   //  [ 2 ]]      [ 3 ]]
-  const auto a = g.sink0({2, 1});
+  const auto a = g.sink({2, 1});
 
   // [[ 0 2 ]   or   [[ 1 3 ]
   //  [ 0 2 ]]        [ 1 3 ]]
@@ -65,7 +65,7 @@ void test1() {
 
   // [[ 0 1 ]
   //  [ 2 3 ]]
-  const auto c = g.source0({2, 2});
+  const auto c = g.source({2, 2});
   g.insertValuedPair(b, c, 10.);
 
   const Solution s(std::move(g));

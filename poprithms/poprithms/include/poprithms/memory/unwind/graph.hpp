@@ -14,7 +14,6 @@
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/memory/unwind/path.hpp>
-#include <poprithms/memory/unwind/subgraphid.hpp>
 #include <poprithms/memory/unwind/sumlike.hpp>
 #include <poprithms/memory/unwind/valuedtensorid.hpp>
 #include <poprithms/util/copybyclone.hpp>
@@ -44,13 +43,13 @@ class Op;
  * This is a Graph designed with the bare essentials for descibing algorithms
  * for determining good layouts of Graph inputs, based on desirable layouts of
  * internal Tensors. This project doesn't define what \a layout means, the
- * specific definition is application specific. The project does however
- * describe the relationships between Tensors and their layouts.
+ * definition is application specific. The project does however describe the
+ * relationships between Tensors and their layouts.
  *
  * The problem of setting input Tensor layouts is a challenging one for
  * frameworks built on top of Pop(lar/Libs). Poplibs provides APIs for setting
  * Tensor layouts for certain operations, such as matmuls and convolutions. If
- * a Graph input Tensor does not go directly into a one of these special
+ * a Graph input Tensor does not go directly into one of these special
  * operations with an API for setting layouts, it is not immediately obvious
  * how the input Tensor should be mapped to tiles. The responsibility is on
  * the user of Poplibs, i.e. the machine learning framework, to map input
@@ -98,15 +97,16 @@ class Op;
  * shape_lhs, with a tile mapping specialised for this particular matmul.
  *
  * Looking at the diagram above, we know that X.dimShuffle(perm) should have
- * this specialised layout, as it enters a matmul on the lhs. Let's call a
+ * this specialised layout, as it enters a matmul on the left. Let's call a
  * Tensor with this specialized layout \a LHS. The user of Popl(ar/ibs) needs
- * to create the Tensor X though, what layout should X have? It should be
+ * to create the Tensor X though, so what layout should X have? It should have
  *
  * layout(X) = layout(LHS.dimShuffle(perm.inverse())),
  *
  * because then,
  *
- * layout(X.dimShuffle(perm))
+ * layout(matmul input on left)
+ *    = layout(X.dimShuffle(perm))
  *    = layout(LHS.dimShuffle(perm.inverse()).dimShuffle(perm))
  *    = layout(LHS),
  *
@@ -168,13 +168,14 @@ class Op;
  *
  * We use a slightly different heuristic in this case. It is generally a good
  * idea, when executing elementwise operations with multiple inputs such as
- * add on an IPU, to have all the inputs have the same tile mapping. This is
+ * add on an IPU, to make all the inputs have the same tile mapping. This is
  * good, because the full elementwise operation can be executed without
  * needing any inter-tile communication. So in this case, a good choice is
  *
  * layout(Q) = layout(X).
  *
- * We must therefore set layout(X) before layout(Q).
+ * We must therefore set layout(X), based on the matmul input logic, before
+ * layout(Q).
  *
  * This principle, of having the same layout for all inputs to an add, can be
  * applied to any variadic elementwise operation (add, sum, mul, etc.) -- copy
@@ -197,10 +198,11 @@ class Op;
  * inherited X's layout exactly, so as to minimise the cost of inter-tile
  * exchange. In the case where Q must be broadcast up, there is still a good
  * layout for Q in terms of X, and Poplibs provides an API for this:
- * #createBias
+ * #createBias. Note: The Poplibs API might have changed, but the principal is
+ * the same.
  *
- * More information on this case, and how it represented in this Graph class,
- * can be found in the comment for the class method, \a sumLike.
+ * More information on this case, and how it s represented in this Graph
+ * class, can be found in the comment for the class method, \a sumLike.
  *
  * */
 
@@ -227,7 +229,7 @@ class Op;
  *
  *  + - - - - Call(a,b) - - - - - +
  *  |                             |
- *  |                             |
+ *  |                             |             main graph:
  *  |      a           b          |
  *  |      |           |          |           A   B     C   D
  *  |      |           |          |           |   |     |   |
@@ -317,10 +319,10 @@ class Op;
  * known.
  *
  * We will model matmuls as fixed-point operations. See the discussion in
- * T32143 for why we think this is possible and a good idea.
+ * T32143 for why we think this is possible and (currently) a good idea.
  *
  * Not that the fixed-point type is an abstraction which is not implemented in
- * class, as it is identical to a source Tensor.
+ * this class, as it can be implemented as an inputless Barrier.
  *
  *
  * Dependencies of layouts
@@ -387,8 +389,8 @@ class Op;
  *
  * So far we have presented examples of graphs with familiar computational
  * operations in them, and described what their inputs layouts should be.
- * We'll now turn to the question of how to succinctly represent this is in a
- * custom graph class.
+ * We'll now turn to the question of how to succinctly represent this is in
+ * this custom graph class.
  *
  * We've discussed 3 ways in which layouts can be determined, and the
  * motivation for each.
@@ -406,32 +408,29 @@ class Op;
  * =====
  * The Tensors which need to have their layouts set by the user must appear in
  * this Graph as outputs of Sink Ops. They are called "Sinks" because they are
- * the ends of unwinding paths. All machine learning graph inputs should be
+ * the ends of unwinding paths. All (machine learning) graph inputs should be
  * created with Sink operators, as all Graph inputs must have their layouts
  * (tile mappings) set.
  *
+ * Barriers
+ * ========
+ * Ops for which (1) every element of every output Tensor depends on all input
+ * elements (forwards-non-local), and (2) the layouts of inputs cannot be
+ * inferred from output layouts (backwards-opaque). Barriers might correspond
+ * to actual machine learning Ops, such as maxpool, or they might not (more on
+ * this later).
+ *
  * Sources
  * =======
- * Sources Tensors do not correspond to any Tensors in the actual compute
- * graph. They are Tensors in this Graph which represent target layouts, which
- * may or may not be copied.
+ * A Source is an inputless Barrier. Source Tensors generally don't correspond
+ * to Tensors in the actual compute graph, but are Tensors in this Graph which
+ * represent target layouts, which may or may not be copied.
  *
  * Source Tensors have layouts which are considered fixed, and are never
  * derived from other Tensors' layouts. An example is the LHS Tensor presented
  * in the first example. This is quite a subtle point: the LHS Tensor is not
  * in the compute Graph, it is just a suggested layout for the input to the
  * matmul.
- *
- * Barriers
- * ========
- * Ops for which every element of every output Tensor depends on all input
- * elements (forwards-non-local). Moreover, the layouts of inputs cannot be
- * inferred from output layouts (backwards-opaque).
- *
- * SumLike
- * =======
- * A variadic elementwise operator, such as sum, add, mul, pow, etc.
- *
  *
  * The score
  * =========
@@ -455,7 +454,7 @@ class Op;
  * copies into and out of calls, and (3) common layouts for all inputs to
  * variadic elementwise operator, can be captured in this model.
  *
- * More information can be the class comments.
+ * More information can be found in the class comments.
  *
  * */
 
@@ -470,51 +469,22 @@ public:
   virtual ~Graph() override       = default;
 
   /**
-   * Insert a source of unwinding into this Graph. As discussed in the class
-   * introduction, a Source is a Tensor whose layout cannot be derived from
-   * other Tensor layouts, and is known immediately on insertion into this
-   * Graph. It needn't correspond to any Tensor in a compute Graph.
-   *
-   * \param s    The Shape of the Source Tensor.
-   *
-   * \param sgid The subgraph to which the Source Tensor is added. In general
-   *             this is not important, as it doesn not represent a Tensor in
-   *             the computation Graph.
-   * */
-  TensorId source(const Shape &s, SubGraphId sgid);
-  TensorId source(const Shape &s, SubGraphId, const std::string &name);
-
-  /** Insert a Source Tensor into subgraph 0. */
-  TensorId source0(const Shape &s) { return source(s, SubGraphId(0)); }
-
-  /**
-   * Insert a target of unwinding, or a Sink, into this Graph. As discussed
-   * in the class introduction, inputs to a compute Graph whose layout needs
-   * to be determined should be created as Sinks in this Graph.
+   * Insert a target of unwinding, or a Sink, into this Graph. Inputs to a
+   * compute Graph whose layout needs to be determined should be created as
+   * Sinks.
    *
    * \param s The Shape of the Sink Tensor.
    *
-   * \param sgid The subgraph into which this Sink Tensor is inserted. If the
-   *             computation graph does not contain any operations which
-   *             require subgraphs, such as calls, loops, and conditionals,
-   *             then the SubGraph should be the same for all Sinks, and the
-   *             convenience method sink0 can be used to represent this "main"
-   *             scope.
+   * \param name The name associated to the Tensor, used for logging only.
    * */
-  TensorId sink(const Shape &s, SubGraphId sgid);
-  TensorId sink(const Shape &s, SubGraphId, const std::string &name);
+  TensorId sink(const Shape &s, const std::string &name = {});
 
   /**
-   * A convenience method for inserting a Sink into subgraph 0.
-   * */
-  TensorId sink0(const Shape &s) { return sink(s, SubGraphId(0)); }
-
-  /**
-   * A barrier Op blocks the backwards flow of layout information. It
-   * is not possible to determine the layouts of inputs based on outputs
-   * (backwards-opaque), and it is only possible to determine the layouts of
-   * outputs based on inputs when **all** inputs layouts are known (forwards
-   * non-local).
+   * Barriers are Ops for which layouts cannot be unwound between inputs and
+   * outputs. More specifically, it is not possible to determine the layouts
+   * of inputs based on outputs (backwards-opaque), and it is only possible to
+   * determine the layouts of outputs based on inputs when **all** inputs
+   * layouts are known (forwards non-local).
    *
    * The layout of any element in the output is assumed to depend on all
    * elements in all input Tensors. This has implications for the order in
@@ -524,7 +494,7 @@ public:
    * user to know the layout of the output until the layout of the entire
    * input is known.
    *
-   * Note that sometimes a Barrier might not be best Op to represent an
+   * Note that sometimes a Barrier might not be the best Op to represent an
    * operation when the output layout is independent of the input layouts. An
    * example is Poplibs' matmul (see the discussion in T32143). In particular,
    * it is advantageous to create a operation as a Source instead of a Barrier
@@ -545,7 +515,44 @@ public:
    * layout and obtain the associated value in the final score, because a
    * barrier assumes layout(Y) = f(layout(X)) for some unkowable function f.
    * */
-  OpId barrier(const TensorIds &inputs, const Shapes &outputShapes);
+
+  OpId barrier(const TensorIds &inputs,
+               const Shapes &outputShapes,
+               const std::string &name = {});
+
+  /**
+   * A Source Tensor is an inputless Barrier Tensor. It's layout is known
+   * immediately on insertion into this Graph, and is thus the starting point
+   * of inferring the layouts of Tensors. It needn't correspond to any Tensor
+   * in a compute Graph.
+   * */
+  TensorId source(const Shape &s, const std::string &n = {}) {
+    return TensorId{barrier(/* Sources have no inputs: */ {},
+                            /* The Shape of the unique output: */ {s},
+                            /* The debug string, or name of the Op: */ n),
+                    /* The output index of the unique output: */ 0};
+  }
+
+  /**
+   * A set of utility functions, which make mapping a Solution to poplar a bit
+   * easier.
+   *
+   * These specialized barriers, will map 1:1 to a poplar API for creating a
+   * poplar Tensor.
+   * */
+  TensorId sliceToSliceable(const TensorId &slice, const Shape &sliceable);
+  TensorId sliceableToSlice(const TensorId &sliceable, const Shape &slice);
+  TensorId sumLikeReduce(const TensorId &full, const Shape &reduced);
+  TensorId matMulLhsSource(const Shape &lhs, const Shape &rhs);
+  TensorId matMulRhsSource(const Shape &lhs, const Shape &rhs);
+
+  bool isSliceToSliceable(OpId) const;
+  bool isSliceableToSlice(OpId) const;
+  bool isMatMulLhsSource(OpId) const;
+  bool isMatMulRhsSource(OpId) const;
+  bool isSumLikeReduce(OpId) const;
+
+  std::array<Shape, 2> matmulBarrierShapes(const TensorId &) const;
 
   /**
    * Insert a ValuedPair. A ValuedPair signfiies that having the same layouts
@@ -629,14 +636,18 @@ public:
   TensorId subSample(const TensorId &, const Strides &);
 
   /**
-   * Variadic elementwise operator, with attractions inserted between certain
-   * input Tensors. The output can unwind through the input at \a
-   * unwindableIndex. That is, the layout of the output matches the layout of
-   * the input at \a unwindableIndex.
+   * A utility method for variadic elementwise operators, which inserts
+   * attractions between certain input Tensors and additional Ops to handle
+   * differently shaped inputs.
+   *
+   * The output can unwind through the input at \a unwindableIndex. That is,
+   * the layout of the output matches the layout of the input at \a
+   * unwindableIndex.
    *
    * The attraction between inputs is of value \a val. This attraction is
    * direct between inputs of the same Shape, for inputs of different Shapes
-   * an intermediate sumLikeReduce Op is needed.
+   * an intermediate SumLikeReduce Op -- a special kind of Barrier Op -- is
+   * inserted.
    *
    * Example 1 (unbroadcast add)
    *
@@ -650,7 +661,7 @@ public:
    *      +---+---+
    *          |           Unwinding
    *       sumLike        =========
-   *          |           A <-> C
+   *          |           A <-> C (as A is the input at index 0).
    *          C
    *
    *
@@ -677,32 +688,159 @@ public:
    *                        |
    *                        D
    *
-   * ValuedPairs      Unwinding
+   * ValuedPairs          Unwinding
    * ===============      =========
-   * (B, E, 10.)          A <-> D.
+   * (B, E, 10.)          A <-> D (as A is the input at index 0).
    * (C, F, 10.)
    *
    *
    *
    * */
+
   SumLikeOut sumLike(const TensorIds &, InIndex unwindableIndex, double val);
 
   /**
-   * Call subgraph \a inner from subgraph \a outer, copying the Tensors in
-   * copyInSources in subgraph \a outer into subgraph \a inner, before the
-   * call and then copying the Tensors \a copyOutSources out at the end of the
-   * call. The returned Tensors are the copies of \a copyOutSources created in
-   * scope \a outer.
+   * A utility method for Ops such as dynamicSlice, where the input layout
+   * should be determined from the output layout, and will use the
+   * createSliceableTensorSlice poplibs API.
    *
-   * This method is really just a helper method, which inserts Sink Tensors
-   * for the outputs of the call, in \a outer, and inserts ValuedPairs for all
-   * the copies into \a inner, and all the copies out of \a inner. The value
-   * associated to all of these copies is \a value.
+   *
+   * Consider a dynamic slice:
+   *
+   *  -->---> [input]    [offset] <--<---
+   *            |          |
+   *            |          |
+   *            +--+-------+
+   *               |
+   *          dynamic_slice
+   *               |
+   *           [sliceOut] --->--->--->
+   *
+   * The poplibs API createSliceableTensorFromSlice is for setting the layout
+   * of #input based on #sliceOut, and so #sliceOut should be a sink.
+   *
+   * This is modelled in this Graph as,
+   *
+   *
+   *  --> [input]    [target]    [offset] <--<---
+   *                    ^
+   *                    |
+   *             SliceableFromSlice (a type of Barrier Op)
+   *                    ^
+   *                    |
+   *         Sink -> [sliceOut] --->--->--->
+   *
+   *  ValuedPairs
+   *  ============
+   *  (input, target, val)
+   *
+   *    */
+
+  class DynamicSliceLikeOut {
+  public:
+    DynamicSliceLikeOut(TensorId slice_, TensorId sliceableTarget_)
+        : s(slice_), t(sliceableTarget_) {}
+
+    TensorId slice() const { return s; }
+    TensorId sliceableTarget() const { return t; }
+
+  private:
+    TensorId s;
+    TensorId t;
+  };
+
+  class DynamicUpdateLikeOut {
+
+  public:
+    DynamicUpdateLikeOut(TensorId updated,
+                         TensorId updaterTarget,
+                         TensorId toUpdateTarget)
+        : updated_(updated), updaterTarget_(updaterTarget),
+          toUpdateTarget_(toUpdateTarget) {}
+
+    TensorId updated() const { return updated_; }
+
+    TensorId updaterTarget() const { return updaterTarget_; }
+    TensorId sliceTarget() const { return updaterTarget(); }
+
+    TensorId toUpdateTarget() const { return toUpdateTarget_; }
+    TensorId sliceableTarget() const { return toUpdateTarget(); }
+
+  private:
+    TensorId updated_;
+    TensorId updaterTarget_;
+    TensorId toUpdateTarget_;
+  };
+
+  DynamicSliceLikeOut dynamicSliceLike(const TensorId &toSlice,
+                                       const Shape &sliceShape,
+                                       double value);
+
+  /**
+   * A utility method for Ops such as dynamicUpdate, where you can either set
+   * the layout of the output based on the layout of this input, using the
+   * poplibs API createSliceFromSliceable, or you can set the layout of the
+   * input based on the layout of output, using the poplibs API
+   * createSliceableFromSlice.
+   *
+   * Consider the dynamic update:
+   *
+   *                       |
+   *                       |
+   *                       v
+   * --> [toUpdate]     [updater]     [offset] <---
+   *         |             |             |
+   *         |             |             |
+   *         +-------------+-------------+
+   *                       |
+   *                 dynamic_update
+   *                       |
+   *                   [updated] ---->
+   *
+   *  where the output, #updated, has the same layout as the input, #toUpdate.
+   *
+   *  This is modelled with this method as,
+   *
+   *                               |
+   *                               v
+   * --> [toUpdate] -----+     [updater]     [offset] <---
+   *         |           |         |
+   *         v           |         v
+   *  SliceFromSliceable |  SliceableFromSlice
+   *         |           |         |
+   *         v           |         v
+   *  [updaterTarget]    |  [toUpdateTarget]
+   *                     |
+   *                  Identity
+   *                     |
+   *                  [updated] ---->
+   *
+   *  ValuedPairs
+   *  ============
+   *  (toUpdate, toUpdateTarget, sliceableFromSliceValue)
+   *  (updaterTarget, updater, sliceFromSliceableValue)
+   *
    *
    * */
-  TensorIds call(SubGraphId outer,
-                 SubGraphId inner,
-                 const TensorIds &copyInSources,
+  DynamicUpdateLikeOut dynamicUpdateLike(const TensorId &toUpdate_sliceable,
+                                         const TensorId &updater_slice,
+                                         double sliceableFromSliceValue,
+                                         double sliceFromSliceableValue);
+
+  /**
+   * Simulate a call from an outer source scope, which contains Tensors
+   * \a copyInTensors, to a inner destination scope which contains Tensor
+   * \a copyInDestinations. It involves copying the Tensors in \a
+   * copyInTensors to the Tensors in \a copyInDestinations, and then copying
+   * the Tensors in the callee scope, \a copyOutTensors, back the calling
+   * scope.
+   *
+   * This method is really just a helper method, which inserts Sink Tensors
+   * for the outputs of the call, and inserts ValuedPairs for all the copies
+   * into the inner scope, and all the copies. The value associated to all of
+   * these copies is \a value.
+   * */
+  TensorIds call(const TensorIds &copyInSources,
                  const TensorIds &copyInDestinations,
                  const TensorIds &copyOutSources,
                  double value);
@@ -711,9 +849,7 @@ public:
    * A call with more fine-grained control over the values of input and
    * output copies.
    * */
-  TensorIds call(SubGraphId outer,
-                 SubGraphId inner,
-                 const TensorIds &copyInSources,
+  TensorIds call(const TensorIds &copyInSources,
                  const TensorIds &copyInDestinations,
                  const TensorIds &copyOutSources,
                  const std::vector<double> &inCopyValues,
@@ -733,9 +869,6 @@ public:
 
   /** All Barriers in this Graph */
   TensorIds barriers() const;
-
-  /** All Sources and Barriers in this Graph */
-  TensorIds sourcesAndBarriers() const;
 
   /**
    * All Tensors which are attracted to \a tId, and their value of
@@ -800,9 +933,6 @@ public:
   bool isSource(const TensorId &) const;
   bool isBarrier(const TensorId &) const;
 
-  SubGraphId subGraphId(const TensorId &) const;
-  SubGraphIds subGraphIds(const TensorIds &) const;
-
   bool isUnwindable(OpId, InIndex, OutIndex) const;
 
   /**
@@ -852,39 +982,9 @@ public:
    * */
   Chain extended(const Chain &chain, InIndex, OpId opId, OutIndex) const;
 
-  /**
-   * \return The name associated to subgraph \a sgid.
-   * */
-  std::string name(SubGraphId sgid) const;
-
-  /**
-   * Set the name of the i'th subgraph to \a n
-   * */
-  void setSubGraphName(SubGraphId i, const std::string &n) { sgNames[i] = n; }
-
-  /**
-   * If \a ids is empty, or not all Tensors in \a ids have the same
-   * SubGraphId, then an error is thrown. Otherwise, the SubGraphId which is
-   * common th all Tensors is returned.
-   *
-   * This method can be useful when determining what subgraph to add a Source
-   * Tensor to, based on a set of Tensors which should be in the same
-   *subgraph.
-   **/
-  SubGraphId subGraphIdFromTensorIds(const TensorIds &ids) const;
-
 private:
-  /**
-   * Specialized Barrier in sumReduce.
-   * */
-  TensorId sumLikeReduce(const TensorId &id, const Shape &out);
-
   template <class T, class... Args>
-  OpId
-  createOpWithInputs(const TensorIds &inIds, const Shapes &out, Args... args);
-
-  template <class T, class... Args>
-  OpId createInputlessOp(SubGraphId, const Shapes &out, Args... args);
+  OpId createOp(const TensorIds &inIds, const Shapes &out, Args... args);
 
   OpId insertOp(std::unique_ptr<Op>);
 
@@ -896,21 +996,13 @@ private:
    * class for details. This method just comares the attributes specific to
    * the unwind Graph for equivalence.
    * */
-  bool multiOutTypeSpecificEqualTo(
-      const common::multiout::Graph &rhs) const final {
-    return sgNames == static_cast<const Graph &>(rhs).sgNames;
+  bool
+  multiOutTypeSpecificEqualTo(const common::multiout::Graph &) const final {
+    return true;
   }
 
   Op &op(OpId);
   const Op &op(OpId) const;
-
-  /**
-   * The Graph class is global, in the same way as a poplar::Graph is.
-   * Subgraphs (main, calls, loops, ifs) can be captured by annotating Ops
-   * with SubGraphIds. Subgraphs can have strings associated with them to help
-   * debugging and to make logging clearer.
-   */
-  std::unordered_map<SubGraphId, std::string> sgNames;
 };
 
 std::ostream &operator<<(std::ostream &, const Graph &);

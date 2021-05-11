@@ -28,10 +28,8 @@ using namespace poprithms::memory::unwind;
 void callWithCopies0(double attractionValue) {
 
   Graph g;
-  SubGraphId innerId{0};
-  g.setSubGraphName(innerId, "inner");
 
-  const auto innerInput = g.sink({10, 4}, innerId);
+  const auto innerInput = g.sink({10, 4});
   g.setName(innerInput.opId(), "inner input");
 
   const auto ds = g.dimShuffle(innerInput, {{1, 0}});
@@ -40,10 +38,7 @@ void callWithCopies0(double attractionValue) {
   const auto innerOutput = g.flatten(ds);
   g.setName(innerOutput.opId(), "inner output");
 
-  //
-  SubGraphId outerId{1};
-  g.setSubGraphName(outerId, "outer");
-  const auto outerInput = g.sink({10, 8}, outerId);
+  const auto outerInput = g.sink({10, 8});
   g.setName(outerInput.opId(), "outer input");
 
   const auto s0 = g.slice(outerInput, {0, 0}, {10, 4});
@@ -52,17 +47,15 @@ void callWithCopies0(double attractionValue) {
   const auto s1 = g.slice(outerInput, {0, 4}, {10, 8});
   g.setName(s1.opId(), "slice1");
 
-  const auto x0 =
-      g.call(outerId, innerId, {s0}, {innerInput}, {innerOutput}, 1.0)[0];
+  const auto x0 = g.call({s0}, {innerInput}, {innerOutput}, 1.0)[0];
   g.setName(x0.opId(), "x0 (call out)");
 
-  const auto knownLayout = g.source(g.shape(x0), outerId);
+  const auto knownLayout = g.source(g.shape(x0));
   g.setName(knownLayout.opId(), "x0 target");
 
   g.insertValuedPair(x0, knownLayout, attractionValue);
 
-  const auto x1 =
-      g.call(outerId, innerId, {s1}, {innerInput}, {innerOutput}, 1.0)[0];
+  const auto x1 = g.call({s1}, {innerInput}, {innerOutput}, 1.0)[0];
   g.setName(x1.opId(), "x1 (call out)");
 
   const auto cat = g.concat({x0, x1}, 0);

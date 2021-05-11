@@ -335,7 +335,7 @@ void Solution::setPathsGreedy0() {
                 keepLookingForUnwind = false;
                 insertPath(path03);
                 pathStack.push_back(path03);
-                sourcesAndBarriersToSinks_.push_back(path03);
+                barriersToSinks_.push_back(path03);
               }
             }
           }
@@ -461,10 +461,10 @@ void Solution::processUnwindPath(const Path &tail) {
   }
 }
 
-void Solution::setAllPaths(const Paths &sourcesAndBarriersToSinks) {
+void Solution::setAllPaths(const Paths &barriersToSinks) {
   resetAllPathInfo();
   setPathStackToSources();
-  for (const auto &unwindSolnPath : sourcesAndBarriersToSinks) {
+  for (const auto &unwindSolnPath : barriersToSinks) {
     processPathStack();
     processUnwindPath(unwindSolnPath);
   }
@@ -505,9 +505,7 @@ void Solution::insertPathBackToSink(const TensorId &tId, const Path &p) {
   pathsBackToSinks_[tId.opId().get()][tId.outIndex().get()].push_back(p);
 }
 
-const Paths &Solution::sourcesAndBarriersToSinks() const {
-  return sourcesAndBarriersToSinks_;
-}
+const Paths &Solution::barriersToSinks() const { return barriersToSinks_; }
 
 void Solution::append(std::ostream &ost) const {
 

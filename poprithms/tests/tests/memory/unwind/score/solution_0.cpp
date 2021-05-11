@@ -26,8 +26,8 @@ void testSourceAtSink0() {
   //  We must confirm that `out` gets the correct Path.
 
   Graph g;
-  const auto sink   = g.sink0({6, 2});
-  const auto source = g.source0({6, 2});
+  const auto sink   = g.sink({6, 2});
+  const auto source = g.source({6, 2});
   g.insertValuedPair(sink, source, 65.);
 
   const auto foo0 = g.slice(sink, {1, 0}, {5, 2});
@@ -68,13 +68,13 @@ void testSourceMidSentence0() {
   //
 
   Graph g;
-  const auto sink = g.sink0({3, 4, 5, 6});
+  const auto sink = g.sink({3, 4, 5, 6});
   const auto x0   = g.dimShuffle(sink, {{1, 2, 3, 0}});
   const auto x1   = g.dimShuffle(x0, {{1, 2, 3, 0}});
   const auto x2   = g.dimShuffle(x1, {{1, 2, 3, 0}});
   g.dimShuffle(x2, {{1, 2, 3, 0}});
 
-  const auto source = g.source0({5, 6, 3, 4});
+  const auto source = g.source({5, 6, 3, 4});
   g.insertValuedPair(x1, source, 65.);
 
   Paths sPaths;

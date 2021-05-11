@@ -72,25 +72,19 @@ void test0() {
 
   Graph g;
 
-  SubGraphId innId{1};
-  SubGraphId outId{0};
-
   const Shape actInShape{10, 8};
   const Shape weightShape{5, 2};
   const Shape actOutShape{5, 3};
   const Shape biasShape{3};
 
-  const auto innerAct  = g.sink(actInShape, innId);
-  const auto actSource = g.source(actInShape, innId);
+  const auto innerAct  = g.sink(actInShape);
+  const auto actSource = g.source(actInShape);
   g.insertValuedPair(innerAct, actSource, 10.);
 
-  const auto innerWeight  = g.sink(weightShape, innId);
-  const auto weightSource = g.source(weightShape, innId);
+  const auto innerWeight  = g.sink(weightShape);
+  const auto weightSource = g.source(weightShape);
   g.insertValuedPair(innerWeight, weightSource, 20.);
 
-  // const auto innerActPair    = g.sinkAndSource(actInShape, innId, 10.);
-  // const auto innerWeightPair = g.sinkAndSource(weightShape, innId, 20.);
-  // const auto innerAct        = innerActPair.sink();
   g.setName(innerAct.opId(), "inner-act");
 
   // const auto actSource = innerActPair.source();
@@ -102,7 +96,7 @@ void test0() {
   // const auto weightSource = innerWeightPair.source();
   g.setName(weightSource.opId(), "weight-source");
 
-  const auto innerBias = g.sink(biasShape, innId);
+  const auto innerBias = g.sink(biasShape);
   g.setName(innerBias.opId(), "inner-bias");
 
   // We choose to represent the convolution as a barrier. In practise, as the
@@ -123,13 +117,13 @@ void test0() {
   g.setName(sumLikeOut.barrier(0), "sumLike-barrier");
 
   const int64_t repl{3};
-  const auto outerAct = g.sink(actInShape.broadcast(repl, 0), outId);
+  const auto outerAct = g.sink(actInShape.broadcast(repl, 0));
   g.setName(outerAct.opId(), "outer-act");
 
-  const auto outerWeight = g.sink(weightShape.broadcast(repl, 0), outId);
+  const auto outerWeight = g.sink(weightShape.broadcast(repl, 0));
   g.setName(outerWeight.opId(), "outer-weight");
 
-  const auto outerBias = g.sink(biasShape.broadcast(repl, 0), outId);
+  const auto outerBias = g.sink(biasShape.broadcast(repl, 0));
   g.setName(outerBias.opId(), "outer-bias");
 
   TensorIds callOuts;
@@ -147,9 +141,7 @@ void test0() {
     auto biasSlice   = g.slice(outerBias, i * bias0, (i + 1) * bias0);
     g.setName(biasSlice.opId(), "bias-slice(" + std::to_string(i) + ")");
 
-    auto callOut = g.call(outId,
-                          innId,
-                          {actSlice, weightSlice, biasSlice},
+    auto callOut = g.call({actSlice, weightSlice, biasSlice},
                           {innerAct, innerWeight, innerBias},
                           {sumLikeOut.out()},
                           11.)[0];
@@ -160,7 +152,7 @@ void test0() {
   auto out = g.concat(callOuts, 1);
   g.setName(out.opId(), "concat");
 
-  const auto sAndBs = HostTensorHelper::arangeSourcesAndBarriers(g);
+  const auto sAndBs = HostTensorHelper::arangeBarriers(g);
   const Solution soln(std::move(g));
 
   std::map<TensorId, host::Tensor> hosts;

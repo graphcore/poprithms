@@ -610,7 +610,7 @@ Graph::FwdEdges Graph::getFwdEdges(const Constraints &additional) const {
 
 void Graph::append(std::ostream &ost) const {
 
-  const auto nTens     = nTensors();
+  const auto nTens     = nMultioutRows();
   const auto aliasedTo = aGraph().allAliases();
 
   auto cols = getMultioutColumns();

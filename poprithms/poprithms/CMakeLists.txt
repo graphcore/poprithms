@@ -228,7 +228,6 @@ set(memory_inplace_sources
 )
 
 set(memory_unwind_sources
-  ${memory_src_dir}/unwind/subgraphid.cpp
   ${memory_src_dir}/unwind/hosttensorhelper.cpp
   ${memory_src_dir}/unwind/logging.cpp
   ${memory_src_dir}/unwind/graph.cpp

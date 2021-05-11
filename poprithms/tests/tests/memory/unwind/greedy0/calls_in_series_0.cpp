@@ -69,27 +69,21 @@ void test(double valCopyInSame, double valMatmulOutAndInSame) {
 
   Graph g;
 
-  // subgraph_1 in T30324
-  SubGraphId inn{1};
-  g.setSubGraphName(inn, "inner");
-
-  // The main scope.
-  SubGraphId out{0};
-  g.setSubGraphName(out, "outer");
-
   // Subgraph input:
-  const auto actInn = g.sink({1}, inn, "matmul activation in");
+  const auto actInn = g.sink({1}, "matmul activation in");
 
   // Subgraph input target layout (createMatMulLHS target)
-  const auto actInnSource = g.source({1}, inn, "poplibs create LHS");
+  const auto actInnSource =
+      g.matMulLhsSource({1}, {1}); // "poplibs create LHS");
 
   // Weights of matmul
-  const auto weightInn       = g.sink({1}, inn, "matmul weights");
-  const auto weightInnSource = g.source({1}, inn, "poplibs create RHS");
+  const auto weightInn = g.sink({1}, "matmul weights");
+  const auto weightInnSource =
+      g.matMulRhsSource({1}, {1}); // BarrierType("poplibs create RHS");
   g.insertValuedPair(weightInnSource, weightInn, valPoplibsMatmulRHS);
 
   // matmul output. Its layout is assumed to be independent of ins (T32143).
-  const auto mmOut = g.source({1}, inn, "matmul activation out");
+  const auto mmOut = g.source({1}, "matmul activation out");
 
   // How valuable is it for actIn to have the layout of actInSource?
   g.insertValuedPair(actInn, actInnSource, valPoplibsMatmulLHS);
@@ -97,20 +91,20 @@ void test(double valCopyInSame, double valMatmulOutAndInSame) {
   // How good is it if the matmul input and output have same layout?
   g.insertValuedPair(mmOut, actInn, valMatmulOutAndInSame);
 
-  const auto in0       = g.sink({1}, out, "input to main");
-  const auto in0source = g.source({1}, out, "input target (linear)");
+  const auto in0       = g.sink({1}, "input to main");
+  const auto in0source = g.source({1}, "input target (linear)");
   g.insertValuedPair(in0, in0source, valLinearMapMainInput);
 
   // embedding output.
   TensorId a{g.barrier({in0}, {{1}}), 0};
 
   // calls.
-  const auto b = g.call(
-      out, inn, {a}, {actInn}, {mmOut}, {valCopyInSame}, {valCopyOutSame})[0];
-  const auto c = g.call(
-      out, inn, {b}, {actInn}, {mmOut}, {valCopyInSame}, {valCopyOutSame})[0];
-  const auto d = g.call(
-      out, inn, {c}, {actInn}, {mmOut}, {valCopyInSame}, {valCopyOutSame})[0];
+  const auto b =
+      g.call({a}, {actInn}, {mmOut}, {valCopyInSame}, {valCopyOutSame})[0];
+  const auto c =
+      g.call({b}, {actInn}, {mmOut}, {valCopyInSame}, {valCopyOutSame})[0];
+  const auto d =
+      g.call({c}, {actInn}, {mmOut}, {valCopyInSame}, {valCopyOutSame})[0];
 
   g.setName(a.opId(), "a");
   g.setName(b.opId(), "b");

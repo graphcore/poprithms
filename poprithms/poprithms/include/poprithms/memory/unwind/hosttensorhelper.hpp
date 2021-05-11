@@ -23,12 +23,12 @@ using nest::DisjointRegions;
 class HostTensorHelper {
 
 public:
-  /** Unwind from Tensors in \a sourcesAndBarriers to \a toSet, based on the
+  /** Unwind from Tensors in \a barriers to \a toSet, based on the
    * paths stored in the most recent call to setPaths. */
   static compute::host::Tensor
   get(const Solution &soln,
       const TensorId &toSet,
-      const std::map<TensorId, compute::host::Tensor> &sourcesAndBarriers);
+      const std::map<TensorId, compute::host::Tensor> &barriers);
 
   /**
    * A utility method for testing. For every Source and Barrier Tensor, create
@@ -39,7 +39,7 @@ public:
    *   [ 3 4 5 ]]
    * */
   static std::map<TensorId, compute::host::Tensor>
-  arangeSourcesAndBarriers(const Graph &);
+  arangeBarriers(const Graph &);
 };
 
 } // namespace unwind

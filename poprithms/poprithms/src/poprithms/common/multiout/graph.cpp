@@ -192,8 +192,18 @@ void Graph::setName(const TensorId &id, const std::string &name) {
   setName(id.opId(), name);
 }
 
+uint64_t Graph::nOpsWithZeroOutputs() const {
+  uint64_t N{0};
+  for (uint64_t i = 0; i < nOps(); ++i) {
+    if (op(i).nOutTensors() == 0) {
+      ++N;
+    }
+  }
+  return N;
+}
+
 std::vector<util::StringColumn> Graph::getMultioutColumns() const {
-  const auto nTens = nTensors();
+  const auto nTens = nMultioutRows();
 
   using Strings = std::vector<std::string>;
   Strings opId(nTens, "");

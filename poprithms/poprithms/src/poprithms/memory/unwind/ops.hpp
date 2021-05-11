@@ -43,36 +43,19 @@ private:
 
 class Input : public Op {
 public:
-  Input(const State &st, SubGraphId gId_) : Op(st), gId(gId_) {}
+  Input(const State &st) : Op(st) {}
   void extendFwd(Chain &, InIndex, OutIndex) const final;
   void extendBwd(Chain &, InIndex, OutIndex) const final;
   bool isBarrier(OutIndex) const final { return false; }
-  SubGraphId subGraphId() const { return gId; }
-
-private:
-  SubGraphId gId;
 };
 
 class Sink : public Input {
 public:
-  Sink(const State &st, SubGraphId gId_) : Input(st, gId_) {}
+  Sink(const State &st) : Input(st) {}
   std::string typeString() const final { return "Sink"; }
   UpBop clone() const final { return Op::mu<Sink>(this); }
   virtual bool isSink(OutIndex) const { return true; }
   virtual bool isSource(OutIndex) const { return false; }
-  bool isUnwindable(InIndex, OutIndex) const final { return false; }
-
-private:
-  bool unwindTypeSpecificEqualTo(const Op &) const final { return true; }
-};
-
-class Source : public Input {
-public:
-  Source(const State &st, SubGraphId gId_) : Input(st, gId_) {}
-  std::string typeString() const final { return "Source"; }
-  UpBop clone() const final { return Op::mu<Source>(this); }
-  virtual bool isSink(OutIndex) const { return false; }
-  virtual bool isSource(OutIndex) const { return true; }
   bool isUnwindable(InIndex, OutIndex) const final { return false; }
 
 private:
@@ -198,32 +181,82 @@ private:
  * This Op can cover all use cases which do not involve non-trivial
  * view-changes (reshapes, dimShuffles, etc).
  **/
-class Barrier : public NonInput {
+class BaseBarrier : public NonInput {
 public:
-  Barrier(const State &st) : NonInput(st) {}
-  std::string typeString() const final { return "Barrier"; }
-  UpBop clone() const final { return Op::mu<Barrier>(this); }
+  BaseBarrier(const State &st) : NonInput(st) {}
   virtual bool isUnwindable(InIndex, OutIndex) const { return false; }
   void extendFwd(Chain &, InIndex, OutIndex) const final;
   void extendBwd(Chain &, InIndex, OutIndex) const final;
   bool isBarrier(OutIndex) const final { return true; }
+};
+
+class Barrier : public BaseBarrier {
+public:
+  Barrier(const State &st) : BaseBarrier(st) {}
+  std::string typeString() const final { return "Barrier"; }
+  UpBop clone() const final { return Op::mu<Barrier>(this); }
 
 private:
   bool unwindTypeSpecificEqualTo(const Op &) const final { return true; }
 };
 
-class SumLikeReduce : public NonInput {
+class SliceToSliceable : public BaseBarrier {
 public:
-  SumLikeReduce(const State &st) : NonInput(st) {}
-  std::string typeString() const final { return "SumLikeReduceBarrier"; }
-  UpBop clone() const final { return Op::mu<SumLikeReduce>(this); }
-  virtual bool isUnwindable(InIndex, OutIndex) const { return false; }
-  void extendFwd(Chain &, InIndex, OutIndex) const final;
-  void extendBwd(Chain &, InIndex, OutIndex) const final;
-  bool isBarrier(OutIndex) const final { return true; }
+  SliceToSliceable(const State &st) : BaseBarrier(st) {}
+  std::string typeString() const final { return "SliceToSliceable"; }
+  UpBop clone() const final { return Op::mu<SliceToSliceable>(this); }
 
 private:
   bool unwindTypeSpecificEqualTo(const Op &) const final { return true; }
+};
+
+class SliceableToSlice : public BaseBarrier {
+public:
+  SliceableToSlice(const State &st) : BaseBarrier(st) {}
+  std::string typeString() const final { return "SliceableToSlice"; }
+  UpBop clone() const final { return Op::mu<SliceableToSlice>(this); }
+
+private:
+  bool unwindTypeSpecificEqualTo(const Op &) const final { return true; }
+};
+
+class SumLikeReduce : public BaseBarrier {
+public:
+  SumLikeReduce(const State &st) : BaseBarrier(st) {}
+  std::string typeString() const final { return "SumLikeReduce"; }
+  UpBop clone() const final { return Op::mu<SumLikeReduce>(this); }
+
+private:
+  bool unwindTypeSpecificEqualTo(const Op &) const final { return true; }
+};
+
+class MatMulSource : public BaseBarrier {
+public:
+  MatMulSource(const State &st, const Shape &lhs, const Shape &rhs)
+      : BaseBarrier(st), lhs_(lhs), rhs_(rhs) {}
+  Shape lhs() const { return lhs_; }
+  Shape rhs() const { return rhs_; }
+
+private:
+  bool unwindTypeSpecificEqualTo(const Op &) const final;
+  Shape lhs_;
+  Shape rhs_;
+};
+
+class MatMulLhsSource : public MatMulSource {
+public:
+  MatMulLhsSource(const State &st, const Shape &lhs, const Shape &rhs)
+      : MatMulSource(st, lhs, rhs) {}
+  std::string typeString() const final { return "MatMulLhsSource"; }
+  UpBop clone() const final { return Op::mu<MatMulLhsSource>(this); }
+};
+
+class MatMulRhsSource : public MatMulSource {
+public:
+  MatMulRhsSource(const State &st, const Shape &lhs, const Shape &rhs)
+      : MatMulSource(st, lhs, rhs) {}
+  std::string typeString() const final { return "MatMulRhsSource"; }
+  UpBop clone() const final { return Op::mu<MatMulRhsSource>(this); }
 };
 
 } // namespace unwind

@@ -13,13 +13,13 @@ int main() {
   using namespace poprithms::compute;
 
   Graph g;
-  const auto sink = g.sink0({6});
+  const auto sink = g.sink({6});
   const auto s0   = g.slice(sink, 0, 3);
   const auto s1   = g.slice(sink, 3, 6);
   g.sumLike({s0, s1}, InIndex(0), 3.5);
 
   const auto s2     = g.slice(sink, 1, 4);
-  const auto source = g.source0({3});
+  const auto source = g.source({3});
   g.insertValuedPair(source, s2, 65.);
 
   //

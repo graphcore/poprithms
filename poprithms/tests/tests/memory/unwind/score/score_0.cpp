@@ -13,7 +13,7 @@ void test0() {
   for (auto withReverse : {true, false}) {
 
     //
-    // sink0
+    // sink
     //  |
     // flatten
     //   |
@@ -21,7 +21,7 @@ void test0() {
     //    |
     //   x0     source
     //    .        |
-    //    ..... source0
+    //    ..... source
     //
     //
     // The unwind path always igores withReverse. So, if withReverse is true,
@@ -30,23 +30,23 @@ void test0() {
 
     Graph g;
 
-    const auto sink0 = g.sink0({10, 10});
-    auto f0          = g.flatten(sink0);
-    auto x0          = f0;
+    const auto sink = g.sink({10, 10});
+    auto f0         = g.flatten(sink);
+    auto x0         = f0;
     if (withReverse) {
       x0 = g.reverse(f0, Dimensions({0}));
     }
 
-    const auto source0 = g.source0({100});
-    const auto value   = 2.;
-    g.insertValuedPair(x0, source0, value);
+    const auto source = g.source({100});
+    const auto value  = 2.;
+    g.insertValuedPair(x0, source, value);
 
-    const auto p0 = g.getPath(source0, {Link(f0.opId(), 0, 0, false)}, sink0);
+    const auto p0 = g.getPath(source, {Link(f0.opId(), 0, 0, false)}, sink);
 
     Solution soln(g, {p0});
 
     const auto score    = soln.getScore();
-    const auto expected = withReverse ? 0. : g.nelms(sink0) * value;
+    const auto expected = withReverse ? 0. : g.nelms(sink) * value;
     if (score != expected) {
       std::ostringstream oss;
       oss << "Expected a score of " << expected << ", observed was " << score

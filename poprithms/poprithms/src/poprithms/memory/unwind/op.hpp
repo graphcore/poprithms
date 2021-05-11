@@ -12,7 +12,6 @@
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/memory/unwind/path.hpp>
-#include <poprithms/memory/unwind/subgraphid.hpp>
 #include <poprithms/memory/unwind/valuedtensorid.hpp>
 #include <poprithms/ndarray/shape.hpp>
 
@@ -33,9 +32,8 @@ public:
 
   public:
     State(const common::multiout::Op::State &state,
-          const SubGraphId sgid_,
           const std::vector<ValuedTensorIds> &valuedPartners_)
-        : baseState(state), sgid(sgid_), valuedPartners(valuedPartners_) {}
+        : baseState(state), valuedPartners(valuedPartners_) {}
 
     State(const OpId id_,
           const TensorIds &inIds_,
@@ -43,7 +41,6 @@ public:
           const Shapes &inShapes_,
           const Shapes &outShapes_,
           const std::string &name_,
-          const SubGraphId sgid_,
           const std::vector<ValuedTensorIds> &valuedPartners_)
         : State(common::multiout::Op::State(id_,
                                             inIds_,
@@ -51,13 +48,9 @@ public:
                                             inShapes_,
                                             outShapes_,
                                             name_),
-                sgid_,
                 valuedPartners_) {}
 
     const common::multiout::Op::State baseState;
-
-    // The SubGraphId of this Op.
-    const SubGraphId sgid;
 
     // Tensors which would benefit from having the same layout as this Tensor.
     const std::vector<ValuedTensorIds> valuedPartners;
@@ -74,19 +67,17 @@ public:
   Op()                 = delete;
 
   Op(const State &ob)
-      : common::multiout::Op(ob.baseState), sgid_(ob.sgid),
+      : common::multiout::Op(ob.baseState),
         valuedPartners_(ob.valuedPartners) {}
 
   void insertAttractor(OutIndex, const TensorId &, double);
 
-  SubGraphId subGraphId() const { return sgid_; }
   const std::vector<ValuedTensorIds> &valuedPartners() const;
   ValuedTensorIds valuedPartners(OutIndex outIndex) const;
 
   State getState() const;
 
   static State getStartingState(OpId,
-                                SubGraphId,
                                 const TensorIds &tensorIns,
                                 const Shapes &inShapes,
                                 const Shapes &outShapes);
@@ -114,7 +105,6 @@ protected:
   }
 
 private:
-  SubGraphId sgid_;
   std::vector<ValuedTensorIds> valuedPartners_;
 
   /**

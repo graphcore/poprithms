@@ -43,14 +43,13 @@ int main() {
   using namespace poprithms::memory::unwind;
 
   Graph g;
-  const SubGraphId idInner{0};
 
-  const auto a       = g.sink({4, 5}, idInner, "a (mm-lhs)");
-  const auto aSource = g.source({4, 5}, idInner, "mm-lhs-source");
+  const auto a       = g.sink({4, 5}, "a (mm-lhs)");
+  const auto aSource = g.matMulLhsSource({4, 5}, {5, 6});
   g.insertValuedPair(aSource, a, 1.5);
 
-  const auto b       = g.sink({5, 6}, idInner, "b (mm-rhs)");
-  const auto bSource = g.source({5, 6}, idInner, "mm-rhs-source");
+  const auto b       = g.sink({5, 6}, "b (mm-rhs)");
+  const auto bSource = g.matMulRhsSource({4, 5}, {5, 6});
   g.insertValuedPair(bSource, b, 2.0);
 
   // We choose to make the matmul a barrier, although it might be better to
@@ -60,8 +59,7 @@ int main() {
   const TensorId mmOut{mmOpId, 0};
   g.setName(mmOpId, "mm");
 
-  const SubGraphId idOuter{1};
-  const auto A = g.sink({4, 10}, idOuter, "A");
+  const auto A = g.sink({4, 10}, "A");
 
   const auto A0 = g.slice(A, {0, 0}, {4, 5});
   g.setName(A0.opId(), "A0 (A[:,0:5])");
@@ -69,16 +67,14 @@ int main() {
   const auto A1 = g.slice(A, {0, 5}, {4, 10});
   g.setName(A1.opId(), "A1 (A[:,5:10])");
 
-  const auto B = g.sink({5, 6}, idOuter, "B");
+  const auto B = g.sink({5, 6}, "B");
 
-  const auto C = g.sink({4, 6}, idOuter, "C");
+  const auto C = g.sink({4, 6}, "C");
 
-  const auto X = g.call(
-      idOuter, idInner, TensorIds{A0, B}, TensorIds{a, b}, {mmOut}, 1.)[0];
+  const auto X = g.call(TensorIds{A0, B}, TensorIds{a, b}, {mmOut}, 1.)[0];
   g.setName(X.opId(), "X (call out)");
 
-  const auto Y = g.call(
-      idOuter, idInner, TensorIds{A1, B}, TensorIds{a, b}, {mmOut}, 1.)[0];
+  const auto Y = g.call(TensorIds{A1, B}, TensorIds{a, b}, {mmOut}, 1.)[0];
   g.setName(Y.opId(), "Y (call out)");
 
   const auto Z = g.sumLike({X, Y, C}, InIndex(0), 1.);

@@ -22,7 +22,7 @@ ValuedTensorIds Op::valuedPartners(OutIndex outIndex) const {
 }
 
 Op::State Op::getState() const {
-  return State{common::multiout::Op::getState(), sgid_, valuedPartners_};
+  return State{common::multiout::Op::getState(), valuedPartners_};
 }
 
 DisjointRegions
@@ -42,7 +42,6 @@ Op::inRegions(const DisjointRegions &inRegs, InIndex i, OutIndex o) const {
 Op::~Op() = default;
 
 Op::State Op::getStartingState(const OpId opId,
-                               const SubGraphId sgid,
                                const TensorIds &inIds,
                                const Shapes &inShapes,
                                const Shapes &outShapes) {
@@ -60,7 +59,6 @@ Op::State Op::getStartingState(const OpId opId,
                inShapes,
                outShapes,
                name,
-               sgid,
                valuedPartners__);
 }
 
@@ -88,7 +86,6 @@ void Op::insertAttractor(OutIndex oi, const TensorId &dst, double val) {
 bool Op::State::operator==(const State &rhs) const {
   return                                    //
       baseState == rhs.baseState &&         //
-      sgid == rhs.sgid &&                   //
       valuedPartners == rhs.valuedPartners; //
 }
 

@@ -42,15 +42,11 @@ int main() {
   //
 
   Graph g;
-  SubGraphId innId{1};
-  g.setSubGraphName(innId, "Inner");
-  const auto sinkInn = g.sink({4, 5}, innId);
+  const auto sinkInn = g.sink({4, 5});
   const auto a0      = g.reshape(sinkInn, {5, 4});
   const auto b0      = g.dimShuffle(a0, {{1, 0}});
 
-  const SubGraphId outId{0};
-  g.setSubGraphName(outId, "Outer");
-  const auto sinkOut = g.sink({20}, outId);
+  const auto sinkOut = g.sink({20});
   const auto a1      = g.reshape(sinkOut, {4, 5});
 
   double call0val = 1.0;
@@ -58,16 +54,13 @@ int main() {
   if (call0val >= call1val) {
     throw error("This test requires call1val to be larger");
   }
-  const auto out0 = g.call(outId, innId, {a1}, {sinkInn}, {b0}, call0val)[0];
-  const auto out1 =
-      g.call(outId, innId, {out0}, {sinkInn}, {b0}, call1val)[0];
+  const auto out0 = g.call({a1}, {sinkInn}, {b0}, call0val)[0];
+  const auto out1 = g.call({out0}, {sinkInn}, {b0}, call1val)[0];
 
-  const auto sourceId = g.source({4, 5}, innId);
+  const auto sourceId = g.source({4, 5});
   g.insertValuedPair(sourceId, out1, 5.);
 
   auto s = Solution(g);
-
-  // g.setPaths(Graph::Algo::Greedy0);
 
   std::map<TensorId, Chain> expected;
   expected.emplace(out1, Chain({4, 5}));

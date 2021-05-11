@@ -25,4 +25,10 @@ add_memory_unwind_test(memory_unwind_greedy_group_conv_with_bias_0
 add_memory_unwind_test(memory_unwind_greedy_multi_path_0
                                             multi_path_0.cpp)
 
+add_memory_unwind_test(memory_unwind_greedy_dynamic_0
+                                            dynamic_0.cpp)
+
+add_memory_unwind_test(memory_unwind_greedy_matmul_0
+                                            matmul_0.cpp)
+
 

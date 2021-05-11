@@ -31,38 +31,19 @@ namespace poprithms {
 namespace memory {
 namespace unwind {
 
-SubGraphId Graph::subGraphId(const TensorId &id) const {
-  return op(id.opId()).subGraphId();
-}
-
-SubGraphIds Graph::subGraphIds(const TensorIds &tids) const {
-  SubGraphIds ids;
-  ids.reserve(tids.size());
-  for (auto tid : tids) {
-    ids.push_back(subGraphId(tid));
-  }
-  return ids;
-}
-
-TensorIds Graph::call(SubGraphId outer,
-                      SubGraphId inner,
-                      const TensorIds &inSources,
+TensorIds Graph::call(const TensorIds &inSources,
                       const TensorIds &inDests,
                       const TensorIds &outSources,
                       double v) {
 
-  return call(outer,
-              inner,
-              inSources,
+  return call(inSources,
               inDests,
               outSources,
               std::vector<double>(inSources.size(), v),
               std::vector<double>(outSources.size(), v));
 }
 
-TensorIds Graph::call(SubGraphId outer,
-                      SubGraphId inner,
-                      const TensorIds &inSources,
+TensorIds Graph::call(const TensorIds &inSources,
                       const TensorIds &inDests,
                       const TensorIds &outSources,
                       const std::vector<double> &copyInValues,
@@ -85,26 +66,9 @@ TensorIds Graph::call(SubGraphId outer,
         << ". They should be the same. ";
   }
 
-  auto assertSubGraphId = [this, outer, inner](bool isOuter,
-                                               const TensorIds &ids) {
-    const auto target = isOuter ? outer : inner;
-    for (const auto &id : ids) {
-      if (subGraphId(id) != target) {
-        std::ostringstream oss;
-        oss << "Failure in assertSubGraphId, the Tensor " << id
-            << " is not in the expected subGraph. ";
-        throw error(oss.str());
-      }
-    }
-  };
-
-  assertSubGraphId(true, inSources);
-  assertSubGraphId(false, inDests);
-  assertSubGraphId(false, outSources);
-
   TensorIds outs;
   for (uint64_t i = 0; i < outSources.size(); ++i) {
-    outs.push_back(sink(shape(outSources[i]), outer));
+    outs.push_back(sink(shape(outSources[i])));
   }
 
   for (uint64_t i = 0; i < inSources.size(); ++i) {
@@ -140,50 +104,14 @@ DisjointRegions Graph::inRegions(const DisjointRegions &out,
   return op(opId).inRegions(out, inIndex, outIndex);
 }
 
-SubGraphId Graph::subGraphIdFromTensorIds(const TensorIds &ids) const {
-  if (ids.empty()) {
-    std::ostringstream oss;
-    oss << "Failed to obtain SubGraphId from empty vector of TensorIds. ";
-    throw error(oss.str());
-  }
-
-  const auto sgid = subGraphId(ids[0]);
-  if (std::any_of(
-          ids.cbegin() + 1, ids.cend(), [&sgid, this](const auto &id) {
-            return subGraphId(id) != sgid;
-          })) {
-    std::ostringstream oss;
-    oss << "Contradictory solutions in obtaining "
-        << "SubGraphId from TensorIds, " << ids
-        << ". Expected all TensorIds to have same SubGraphId, "
-        << "but the SubGraphIds are " << subGraphIds(ids);
-    throw error(oss.str());
-  }
-
-  return sgid;
-}
-
 template <class T, class... Args>
-OpId Graph::createOpWithInputs(const TensorIds &inIds,
-                               const Shapes &outShapes,
-                               Args... args) {
-
-  return insertOp(
-      std::make_unique<T>(Op::getStartingState(nOps_i64(),
-                                               subGraphIdFromTensorIds(inIds),
-                                               inIds,
-                                               shapes(inIds),
-                                               outShapes),
-                          args...));
-}
-
-template <class T, class... Args>
-OpId Graph::createInputlessOp(SubGraphId sgid,
-                              const Shapes &outShapes,
-                              Args... args) {
+OpId Graph::createOp(const TensorIds &inIds,
+                     const Shapes &outShapes,
+                     Args... args) {
 
   return insertOp(std::make_unique<T>(
-      Op::getStartingState(nOps_i64(), sgid, {}, {}, outShapes), args...));
+      Op::getStartingState(nOps_i64(), inIds, shapes(inIds), outShapes),
+      args...));
 }
 
 void Graph::insertValuedPair(const TensorId &a, const TensorId &b, double v) {
@@ -203,6 +131,31 @@ OpId Graph::insertOp(std::unique_ptr<Op> createdOp) {
   return newId;
 }
 
+Graph::DynamicSliceLikeOut Graph::dynamicSliceLike(const TensorId &sliceable,
+                                                   const Shape &outShape,
+                                                   double val) {
+
+  auto sliceOut        = sink(outShape);
+  auto sliceableTarget = sliceToSliceable(sliceOut, shape(sliceable));
+  insertValuedPair(sliceable, sliceableTarget, val);
+  return {sliceOut, sliceableTarget};
+}
+
+Graph::DynamicUpdateLikeOut Graph::dynamicUpdateLike(const TensorId &toUpdate,
+                                                     const TensorId &updater,
+                                                     double vToSliceable,
+                                                     double vToSlice) {
+
+  const auto targetToSliceable = sliceToSliceable(updater, shape(toUpdate));
+  const auto targetToSlice     = sliceableToSlice(toUpdate, shape(updater));
+
+  insertValuedPair(targetToSlice, updater, vToSlice);
+  insertValuedPair(targetToSliceable, toUpdate, vToSliceable);
+
+  auto updated = identity(toUpdate);
+  return {updated, targetToSlice, targetToSliceable};
+}
+
 SumLikeOut
 Graph::sumLike(const TensorIds &ids, InIndex unwindIndex, double val) {
 
@@ -215,10 +168,10 @@ Graph::sumLike(const TensorIds &ids, InIndex unwindIndex, double val) {
     throw error(oss.str());
   }
 
-  const TensorId outId{
-      createOpWithInputs<SumLike>(
-          ids, {Shape::numpyVariadic(shapes(ids))}, unwindIndex),
-      0};
+  const TensorId outId{createOp<SumLike>(ids,
+                                         {Shape::numpyVariadic(shapes(ids))},
+                                         unwindIndex),
+                       0};
 
   SumLikeMappings mappings;
 
@@ -234,7 +187,7 @@ Graph::sumLike(const TensorIds &ids, InIndex unwindIndex, double val) {
       const auto insertUniDir = [this, val, &mappings, &iA, &iB](
                                     const TensorId &from,
                                     const TensorId &to) {
-        const auto layoutSrc = sumLikeReduce(from, shape(to));
+        const TensorId layoutSrc = sumLikeReduce(from, shape(to));
         if (!getName(from.opId()).empty()) {
           setName(layoutSrc.opId(),
                   "sumLike-reduce(" + getName(from.opId()) + "(" +
@@ -265,22 +218,20 @@ Graph::sumLike(const TensorIds &ids, InIndex unwindIndex, double val) {
 }
 
 TensorId Graph::settSample(const TensorId &id, const Region &r) {
-  return {createOpWithInputs<SettSample>({id}, {r.nelms()}, r), 0};
+  return {createOp<SettSample>({id}, {r.nelms()}, r), 0};
 }
 TensorId Graph::dimShuffle(const TensorId &id, const Permutation &perm) {
-  return {createOpWithInputs<DimShuffle>(
-              {id}, {shape(id).dimShuffle(perm)}, perm),
-          0};
+  return {createOp<DimShuffle>({id}, {shape(id).dimShuffle(perm)}, perm), 0};
 }
 TensorId Graph::reverse(const TensorId &id, const Dimensions &d) {
-  return {createOpWithInputs<Reverse>({id}, {shape(id)}, d), 0};
+  return {createOp<Reverse>({id}, {shape(id)}, d), 0};
 }
 
 TensorId Graph::identity(const TensorId &id) {
-  return {createOpWithInputs<Identity>({id}, {shape(id)}), 0};
+  return {createOp<Identity>({id}, {shape(id)}), 0};
 }
 TensorId Graph::reshape(const TensorId &id, const Shape &outShape) {
-  return {createOpWithInputs<Reshape>({id}, {outShape}), 0};
+  return {createOp<Reshape>({id}, {outShape}), 0};
 }
 
 bool Graph::isUnwindable(OpId opId,
@@ -313,9 +264,7 @@ void Graph::extend(Chain &c, const Links &ls) const {
 TensorId Graph::concat(const TensorIds &ids, uint64_t axis) {
   const auto shapes_ = shapes(ids);
   Shape::assertConcattable(shapes_, axis);
-  return {
-      createOpWithInputs<Concat>(ids, {Shape::concat(shapes_, axis)}, axis),
-      0};
+  return {createOp<Concat>(ids, {Shape::concat(shapes_, axis)}, axis), 0};
 }
 
 TensorIds Graph::sinks() const {
@@ -345,7 +294,8 @@ template <typename T> TensorIds all(const Graph &g, const T &t) {
 
 TensorIds Graph::sources() const {
   return all(*this, [this](const TensorId &id) {
-    return op(id.opId()).isSource(id.outIndex());
+    return op(id.opId()).isBarrier(id.outIndex()) &&
+           op(id.opId()).nInTensors() == 0;
   });
 }
 
@@ -355,21 +305,10 @@ TensorIds Graph::barriers() const {
   });
 }
 
-TensorIds Graph::sourcesAndBarriers() const {
-  return all(*this, [this](const TensorId &id) {
-    return op(id.opId()).isBarrier(id.outIndex()) ||
-           op(id.opId()).isSource(id.outIndex());
-  });
-}
-
-TensorId Graph::sink(const Shape &shape, SubGraphId sgid) {
-  return {createInputlessOp<Sink>(sgid, {shape}, sgid), 0};
-}
-TensorId
-Graph::sink(const Shape &shape, SubGraphId sgid, const std::string &name) {
-  auto id = sink(shape, sgid);
-  setName(id.opId(), name);
-  return id;
+TensorId Graph::sink(const Shape &shape, const std::string &n) {
+  const auto opId = createOp<Sink>({}, {shape});
+  setName(opId, n);
+  return {opId, 0};
 }
 
 Chain Graph::extended(const Chain &c,
@@ -380,14 +319,6 @@ Chain Graph::extended(const Chain &c,
 
   extend(c_, Link(opId, inIndex, outIndex, true));
   return c_;
-}
-
-std::string Graph::name(SubGraphId id) const {
-  const auto found = sgNames.find(id);
-  if (found == sgNames.cend()) {
-    return "";
-  }
-  return found->second;
 }
 
 Path Graph::fullEmpty(const TensorId &src, const TensorId &dst) const {
@@ -409,25 +340,54 @@ Path Graph::extendedPath(const Path &p,
   return Path(p.src(), extendedChain, {opId, outIndex});
 }
 
-TensorId Graph::source(const Shape &shape, SubGraphId sgid) {
-  return {createInputlessOp<Source>(sgid, {shape}, sgid), 0};
-}
-TensorId
-Graph::source(const Shape &shape, SubGraphId sgid, const std::string &name) {
-  auto id = source(shape, sgid);
-  setName(id.opId(), name);
-  return id;
+OpId Graph::barrier(const TensorIds &inIds,
+                    const Shapes &outShapes,
+                    const std::string &n) {
+  const auto opId = createOp<Barrier>(inIds, outShapes);
+  setName(opId, n);
+  return opId;
 }
 
-OpId Graph::barrier(const TensorIds &inIds, const Shapes &outShapes) {
-  if (inIds.empty()) {
-    throw error("Graph::barrier({}) invalid. At least 1 input required.");
-  }
-  return createOpWithInputs<Barrier>(inIds, outShapes);
+TensorId Graph::sliceToSliceable(const TensorId &slice,
+                                 const Shape &sliceable) {
+  return {createOp<SliceToSliceable>({slice}, {sliceable}), 0};
 }
 
-TensorId Graph::sumLikeReduce(const TensorId &id, const Shape &out) {
-  return {createOpWithInputs<SumLikeReduce>({id}, {out}), 0};
+TensorId Graph::sliceableToSlice(const TensorId &sliceable,
+                                 const Shape &slice) {
+  return {createOp<SliceableToSlice>({sliceable}, {slice}), 0};
+}
+
+TensorId Graph::sumLikeReduce(const TensorId &full, const Shape &reduced) {
+  return {createOp<SumLikeReduce>({full}, {reduced}), 0};
+}
+
+TensorId Graph::matMulLhsSource(const Shape &lhs, const Shape &rhs) {
+  return {createOp<MatMulLhsSource>({}, {lhs}, lhs, rhs), 0};
+}
+
+TensorId Graph::matMulRhsSource(const Shape &lhs, const Shape &rhs) {
+  return {createOp<MatMulRhsSource>({}, {rhs}, lhs, rhs), 0};
+}
+
+bool Graph::isSliceToSliceable(OpId opId) const {
+  return dynamic_cast<const SliceToSliceable *>(&op(opId)) != nullptr;
+}
+
+bool Graph::isSliceableToSlice(OpId opId) const {
+  return dynamic_cast<const SliceableToSlice *>(&op(opId)) != nullptr;
+}
+
+bool Graph::isMatMulLhsSource(OpId opId) const {
+  return dynamic_cast<const MatMulLhsSource *>(&op(opId)) != nullptr;
+}
+
+bool Graph::isMatMulRhsSource(OpId opId) const {
+  return dynamic_cast<const MatMulRhsSource *>(&op(opId)) != nullptr;
+}
+
+bool Graph::isSumLikeReduce(OpId opId) const {
+  return dynamic_cast<const SumLikeReduce *>(&op(opId)) != nullptr;
 }
 
 const Op &Graph::op(OpId a) const {
@@ -440,7 +400,7 @@ Op &Graph::op(OpId a) { return static_cast<Op &>(multioutOp(a)); }
 void Graph::append(std::ostream &ost) const {
 
   auto cols = getMultioutColumns();
-  std::vector<std::string> copyAttractors(nTensors(), "");
+  std::vector<std::string> copyAttractors(nMultioutRows(), "");
 
   // copy the pattern from multiout Graph:
   uint64_t ti = 0;
@@ -518,6 +478,18 @@ TensorId Graph::squeeze(const TensorId &id) {
 
 TensorId Graph::slice(const TensorId &id, uint64_t l, uint64_t u) {
   return slice(id, Dimension(0), l, u);
+}
+
+std::array<Shape, 2> Graph::matmulBarrierShapes(const TensorId &id) const {
+  const auto mmp = dynamic_cast<const MatMulSource *>(&op(id.opId()));
+  if (!mmp) {
+    std::ostringstream oss;
+    oss << "Invalid call, Graph::matmulBarrierShapes(id = " << id << "). "
+        << "Called on output of " << op(id.opId())
+        << ", which is not a MatMulSource Op. ";
+    throw error(oss.str());
+  }
+  return {mmp->lhs(), mmp->rhs()};
 }
 
 } // namespace unwind

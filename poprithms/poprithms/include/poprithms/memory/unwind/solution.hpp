@@ -56,7 +56,7 @@ public:
    * layouts of internal Tensors (inwardsPaths) or the objective function
    * (getScore) based on a solution obtained by other means.
    * */
-  Solution(const Graph &, const Paths &sourcesAndBarriersToSinks);
+  Solution(const Graph &, const Paths &barriersToSinks);
 
   /**
    * Compute and return the score, also known as the objective function, of
@@ -72,7 +72,7 @@ public:
    * Tensors (for example input poplar::Tensors), it is guarantees that all
    * required Barrier layouts will be availale when needed.
    */
-  const Paths &sourcesAndBarriersToSinks() const;
+  const Paths &barriersToSinks() const;
 
   /**
    * Access to the layout Paths to Tensor \a id from Sources or Barriers. This
@@ -94,13 +94,13 @@ private:
   /** All Paths from \a tId to a Sink. */
   const Paths &pathsBackToSinks(const TensorId &tId) const;
 
-  void append(const Path &p) { sourcesAndBarriersToSinks_.push_back(p); }
+  void append(const Path &p) { barriersToSinks_.push_back(p); }
 
   /**
    * Set the Paths to all Tensors from Sources or Barriers, based on the set
    * of Paths to Sinks in \a soln.
    * */
-  void setAllPaths(const Paths &sourcesAndBarriersToSinks);
+  void setAllPaths(const Paths &barriersToSinks);
 
   /**
    * \return true if the Tensor \a tId has a Path to every element from a
@@ -146,7 +146,7 @@ private:
   // They appear in the order required to satisfy dependencies,
   // where Barrier Ops require all input Tensors before their layout
   // can be set.
-  Paths sourcesAndBarriersToSinks_;
+  Paths barriersToSinks_;
 
   void clearInwardsPaths(OpId);
   void insertInwardsPath(const TensorId &, const Path &);

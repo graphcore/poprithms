@@ -69,6 +69,11 @@ bool Concat::unwindTypeSpecificEqualTo(const Op &rhs) const {
   return axis() == rhs_.axis();
 }
 
+bool MatMulSource::unwindTypeSpecificEqualTo(const Op &other) const {
+  const auto &rhs__ = dynamic_cast<const MatMulSource &>(other);
+  return lhs() == rhs__.lhs() && rhs() == rhs__.rhs();
+}
+
 // ------- //
 //  Input  //
 // ------- //
@@ -150,21 +155,11 @@ Reshape::Reshape(const State &st) : ViewChange1to1(st) {
 // ------- //
 // Barrier //
 // ------- //
-void Barrier::extendFwd(Chain &, InIndex, OutIndex) const {
-  throw error("No extendFwd for Barrier");
+void BaseBarrier::extendFwd(Chain &, InIndex, OutIndex) const {
+  throw error("No extendFwd for BaseBarrier");
 }
-void Barrier::extendBwd(Chain &, InIndex, OutIndex) const {
-  throw error("No extendBwd for Barrier");
-}
-
-// -======------ //
-// SumLikeReduce //
-// ------------- //
-void SumLikeReduce::extendFwd(Chain &, InIndex, OutIndex) const {
-  throw error("No extendFwd for SumLikeReduce");
-}
-void SumLikeReduce::extendBwd(Chain &, InIndex, OutIndex) const {
-  throw error("No extendBwd for SumLikeReduce");
+void BaseBarrier::extendBwd(Chain &, InIndex, OutIndex) const {
+  throw error("No extendBwd for BaseBarrier");
 }
 
 //  ------------  //

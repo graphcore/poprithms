@@ -41,7 +41,7 @@ void test0() {
 
   Graph g;
 
-  const auto sink = g.sink0({10, 10});
+  const auto sink = g.sink({10, 10});
 
   // left (0) branch:
   const auto x1 = g.subSample(sink, Strides({2, 1}));
@@ -55,12 +55,12 @@ void test0() {
 
   const auto z0 = g.sumLike({x3, y3}, InIndex(0), 11.);
 
-  const auto source = g.source0({50});
+  const auto source = g.source({50});
   g.insertValuedPair(z0.out(), source, 10.);
 
   const Solution soln(std::move(g));
   // const auto soln = g.setPaths(Graph::Algo::Greedy0);
-  std::cout << soln.sourcesAndBarriersToSinks() << std::endl;
+  std::cout << soln.barriersToSinks() << std::endl;
 
   // Solution paths through left branch
   Chain c0({50});
@@ -75,8 +75,8 @@ void test0() {
   c1.settFillInto(Region({10, 10}, {{{{1, 1, 1}}}, {{}}}));
   Path p1(source, c1, sink);
 
-  if (soln.sourcesAndBarriersToSinks() != Paths{p0, p1} &&
-      soln.sourcesAndBarriersToSinks() != Paths{p1, p0}) {
+  if (soln.barriersToSinks() != Paths{p0, p1} &&
+      soln.barriersToSinks() != Paths{p1, p0}) {
     throw error("Unexpected Paths ");
   }
 }

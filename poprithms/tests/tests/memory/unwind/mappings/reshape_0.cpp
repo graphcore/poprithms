@@ -24,7 +24,7 @@ void test0() {
   Graph g;
   const Shape s0{10, 20};
 
-  const auto v0 = g.sink0(s0);
+  const auto v0 = g.sink(s0);
   const auto r0 = g.reshape(v0, {20, 10});
 
   const DisjointRegions in0(s0, {Region::fromBounds(s0, {2, 4}, {8, 9})});

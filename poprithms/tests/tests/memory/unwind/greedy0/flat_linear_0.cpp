@@ -13,7 +13,7 @@ int main() {
   Graph g;
 
   // The Tensor we want to find a layout for, In subgraph 0.
-  const auto a = g.sink0({4, 5});
+  const auto a = g.sink({4, 5});
 
   // We perform a chain of view-changing operations on Tensor a:
   const auto b = g.dimShuffle(a, {{1, 0}});
@@ -22,7 +22,7 @@ int main() {
 
   // We know what the desired layout is for the end of the chain of
   // view-changing operations:
-  const auto e = g.source0({20});
+  const auto e = g.source({20});
   g.insertValuedPair(e, d, 100.);
 
   const Solution soln(g);
@@ -34,7 +34,7 @@ int main() {
   chain.dimShuffle({{1, 0}});
   Path p(e, chain.canonicalized(), a);
 
-  auto paths = soln.sourcesAndBarriersToSinks();
+  auto paths = soln.barriersToSinks();
 
   if (std::find(paths.cbegin(), paths.cend(), p) == paths.cend()) {
     std::ostringstream oss;

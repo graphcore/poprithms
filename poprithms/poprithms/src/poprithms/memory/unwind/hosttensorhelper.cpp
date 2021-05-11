@@ -73,10 +73,10 @@ compute::host::Tensor HostTensorHelper::get(
 }
 
 std::map<TensorId, compute::host::Tensor>
-HostTensorHelper::arangeSourcesAndBarriers(const Graph &g) {
+HostTensorHelper::arangeBarriers(const Graph &g) {
   std::map<TensorId, compute::host::Tensor> tensors;
   int64_t start{0};
-  for (auto id : g.sourcesAndBarriers()) {
+  for (auto id : g.barriers()) {
     auto end = start + g.nelms(id);
     tensors.insert({id,
                     compute::host::Tensor::arangeInt64(start, end, 1)
