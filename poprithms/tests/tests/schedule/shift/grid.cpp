@@ -14,7 +14,7 @@
 int main(int argc, char **argv) {
 
   using namespace poprithms::schedule::shift;
-  AnnealCommandLineOptions annopts;
+  ShiftCommandLineOptions annopts;
   auto opts = annopts.getCommandLineOptionsMap(
       argc,
       argv,

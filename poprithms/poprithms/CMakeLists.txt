@@ -73,16 +73,6 @@ add_library(poprithms-common-multiout SHARED
 
 set(schedule_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule)
 
-set(anneal_source_dir ${schedule_src_dir}/anneal)
-set(schedule_anneal_sources
- ${anneal_source_dir}/alloc.cpp
- ${anneal_source_dir}/allocweight.cpp
- ${anneal_source_dir}/error.cpp
- ${anneal_source_dir}/graph.cpp
- ${anneal_source_dir}/graphserialization.cpp
- ${anneal_source_dir}/logging.cpp
- ${anneal_source_dir}/op.cpp
- ${anneal_source_dir}/transitiveclosureoptimizations.cpp)
 
 set(shift_source_dir ${schedule_src_dir}/shift)
 set(schedule_shift_sources
@@ -128,7 +118,6 @@ set(schedule_transitive_closure_sources
   ${transitiveclosure_source_dir}/transitiveclosure.cpp
 )
 add_library(poprithms-schedule-objlib OBJECT
-  ${schedule_anneal_sources}
   ${schedule_shift_sources}
   ${schedule_dfs_sources}
   ${schedule_scc_sources}

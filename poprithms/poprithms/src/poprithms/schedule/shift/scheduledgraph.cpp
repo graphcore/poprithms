@@ -2120,7 +2120,7 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
 
   // look for moves of this shift length
   int nToShift{1};
-  bool continueAnnealing =
+  bool continueShifting =
       (rt.maxSeconds() <= 0 || rt.maxRotations() <= 0) ? false : true;
 
   int nChangesAtCurrentShift{0};
@@ -2153,7 +2153,7 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
 
   resetSusceptibleTrue();
 
-  while (continueAnnealing) {
+  while (continueShifting) {
 
     auto susceptibleCurrent = susceptible;
     resetSusceptibleFalse();
@@ -2231,10 +2231,10 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
     timeSpentInCurrentRound = elapsedCurrentRound.count();
     timeSpentInTotal += timeSpentInCurrentRound;
     if (timeSpentInTotal > rt.maxSeconds()) {
-      continueAnnealing = false;
+      continueShifting = false;
     }
     if (nChangesInTotal >= rt.maxRotations()) {
-      continueAnnealing = false;
+      continueShifting = false;
     }
 
     auto oldNToShift = nToShift;
@@ -2273,7 +2273,7 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
         }
       }
       if (nToConsider == 0) {
-        continueAnnealing = false;
+        continueShifting = false;
       }
     }
   }

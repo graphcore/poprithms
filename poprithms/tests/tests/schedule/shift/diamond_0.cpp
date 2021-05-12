@@ -9,7 +9,7 @@
 int main(int argc, char **argv) {
 
   using namespace poprithms::schedule::shift;
-  auto opts = AnnealCommandLineOptions().getCommandLineOptionsMap(
+  auto opts = ShiftCommandLineOptions().getCommandLineOptionsMap(
       argc, argv, {"N"}, {"The number of intermediate Ops in the diamond"});
   auto N      = std::stoull(opts.at("N"));
   Graph graph = getDiamondGraph0(N);

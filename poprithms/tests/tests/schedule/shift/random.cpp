@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
 
   using namespace poprithms::schedule::shift;
 
-  auto opts = AnnealCommandLineOptions().getCommandLineOptionsMap(
+  auto opts = ShiftCommandLineOptions().getCommandLineOptionsMap(
       argc,
       argv,
       {"N", "E", "D", "graphSeed"},
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
   auto D         = std::stoi(opts.at("D"));
   auto graphSeed = std::stoi(opts.at("graphSeed"));
 
-  auto opts1 = AnnealCommandLineOptions().getAlgoCommandLineOptionsMap(opts);
+  auto opts1 = ShiftCommandLineOptions().getAlgoCommandLineOptionsMap(opts);
   opts1.insert({"kahnTieBreaker", "Random"});
   opts1.insert({"seed", "1015"});
 

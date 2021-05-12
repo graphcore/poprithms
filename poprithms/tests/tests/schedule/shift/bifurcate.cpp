@@ -10,7 +10,7 @@
 int main(int argc, char **argv) {
 
   using namespace poprithms::schedule::shift;
-  auto opts = AnnealCommandLineOptions().getCommandLineOptionsMap(
+  auto opts = ShiftCommandLineOptions().getCommandLineOptionsMap(
       argc,
       argv,
       {"D"},
@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
        "grows as 2**D"});
 
   uint64_t D = std::stoi(opts.at("D"));
-  auto annos = AnnealCommandLineOptions().getAlgoCommandLineOptionsMap(opts);
+  auto annos = ShiftCommandLineOptions().getAlgoCommandLineOptionsMap(opts);
 
   auto g  = getBifurcatingGraph0(D);
   auto sg = ScheduledGraph(std::move(g), annos);

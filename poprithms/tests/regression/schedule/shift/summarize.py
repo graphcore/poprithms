@@ -38,8 +38,8 @@ def run(logsDir, plotsDir="."):
                 records[description][settingsString].append({
                     "timeInit":
                     timeInit,
-                    "timeAnneal":
-                    timeAnneal,
+                    "timeShift":
+                    timeShift,
                     "nOpsBefore":
                     nOpsBefore,
                     "nOpsAfter":
@@ -50,8 +50,8 @@ def run(logsDir, plotsDir="."):
 
         elif "timeInitialize" in l:
             timeInit = float(l.split("=")[1].split()[0].strip())
-        elif "timeAnneal" in l:
-            timeAnneal = float(l.split("=")[1].split()[0].strip())
+        elif "timeShift" in l:
+            timeShift = float(l.split("=")[1].split()[0].strip())
         elif "nOpsBefore" in l:
             nOpsBefore = int(l.split("=")[1])
         elif "nOpsAfter" in l:
@@ -80,7 +80,7 @@ def run(logsDir, plotsDir="."):
                                                            "tieBreaker=", "")
 
             mpl.plot([x["nOpsBefore"] for x in rs],
-                     [x["timeAnneal"] + x["timeInit"] for x in rs],
+                     [x["timeShift"] + x["timeInit"] for x in rs],
                      linestyle=":",
                      marker="o",
                      label=label)

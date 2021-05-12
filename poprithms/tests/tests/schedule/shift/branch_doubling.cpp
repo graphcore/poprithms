@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
       << "In particular, each subbsequent is of length: "
       << "(sum of previous lengths) - 1 + offset.";
 
-  auto opts = AnnealCommandLineOptions().getCommandLineOptionsMap(
+  auto opts = ShiftCommandLineOptions().getCommandLineOptionsMap(
       argc,
       argv,
       {"nBranches", "offset"},
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 
   auto g = getBranchDoublingGraph(nBranches, offset);
 
-  auto opts1 = AnnealCommandLineOptions().getAlgoCommandLineOptionsMap(opts);
+  auto opts1 = ShiftCommandLineOptions().getAlgoCommandLineOptionsMap(opts);
   opts1.insert({"kahnTieBreaker", "Random"});
   opts1.insert({"seed", "1011"});
   opts1.insert({"allTCO", "1"});

@@ -6,7 +6,7 @@ namespace schedule {
 namespace shift {
 
 const std::vector<std::string> &
-AnnealCommandLineOptions::getAlgoCommandLineOptions() const {
+ShiftCommandLineOptions::getAlgoCommandLineOptions() const {
   static std::vector<std::string> x{"debug",
                                     "seed",
                                     "pStayPut",

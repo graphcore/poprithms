@@ -8,7 +8,7 @@ namespace poprithms {
 namespace schedule {
 namespace shift {
 
-class AnnealCommandLineOptions : public CommandLineOptions {
+class ShiftCommandLineOptions : public CommandLineOptions {
 public:
   virtual const std::vector<std::string> &
   getAlgoCommandLineOptions() const final;

@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
 
   using namespace poprithms;
   using namespace poprithms::schedule::shift;
-  auto opts = AnnealCommandLineOptions().getCommandLineOptionsMap(
+  auto opts = ShiftCommandLineOptions().getCommandLineOptionsMap(
       argc,
       argv,
       {"N", "type"},
@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
 
   auto sg = ScheduledGraph(
       std::move(g),
-      AnnealCommandLineOptions().getAlgoCommandLineOptionsMap(opts));
+      ShiftCommandLineOptions().getAlgoCommandLineOptionsMap(opts));
 
   std::cout << sg.getLivenessString() << std::endl;
 

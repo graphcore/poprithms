@@ -16,7 +16,7 @@
 int main(int argc, char **argv) {
 
   using namespace poprithms::schedule::shift;
-  auto opts = AnnealCommandLineOptions().getCommandLineOptionsMap(
+  auto opts = ShiftCommandLineOptions().getCommandLineOptionsMap(
       argc,
       argv,
       {"filename", "tco"},
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
   auto tcos = applyTCOs ? TransitiveClosureOptimizations::allOn()
                         : TransitiveClosureOptimizations::allOff();
 
-  auto opts1 = AnnealCommandLineOptions().getAlgoCommandLineOptionsMap(opts);
+  auto opts1 = ShiftCommandLineOptions().getAlgoCommandLineOptionsMap(opts);
 
   opts1.insert({"kahnTieBreaker", "GREEDY"});
   opts1.insert({"kahnSeed", "1011"});
