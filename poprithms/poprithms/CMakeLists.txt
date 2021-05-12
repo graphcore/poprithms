@@ -31,6 +31,7 @@ set(util_sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/permutation.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/printiter.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/stringutil.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/interval.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/error.cpp
 )
 
