@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_COMPUTE_HOST_GRIDPOINTHELPER_HPP
 #define POPRITHMS_COMPUTE_HOST_GRIDPOINTHELPER_HPP
 
+#include <cstdint>
 #include <tuple>
 #include <vector>
 
