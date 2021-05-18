@@ -60,3 +60,9 @@ add_compute_host_test(compute_host_tensor_reciprocal_0
 
 add_compute_host_test(compute_host_tensor_neg_0
                                           neg_0.cpp)
+
+add_compute_host_test(compute_host_tensor_matmul_0
+                                          matmul_0.cpp)
+
+add_compute_host_test(compute_host_tensor_update_0
+                                          update_0.cpp)

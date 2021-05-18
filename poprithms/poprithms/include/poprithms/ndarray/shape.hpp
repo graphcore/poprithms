@@ -97,6 +97,44 @@ public:
    * */
   static void assertConcattable(const Shapes &shapes, uint64_t axis);
 
+  /**
+   * Suppose this Shape is (3,4), representing a tensor
+   *
+   *   xxxx
+   *   xxxx
+   *   xxxx
+   *
+   * This tensor is to be updated by another tensor, the "updater" of Shape
+   * (3,2),
+   *
+   *    uu
+   *    uu
+   *    uu
+   *
+   * The updater replaces a region of the tensor to be updated, resulting in,
+   * for example
+   *
+   *   xuux      xxuu       uuxx
+   *   xuux  or  xxuu   or  uuxx
+   *   xuux      xxuu       uuxx
+   *
+   * The dimensions \a dims represent the free dimensions at which to apply
+   * the update, and some "offset" defines what the indices in the free
+   * dimensions are. "offset" is of shape \a offsetShape.
+   *
+   * Restrictions are:
+   *
+   * 1) updated (this) tensor and updater tensor have same rank.
+   * 2) #dims are sorted, unique, and all less than the rank of this tensor
+   * 3) offsetShape is rank-1 and of the same size as dims
+   * 4) in all dimensions not in #dims, updater and updated have the same size
+   *
+   * This method asserts that 1-4 are true, throwing an error if not.
+   * */
+  void assertDynamicUpdate(const Shape &updater,
+                           const Dimensions &dims,
+                           const Shape &offsetShape) const;
+
   Shape flatten() const { return Shape({nelms()}); }
 
   /**
@@ -140,6 +178,13 @@ public:
   /**
    * \return A copy of this Shape but wth a 1 inserted in dimension \a d. The
    *         returned Shape has rank 1 greater than this Shape's rank.
+   *
+   * \param d the dimension at which to insert a 1. d must be be less than or
+   *          equal to the rank of this Shape.
+   *
+   * Example: If this is (3,4) and d is 0, then (1,3,4) is returned.
+   *
+   * Example: If this is (3,4) and d is 2, then (3,4,1) is returned.
    * */
   Shape unsqueeze(uint64_t d) const;
 

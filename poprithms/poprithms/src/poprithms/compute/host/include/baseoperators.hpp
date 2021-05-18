@@ -156,6 +156,12 @@ public:
   static std::string name() { return name_<T>("Multiplier"); }
 };
 
+template <typename T> class CopyFrom {
+public:
+  T operator()(T, T b) const { return b; }
+  static std::string name() { return name_<T>("CopyFrom"); }
+};
+
 template <typename T> class Exponentiater {
 public:
   T operator()(T a, T b) const { return static_cast<T>(std::pow(a, b)); }

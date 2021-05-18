@@ -193,7 +193,8 @@ void Shape::assertValidDimension(uint64_t d) const {
   if (d >= rank_u64()) {
     std::ostringstream oss;
     oss << "Failure in assertValidDimension for shape=" << *this
-        << ", failure with invalid dimension= " << d;
+        << ", failure with invalid dimension=" << d
+        << ". Expected dimension>=rank (" << rank_u64() << ").";
     throw error(oss.str());
   }
 }
@@ -455,10 +456,7 @@ Shape Shape::resizeSingleDim(int64_t N, uint64_t dimension) const {
 }
 
 Shape Shape::unsqueeze(uint64_t d) const {
-  assertValidDimension(d);
-  auto s = get();
-  s.insert(std::next(s.cbegin(), d), 1LL);
-  return s;
+  return unsqueeze(std::vector<uint64_t>{d});
 }
 
 int64_t Shape::nelms() const {
@@ -1773,6 +1771,65 @@ Shape &&Shape::flatten(uint64_t from, uint64_t to) && {
   }
   shp.resize(rank_u64() - offset);
   return std::move(*this);
+}
+
+void Shape::assertDynamicUpdate(const Shape &updater,
+                                const Dimensions &dims,
+                                const Shape &offset) const {
+
+  auto base = [&updater, &dims, &offset, this]() {
+    std::ostringstream oss;
+    oss << "Failure in Shape::assertDynamicUpdate(updater's Shape = "
+        << updater << ", dimensions = " << dims
+        << ", offset's Shape = " << offset
+        << "), called for updated's Shape of " << *this << ". ";
+    return oss.str();
+  };
+
+  // updated Tensor and updater Tensor have same rank.
+  if (updater.rank_u64() != rank_u64()) {
+    throw error(base() + "updater and updated should have same rank.");
+  }
+
+  std::vector<bool> isDim(rank_u64(), false);
+
+  // dimensions are all valid (less than rank)
+  for (auto d : dims.get()) {
+    if (d >= rank_u64()) {
+      std::ostringstream oss;
+      oss << base() << "all dimensions should be less than updated's rank, "
+          << rank_u64() << " but " << d << " is not. ";
+      throw error(oss.str());
+    }
+    isDim[d] = true;
+  }
+
+  // dimensions are sorted and unique
+  if (dims != dims.unisorted()) {
+    std::ostringstream oss;
+    throw error(base() + "dimension expected to be sorted and unique. ");
+  }
+
+  // in all dimensions which are not dynamic, the updater is the same size as
+  // the updated:
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+    if (!isDim[d]) {
+      if (updater.dim(d) != dim(d)) {
+        std::ostringstream oss;
+        oss << base() << "the dimension " << d << " is not in dims=" << dims
+            << ", and so the updater and the updated "
+            << "should be the "
+            << "same size in dimension " << d << ", but they aren't. ";
+        throw error(oss.str());
+      }
+    }
+  }
+
+  // The offset Shape is rank-1, and has the same number of elements as dims
+  // does.
+  if (offset != Shape({static_cast<int64_t>(dims.size())})) {
+    throw error(base() + "offset expected to be Shape({dims.size()}).");
+  }
 }
 
 } // namespace ndarray

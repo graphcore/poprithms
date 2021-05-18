@@ -289,6 +289,9 @@ public:
   void pow_(const BaseData &rhs) const final {
     binary_<Exponentiater<T>>(rhs);
   }
+  void copyFrom_(const BaseData &rhs) const final {
+    binary_<CopyFrom<T>>(rhs);
+  }
 
   bool allZero() const final {
     const auto x0 = dataPtr();
@@ -388,6 +391,54 @@ private:
       oss << "Call to " << *this << ".binary<" << BinaryOp::name() << ">("
           << rhs << ") failed.";
       throw error(oss.str());
+    }
+  }
+
+  BaseDataSP matmul(const BaseData &rhs___,
+                    uint64_t M,
+                    uint64_t N,
+                    uint64_t K) const final {
+
+    if (auto rhs = dynamic_cast<const OriginData<T> *>(&rhs___)) {
+      if (nelms_u64() != M * K) {
+        std::ostringstream oss;
+        oss << "Failure in OriginData::matmul with M = " << M << ", N = " << N
+            << ", and K = " << K
+            << ". Expected this OriginData to have M * K = " << M * K
+            << " elements, not " << nelms_u64() << ".";
+        throw error(oss.str());
+      }
+      if (rhs->nelms_u64() != K * N) {
+        std::ostringstream oss;
+        oss << "Failure in OriginData::matmul with M = " << M << ", N = " << N
+            << ", and K = " << K << ". Expected rhs to have K * N = " << K * N
+            << " elements, not " << rhs->nelms_u64() << ".";
+        throw error(oss.str());
+      }
+
+      // basic tiling will greatly accelerate this (TODO(T39155))
+      const auto dRhs = rhs->dataPtr();
+      const auto dLhs = dataPtr();
+      std::vector<T> out;
+      out.resize(M * N, 0);
+      for (uint64_t m = 0; m < M; ++m) {
+        for (uint64_t n = 0; n < N; ++n) {
+          for (uint64_t k = 0; k < K; ++k) {
+            const auto iLhs = m * K + k;
+            const auto iRhs = k * N + n;
+            const auto iOut = m * N + n;
+            // += doesn't work for bool.
+            out[iOut] = out[iOut] + dRhs[iRhs] * dLhs[iLhs];
+          }
+        }
+      }
+
+      return std::make_shared<AllocData<T>>(std::move(out));
+    }
+
+    else {
+      auto rOg = rhs___.toOriginData();
+      return matmul(*rOg, M, N, K);
     }
   }
 

@@ -15,6 +15,7 @@ namespace compute {
 namespace host {
 
 using poprithms::ndarray::Dimension;
+using poprithms::ndarray::Dimensions;
 using poprithms::ndarray::Dims;
 using poprithms::ndarray::DType;
 using poprithms::ndarray::Ends;
@@ -534,6 +535,38 @@ public:
   Tensor slice_(Dimension, uint64_t l, uint64_t u) const;
 
   /**
+   * Slice this Tensor in dimension 0, between d and d+1. This Tensor must be
+   * of strictly positive rank. The returned Tensor has rank 1 lower than this
+   * Tensor. For example, if this Tensor is of shape (3,4,5). then at(1) has
+   * shape (4,5). Specifically, t.at(d) is the same as
+   * <code>
+   *    t.slice(Dimension(0), d, d+1).squeeze({0});
+   * </code>
+   * */
+  Tensor at(uint64_t d) const;
+
+  /**
+   * \param index The index in dimension 0 to slice in. index must be a
+   *              scalar, unsigned integer type.
+   *
+   * \sa at(uint64_t).
+   *
+   * */
+  Tensor at(const Tensor &index) const;
+
+  /**
+   * The inplace equivalent of at(uint64_t), returning a reference to some
+   * elements of this Tensor.
+   * */
+  Tensor at_(uint64_t d) const;
+
+  /**
+   * The inplace equivalent of at(const Tensor &), this method returns a
+   * reference to a slice of this Tensor.
+   * */
+  Tensor at_(const Tensor &index) const;
+
+  /**
    * Reduction methods.
    *
    * The values in this Tensor are accumulated along singleton dimensions of
@@ -804,12 +837,68 @@ public:
   Tensor pow(const Tensor &rhs) const;
   Tensor pow_(const Tensor &rhs) const;
 
+  /**
+   * Set the value of this Tensor to \a rhs.
+   *
+   * <code>
+   *    // Three equivalent ways to update the values in a Tensor t:
+   *    t.copyFrom_(rhs);
+   *    t.update_(rhs);
+   *    t.zeroAll_().add_(rhs);
+   * </code>
+   *
+   * \param rhs The values to update this Tensor to. The shape of \a rhs must
+   *            be expandable to the shape of this Tensor. For example, if
+   *            this Tensor has shape (4,1,3), then some valid shapes for rhs
+   *            are (), (3), and (4,1,1). Two invalid shapes are (4,3), and
+   *            (4,5,3).
+   * */
+  Tensor copyFrom_(const Tensor &rhs) const;
+  Tensor update_(const Tensor &rhs) const { return copyFrom_(rhs); }
+
+  /**
+   * Update a slice of this Tensor.
+   *
+   * \param updater A smaller Tensor than this Tensor, its values will replace
+   *                a slice of this Tensor. It is of the same rank as this
+   *                Tensor.
+   *
+   * \param dims The dimensions in which \a updater is potentially smaller
+   * than this Tensor is.
+   *
+   * \param offset The indices in \a dims at which to start the replacement
+   *               region in this Tensor.
+   * */
+  Tensor updatePart_(const Tensor &updater,
+                     const Dimensions &dims,
+                     const std::vector<uint64_t> &offset) const;
+
+  Tensor dynamicUpdate_(const Tensor &updater,
+                        const Dimensions &dims,
+                        const std::vector<uint64_t> &offset) const {
+    return updatePart_(updater, dims, offset);
+  }
+
+  /**
+   * Add \a v to all elements of this Tensor.
+   * */
+  Tensor increment_(int64_t v) const;
+
   /** \return True for all of strings [Pow, Mod, Add, Sub, Subtract, Div,
    *          Divide, Mul, Multiply] and for of their case variants (pow and
    *          POW are valid too, for example).
    **/
   static bool isBinary(const std::string &);
   static void assertIsBinary(const std::string &);
+
+  /**
+   * Perform matrix multiplication with \a rhs, using numpy v1.19 broadcasting
+   * rules: https://numpy.org/doc/stable/reference/generated/numpy.matmul.html
+   *
+   * Note that this method should not be used in performance critical code, as
+   * the implementation is not optimized.
+   * */
+  Tensor matmul(const Tensor &rhs) const;
 
   /**
    * Perform the binary operation described by \a type. For example, if type
@@ -867,6 +956,17 @@ public:
    * */
   Tensor relu() const;
   Tensor relu_() const;
+
+  /**
+   * Set all values in this Tensor to 0.
+   * */
+  Tensor zeroAll_() const;
+
+  /**
+   * The non-inplace equivalent of zeroAll_, this method returns a new Tensor
+   * of zeros with shape and type derived from this Tensor.
+   * */
+  Tensor zeros() const;
 
   /**
    * \return true: if and only if (iff) this and \a rhs have the same shape,

@@ -8,6 +8,8 @@
 #include <ostream>
 #include <vector>
 
+#include <poprithms/util/unisort.hpp>
+
 /**
  * Structs which wrap integer and std::vector types, and can be used to
  * safeguard against user bugs arising from accidentally permuting arguments
@@ -72,6 +74,11 @@ template <typename T, typename D> struct BaseVector {
     return D(a);
   }
 
+  /**
+   * Sorted and unique-ified.
+   * */
+  D unisorted() const { return D(util::unisorted(get())); }
+
   /** Concatenate the Dimensions in \a rhs to these Dimensions. */
   D append(const BaseVector<T, D> &rhs) const {
     auto a       = get();
@@ -90,6 +97,7 @@ struct Starts : public BaseVector<int64_t, Starts> {
   explicit Starts(const std::vector<int64_t> &&s)
       : BaseVector<int64_t, Starts>(std::move(s)) {}
 };
+std::ostream &operator<<(std::ostream &, const Starts &);
 
 struct Ends : public BaseVector<int64_t, Ends> {
   explicit Ends(const std::vector<int64_t> &s)
@@ -99,6 +107,10 @@ struct Ends : public BaseVector<int64_t, Ends> {
       : BaseVector<int64_t, Ends>(std::move(s)) {}
 };
 
+/**
+ * Note that the dimensions in this struct may be negative. For an equivalent
+ * class with strictly unsigned dimensions, see Dimensions.
+ * */
 struct Dims : public BaseVector<int64_t, Dims> {
   explicit Dims(const std::vector<int64_t> &s)
       : BaseVector<int64_t, Dims>(s) {}
@@ -123,6 +135,9 @@ struct VU64 : public BaseVector<T, D> {
   explicit VU64(std::vector<T> &&d) : BaseVector<T, D>(std::move(d)) {}
   explicit VU64(const std::vector<D> &d) : VU64(get_u64(d)) {}
   S at(uint64_t d) const { return S(BaseVector<T, D>::vals[d]); }
+  std::vector<int64_t> get_i64() const {
+    return {BaseVector<T, D>::vals.cbegin(), BaseVector<T, D>::vals.cend()};
+  }
 };
 
 struct Strides : public VU64<uint64_t, Strides, Stride> {

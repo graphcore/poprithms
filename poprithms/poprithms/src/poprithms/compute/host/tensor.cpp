@@ -337,12 +337,116 @@ Tensor Tensor::mul_(const Tensor &rhs) const {
   return *this;
 }
 
+Tensor Tensor::matmul(const Tensor &rhs) const {
+  const auto outShape = shape().matmul(rhs.shape());
+
+  // Increase the rank to 2, if it is 1. For both lhs (a) and rhs (b).
+  auto a = rank_u64() == 1 ? unsqueeze(0) : *this;
+  auto b = rhs.rank_u64() == 1 ? rhs.unsqueeze(1) : rhs;
+
+  // a is M x K
+  // b is K x N.
+  const uint64_t M = a.dim(a.rank_u64() - 2);
+  const uint64_t N = b.dim(b.rank_u64() - 1);
+  const uint64_t K = a.dim(a.rank_u64() - 1);
+
+  const int64_t M_i64 = static_cast<int64_t>(M);
+  const int64_t N_i64 = static_cast<int64_t>(N);
+  const int64_t K_i64 = static_cast<int64_t>(K);
+
+  const auto aShape = a.shape().get();
+  const auto bShape = b.shape().get();
+
+  // numpy shape broadcasting, applied to all but the final 2 dimensions.
+  auto preShape = Shape{{aShape.cbegin(), aShape.cend() - 2}}.numpyBinary(
+      {{bShape.cbegin(), bShape.cend() - 2}});
+
+  const auto nGroups = preShape.nelms();
+
+  a = a.expand(preShape.append(M).append(K)).reshape({nGroups, M_i64, K_i64});
+  b = b.expand(preShape.append(K).append(N)).reshape({nGroups, K_i64, N_i64});
+
+  Tensors dots;
+
+  // Perform each of the matmuls in the grouped matmul, seperately.
+  for (int64_t i = 0; i < nGroups; ++i) {
+    dots.push_back({{1, M_i64, N_i64},
+                    dtype(),
+                    a.at(i).tData().matmul(b.at(i).tData(), M, N, K)});
+  }
+
+  return Tensor::concat(dots, 0).reshape(outShape);
+}
+
 Tensor Tensor::pow(const Tensor &rhs) const {
   auto co = getRowMajorPair(*this, rhs);
   return {co.shape, dtype(), co.arg0.tData().pow(co.arg1.tData())};
 }
 Tensor Tensor::pow_(const Tensor &rhs) const {
   tData().pow_(getArg1InplaceTarget(rhs, shape()).tData());
+  return *this;
+}
+
+Tensor Tensor::copyFrom_(const Tensor &rhs) const {
+  tData().copyFrom_(getArg1InplaceTarget(rhs, shape()).tData());
+  return *this;
+}
+
+namespace {
+uint64_t getUint64(const Tensor &index) {
+
+  if (index.rank_u64() != 0) {
+    throw error("expected index to be a scalar in getUint64, not of Shape " +
+                index.shape().str());
+  }
+
+  const auto i_u64 = index.getUnsigned64Vector()[0];
+  const auto i_f64 = index.getFloat64Vector()[0];
+
+  if (static_cast<double>(i_u64) - i_f64 != 0.0) {
+    std::ostringstream oss;
+    oss << "Invalid index, " << index
+        << ", it must be losslessly castable to a non-negative integer. ";
+  }
+  return i_u64;
+}
+} // namespace
+
+Tensor Tensor::at(uint64_t d) const {
+  return slice(Dimension(0), d, d + 1).squeeze({0});
+}
+Tensor Tensor::at(const Tensor &i) const { return at(getUint64(i)); }
+
+Tensor Tensor::at_(uint64_t d) const {
+  return slice_(Dimension(0), d, d + 1).squeeze_({0});
+}
+Tensor Tensor::at_(const Tensor &i) const { return at_(getUint64(i)); }
+
+Tensor Tensor::increment_(int64_t i) const {
+  return add_(Tensor::scalar(dtype(), static_cast<double>(i)));
+}
+
+Tensor Tensor::updatePart_(const Tensor &updater,
+                           const Dimensions &dims,
+                           const std::vector<uint64_t> &starts) const {
+
+  shape().assertDynamicUpdate(
+      updater.shape(), dims, Shape({static_cast<int64_t>(starts.size())}));
+
+  Lower lower(rank_u64(), 0);
+  Upper upper = shape().get();
+
+  std::vector<int64_t> ends_(dims.size());
+  for (uint64_t i = 0; i < dims.size(); ++i) {
+    const auto d_ = dims.vals[i];
+    const auto s_ = starts[i];
+    lower[d_]     = s_;
+    upper[d_]     = s_ + updater.dim(d_);
+  }
+
+  const auto aSlice = slice_(lower, upper);
+  aSlice.update_(updater);
+
   return *this;
 }
 
@@ -444,6 +548,14 @@ Tensor Tensor::sqrt() const { return {shape(), dtype(), tData().sqrt()}; }
 Tensor Tensor::sqrt_() const {
   tData().sqrt_();
   return *this;
+}
+
+Tensor Tensor::zeroAll_() const {
+  return update_(Tensor::scalar(dtype(), 0.0));
+}
+
+Tensor Tensor::zeros() const {
+  return Tensor::scalar(dtype(), 0.0).expand(shape());
 }
 
 Tensor Tensor::mod(int64_t modulo) const {
@@ -790,8 +902,9 @@ Tensor Tensor::slice_(const Starts &starts,
                       const Dims &dims) const {
   const auto normalized =
       shape().getNormalizedSliceParams(starts, ends, steps, dims);
-  return {
-      shape().slice(normalized), dtype(), tData().slice(shape(), normalized)};
+  return {shape().slice(normalized),
+          dtype(),
+          tData().slice_(shape(), normalized)};
 }
 
 bool Tensor::containsAliases() const { return tData().containsAliases(); }

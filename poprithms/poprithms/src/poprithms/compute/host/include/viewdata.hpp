@@ -397,6 +397,13 @@ public:
     return toOriginData()->subtract(rhs);
   }
 
+  BaseDataSP matmul(const BaseData &rhs,
+                    uint64_t M,
+                    uint64_t N,
+                    uint64_t K) const final {
+    return toOriginData()->matmul(rhs, M, N, K);
+  }
+
   AllocBooleanSP greaterThan(const BaseData &rhs) const final {
     return toOriginData()->greaterThan(rhs);
   }
@@ -439,6 +446,10 @@ public:
   void mod_(const BaseData &rhs) const final { binary_<Modder<T>>(rhs); }
 
   void mul_(const BaseData &rhs) const final { binary_<Multiplier<T>>(rhs); }
+
+  void copyFrom_(const BaseData &rhs) const final {
+    binary_<CopyFrom<T>>(rhs);
+  }
 
   void pow_(const BaseData &rhs) const final {
     binary_<Exponentiater<T>>(rhs);

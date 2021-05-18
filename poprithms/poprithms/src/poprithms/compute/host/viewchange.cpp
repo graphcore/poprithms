@@ -37,7 +37,9 @@ void ViewChangeHelper::assertExpandableTo(const Shape &from,
   if (from.numpyBinary(to) != to) {
     std::ostringstream oss;
     oss << "Failure in assertExpandableTo(from=" << from << ", to=" << to
-        << "). From.numpyBinary(to) is " << from.numpyBinary(to);
+        << "). from.numpyBinary(to) is " << from.numpyBinary(to) << ", not "
+        << to << ". to=" << to << " does not \"dominate\" from=" << from
+        << '.';
     throw error(oss.str());
   }
 }

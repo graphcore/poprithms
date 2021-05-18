@@ -74,6 +74,50 @@ void testIsOrigin() {
   }
 }
 
+void testAtSlice0() {
+  const auto t0 =
+      Tensor::arangeInt32(0, 4, 1).reshape({4, 1, 1}).expand({4, 3, 2});
+  t0.at(1).assertAllEquivalent(Tensor::int32(1).expand({3, 2}));
+  t0.at(2).assertAllEquivalent(Tensor::int32(2).expand({3, 2}));
+
+  // Inplace slice creates reference to sliced tensor
+  t0.at_(1).zeroAll_();
+  t0.at(1).assertAllEquivalent(Tensor::int32(0).expand({3, 2}));
+}
+
+void testAtSlice1() {
+  const auto t0 =
+      Tensor::arangeInt32(0, 4, 1).reshape({4, 1, 1}).expand({4, 3, 2});
+
+  // Slice on non-negative integers only:
+  {
+    bool caught{false};
+    try {
+      t0.at_(Tensor::int32(-1));
+    } catch (const poprithms::error::error &) {
+      caught = true;
+    }
+    if (!caught) {
+      throw error(
+          "Failed to catch error of slicing with at(.) on negative index");
+    }
+  }
+
+  // Slice on scalars only:
+  {
+    bool caught{false};
+    try {
+      t0.at_(Tensor::unsigned32({0, 2, 3}, {}));
+    } catch (const poprithms::error::error &) {
+      caught = true;
+    }
+    if (!caught) {
+      throw error(
+          "Failed to catch error when slicing with at(.) on non-scalar");
+    }
+  }
+}
+
 } // namespace
 
 int main() {
@@ -82,6 +126,8 @@ int main() {
   testAllClose();
   testIdenticalTo();
   testIsOrigin();
+  testAtSlice0();
+  testAtSlice1();
 
   return 0;
 }

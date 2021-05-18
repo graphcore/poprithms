@@ -15,6 +15,11 @@ std::ostream &operator<<(std::ostream &ost, const std::vector<T> &vs) {
   return ost;
 }
 
+std::ostream &operator<<(std::ostream &ost, const Starts &starts) {
+  ost << starts.vals;
+  return ost;
+}
+
 template <typename T>
 [[noreturn]] void throwBadValue(T &&v, const std::string &type) {
   std::ostringstream oss;

@@ -96,6 +96,9 @@ public:
   virtual BaseDataSP mod(const BaseData &) const      = 0;
   virtual BaseDataSP subtract(const BaseData &) const = 0;
 
+  virtual BaseDataSP
+  matmul(const BaseData &, uint64_t M, uint64_t N, uint64_t K) const = 0;
+
   /**
    * Elementwise comparison.
    * */
@@ -116,6 +119,7 @@ public:
   virtual void add_(const BaseData &) const      = 0;
   virtual void mul_(const BaseData &) const      = 0;
   virtual void pow_(const BaseData &) const      = 0;
+  virtual void copyFrom_(const BaseData &) const = 0;
 
   /**
    * Unary operators.
