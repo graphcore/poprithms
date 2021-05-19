@@ -1,6 +1,8 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <string>
 #include <thread>
 
 #include <poprithms/logging/error.hpp>
@@ -198,6 +200,60 @@ void testConstructors0() {
   }
 }
 
+void testOrder0() {
+  SwitchingTimePartitionLogger watcher("aSwitchingLogger", true);
+
+  const uint64_t nScopes = 6;
+
+  for (uint64_t i = 0; i < nScopes; ++i) {
+    {
+      const auto sw = watcher.scopedStopwatch("foo_" + std::to_string(i));
+      std::this_thread::sleep_for(
+          std::chrono::milliseconds(1 * (1 + (101 * i) % 5)));
+    }
+  }
+
+  const double loggingPercentageThreshold{0.00};
+
+  /**
+   * Summary string looks something like:
+   *
+   *     foo_9              : 0.133324 [s]    :    18 %
+   *     foo_5              : 0.122544 [s]    :    16 %
+   *     foo_1              : 0.115147 [s]    :    15 %
+   *     foo_6              : 0.092928 [s]    :    12 %
+   *
+   * We test that the times (second column) are sorted.
+   */
+  const auto summary = watcher.str(loggingPercentageThreshold);
+
+  const auto x0 = summary.find('\n', 0);
+  const auto x1 = summary.find('\n', x0 + 1);
+
+  // Distance between lines
+  const auto delta = x1 - x0;
+
+  // range where the time (in seconds) is found.
+  const auto y0 = summary.find(':', 0);
+  const auto y1 = summary.find("[s]", y0);
+
+  // extract all the times from the string
+  std::vector<double> times;
+  for (uint64_t i = 0; i < nScopes; ++i) {
+    const auto x = std::string{summary.cbegin() + delta * i + y0 + 1,
+                               summary.cbegin() + delta * i + y1};
+    times.push_back(std::stod(x));
+  }
+
+  // to assert that they're sorted, we create a copy and sort that, then
+  // compare for equivalence.
+  auto sortedTimes = times;
+  std::sort(sortedTimes.rbegin(), sortedTimes.rend());
+  if (sortedTimes != times) {
+    throw error("Times not sorted: " + summary);
+  }
+}
+
 } // namespace
 
 int main() {
@@ -207,6 +263,7 @@ int main() {
   moveScopeStopwatch0();
   testConstructors0();
   testPercentage();
+  testOrder0();
 
   return 0;
 }

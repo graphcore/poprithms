@@ -1,4 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <algorithm>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -149,6 +150,9 @@ void TimePartitionLogger::append(std::ostream &ost,
                                  double minPercentage) const {
 
   std::map<std::string, double> stopwatchesCopy = stopwatches;
+
+  // Make a final increment to the stopwatch which is currently on (if there
+  // is one which is currently on).
   if (isOn()) {
     increment(stopwatchesCopy, currentStopwatch(), beenOnFor());
   }
@@ -164,11 +168,15 @@ void TimePartitionLogger::append(std::ostream &ost,
     }
     return x;
   };
-  std::string totalTime       = ensureUnique("Total");
-  std::string unaccountedTime = ensureUnique("Unaccounted for");
+  const std::string totalTime       = ensureUnique("Total");
+  const std::string unaccountedTime = ensureUnique("Unaccounted for");
 
   stopwatchesCopy.emplace(totalTime, total);
   stopwatchesCopy.emplace(unaccountedTime, unaccounted());
+
+  // this vector will collect all the entries to be logged, then sort from
+  // longest time to shortest time:
+  std::vector<std::pair<double, std::string>> timesAndScopes;
 
   // For aligned logging, we get the longest stopwatch name and time
   // representation:
@@ -183,6 +191,7 @@ void TimePartitionLogger::append(std::ostream &ost,
       stopwatchPercs.emplace(scope, perc);
       maxScopeLength = std::max<uint64_t>(maxScopeLength, scope.size());
       maxTimeLength  = std::max<uint64_t>(maxTimeLength, timeStr.size());
+      timesAndScopes.push_back({delta, scope});
     }
   }
 
@@ -200,8 +209,10 @@ void TimePartitionLogger::append(std::ostream &ost,
         << " :" << util::spaceString(5, percStr) << percStr << " %";
   };
 
-  for (const auto &[scope, timeStr] : stopwatchTimeStrings) {
-    (void)timeStr;
+  std::sort(timesAndScopes.rbegin(), timesAndScopes.rend());
+
+  for (auto timeScope : timesAndScopes) {
+    const auto scope = timeScope.second;
     if (scope != totalTime && scope != unaccountedTime) {
       if (stopwatchPercs.at(scope) >= minPercentage) {
         append(scope);
@@ -289,13 +300,14 @@ void TimePartitionLogger::start(const std::string &stopwatch) {
 void ManualTimePartitionLogger::preHandleStartFromOn(
     const std::string &stopwatch) {
   // It is not ok to start a stopwatch if there is another one already
-  // running. We decided use the TimePartitionLogger class to partition the
-  // total time, gonna stick to this decision.
+  // running. We decided to use the TimePartitionLogger class to partition the
+  // total time, and are going stick to this decision (i.e. no hierarchy of
+  // calls recorded).
   std::ostringstream oss;
   oss << "Invalid call, ManualTimePartitionLogger::start(" << stopwatch
-      << "),  as "
-      << "this TimePartitionLogger is currently running stopwatch `"
-      << currentStopwatch() << "`. stop() should be called before changing "
+      << "),  as this TimePartitionLogger "
+      << "is currently running stopwatch `" << currentStopwatch()
+      << "`. stop() should be called before changing "
       << "to stopwatch, `" << stopwatch << "`. ";
   throw error(oss.str());
 }
