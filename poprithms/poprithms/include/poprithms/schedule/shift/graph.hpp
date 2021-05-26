@@ -61,6 +61,17 @@ public:
   Graph &operator=(Graph &&) = default;
   Graph &operator=(const Graph &) = default;
 
+  template <typename T> Graph(const std::vector<std::vector<T>> &fwd) {
+    for (uint64_t i = 0; i < fwd.size(); ++i) {
+      insertOp("");
+    }
+    for (uint64_t i = 0; i < fwd.size(); ++i) {
+      for (auto out : fwd[i]) {
+        insertConstraint(i, out);
+      }
+    }
+  }
+
   /**
    * Comparison of Graphs is not a true graph isomorphism, the order in which
    * Ops and constraints are inserted matters.
