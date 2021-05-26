@@ -50,11 +50,37 @@ void test2() {
   }
 }
 
+void testUnique0() {
+  auto uni = hasUniqueSchedule_i64({{1}, {3}, {}, {2}}, VerifyEdges::Yes);
+  if (uni == false) {
+    throw error("There is a unique schedule, 0,1,3,2");
+  }
+}
+
+void testUnique1() {
+  auto uni =
+      hasUniqueSchedule_i64({{1}, {2, 3}, {4}, {4}, {}}, VerifyEdges::Yes);
+  if (uni == true) {
+    throw error(
+        "There is not a unique schedule, either 2 or 3 may appear third");
+  }
+}
+
+void testUnique2() {
+  auto uni = hasUniqueSchedule_u64({{1}, {3}, {1}, {2}}, VerifyEdges::Yes);
+  if (uni == true) {
+    throw error("There is not a unique schedule, as there is a cycle");
+  }
+}
+
 } // namespace
 
 int main() {
   test0();
   test1();
   test2();
+  testUnique0();
+  testUnique1();
+  testUnique2();
   return 0;
 }

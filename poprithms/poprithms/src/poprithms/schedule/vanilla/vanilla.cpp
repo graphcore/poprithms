@@ -18,27 +18,26 @@ template <> bool valid(int64_t x, uint64_t end) {
   return x >= 0 && static_cast<uint64_t>(x) < end;
 }
 
-// Kahn's algorithm
-// https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
 template <typename T>
-std::vector<T> kahn(const std::vector<std::vector<T>> &fwdEdges,
-                    ErrorIfCycle eic,
-                    VerifyEdges ve) {
-
+void verifyEdges(const std::vector<std::vector<T>> &fwdEdges) {
   const auto N = fwdEdges.size();
-
-  if (ve == VerifyEdges::Yes) {
-    for (uint64_t start = 0; start < N; ++start) {
-      for (auto end : fwdEdges[start]) {
-        if (!valid<T>(end, N)) {
-          std::ostringstream oss;
-          oss << "Invalid edge (" << start << "->" << end
-              << ") in graph with " << N << " nodes. ";
-          throw error(oss.str());
-        }
+  for (uint64_t start = 0; start < N; ++start) {
+    for (auto end : fwdEdges[start]) {
+      if (!valid<T>(end, N)) {
+        std::ostringstream oss;
+        oss << "Invalid edge (" << start << "->" << end << ") in graph with "
+            << N << " nodes. ";
+        throw error(oss.str());
       }
     }
   }
+}
+
+template <typename T>
+std::vector<uint64_t>
+getOutstandingCount(const std::vector<std::vector<T>> &fwdEdges) {
+
+  const auto N = fwdEdges.size();
 
   // Count the number of dependencies each Op has
   std::vector<uint64_t> nOutstandingDeps(N, 0);
@@ -47,6 +46,22 @@ std::vector<T> kahn(const std::vector<std::vector<T>> &fwdEdges,
       ++nOutstandingDeps[to];
     }
   }
+  return nOutstandingDeps;
+}
+
+// Kahn's algorithm
+// https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
+template <typename T>
+std::vector<T> kahn(const std::vector<std::vector<T>> &fwdEdges,
+                    ErrorIfCycle eic,
+                    VerifyEdges ve) {
+
+  if (ve == VerifyEdges::Yes) {
+    verifyEdges(fwdEdges);
+  }
+
+  const auto N          = fwdEdges.size();
+  auto nOutstandingDeps = getOutstandingCount(fwdEdges);
 
   // Get the Ops which have no dependencies: they're ready to go into the
   // schedule.
@@ -79,6 +94,43 @@ std::vector<T> kahn(const std::vector<std::vector<T>> &fwdEdges,
   }
   return schedule;
 }
+
+template <typename T>
+bool getHasUniqueSchedule(const Edges<T> &fwdEdges, VerifyEdges ve) {
+  if (ve == VerifyEdges::Yes) {
+    verifyEdges(fwdEdges);
+  }
+
+  const auto N          = fwdEdges.size();
+  auto nOutstandingDeps = getOutstandingCount(fwdEdges);
+
+  uint64_t nScheduled{0};
+
+  std::vector<T> schedulable;
+  for (uint64_t i = 0; i < N; ++i) {
+    if (nOutstandingDeps[i] == 0) {
+      schedulable.push_back(i);
+    }
+  }
+
+  while (schedulable.size() == 1) {
+    const auto nxt = schedulable.back();
+    schedulable.pop_back();
+    ++nScheduled;
+    for (const auto to : fwdEdges[nxt]) {
+      --nOutstandingDeps[to];
+      if (nOutstandingDeps[to] == 0) {
+        schedulable.push_back(to);
+      }
+    }
+  }
+
+  if (nScheduled == N) {
+    return true;
+  }
+  return false;
+}
+
 } // namespace
 
 std::vector<uint64_t>
@@ -93,6 +145,13 @@ getSchedule_i64(const std::vector<std::vector<int64_t>> &fwdEdges,
                 ErrorIfCycle eic,
                 VerifyEdges ve) {
   return kahn<int64_t>(fwdEdges, eic, ve);
+}
+
+bool hasUniqueSchedule_u64(const Edges<uint64_t> &fwdEdges, VerifyEdges ve) {
+  return getHasUniqueSchedule<uint64_t>(fwdEdges, ve);
+}
+bool hasUniqueSchedule_i64(const Edges<int64_t> &fwdEdges, VerifyEdges ve) {
+  return getHasUniqueSchedule<int64_t>(fwdEdges, ve);
 }
 
 } // namespace vanilla

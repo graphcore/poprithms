@@ -28,6 +28,14 @@ getSchedule_u64(const Edges<uint64_t> &fwdEdges, ErrorIfCycle, VerifyEdges);
 std::vector<int64_t>
 getSchedule_i64(const Edges<int64_t> &fwdEdges, ErrorIfCycle, VerifyEdges);
 
+/**
+ * Return true if there is exactly 1 way to schedule the graph with forward
+ * edges #fwdEdges. If there are zero (due to a cycle) or multiple ways to
+ * schedule the graph, then false is returned.
+ * */
+bool hasUniqueSchedule_u64(const Edges<uint64_t> &fwdEdges, VerifyEdges);
+bool hasUniqueSchedule_i64(const Edges<int64_t> &fwdEdges, VerifyEdges);
+
 } // namespace vanilla
 } // namespace schedule
 } // namespace poprithms
