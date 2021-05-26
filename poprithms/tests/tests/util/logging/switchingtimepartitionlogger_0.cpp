@@ -64,8 +64,8 @@ void testPercentage() {
 
   auto countPerc = [](const std::string &x) {
     int n{0};
-    for (auto c : x) {
-      if (c == '%') {
+    for (auto c_ : x) {
+      if (c_ == '%') {
         ++n;
       }
     }

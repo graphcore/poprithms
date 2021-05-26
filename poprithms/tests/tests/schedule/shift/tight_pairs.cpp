@@ -7,11 +7,13 @@
 int main() {
   using namespace poprithms::schedule::shift;
 
-  //
-  //    X
-  //   /
-  //  X
-  //
+  /*
+   *
+   *    X
+   *   /
+   *  X
+   *
+   * */
   Graph g;
   auto op0 = g.insertOp("op0");
   auto op1 = g.insertOp("op1");
@@ -20,13 +22,14 @@ int main() {
     throw error("Expected 1 tight edge in this bipole graph");
   }
 
-  //
-  //    X
-  //   / \
-  //  X   X
-  //   \ /.
-  //    X
-  //
+  /*
+   *
+   *    X
+   *   / \
+   *  X   X
+   *   \ /.
+   *    X
+   * */
   auto op2 = g.insertOp("op2");
   g.insertConstraint(op0, op2);
 
@@ -37,17 +40,19 @@ int main() {
     throw error("Expected 0 tight edge in this diamond");
   }
 
-  //
-  //    X
-  //   / \
-  //  X   X
-  //   \ /.
-  //    X
-  //    |
-  //    X
-  //    |
-  //    X
-  //
+  /*
+   *
+   *    X
+   *   / \
+   *  X   X
+   *   \ /.
+   *    X
+   *    |
+   *    X
+   *    |
+   *    X
+   *
+   * */
   auto op4 = g.insertOp("op4");
   auto op5 = g.insertOp("op5");
   g.insertConstraint(op3, op4);

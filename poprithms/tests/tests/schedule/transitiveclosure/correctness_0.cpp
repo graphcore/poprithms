@@ -43,16 +43,18 @@ int main() {
     throw error("there are no redundant edges in this diamond");
   }
 
-  //  stripy diamond
-  //
-  //        X
-  //      /  \
-  // (1) X -> X (2)
-  //     |    |
-  //     |    X
-  //      \  /
-  //        X
-  //
+  /*
+   *  stripy diamond
+   *
+   *        X
+   *      /  \
+   * (1) X -> X (2)
+   *     |    |
+   *     |    X
+   *      \  /
+   *        X
+   *
+   * */
   Edges stripyEdges{{{1, 2}, {2, 4}, {3}, {4}, {}}};
   em = TransitiveClosure{stripyEdges};
   for (uint64_t i = 0; i < 5; ++i) {

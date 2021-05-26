@@ -27,13 +27,15 @@ template <typename S, typename T> void appendVector(S &s, const T &t) {
 
 void test0() {
 
-  //   0
-  //  / \
-  // 1   2
-  // |   |
-  // 3   |
-  //  \ /
-  //   4
+  /*
+   *   0
+   *  / \
+   * 1   2
+   * |   |
+   * 3   |
+   *  \ /
+   *   4
+   *   */
 
   Edges edges{{1, 2}, {3}, {4}, {4}, {}};
   TransitiveClosure pl(edges);
