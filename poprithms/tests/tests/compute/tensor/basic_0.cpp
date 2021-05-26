@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <array>
 #include <iostream>
 #include <numeric>
@@ -118,6 +118,23 @@ void testAtSlice1() {
   }
 }
 
+void testSlice0() {
+  auto a = Tensor::arangeInt32(0, 2 * 3 * 4, 1).reshape({2, 3, 4});
+  auto b = a.slice({1, 0, 0}, {2, 3, 1});
+  auto c = a.slice(Dimensions({0, 2}), {1, 0}, {2, 1});
+  b.assertAllEquivalent(c);
+}
+
+void testAccumulate0() {
+  Tensors ts;
+  for (uint64_t i = 0; i < 10; ++i) {
+    ts.push_back(Tensor::unsigned64(i).expand({3, 2}));
+  }
+  auto out = Tensor::accumulate_(ts, CommutativeOp::Sum);
+  out.assertAllEquivalent(ts[0]);
+  out.assertAllEquivalent(Tensor::unsigned64(45).expand_({3, 2}));
+}
+
 } // namespace
 
 int main() {
@@ -128,6 +145,8 @@ int main() {
   testIsOrigin();
   testAtSlice0();
   testAtSlice1();
+  testSlice0();
+  testAccumulate0();
 
   return 0;
 }

@@ -33,6 +33,8 @@ class Tensor;
 using Tensors = std::vector<Tensor>;
 class BaseData;
 
+enum class CommutativeOp { Sum, Min, Max, Product };
+
 /**
  * A Tensor class for just-in-time host computation with poplar aliasing
  * semantics.
@@ -174,7 +176,7 @@ public:
    * See https://en.wikipedia.org/wiki/Uniform_distribution.
    *
    * Note that the random values drawn are platform invariant, as only C++
-   * generators are usedm and no C++ distributions.
+   * generators are used and no C++ distributions.
    * */
   static Tensor
   uniformFloat64(double low, double upp, const Shape &, uint32_t seed);
@@ -242,6 +244,18 @@ public:
   std::vector<int64_t> getInt64Vector() const;
 
   /**
+   * Create a Tensor of type Int64 with values drawn independently from the
+   * the range [low, upp). The value upp is not sampled.
+   *
+   * Note that the random values drawn are platform invariant, as only C++
+   * generators are used and no C++ distributions.
+   *
+   * It is required that low < upp.
+   * */
+  static Tensor
+  randomInt64(int64_t low, int64_t upp, const Shape &, uint32_t seed);
+
+  /**
    * Unsigned64 specific Tensor methods and factory functions.
    *
    * \see The corresponding Float64 methods.
@@ -255,6 +269,8 @@ public:
   arangeUnsigned64(uint64_t start, uint64_t stop, uint64_t step);
   Tensor toUnsigned64() const;
   std::vector<uint64_t> getUnsigned64Vector() const;
+  static Tensor
+  randomUnsigned64(uint64_t low, uint64_t upp, const Shape &, uint32_t seed);
 
   /** Int32 type specific Tensor methods and factory functions.
    *
@@ -268,6 +284,7 @@ public:
   static Tensor arangeInt32(int32_t start, int32_t stop, int32_t step);
   Tensor toInt32() const;
   std::vector<int32_t> getInt32Vector() const;
+  static Tensor randomInt32(int low, int upp, const Shape &, uint32_t seed);
 
   /** \return A Tensor of zeros, of type \a d and shape \a s. */
   static Tensor zeros(DType d, const Shape &s);
@@ -288,6 +305,8 @@ public:
   arangeUnsigned32(uint32_t start, uint32_t stop, uint32_t step);
   Tensor toUnsigned32() const;
   std::vector<uint32_t> getUnsigned32Vector() const;
+  static Tensor
+  randomUnsigned32(uint32_t low, uint32_t upp, const Shape &, uint32_t seed);
 
   /** Int16 type specific Tensor methods and factory functions.
    *
@@ -301,6 +320,8 @@ public:
   static Tensor arangeInt16(int16_t start, int16_t stop, int16_t step);
   Tensor toInt16() const;
   std::vector<int16_t> getInt16Vector() const;
+  static Tensor
+  randomInt16(int16_t low, int16_t upp, const Shape &, uint32_t seed);
 
   /** Unsigned16 type specific Tensor methods and factory functions.
    *
@@ -315,6 +336,8 @@ public:
   arangeUnsigned16(uint16_t start, uint16_t stop, uint16_t step);
   Tensor toUnsigned16() const;
   std::vector<uint16_t> getUnsigned16Vector() const;
+  static Tensor
+  randomUnsigned16(uint16_t low, uint16_t upp, const Shape &, uint32_t seed);
 
   /** Int8 type specific Tensor methods and factory functions.
    *
@@ -328,6 +351,8 @@ public:
   static Tensor arangeInt8(int8_t start, int8_t stop, int8_t step);
   Tensor toInt8() const;
   std::vector<int8_t> getInt8Vector() const;
+  static Tensor
+  randomInt8(int8_t low, int8_t upp, const Shape &, uint32_t seed);
 
   /** Unsigned8 type specific Tensor methods and factory functions.
    *
@@ -341,6 +366,8 @@ public:
   static Tensor arangeUnsigned8(uint8_t start, uint8_t stop, uint8_t step);
   Tensor toUnsigned8() const;
   std::vector<uint8_t> getUnsigned8Vector() const;
+  static Tensor
+  randomUnsigned8(uint8_t low, uint8_t upp, const Shape &, uint32_t seed);
 
   /**
    * Boolean type specific Tensor methods and factory functions.
@@ -355,6 +382,7 @@ public:
   static Tensor boolean(bool);
   Tensor toBoolean() const;
   std::vector<bool> getBooleanVector() const;
+  static Tensor randomBoolean(const Shape &, uint32_t seed);
 
   /** \return true if all the elements in this Tensor are 0. */
   bool allZero() const;
@@ -523,7 +551,8 @@ public:
   Tensor expand(const Shape &) const;
   Tensor expand_(const Shape &) const;
 
-  /** Take a slice of this Tensor between bounds \a l (inclusive) and \a u
+  /**
+   * Take a slice of this Tensor between bounds \a l (inclusive) and \a u
    * (exclusive). \a l and \a u must have size equal to the rank of this
    * Tensor, and for all dimensions d, it is required that
    *     0 <= l[d] <= u[d] <= dim(d).
@@ -531,8 +560,31 @@ public:
   Tensor slice(const Lower &l, const Upper &u) const;
   Tensor slice_(const Lower &l, const Upper &u) const;
 
+  /**
+   * Slice this Tensor in a single dimensions.
+   * */
   Tensor slice(Dimension, uint64_t l, uint64_t u) const;
   Tensor slice_(Dimension, uint64_t l, uint64_t u) const;
+
+  /**
+   * Slice this Tensor in a multiple dimensions.
+   *
+   * \param dims unique and sorted dimensions of this Tensor to slice in
+   *
+   * \param l the lower bounds of the slice for each dimension in #dims,
+   *          respectively.
+   *
+   * \param u the upper bounds of the slice for each dimension in #dims,
+   *          respectively.
+   *
+   * dims, l, and u should all be of the same size.
+   * */
+  Tensor slice(const Dimensions &dims,
+               const std::vector<uint64_t> &l,
+               const std::vector<uint64_t> &u) const;
+  Tensor slice_(const Dimensions &dims,
+                const std::vector<uint64_t> &l,
+                const std::vector<uint64_t> &u) const;
 
   /**
    * Slice this Tensor in dimension 0, between d and d+1. This Tensor must be
@@ -582,6 +634,20 @@ public:
   Tensor reduceMin(const Shape &outShape) const;
   Tensor reduceMax(const Shape &outShape) const;
   Tensor reduceProduct(const Shape &outShape) const;
+  Tensor reduce(const Shape &, CommutativeOp) const;
+
+  /**
+   * Reduce a set of Tensors of the same size, using a particular commutative
+   * operation.
+   * */
+
+  /**
+   * Reduce a set of Tensors of the same size, using a particular commutative
+   * operation. The result is stored in the first Tensor, an alias of which is
+   * returned.
+   * */
+  static Tensor accumulate(const Tensors &ts, CommutativeOp);
+  static Tensor accumulate_(const Tensors &ts, CommutativeOp);
 
   /**
    * Numpy-style [start:stop:step] slicing,
@@ -825,6 +891,15 @@ public:
   Tensor mul(const Tensor &rhs) const;
   Tensor mul_(const Tensor &rhs) const;
 
+  Tensor max(const Tensor &rhs) const;
+  Tensor max_(const Tensor &rhs) const;
+
+  Tensor min(const Tensor &rhs) const;
+  Tensor min_(const Tensor &rhs) const;
+
+  Tensor combine(const Tensor &, CommutativeOp) const;
+  Tensor combine_(const Tensor &, CommutativeOp) const;
+
   Tensor subtract(const Tensor &rhs) const;
   Tensor subtract_(const Tensor &rhs) const;
 
@@ -1047,6 +1122,8 @@ private:
 
   template <typename T>
   static Tensor tRandomUniform(T low, T upp, const Shape &, uint32_t seed);
+  template <typename T>
+  static Tensor tRandomInt(T low, T upp, const Shape &, uint32_t seed);
   template <typename T> static Tensor tArange(T x0, T x1, T step);
   template <typename T> static Tensor tScalar(T);
 

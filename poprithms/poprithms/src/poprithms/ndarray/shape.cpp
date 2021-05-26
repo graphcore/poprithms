@@ -1099,18 +1099,42 @@ Shape Shape::slice(const Lower &l, const Upper &u) const {
 
 std::pair<Shape::Lower, Shape::Upper>
 Shape::getFullSliceBounds(Dimension d, uint64_t l, uint64_t u) const {
-  if (d.get() >= rank_u64()) {
+  return getFullSliceBounds(Dimensions({d}), {l}, {u});
+}
+
+std::pair<Shape::Lower, Shape::Upper>
+Shape::getFullSliceBounds(const Dimensions &ds,
+                          const std::vector<uint64_t> &l,
+                          const std::vector<uint64_t> &u) const {
+
+  auto base = [this, &ds, &l, &u]() {
     std::ostringstream oss;
-    oss << "Cannot slice this Shape, " << *this << ", in Dimension "
-        << d.get() << ", as it is only of rank " << rank_u64() << '.';
-    throw error(oss.str());
+    oss << "Error in " << *this << ".getFullSliceBounds(Dimensions=" << ds
+        << ", lower=" << l << "upper=" << u << "). ";
+    return oss.str();
+  };
+
+  if (ds.size() != l.size() || ds.size() != u.size()) {
+    throw error(base() +
+                "Dimensions, lower and upper should all be the same size. ");
+  }
+
+  if (ds != ds.unisorted()) {
+    throw error(base() + "The dimensions are not unique and sorted. ");
+  }
+
+  if (!ds.empty() && ds.vals.back() >= rank_u64()) {
+    throw error(base() +
+                " not all dimensions are less than the rank of this Shape");
   }
 
   Lower lows(rank_u64(), 0);
-  lows[d.get()] = static_cast<int64_t>(l);
+  Upper upps = get();
 
-  Upper upps    = get();
-  upps[d.get()] = static_cast<int64_t>(u);
+  for (uint64_t i = 0; i < l.size(); ++i) {
+    lows[ds.at(i).get()] = l[i];
+    upps[ds.at(i).get()] = u[i];
+  }
 
   return {lows, upps};
 }
@@ -1779,16 +1803,16 @@ void Shape::assertDynamicUpdate(const Shape &updater,
 
   auto base = [&updater, &dims, &offset, this]() {
     std::ostringstream oss;
-    oss << "Failure in Shape::assertDynamicUpdate(updater's Shape = "
-        << updater << ", dimensions = " << dims
-        << ", offset's Shape = " << offset
-        << "), called for updated's Shape of " << *this << ". ";
+    oss << "Failure in Shape::assertDynamicUpdate('updater' of Shape = "
+        << updater << ", dimensions=" << dims
+        << ", 'offset' of Shape = " << offset
+        << "), called for 'updated' of Shape " << *this << ". ";
     return oss.str();
   };
 
   // updated Tensor and updater Tensor have same rank.
   if (updater.rank_u64() != rank_u64()) {
-    throw error(base() + "updater and updated should have same rank.");
+    throw error(base() + "'updater' and 'updated' should have same rank.");
   }
 
   std::vector<bool> isDim(rank_u64(), false);
@@ -1797,7 +1821,8 @@ void Shape::assertDynamicUpdate(const Shape &updater,
   for (auto d : dims.get()) {
     if (d >= rank_u64()) {
       std::ostringstream oss;
-      oss << base() << "all dimensions should be less than updated's rank, "
+      oss << base()
+          << "all dimensions should be less than the rank of 'updated', "
           << rank_u64() << " but " << d << " is not. ";
       throw error(oss.str());
     }
@@ -1807,7 +1832,7 @@ void Shape::assertDynamicUpdate(const Shape &updater,
   // dimensions are sorted and unique
   if (dims != dims.unisorted()) {
     std::ostringstream oss;
-    throw error(base() + "dimension expected to be sorted and unique. ");
+    throw error(base() + "dimension must be sorted and unique.");
   }
 
   // in all dimensions which are not dynamic, the updater is the same size as
@@ -1817,7 +1842,7 @@ void Shape::assertDynamicUpdate(const Shape &updater,
       if (updater.dim(d) != dim(d)) {
         std::ostringstream oss;
         oss << base() << "the dimension " << d << " is not in dims=" << dims
-            << ", and so the updater and the updated "
+            << ", and so 'updater' and 'updated' "
             << "should be the "
             << "same size in dimension " << d << ", but they aren't. ";
         throw error(oss.str());
@@ -1828,7 +1853,11 @@ void Shape::assertDynamicUpdate(const Shape &updater,
   // The offset Shape is rank-1, and has the same number of elements as dims
   // does.
   if (offset != Shape({static_cast<int64_t>(dims.size())})) {
-    throw error(base() + "offset expected to be Shape({dims.size()}).");
+    std::ostringstream oss;
+    oss << base() << "offset expected to be Shape({dims.size()}). "
+        << "That is, a rank-1 Tensor with 1 entry for every 'dynamic' "
+           "dimension.";
+    throw error(oss.str());
   }
 }
 

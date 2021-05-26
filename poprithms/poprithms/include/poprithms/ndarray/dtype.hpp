@@ -34,6 +34,8 @@ enum class DType {
   N
 };
 
+using DTypes = std::vector<DType>;
+
 std::ostream &operator<<(std::ostream &, DType);
 
 /** The number of bytes in 1 element of data type \a t */

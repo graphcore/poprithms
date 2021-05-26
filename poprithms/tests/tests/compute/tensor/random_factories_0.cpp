@@ -6,8 +6,11 @@
 #include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 
-int main() {
-  using namespace poprithms::compute::host;
+namespace {
+
+using namespace poprithms::compute::host;
+
+void testFloat() {
 
   const auto a0 = Tensor::uniformFloat32(0., 1.f, {}, 1011);
   const auto a1 = Tensor::uniformFloat32(0., 1.f, {}, 1011);
@@ -34,4 +37,43 @@ int main() {
     throw error("Statistical anomoly? Values probably don't follow uniform "
                 "distribution.");
   }
+}
+
+void testInt0() {
+
+  // WVP : probability greater than (1 - 2^(-40)).
+
+  const auto a = Tensor::randomInt32(-1, 2, {10, 10}, 1011);
+  const auto b = Tensor::randomInt32(-1, 2, {10, 10}, 1012);
+  if (a.allEquivalent(b)) {
+    throw error(
+        "a and b were created with different seeds, should be different");
+  }
+  if (!a.reduceMax({}).allEquivalent(Tensor::int32(1))) {
+    throw error("100 values sampled uniformly from {-1, 0, +1}, should be "
+                "one which is +1 with VHP");
+  }
+
+  if (!a.reduceMin({}).allEquivalent(Tensor::int32(-1))) {
+    throw error("100 values sampled uniformly from {-1, 0, +1}, should be "
+                "one which is -1 with VHP");
+  }
+}
+
+void testBool() {
+  const auto a = Tensor::randomBoolean({100}, 10100)
+                     .toInt16()
+                     .reduceSum({})
+                     .getInt16Vector()[0];
+
+  if (a < 1 || a > 99) {
+    throw error("100 coin flips, all came up heads? Unlikely. ");
+  }
+}
+} // namespace
+
+int main() {
+  testFloat();
+  testInt0();
+  testBool();
 }

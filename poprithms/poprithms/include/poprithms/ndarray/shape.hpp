@@ -277,6 +277,11 @@ public:
   std::pair<Lower, Upper>
   getFullSliceBounds(Dimension d, uint64_t l, uint64_t u) const;
 
+  std::pair<Lower, Upper>
+  getFullSliceBounds(const Dimensions &,
+                     const std::vector<uint64_t> &l,
+                     const std::vector<uint64_t> &u) const;
+
   /** Slice this Shape only in dimension 0.*/
   Shape slice(uint64_t l, uint64_t u) const {
     return slice(Dimension(0), l, u);

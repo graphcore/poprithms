@@ -366,7 +366,8 @@ private:
     } else {
       std::ostringstream oss;
       oss << "Call to " << *this << ".binary_<" << BinaryOp::name() << ">("
-          << rhs << ") failed.";
+          << rhs << ") failed. "
+          << "Cannot cast arg1 to OriginData<" << ndarray::get<T>() << ">. ";
       throw error(oss.str());
     }
   }
@@ -389,7 +390,8 @@ private:
     } else {
       std::ostringstream oss;
       oss << "Call to " << *this << ".binary<" << BinaryOp::name() << ">("
-          << rhs << ") failed.";
+          << rhs << ") failed. "
+          << "Cannot cast arg1 to OriginData<" << ndarray::get<T>() << ">. ";
       throw error(oss.str());
     }
   }

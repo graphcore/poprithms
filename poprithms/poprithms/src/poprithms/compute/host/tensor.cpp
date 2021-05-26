@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <random>
@@ -388,7 +389,10 @@ Tensor Tensor::pow_(const Tensor &rhs) const {
 }
 
 Tensor Tensor::copyFrom_(const Tensor &rhs) const {
-  tData().copyFrom_(getArg1InplaceTarget(rhs, shape()).tData());
+  // If this source and destination are the same, ignore the copy.
+  if (&tData() != &rhs.tData()) {
+    tData().copyFrom_(getArg1InplaceTarget(rhs, shape()).tData());
+  }
   return *this;
 }
 
@@ -750,6 +754,20 @@ Tensor Tensor::slice_(Dimension d, uint64_t l, uint64_t u) const {
   return slice_(std::get<0>(bounds), std::get<1>(bounds));
 }
 
+Tensor Tensor::slice(const Dimensions &ds,
+                     const std::vector<uint64_t> &l,
+                     const std::vector<uint64_t> &u) const {
+  const auto bounds = shape().getFullSliceBounds(ds, l, u);
+  return slice(std::get<0>(bounds), std::get<1>(bounds));
+}
+
+Tensor Tensor::slice_(const Dimensions &ds,
+                      const std::vector<uint64_t> &l,
+                      const std::vector<uint64_t> &u) const {
+  const auto bounds = shape().getFullSliceBounds(ds, l, u);
+  return slice_(std::get<0>(bounds), std::get<1>(bounds));
+}
+
 Tensor Tensor::slice_(const Lower &l, const Upper &u) const {
   return {shape().slice(l, u), dtype(), tData().slice_(shape(), l, u)};
 }
@@ -944,6 +962,19 @@ Tensor Tensor::concat_(const Tensors &tIns, uint64_t axis) {
 // return true if absolute(a - b) <= (atol + rtol * absolute(b)) for all a in
 // this Tensor, b in rhs (this is exactly the numpy definition).
 bool Tensor::allClose(const Tensor &b, double relTol, double absTol) const {
+
+  const auto diffShape = shape().numpyBinary(b.shape());
+  if ((diffShape != shape()) && (diffShape != b.shape())) {
+    std::ostringstream oss;
+    oss << "Failure in Tensor::allClose, where this Tensor has Shape "
+        << shape() << ", the Tensor being compared to has Shape " << b.shape()
+        << ", and the difference between the 2 has Shape " << diffShape
+        << ". "
+        << "This method requires the one of the Tensors to dominate the "
+           "other. ";
+    throw error(oss.str());
+  }
+
   const auto diff    = this->toFloat64() - b.toFloat64();
   const auto absDiff = diff.abs();
   const auto absB    = b.toFloat64().abs();
@@ -959,11 +990,15 @@ void Tensor::assertAllClose(const Tensor &b,
                             double absTol) const {
   if (!allClose(b, relTol, absTol)) {
 
+    auto absDiff    = subtract(b).abs();
+    auto absDiffMax = absDiff.reduceMax({});
+
     std::ostringstream oss;
     oss << "Failed in assertAllClose(.). "
         << "This Tensor is \n"
         << *this << ", \nand b is " << b << ". Failed with relTol=" << relTol
-        << " and absTol=" << absTol;
+        << " and absTol=" << absTol << ". The maximum absolute difference is "
+        << absDiffMax.getFloat64Vector()[0] << ". ";
     throw error(oss.str());
   }
 }
@@ -1052,6 +1087,35 @@ Tensor Tensor::tRandomUniform(T low, T upp, const Shape &s, uint32_t seed) {
   const auto factor = (upp - low) / denom;
   for (auto &x : data__) {
     x = low + factor * static_cast<T>(gen() - gen.min());
+  }
+  return Tensor(s,
+                ndarray::get<T>(),
+                std::make_shared<AllocData<T>>(std::move(data__)));
+}
+
+template <typename T>
+Tensor Tensor::tRandomInt(T low, T upp, const Shape &s, uint32_t seed) {
+  static_assert(std::is_integral<T>::value,
+                "tRandomInt is a template for integral types only");
+  if (low >= upp) {
+    std::ostringstream oss;
+    oss << "Invalid range in tRandomInt, low=" << low << " and upp=" << upp
+        << ". It is required that low < upp. ";
+    if (low == upp) {
+      oss << "Note that the upper bound (upp) is not sampled, "
+          << "only values in [low, upp) are. "
+          << "There are no values in [" << low << ", " << upp << "). ";
+    }
+    throw error(oss.str());
+  }
+  std::mt19937 gen(seed);
+  std::vector<T> data__;
+  data__.reserve(s.nelms_u64());
+  auto range = upp - low;
+  for (uint64_t i = 0; i < s.nelms_u64(); ++i) {
+    auto v0 = gen();
+    auto v1 = v0 % range + low;
+    data__.push_back(v1);
   }
   return Tensor(s,
                 ndarray::get<T>(),
@@ -1513,6 +1577,159 @@ void Tensor::assertIsBinary(const std::string &x) {
     oss << "Failed in assertIsBinary(" << x << "). ";
     throw error(oss.str());
   }
+}
+
+Tensor Tensor::max(const Tensor &rhs) const {
+  return accumulate({*this, rhs}, CommutativeOp::Max);
+}
+
+Tensor Tensor::max_(const Tensor &rhs) const {
+  return accumulate_({*this, rhs}, CommutativeOp::Max);
+}
+
+Tensor Tensor::min(const Tensor &rhs) const {
+  return accumulate({*this, rhs}, CommutativeOp::Min);
+}
+
+Tensor Tensor::min_(const Tensor &rhs) const {
+  return accumulate_({*this, rhs}, CommutativeOp::Min);
+}
+
+Tensor Tensor::combine(const Tensor &t, CommutativeOp op) const {
+  switch (op) {
+  case CommutativeOp::Sum: {
+    return add(t);
+  }
+  case CommutativeOp::Product: {
+    return mul(t);
+  }
+  case CommutativeOp::Min: {
+    return min(t);
+  }
+  case CommutativeOp::Max: {
+    return max(t);
+  }
+  default: {
+    throw error("unrecognised CommutativeOp");
+  }
+  }
+}
+
+Tensor Tensor::combine_(const Tensor &t, CommutativeOp op) const {
+  switch (op) {
+  case CommutativeOp::Sum: {
+    return add_(t);
+  }
+  case CommutativeOp::Product: {
+    return mul_(t);
+  }
+  case CommutativeOp::Min: {
+    return min_(t);
+  }
+  case CommutativeOp::Max: {
+    return max_(t);
+  }
+  default: {
+    throw error("unrecognised CommutativeOp");
+  }
+  }
+}
+
+Tensor Tensor::reduce(const Shape &s, CommutativeOp op) const {
+  switch (op) {
+  case CommutativeOp::Sum: {
+    return reduceSum(s);
+  }
+  case CommutativeOp::Product: {
+    return reduceProduct(s);
+  }
+  case CommutativeOp::Min: {
+    return reduceMin(s);
+  }
+  case CommutativeOp::Max: {
+    return reduceMax(s);
+  }
+  default: {
+    throw error("unrecognised CommutativeOp");
+  }
+  }
+}
+
+Tensor Tensor::accumulate(const Tensors &ts, CommutativeOp op) {
+  Tensor::assertNonEmptyConcat(ts.size());
+  const auto s0 = ts[0].shape();
+  Tensors unsqueezeds;
+  unsqueezeds.reserve(ts.size());
+  for (const auto &t : ts) {
+    unsqueezeds.push_back(t.unsqueeze(0));
+  }
+  return concat(unsqueezeds, 0).reduce(s0.prepend(1), op).squeeze({0});
+}
+
+Tensor Tensor::accumulate_(const Tensors &ts, CommutativeOp op) {
+  auto out = accumulate(ts, op);
+  ts[0].update_(out);
+  return out;
+}
+
+Tensor Tensor::randomInt64(int64_t low,
+                           int64_t upp,
+                           const Shape &shape,
+                           uint32_t seed) {
+  return tRandomInt<int64_t>(low, upp, shape, seed);
+}
+
+Tensor Tensor::randomInt32(int32_t low,
+                           int32_t upp,
+                           const Shape &shape,
+                           uint32_t seed) {
+  return tRandomInt<int32_t>(low, upp, shape, seed);
+}
+
+Tensor Tensor::randomInt16(int16_t low,
+                           int16_t upp,
+                           const Shape &shape,
+                           uint32_t seed) {
+  return tRandomInt<int16_t>(low, upp, shape, seed);
+}
+
+Tensor Tensor::randomInt8(int8_t low,
+                          int8_t upp,
+                          const Shape &shape,
+                          uint32_t seed) {
+  return tRandomInt<int8_t>(low, upp, shape, seed);
+}
+
+Tensor Tensor::randomUnsigned64(uint64_t low,
+                                uint64_t upp,
+                                const Shape &shape,
+                                uint32_t seed) {
+  return tRandomInt<uint64_t>(low, upp, shape, seed);
+}
+
+Tensor Tensor::randomUnsigned32(uint32_t low,
+                                uint32_t upp,
+                                const Shape &shape,
+                                uint32_t seed) {
+  return tRandomInt<uint32_t>(low, upp, shape, seed);
+}
+
+Tensor Tensor::randomUnsigned16(uint16_t low,
+                                uint16_t upp,
+                                const Shape &shape,
+                                uint32_t seed) {
+  return tRandomInt<uint16_t>(low, upp, shape, seed);
+}
+
+Tensor Tensor::randomUnsigned8(uint8_t low,
+                               uint8_t upp,
+                               const Shape &shape,
+                               uint32_t seed) {
+  return tRandomInt<uint8_t>(low, upp, shape, seed);
+}
+
+Tensor Tensor::randomBoolean(const Shape &s, uint32_t seed) {
+  return tRandomInt<int>(0, 2, s, seed).toBoolean();
 }
 
 } // namespace host
