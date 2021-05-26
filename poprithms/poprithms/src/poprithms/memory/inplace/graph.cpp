@@ -2,7 +2,6 @@
 #include "ops.hpp"
 
 #include <algorithm>
-#include <iostream>
 #include <iterator>
 #include <memory>
 #include <numeric>

@@ -1,6 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
-#include <iostream>
 #include <map>
 #include <memory>
 #include <random>

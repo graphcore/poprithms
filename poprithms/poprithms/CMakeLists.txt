@@ -63,12 +63,27 @@ set(common_multiout_sources
   ${common_src_dir}/multiout/opid.cpp
   ${common_src_dir}/multiout/tensorid.cpp
 )
-
 add_library(poprithms-common-multiout-objlib OBJECT ${common_multiout_sources})
 add_library(poprithms-common-multiout SHARED
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
+
+
+set(common_schedulable_sources
+  ${common_src_dir}/schedulable/op.cpp
+  ${common_src_dir}/schedulable/error.cpp
+  ${common_src_dir}/schedulable/graph.cpp
+  ${common_src_dir}/schedulable/subgraphid.cpp
+)
+add_library(poprithms-common-schedulable-objlib OBJECT ${common_schedulable_sources})
+add_library(poprithms-common-schedulable SHARED
+  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+  $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
+  $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
 
 
 set(schedule_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule)
@@ -271,9 +286,9 @@ add_library(poprithms-memory-unwind SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
-
 add_library(poprithms SHARED 
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
+  $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-objlib>
   $<TARGET_OBJECTS:poprithms-outline-objlib>
@@ -297,6 +312,8 @@ endif()
 foreach(tgt IN ITEMS
   poprithms-common-multiout-objlib
   poprithms-common-multiout
+  poprithms-common-schedulable-objlib
+  poprithms-common-schedulable
   poprithms-compute-host-objlib
   poprithms-compute-host
   poprithms-schedule-objlib

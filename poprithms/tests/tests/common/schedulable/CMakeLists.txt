@@ -1,6 +1,6 @@
 function(add_common_test_executable name source)
   add_executable(${name} ${source})
-  target_link_libraries(${name} poprithms-common-multiout)
+  target_link_libraries(${name} poprithms-common-schedulable common-schedulable-test-util)
 endfunction()
 
 function(add_common_test name source)
@@ -11,4 +11,5 @@ function(add_common_test name source)
            WORKING_DIRECTORY ${CMAKE_CURRENT_BUILD_DIR})
 endfunction()
 
-add_common_test(util_common_multiout_0 multiout_0.cpp)
+
+add_common_test(util_common_schedulable_0 schedulable_0.cpp)

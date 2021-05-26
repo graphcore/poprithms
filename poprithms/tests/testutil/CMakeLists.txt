@@ -29,3 +29,11 @@ add_library(memory-nest-test-util SHARED ${memory-nest-test-util-sources})
 target_include_directories(memory-nest-test-util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(memory-nest-test-util poprithms-memory-nest)
 
+
+
+set(common-schedulable-test-util-sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/common/schedulable/schedulablegraph.cpp
+)
+add_library(common-schedulable-test-util SHARED ${common-schedulable-test-util-sources})
+target_include_directories(common-schedulable-test-util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(common-schedulable-test-util poprithms-common-schedulable)
