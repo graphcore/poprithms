@@ -1,4 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include "poprithms/common/multiout/consumptionid.hpp"
+
 #include <algorithm>
 #include <iostream>
 #include <numeric>
@@ -11,7 +13,9 @@
 
 namespace {
 using namespace poprithms::common;
-using Shape  = poprithms::ndarray::Shape;
+using Shape = poprithms::ndarray::Shape;
+using poprithms::common::multiout::TensorId;
+using poprithms::common::multiout::TensorIds;
 using Shapes = poprithms::ndarray::Shapes;
 
 namespace test {
@@ -32,9 +36,11 @@ private:
 
 class Graph : public multiout::Graph {
 public:
-  multiout::OpId grow(uint64_t nOuts = 0) {
+  multiout::OpId insert(const TensorIds &inIds, uint64_t nOuts) {
     const Shapes outShapes(nOuts, Shape({1}));
-    const multiout::Op::State s(nOps(), {}, {}, {}, outShapes, "");
+    std::vector<multiout::ConsumptionIds> consOut(nOuts);
+    const multiout::Op::State s(
+        nOps(), inIds, consOut, shapes(inIds), outShapes, "");
     return insertMultioutOp(std::make_unique<test::Op>(s));
   }
   virtual ~Graph() override = default;
@@ -58,7 +64,7 @@ void test0() {
 
   multiout::OpIds collected;
   for (uint64_t i = 0; i < 50; ++i) {
-    collected.push_back(g.grow());
+    collected.push_back(g.insert({}, 0));
   }
   if (collected[34] != multiout::OpId(34)) {
     throw multiout::error("Expected OpIds to increment by 1, starting at 0");
@@ -87,10 +93,10 @@ void testLogging0() {
   //  3    LazyMauveOp ()
 
   test::Graph g;
-  g.grow(0);
-  g.grow(3);
-  g.grow(1);
-  g.grow(0);
+  g.insert({}, 0);
+  g.insert({}, 3);
+  g.insert({}, 1);
+  g.insert({}, 0);
   std::cout << g << std::endl;
 
   const auto outCols = g.getMultioutColumns();
@@ -127,10 +133,28 @@ void testLogging0() {
   }
 }
 
+void testInsAndOuts() {
+
+  test::Graph g;
+  auto a = g.insert({}, 2);
+  auto b = g.insert({}, 3);
+  auto c = g.insert({{a, 0}, {b, 1}, {b, 2}}, 4);
+
+  auto insNouts = g.inAndOutTensorIds(c);
+
+  std::sort(insNouts.begin(), insNouts.end());
+
+  if (insNouts !=
+      TensorIds({{a, 0}, {b, 1}, {b, 2}, {c, 0}, {c, 1}, {c, 2}, {c, 3}})) {
+    throw multiout::error("Incorrect input+output TensorIds");
+  }
+}
+
 } // namespace
 
 int main() {
   test0();
   testLogging0();
+  testInsAndOuts();
   return 0;
 }

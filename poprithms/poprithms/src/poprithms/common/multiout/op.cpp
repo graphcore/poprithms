@@ -12,6 +12,37 @@ namespace poprithms {
 namespace common {
 namespace multiout {
 
+Op::State::State(const OpId id_,
+                 const TensorIds &inIds_,
+                 const std::vector<ConsumptionIds> &consumptionIds_,
+                 const Shapes &inShapes_,
+                 const Shapes &outShapes_,
+                 const std::string &name_)
+    : id(id_), inIds(inIds_), consumptionIds(consumptionIds_),
+      inShapes(inShapes_), outShapes(outShapes_), name(name_) {
+  if (inIds.size() != inShapes.size()) {
+    std::ostringstream oss;
+    oss << "The number of input Shapes should be the same as "
+        << "the number of input Ids, "
+        << "in the multiout::Op::State constructor. "
+        << "This for State with id=" << id_ << " and name=\"" << name_
+        << "\", "
+        << ", where the number of input Shapes is " << inShapes.size()
+        << " but the number of input ids is " << inIds.size() << ".";
+    throw error(oss.str());
+  }
+
+  if (consumptionIds.size() != outShapes.size()) {
+    std::ostringstream oss;
+    oss << "The size of the vectors consumptionIds and outShapes "
+        << "should be the same in the multiout::Op::State constructor. "
+        << "But consumptionIds is of size " << consumptionIds.size()
+        << ", and outShapes is of size " << outShapes.size() << ". "
+        << "They should both be exactly equal to the number of outputs. ";
+    throw error(oss.str());
+  }
+}
+
 Op::~Op() = default;
 
 Op::Op(const State &ob)

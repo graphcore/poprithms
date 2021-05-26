@@ -44,9 +44,7 @@ public:
           const std::vector<ConsumptionIds> &consumptionIds_,
           const Shapes &inShapes_,
           const Shapes &outShapes_,
-          const std::string &name_)
-        : id(id_), inIds(inIds_), consumptionIds(consumptionIds_),
-          inShapes(inShapes_), outShapes(outShapes_), name(name_) {}
+          const std::string &name_);
 
     // This Op's unique identifier
     const OpId id;
@@ -70,6 +68,9 @@ public:
     // Will be  "=default" in C++20, but for now must be done manually.
     bool operator==(const State &rhs) const;
     bool operator!=(const State &rhs) const { return !operator==(rhs); }
+
+    uint64_t nIns() const { return inShapes.size(); }
+    uint64_t nOuts() const { return outShapes.size(); }
   };
 
   virtual ~Op();

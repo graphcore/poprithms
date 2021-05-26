@@ -3,6 +3,7 @@
 #define POPRITHMS_COMMON_MULTIOUT_GRAPH_HPP
 
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -49,7 +50,10 @@ public:
   const std::string &getName(OpId id) const;
 
   /** The Shape of a Tensor #id in this Graph. */
-  const Shape &shape(const TensorId &id) const;
+  Shape shape(const TensorId &id) const;
+
+  /** Shapes of multiple Tensors in this Graph. */
+  Shapes shapes(const TensorIds &ids) const;
 
   /** The number of elements of a Tensor #x in this Graph. */
   uint64_t nelms_u64(const TensorId &x) const { return shape(x).nelms_u64(); }
@@ -59,9 +63,6 @@ public:
   /** The rank of a Tensor in this Graph. */
   uint64_t rank_u64(const TensorId &x) const { return shape(x).rank_u64(); }
 
-  /** Shapes of multiple Tensors in this Graph. */
-  Shapes shapes(const TensorIds &) const;
-
   /** All Consumers of a Tensor #id in this Graph. */
   ConsumptionIds consumptionIds(const TensorId &id) const;
 
@@ -69,15 +70,17 @@ public:
   void setName(const std::string &n) { name_ = n; }
 
   /** The total number of Tensors in this Graph. */
-  uint64_t nTensors() const;
+  uint64_t nTensors() const { return nOutTensors(opIds()); }
+  uint64_t nOutTensors(const OpIds &) const;
 
   /** The total number of Ops in this Graph. */
-  uint64_t nOps() const { return ops.size(); }
+  uint64_t nOps() const { return live_.size(); }
 
   /** The total number of Ops in this Graph which have 0 outputs. */
   uint64_t nOpsWithZeroOutputs() const;
+  uint64_t nWithZeroOutputs(const OpIds &) const;
 
-  int64_t nOps_i64() const { return static_cast<int64_t>(ops.size()); }
+  int64_t nOps_i64() const { return static_cast<int64_t>(live_.size()); }
 
   /** \return The number of inputs of the Op #id.*/
   uint64_t nInTensors(OpId id) const;
@@ -85,15 +88,29 @@ public:
   /** \return The number of outputs of the Op #id.*/
   uint64_t nOutTensors(OpId id) const;
 
-  TensorIds outTensorIds(OpId) const;
-  TensorIds inTensorIds(OpId) const;
+  /**
+   * The output TensorIds of Op #id.
+   * These are simply TensorId(id, o) for o in [0, nOutTensors).
+   * */
+  TensorIds outTensorIds(OpId id) const;
+
+  /**
+   * The TensorIds of the inputs of Op #id.
+   * */
+  TensorIds inTensorIds(OpId id) const;
+
+  /**
+   * The concatenation of the TensorIds of all input and output Tensors.
+   * */
+  TensorIds inAndOutTensorIds(OpId) const;
 
   /** \return The string description of the Op #id. */
   std::string typeString(OpId id) const;
 
   /**
    * Verify that there is a Tensor with TensorId #tId in this Graph. If there
-   * is not, a descriptive error is thrown. */
+   * is not, a descriptive error is thrown.
+   * */
   void verifyTensorId(const TensorId &tId) const;
 
   /** The name of this Graph. */
@@ -105,15 +122,18 @@ public:
    * pure virtual function, #typeSpecificEqualTo, must be implemented by
    * derived classes to perform the equality check, so that this base
    * class doesn't need to know what it means for derived classes to be
-   * equivalent. */
+   * equivalent.
+   * */
   bool operator==(const Graph &rhs) const;
   bool operator!=(const Graph &rhs) const { return !operator==(rhs); }
 
   /** All Op names, pythonically: [op(i).name() for i in range(nOps())]/ */
   std::vector<std::string> getOpNames() const;
 
-  /** Strip the OpIds from TensorIds. These are the Ops which create the
-   * Tensors */
+  /**
+   * Strip the OpIds from TensorIds. These are the Ops which create the
+   * Tensors
+   * */
   static OpIds opIds(const TensorIds &tids);
 
   /** In set notation: a \ b */
@@ -146,6 +166,12 @@ public:
   std::vector<poprithms::util::StringColumn> getMultioutColumns() const;
 
   /**
+   * Get the multiout columns (see above) of a subset of the Ops.
+   * */
+  std::vector<poprithms::util::StringColumn>
+  getMultioutColumns(const OpIds &) const;
+
+  /**
    * \sa getMultioutColumns
    *
    * There is an entry (a row) for
@@ -156,9 +182,16 @@ public:
     return nTensors() + nOpsWithZeroOutputs();
   }
 
+  /**
+   * The number of columns (see above) for a subset of all Ops.
+   * */
+  uint64_t nMultioutRows(const OpIds &) const;
+
 protected:
-  /** Insert \a op into this Graph, and add it to the consumer lists of its
-   * inputs' creators. */
+  /**
+   * Insert \a op into this Graph, and add it to the consumer lists of its
+   * inputs' creators.
+   * */
   OpId insertMultioutOp(std::unique_ptr<Op> op);
   OpId insertMultioutOp(const Op &op) { return insertMultioutOp(op.clone()); }
 
@@ -167,12 +200,16 @@ protected:
   const Op &multioutOp(OpId id) const { return op(id); }
 
 private:
-  /** Derived classes must define what it means to be equivalent in this
-   * virtual method. */
+  /**
+   * Derived classes must define what it means to be equivalent in this
+   * virtual method.
+   * */
   virtual bool multiOutTypeSpecificEqualTo(const Graph &) const = 0;
 
-  /** Return the  id'th Op in the member variable \a ops, performing checks
-   * that 0 <= id < nOps(). */
+  /**
+   * Return the  id'th Op in the member variable \a ops, performing checks
+   * that 0 <= id < nOps().
+   * */
   Op &op(OpId id);
   const Op &op(OpId) const;
 
@@ -181,7 +218,13 @@ private:
    * When this Graph is copied, the resulting copy has a clone of all of the
    * Ops in this Graph.
    */
-  std::vector<poprithms::util::CopyByClone<Op>> ops;
+  std::vector<poprithms::util::CopyByClone<Op>> ops_;
+
+  /**
+   * The Ops which have not been deleted.
+   * TODO(T39631) complete the deletion mechanism.
+   * */
+  std::set<OpId> live_;
 
   // The name of this Graph.
   std::string name_;

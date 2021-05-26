@@ -33,9 +33,11 @@ OpId Graph::insertMultioutOp(std::unique_ptr<Op> createdOp) {
                                {createdOp->id(), InIndex(inIndex)});
   }
 
-  ops.emplace_back(std::move(createdOp));
+  ops_.emplace_back(std::move(createdOp));
 
-  const auto newId = ops.back().uptr->id();
+  const auto newId = ops_.back().uptr->id();
+
+  live_.insert(/* hint = */ live_.end(), newId);
 
   return newId;
 }
@@ -57,8 +59,9 @@ const std::string &Graph::getName(OpId opId) const {
 }
 
 bool Graph::operator==(const Graph &rhs) const {
-  return getName() == rhs.getName() && ops == rhs.ops &&
-         typeid(*this) == typeid(rhs) && multiOutTypeSpecificEqualTo(rhs);
+  return getName() == rhs.getName() && ops_ == rhs.ops_ &&
+         live_ == rhs.live_ && typeid(*this) == typeid(rhs) &&
+         multiOutTypeSpecificEqualTo(rhs);
 }
 
 const Op &Graph::op(OpId a) const {
@@ -69,7 +72,7 @@ const Op &Graph::op(OpId a) const {
     throw error(oss.str());
   }
 
-  const auto &opPtr = ops[static_cast<uint64_t>(a.get())].uptr;
+  const auto &opPtr = ops_[static_cast<uint64_t>(a.get())].uptr;
 
   // In case we decide that we need to delete Ops at some point:
   if (!opPtr) {
@@ -92,7 +95,7 @@ std::vector<Shape> Graph::shapes(const TensorIds &ids) const {
   return shapes;
 }
 
-const Shape &Graph::shape(const TensorId &tid) const {
+Shape Graph::shape(const TensorId &tid) const {
   return op(tid.opId()).outShape(tid.outIndex());
 }
 
@@ -119,12 +122,16 @@ TensorIds Graph::setDifference(const TensorIds &a_, const TensorIds &b_) {
   return diff;
 }
 
-uint64_t Graph::nTensors() const {
+uint64_t Graph::nOutTensors(const OpIds &ids) const {
   uint64_t n = 0;
-  for (uint64_t i = 0; i < nOps(); ++i) {
+  for (auto i : ids) {
     n += op(i).nOutTensors();
   }
   return n;
+}
+
+uint64_t Graph::nMultioutRows(const OpIds &opIds) const {
+  return nOutTensors(opIds) + nWithZeroOutputs(opIds);
 }
 
 std::vector<std::string> Graph::getOpNames() const {
@@ -169,22 +176,17 @@ TensorIds Graph::tensorIds() const {
   return ids;
 }
 
-OpIds Graph::opIds() const {
-  OpIds ids;
-  ids.reserve(nOps());
-  for (uint64_t i = 0; i < nOps(); ++i) {
-    ids.push_back(OpId(i));
-  }
-  return ids;
-}
+OpIds Graph::opIds() const { return OpIds(live_.cbegin(), live_.cend()); }
 
 TensorIds Graph::outTensorIds(OpId id) const { return op(id).outTensorIds(); }
+
 TensorIds Graph::inTensorIds(OpId id) const { return op(id).inTensorIds(); }
+
 void Graph::setName(const TensorId &id, const std::string &name) {
   if (op(id.opId()).nOutTensors() != 1) {
     std::ostringstream oss;
     oss << "Cannot call Graph::setName(TensorId=" << id << ", name=" << name
-        << '.' << "), because the Op creator has multiple outputs. "
+        << "), because the Op creator has multiple outputs. "
         << "Call "
         << "setName(OpId=" << id.opId() << ", name=" << name << ") instead.";
     throw error(oss.str());
@@ -192,9 +194,20 @@ void Graph::setName(const TensorId &id, const std::string &name) {
   setName(id.opId(), name);
 }
 
+TensorIds Graph::inAndOutTensorIds(OpId i) const {
+  TensorIds outs       = outTensorIds(i);
+  TensorIds insAndOuts = inTensorIds(i);
+  insAndOuts.insert(insAndOuts.end(), outs.cbegin(), outs.cend());
+  return insAndOuts;
+}
+
 uint64_t Graph::nOpsWithZeroOutputs() const {
+  return nWithZeroOutputs(opIds());
+}
+
+uint64_t Graph::nWithZeroOutputs(const OpIds &opIds) const {
   uint64_t N{0};
-  for (uint64_t i = 0; i < nOps(); ++i) {
+  for (auto i : opIds) {
     if (op(i).nOutTensors() == 0) {
       ++N;
     }
@@ -203,7 +216,12 @@ uint64_t Graph::nOpsWithZeroOutputs() const {
 }
 
 std::vector<util::StringColumn> Graph::getMultioutColumns() const {
-  const auto nTens = nMultioutRows();
+  return getMultioutColumns(opIds());
+}
+
+std::vector<util::StringColumn>
+Graph::getMultioutColumns(const OpIds &opIds) const {
+  const auto nTens = nMultioutRows(opIds);
 
   using Strings = std::vector<std::string>;
   Strings opId(nTens, "");
@@ -214,8 +232,8 @@ std::vector<util::StringColumn> Graph::getMultioutColumns() const {
   Strings tensorShape(nTens, "");
 
   uint64_t ti = 0;
-  for (uint64_t i = 0; i < nOps(); ++i) {
-    opId[ti]      = std::to_string(i);
+  for (auto i : opIds) {
+    opId[ti]      = std::to_string(i.get());
     opType[ti]    = op(i).typeString();
     name[ti]      = op(i).getName();
     inTensors[ti] = util::getStr((op(i).inTensorIds()));
