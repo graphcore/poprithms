@@ -156,8 +156,13 @@ void propagate(const Edges &fwd,
     ++nScheduled;
   }
 
+  // As there is no context information about the nodes here, we don't print
+  // the strongly connected components.
   if (nScheduled != nOps) {
-    throw error("Forward Edges in TransitiveClosure are not schedulable");
+    std::ostringstream oss;
+    oss << "Forward Edges in TransitiveClosure are not schedulable, "
+        << "there is a cycle in this Graph. ";
+    throw error(oss.str());
   }
 }
 

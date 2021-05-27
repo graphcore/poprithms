@@ -946,6 +946,30 @@ void ScheduledGraph::finalizeTransitiveClosure() {
 }
 
 void ScheduledGraph::initializeTransitiveClosure() {
+
+  // Before initializing the transitive closure, while we still have the
+  // context strings for the Ops in the Graph, confirm that the Graph is
+  // schedulable (contains no cycles) and provide a clear error message if it
+  // is not.
+  if (!isSchedulable(getGraph())) {
+    const auto &g = getGraph();
+    std::vector<std::string> dbs;
+    dbs.reserve(g.nOps());
+    for (uint64_t i = 0; i < g.nOps(); ++i) {
+      dbs.push_back(g.getOp(i).getDebugString());
+    }
+    std::ostringstream oss;
+    oss << "Not all Ops were scheduled while "
+        << "initializing the transitive closure, "
+        << "there is a cycle in the Graph."
+        << " The non-singleton strongly connected components, "
+        << "in topological order, are:"
+        << scc::getSummary(
+               g.getFwdEdges_u64(), dbs, scc::IncludeSingletons::No);
+
+    throw error(oss.str());
+  }
+
   transitiveClosure =
       transitiveclosure::TransitiveClosure(graph.getForwardEdges());
   finalizeTransitiveClosure();
