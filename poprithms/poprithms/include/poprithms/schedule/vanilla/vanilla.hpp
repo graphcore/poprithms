@@ -22,6 +22,30 @@ enum class VerifyEdges {
 
 template <typename T> using Edges = std::vector<std::vector<T>>;
 
+/**
+ * Example. If
+ *
+ * fwdEdges[0] = {1,2}
+ * fwdEdges[1] = {3}
+ * fwdEdges[2] = {3}
+ * fwdEdges[3] = {}
+ *
+ * This denotes the dependency Graph,
+ *
+ *
+ *  +--> 1 --+
+ *  |        |
+ *  |        v
+ *  |
+ *  0        3
+ *  |
+ *  |        ^
+ *  |        |
+ *  +--> 2 --+
+ *
+ *  fwdEdges may contain repeated edges.
+ *
+ * */
 std::vector<uint64_t>
 getSchedule_u64(const Edges<uint64_t> &fwdEdges, ErrorIfCycle, VerifyEdges);
 

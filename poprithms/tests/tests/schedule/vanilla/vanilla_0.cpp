@@ -22,6 +22,18 @@ void test0() {
   }
 }
 
+void testRepeatedEdge() {
+  // 0 -> {}
+  // 1 -> {2,2,3,2}  <-- repeated edge 1->2
+  // 2 -> {3}
+  // 3 -> {0}
+  const auto sched = getSchedule_u64(
+      {{}, {2, 2, 3, 2}, {3}, {0}}, ErrorIfCycle::Yes, VerifyEdges::Yes);
+  if (sched != std::vector<uint64_t>{1, 2, 3, 0}) {
+    throw error("Failed test with repeated edge, 1->2");
+  }
+}
+
 void test1() {
 
   bool caught{false};
@@ -82,5 +94,6 @@ int main() {
   testUnique0();
   testUnique1();
   testUnique2();
+  testRepeatedEdge();
   return 0;
 }
