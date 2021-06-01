@@ -90,6 +90,11 @@ public:
   bool lessThan(const Graph &, bool includeNames) const;
 
   /**
+   * Compute a hash for the graph. Optionally igore names.
+   * */
+  size_t hash(bool includeNames) const;
+
+  /**
    * Create an Alloc in this Graph.
    *
    * \param w The "size" of the Allocation.

@@ -3,8 +3,8 @@
 #define POPRITHMS_SCHEDULE_SHIFT_SOLUTIONCACHE_HPP
 
 #include <array>
-#include <map>
 #include <mutex>
+#include <unordered_map>
 
 #include <poprithms/schedule/shift/graph.hpp>
 #include <poprithms/schedule/shift/settings.hpp>
@@ -22,12 +22,18 @@ public:
 
 private:
   // when comparing Graphs, ignore the Op names.
-  struct Comparitor {
+  struct IgnoreNamesHash {
+    size_t operator()(const Graph &a) const { return a.hash(false); }
+  };
+  struct IgnoreNamesEquals {
     bool operator()(const Graph &a, const Graph &b) const {
-      return a.lessThan(b, false);
+      return a.equalTo(b, false);
     }
   };
-  std::map<Graph, std::map<Settings, std::vector<OpAddress>>, Comparitor>
+  std::unordered_map<Graph,
+                     std::map<Settings, std::vector<OpAddress>>,
+                     IgnoreNamesHash,
+                     IgnoreNamesEquals>
       cache;
 
   std::mutex mut;

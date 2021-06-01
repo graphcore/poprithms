@@ -4,6 +4,8 @@
 #include <numeric>
 #include <string>
 
+#include <boost/functional/hash.hpp>
+
 #include <poprithms/schedule/shift/allocweight.hpp>
 #include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -58,6 +60,14 @@ void AllocWeight::appendSerialization(std::ostream &ost) const {
   }
   ost << "]";
 }
+
+size_t AllocWeight::hash() const {
+  size_t hash = 0u;
+  boost::hash_combine(hash, v);
+  return hash;
+}
+
+size_t hash_value(const AllocWeight &a) { return a.hash(); }
 
 std::string AllocWeight::str() const {
   std::ostringstream oss;

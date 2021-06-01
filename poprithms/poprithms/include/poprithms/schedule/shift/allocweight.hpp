@@ -129,6 +129,8 @@ public:
     return *this;
   }
 
+  size_t hash() const;
+
   void append(std::ostream &ost) const;
   std::string str() const;
   void appendSerialization(std::ostream &ost) const;
@@ -138,6 +140,8 @@ public:
 private:
   std::array<double, NAW> v;
 };
+
+size_t hash_value(const AllocWeight &);
 
 template <typename T> static AllocWeight operator*(T a, AllocWeight w) {
   static_assert(std::is_integral<T>::value ||

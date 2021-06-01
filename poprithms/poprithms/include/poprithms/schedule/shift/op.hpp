@@ -83,6 +83,8 @@ public:
     return getFullComparitor() < rhs.getFullComparitor();
   }
 
+  size_t hash(bool includeNames) const;
+
   void insertForwardLink(OpAddress after) { fwdLink = after; }
   void insertBackwardLink(OpAddress before) { bwdLink = before; }
 

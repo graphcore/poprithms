@@ -1,6 +1,8 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 
+#include <boost/functional/hash.hpp>
+
 #include <poprithms/schedule/shift/alloc.hpp>
 #include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -28,6 +30,14 @@ std::ostream &operator<<(std::ostream &ost, const Alloc &alloc) {
   ost << " weight=" << alloc.getWeight();
   return ost;
 }
+
+size_t Alloc::hash() const {
+  size_t hash = 0u;
+  boost::hash_combine(hash, getTuple());
+  return hash;
+}
+
+size_t hash_value(const Alloc &a) { return a.hash(); }
 
 } // namespace shift
 } // namespace schedule

@@ -7,6 +7,8 @@
 #include <random>
 #include <schedule/shift/graphserialization.hpp>
 
+#include <boost/functional/hash.hpp>
+
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/schedule/shift/filteredschedule.hpp>
@@ -494,6 +496,21 @@ bool Graph::lessThan(const Graph &rhs, bool includeNames) const {
 
     return A < B;
   }
+}
+
+size_t Graph::hash(bool includeNames) const {
+
+  size_t hash = 0u;
+
+  for (const auto &op : getOps()) {
+    boost::hash_combine(hash, op.hash(includeNames));
+  }
+
+  for (const auto &alloc : getAllocs()) {
+    boost::hash_combine(hash, alloc.hash());
+  }
+
+  return hash;
 }
 
 } // namespace shift

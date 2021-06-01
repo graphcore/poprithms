@@ -3,6 +3,8 @@
 #include <array>
 #include <iomanip>
 
+#include <boost/functional/hash.hpp>
+
 #include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/schedule/shift/op.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -21,6 +23,18 @@ template <typename C, typename T> void insertUniqueAscending(C &vals, T nxt) {
   if (it == vals.end() || nxt != *it) {
     vals.insert(it, nxt);
   }
+}
+
+size_t Op::hash(bool includeNames) const {
+  size_t hash = 0u;
+
+  if (includeNames) {
+    boost::hash_combine(hash, getFullComparitor());
+  } else {
+    boost::hash_combine(hash, getGraphComparitor());
+  }
+
+  return hash;
 }
 
 void Op::append(std::ostream &ost) const { ost << debugString; }

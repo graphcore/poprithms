@@ -52,6 +52,8 @@ public:
     return getTuple() < rhs.getTuple();
   }
 
+  size_t hash() const;
+
   void append(std::ostream &) const;
   void appendSerialization(std::ostream &) const;
 
@@ -67,6 +69,8 @@ private:
   AllocWeight weight;
   std::vector<OpAddress> ops;
 };
+
+std::size_t hash_value(const Alloc &);
 
 std::ostream &operator<<(std::ostream &ost, const Alloc &alloc);
 
