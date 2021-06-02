@@ -1,0 +1,1 @@
+add_schedule_test(schedule_connectedcomponents_connectedcomponents_0 connectedcomponents_0.cpp)

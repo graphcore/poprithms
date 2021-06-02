@@ -115,6 +115,11 @@ set(schedule_scc_sources
   ${scc_source_dir}/scc.cpp
   ${scc_source_dir}/error.cpp
 )
+set(connectedcomponents_source_dir ${schedule_src_dir}/connectedcomponents)
+set(schedule_connectedcomponents_sources
+  ${connectedcomponents_source_dir}/connectedcomponents.cpp
+  ${connectedcomponents_source_dir}/error.cpp
+)
 set(schedule_vanilla_source_dir ${schedule_src_dir}/vanilla)
 set(schedule_vanilla_sources
   ${schedule_vanilla_source_dir}/vanilla.cpp
@@ -136,6 +141,7 @@ add_library(poprithms-schedule-objlib OBJECT
   ${schedule_shift_sources}
   ${schedule_dfs_sources}
   ${schedule_scc_sources}
+  ${schedule_connectedcomponents_sources}
   ${schedule_vanilla_sources}
   ${schedule_supercon_sources}
   ${schedule_transitive_closure_sources}
