@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <limits>
 #include <sstream>
@@ -204,8 +204,7 @@ TransitiveClosure::getFlattenedRedundants(const Edges &edges) const {
 
 TransitiveClosure::TransitiveClosure(const Edges &fwd)
     : nOps(fwd.size()), nBitSetsPerOp(getNBitSetsPerOp(nOps)),
-      nBitSets(nBitSetsPerOp * nOps), fwdEdgeSet(nBitSets),
-      bwdEdgeSet(nBitSets) {
+      fwdEdgeSet(nBitSetsPerOp * nOps), bwdEdgeSet(nBitSetsPerOp * nOps) {
 
   for (const auto &evs : fwd) {
     for (auto e : evs) {
@@ -227,6 +226,10 @@ TransitiveClosure::TransitiveClosure(const Edges &fwd)
 
   propagate(fwd, bwd, fwdEdgeSet);
   propagate(bwd, fwd, bwdEdgeSet);
+}
+
+bool TransitiveClosure::operator==(const TransitiveClosure &x) const {
+  return fwdEdgeSet == x.fwdEdgeSet && bwdEdgeSet == x.bwdEdgeSet;
 }
 
 std::vector<BitSet> TransitiveClosure::getBits(const Filters &filters) const {
@@ -483,7 +486,36 @@ std::ostream &operator<<(std::ostream &ost,
   return ost;
 }
 
+bool TransitiveClosure::unconstrainedWithAtLeastOne(
+    OpId opId,
+    uint64_t bitSetIndex) const {
+
+  // We handle the final bitset group, where not all bits correspond to ops,
+  // as a special case. This is the 'slow' approach of checking each bit
+  // separately.
+  if ((bitSetIndex + 1) * BitSetSize > nOps) {
+    for (uint64_t i = bitSetIndex * BitSetSize; i < nOps; ++i) {
+      if (unconstrainedInBothDirections(opId, i)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // The non-final bitset, where all bits correspond to ops:
+  else {
+    auto index     = opId * getNBitSetsPerOp(opId) + bitSetIndex;
+    BitSet neither = fwdEdgeSet[index] | bwdEdgeSet[index];
+    neither.flip();
+    if (neither.any()) {
+      return true;
+    }
+    return false;
+  }
+}
+
+uint64_t TransitiveClosure::getNBitSets(OpId) const { return nBitSetsPerOp; }
+
 } // namespace transitiveclosure
 } // namespace schedule
-
 } // namespace poprithms

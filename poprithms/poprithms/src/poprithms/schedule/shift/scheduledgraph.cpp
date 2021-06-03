@@ -820,7 +820,8 @@ void ScheduledGraph::processWeightSeparatedIdenticalIns(
       if (upperBoundChange[a] <= lowerBoundChange[b] && a != b) {
 
         // Here we do a depth first search, starting at b, stopping when we
-        // reach an Op with is unconstrained with respect to t a.
+        // reach an Op with is unconstrained with respect
+        // to t a.
         //
         // The Ops found end up in this vector:
         std::vector<OpAddress> postBs;
@@ -1010,17 +1011,20 @@ bool ScheduledGraph::linkCloseTightPairs() {
 
     auto getCanTie = [this, L, U](OpAddress opId) {
       using namespace transitiveclosure;
-      for (uint64_t i = 0; i < transitiveClosure.getNBitSetsPerOp(); ++i) {
-        auto index     = opId * transitiveClosure.getNBitSetsPerOp() + i;
-        BitSet neither = transitiveClosure.getFwdEdgeSet()[index] |
-                         transitiveClosure.getBwdEdgeSet()[index];
-        neither.flip();
-        if (neither.any()) {
+      for (uint64_t bitSetIndex = 0;
+           bitSetIndex < transitiveClosure.getNBitSets(opId);
+           ++bitSetIndex) {
+
+        // A step to accelerate the optimization:
+        bool unconstrainedInBitSet =
+            transitiveClosure.unconstrainedWithAtLeastOne(opId, bitSetIndex);
+
+        if (unconstrainedInBitSet) {
           for (uint64_t shift = 0; shift < BitSetSize; ++shift) {
-            auto id = i * BitSetSize + shift;
+            auto id = bitSetIndex * BitSetSize + shift;
 
-            if (id != opId && id < nOps() && neither[shift]) {
-
+            if (id != opId && id < nOps() &&
+                transitiveClosure.unconstrainedInBothDirections(id, opId)) {
               //      L     U
               //  ....xxxxxxx..  -- a
               //  ..xxxxx......  -- b

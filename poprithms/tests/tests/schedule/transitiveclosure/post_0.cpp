@@ -75,11 +75,13 @@ int main() {
 
   auto up_2_7 = em.getUnconstrainedPost(2, 7);
   if (up_2_7.size() != 0) {
-    throw error("Expected no Ops to be unconstrained w.r.t. 2 and after 7");
+    throw error("Expected no Ops to be unconstrained "
+                "w.r.t. 2 and after 7");
   }
 
   if (em.sameUnconstrained(1, 2)) {
-    throw error("Expected different unconstrained sets for Ops 1 and 2");
+    throw error("Expected different unconstrained sets "
+                "for Ops 1 and 2");
   }
 
   if (!em.sameUnconstrained(8, 11)) {
@@ -92,8 +94,8 @@ int main() {
   }
 
   if (!em.asEarlyAsAllUnconstrained(9)) {
-    throw error(
-        "9 can be scheduled as early as any its unconstrained partners");
+    throw error("9 can be scheduled as early as any its "
+                "unconstrained partners");
   }
 
   return 0;

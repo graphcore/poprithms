@@ -1,6 +1,6 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_SCHEDULE_EDGEMAP_EDGEMAP_HPP
-#define POPRITHMS_SCHEDULE_EDGEMAP_EDGEMAP_HPP
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#ifndef POPRITHMS_SCHEDULE_TRANSITIVECLOSURE_TRANSITIVECLOSURE_HPP
+#define POPRITHMS_SCHEDULE_TRANSITIVECLOSURE_TRANSITIVECLOSURE_HPP
 
 #include <array>
 #include <bitset>
@@ -14,7 +14,7 @@ namespace transitiveclosure {
 // The number of bits stored per std::bitset, see bitset_performance_0.cpp for
 // an run to choose this value. std::bitset is a good data-type to use to
 // store the transitive closure bits, as it is compact, and it has a fast
-// count() method, probably compiled x86's popcnt instruction.
+// count() method, probably compiled to x86's popcnt instruction.
 static constexpr uint64_t BitSetSize = 512;
 using BitSet                         = std::bitset<BitSetSize>;
 
@@ -68,7 +68,7 @@ public:
    * schedule with a before b, and at least 1 schedule with b before a. This
    * query is performed in O(1) time.
    */
-  bool unconstrained(OpId a, OpId b) const {
+  bool unconstrainedInBothDirections(OpId a, OpId b) const {
     return !constrained(a, b) && !constrained(b, a);
   }
 
@@ -98,8 +98,10 @@ public:
   /** The size of the set which would be returned by get(fs) */
   uint64_t n(const Filters &fs) const;
 
-  /** Return true iff get({{x, y}}) is the same for all y in ys */
-  bool same(IsFirst x, const std::vector<OpId> &ys) const;
+  /**
+   * Return true iff get({{isFirst, opId}}) is the same for all opId in ids
+   */
+  bool same(IsFirst isFirst, const std::vector<OpId> &ids) const;
 
   std::vector<OpId> getUnconstrained(OpId id) const {
     return get({{IsFirst::Maybe, id}});
@@ -119,10 +121,6 @@ public:
 
   uint64_t nOps_u64() const { return nOps; }
   int64_t nOps_i64() const { return static_cast<int64_t>(nOps); }
-
-  static uint64_t getNBitSetsPerOp(uint64_t nOps) {
-    return nOps / BitSetSize + (nOps % BitSetSize != 0);
-  }
 
   /**
    * For each Op op in subOps, what can be said about op's position in any
@@ -179,26 +177,46 @@ public:
   /** Amongst all schedules, what is the latest that "id" appears ? */
   uint64_t latest(OpId id) const;
 
-  /** Returns true if all Ops which are unconstraned with respect to id, have
-   * their earliest possible schedulings no earlier than id's */
+  /**
+   * Returns true if all Ops which are unconstrained with
+   * respect to id, have their earliest possible schedulings no earlier than
+   * id's
+   * */
   bool asEarlyAsAllUnconstrained(OpId id) const;
 
-  bool operator==(const TransitiveClosure &x) const {
-    return fwdEdgeSet == x.fwdEdgeSet && bwdEdgeSet == x.bwdEdgeSet;
-  }
+  bool operator==(const TransitiveClosure &x) const;
 
   bool operator!=(const TransitiveClosure &x) const { return !operator==(x); }
 
-  /** Only advanced optimizations should require direct bit-access */
-  const std::vector<BitSet> &getFwdEdgeSet() const { return fwdEdgeSet; }
-  const std::vector<BitSet> &getBwdEdgeSet() const { return bwdEdgeSet; }
+  /**
+   * For each Op #id, this class stores bitsets of representing all of the
+   * forward and backward constraints with all other Ops. These bitsets come
+   * in chunks of bits of size BitSetSize (see comment at start of class).
+   *
+   * This method checks for constraints between Op #id and all Ops with ids in
+   * [bitSetIndex*BitSetSize, (bitSetIndex + 1)*bitSetSize).
+   *
+   * This method is used for advanced, performance critical use cases.
+   * */
+  bool unconstrainedWithAtLeastOne(OpId, uint64_t bitSetIndex) const;
 
-  uint64_t getNBitSetsPerOp() const { return nBitSetsPerOp; }
+  /**
+   * the total size of all bitmaps used by this object
+   * */
+  uint64_t nBits() const {
+    return (fwdEdgeSet.size() + bwdEdgeSet.size()) * BitSetSize;
+  }
+
+public:
+  uint64_t getNBitSets(OpId) const;
+
+  static uint64_t getNBitSetsPerOp(uint64_t nOps) {
+    return nOps / BitSetSize + (nOps % BitSetSize != 0);
+  }
 
 private:
   uint64_t nOps;
   uint64_t nBitSetsPerOp;
-  uint64_t nBitSets;
 
   std::vector<BitSet> fwdEdgeSet;
   std::vector<BitSet> bwdEdgeSet;

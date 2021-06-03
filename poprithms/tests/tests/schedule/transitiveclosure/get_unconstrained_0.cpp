@@ -80,13 +80,13 @@ void test1() {
     uint64_t unConIndex = 0;
     for (uint64_t j = 0; j < N; ++j) {
       if (unConIndex < unCons.size() && j == unCons[unConIndex]) {
-        if (!pm.unconstrained(i, j)) {
+        if (!pm.unconstrainedInBothDirections(i, j)) {
           throw error(
               "Disagreement on whether 2 Ops are constrained (in set)");
         }
         ++unConIndex;
       } else {
-        if (i != j && pm.unconstrained(i, j)) {
+        if (i != j && pm.unconstrainedInBothDirections(i, j)) {
           throw error(
               "Disagreement on whether 2 Ops are constrained (not in set)");
         }

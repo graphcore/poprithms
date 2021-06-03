@@ -136,6 +136,7 @@ set(schedule_transitive_closure_sources
   ${transitiveclosure_source_dir}/error.cpp
   ${transitiveclosure_source_dir}/logging.cpp
   ${transitiveclosure_source_dir}/transitiveclosure.cpp
+  ${transitiveclosure_source_dir}/partitionedtransitiveclosure.cpp
 )
 add_library(poprithms-schedule-objlib OBJECT
   ${schedule_shift_sources}

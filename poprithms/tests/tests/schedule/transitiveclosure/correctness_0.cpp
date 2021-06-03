@@ -34,7 +34,7 @@ int main() {
   }
 
   if (!(em.constrained(0, 1) && em.constrained(0, 2) &&
-        em.constrained(0, 3) && em.unconstrained(1, 2) &&
+        em.constrained(0, 3) && em.unconstrainedInBothDirections(1, 2) &&
         em.constrained(1, 3) && em.constrained(2, 3))) {
     throw error("incorrect diamond constraints");
   }
@@ -136,8 +136,9 @@ int main() {
     }
   }
   for (uint64_t i = 0; i < 3; ++i) {
-    if (!em.unconstrained(i, 3) || !em.unconstrained(i, 4) ||
-        !em.unconstrained(i, 5)) {
+    if (!em.unconstrainedInBothDirections(i, 3) ||
+        !em.unconstrainedInBothDirections(i, 4) ||
+        !em.unconstrainedInBothDirections(i, 5)) {
       throw error("Expected parallel chains to be unconstrained");
     }
   }
