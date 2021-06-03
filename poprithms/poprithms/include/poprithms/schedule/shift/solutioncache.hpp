@@ -21,7 +21,7 @@ public:
   writeSolution(Graph &&, const Settings &, const std::vector<OpAddress> &);
 
 private:
-  // when comparing Graphs, ignore the Op names.
+  // when comparing Graphs in the cache, ignore the Op names.
   struct IgnoreNamesHash {
     size_t operator()(const Graph &a) const { return a.hash(false); }
   };

@@ -29,9 +29,9 @@ size_t Op::hash(bool includeNames) const {
   size_t hash = 0u;
 
   if (includeNames) {
-    boost::hash_combine(hash, getFullComparitor());
+    boost::hash_combine(hash, getFullComparator());
   } else {
-    boost::hash_combine(hash, getGraphComparitor());
+    boost::hash_combine(hash, getGraphComparator());
   }
 
   return hash;

@@ -54,7 +54,7 @@ public:
   /**
    * Create a Logger from a proposed id, with the option to extend the
    * proposed id with a random character string if there is already Logger
-   * with the the id \a id.
+   * with the id \a id.
    *
    * \param id The proposed id for the Logger
    *

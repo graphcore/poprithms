@@ -78,7 +78,7 @@ public:
   }
 
   /**
-   * The id in the main graph of the the node in the subgraph #c with local
+   * The id in the main graph of the node in the subgraph #c with local
    * id, #l.
    * */
   uint64_t globalId(ComponentId c, LocalId l) const {

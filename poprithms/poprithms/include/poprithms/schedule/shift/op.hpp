@@ -75,12 +75,12 @@ public:
   OpAddress getBackwardLink() const { return bwdLink; }
 
   bool operator==(const Op &rhs) const {
-    return getFullComparitor() == rhs.getFullComparitor();
+    return getFullComparator() == rhs.getFullComparator();
   }
   bool operator!=(const Op &rhs) const { return !operator==(rhs); }
 
   bool operator<(const Op &rhs) const {
-    return getFullComparitor() < rhs.getFullComparitor();
+    return getFullComparator() < rhs.getFullComparator();
   }
 
   size_t hash(bool includeNames) const;
@@ -98,7 +98,7 @@ public:
 
   void appendSerialization(std::ostream &) const;
 
-  using FullComparitor = std::tuple<OpAddress,
+  using FullComparator = std::tuple<OpAddress,
                                     std::vector<OpAddress>,
                                     std::vector<OpAddress>,
                                     std::vector<AllocAddress>,
@@ -106,16 +106,16 @@ public:
                                     OpAddress,
                                     OpAddress>;
 
-  using GraphComparitor = std::tuple<OpAddress,
+  using GraphComparator = std::tuple<OpAddress,
                                      OpAddress,
                                      std::vector<OpAddress>,
                                      std::vector<AllocAddress>>;
 
-  FullComparitor getFullComparitor() const {
+  FullComparator getFullComparator() const {
     return {address, ins, outs, allocs, debugString, fwdLink, bwdLink};
   }
 
-  GraphComparitor getGraphComparitor() const {
+  GraphComparator getGraphComparator() const {
     return {address, fwdLink, outs, allocs};
   }
 

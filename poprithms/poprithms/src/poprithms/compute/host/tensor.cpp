@@ -368,7 +368,7 @@ Tensor Tensor::matmul(const Tensor &rhs) const {
 
   Tensors dots;
 
-  // Perform each of the matmuls in the grouped matmul, seperately.
+  // Perform each of the matmuls in the grouped matmul, separately.
   for (int64_t i = 0; i < nGroups; ++i) {
     dots.push_back({{1, M_i64, N_i64},
                     dtype(),

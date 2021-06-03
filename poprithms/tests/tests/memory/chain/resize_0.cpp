@@ -36,7 +36,7 @@ void test0() {
 
   Shape inShape({2, 3, 5, 7});
 
-  // Chain using the the approach of rolling the dimension to the back first:
+  // Chain using the approach of rolling the dimension to the back first:
   Chain ch(inShape);
   const Permutation roller({0, 2, 3, 1});
   ch.dimShuffle(roller);

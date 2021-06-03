@@ -463,8 +463,8 @@ bool Graph::equalTo(const Graph &rhs, bool includeNames) const {
       return false;
     }
     for (uint64_t i = 0; i < allOps.size(); ++i) {
-      if (getOp(i).getGraphComparitor() !=
-          rhs.getOp(i).getGraphComparitor()) {
+      if (getOp(i).getGraphComparator() !=
+          rhs.getOp(i).getGraphComparator()) {
         return false;
       }
     }
@@ -480,17 +480,17 @@ bool Graph::lessThan(const Graph &rhs, bool includeNames) const {
   }
 
   else {
-    std::vector<Op::GraphComparitor> as;
+    std::vector<Op::GraphComparator> as;
     as.reserve(nOps());
     for (const auto &op : getOps()) {
-      as.push_back(op.getGraphComparitor());
+      as.push_back(op.getGraphComparator());
     }
     const auto A = std::tuple{as, getAllocs()};
 
-    std::vector<Op::GraphComparitor> bs;
+    std::vector<Op::GraphComparator> bs;
     bs.reserve(rhs.nOps());
     for (const auto &op : rhs.getOps()) {
-      bs.push_back(op.getGraphComparitor());
+      bs.push_back(op.getGraphComparator());
     }
     const auto B = std::tuple{bs, rhs.getAllocs()};
 
