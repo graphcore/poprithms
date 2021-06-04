@@ -37,6 +37,11 @@ public:
    * */
   Origins(const Shape &sh) : shape(sh) {}
 
+  Origins(Origins &&)      = default;
+  Origins(const Origins &) = default;
+  Origins &operator=(Origins &&) = default;
+  Origins &operator=(const Origins &) = default;
+
   /** Register an allocation.
    *
    * \param id The unique identifier of the allocation.
@@ -98,7 +103,8 @@ private:
   // approach of keeping a vector of DisjointRegions, the union of which
   // represents all the addresses of the allocation (the key) aliased.
   std::map<AllocId, std::vector<DisjointRegions>> oMap;
-  const Shape shape;
+
+  Shape shape;
   uint64_t sumTotalRegionSizes{0};
   void incrementSumTotalRegionSizes(uint64_t);
 };

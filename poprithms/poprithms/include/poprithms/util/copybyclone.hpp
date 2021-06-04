@@ -69,10 +69,13 @@ public:
   CopyByClone(std::unique_ptr<T> x) : uptr(std::move(x)) {}
 
   CopyByClone(const CopyByClone<T> &rhs);
-  CopyByClone(CopyByClone<T> &&rhs);
+
+  // The move constructor does not throw. This is because
+  // std::unique_ptr's move constructor is non-throwing.
+  CopyByClone(CopyByClone<T> &&rhs) noexcept;
 
   CopyByClone<T> &operator=(const CopyByClone<T> &);
-  CopyByClone<T> &operator=(CopyByClone<T> &&);
+  CopyByClone<T> &operator=(CopyByClone<T> &&) noexcept;
 
   bool operator==(const CopyByClone<T> &rhs) const {
     return *uptr == *rhs.uptr;

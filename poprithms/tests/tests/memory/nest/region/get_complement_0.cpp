@@ -19,9 +19,10 @@ void assertComplement(const Region &r0, const DisjointRegions &expe) {
 
 void test0() {
   Region r0({10, 20}, {{{{1, 1, 0}}}, {{{1, 1, 0}}}});
-  DisjointRegions rs({10, 20},
-                     {std::vector<Sett>{{{{1, 1, 1}}}, {{{}}}},
-                      {{{{1, 1, 0}}}, {{{1, 1, 1}}}}});
+  DisjointRegions rs(
+      {10, 20},
+      {std::vector<Sett>{{{{1, 1, 1}}}, Sett::createAlwaysOn()},
+       {{{{1, 1, 0}}}, {{{1, 1, 1}}}}});
   assertComplement(r0, rs);
 }
 

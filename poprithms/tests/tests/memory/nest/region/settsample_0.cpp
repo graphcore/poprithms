@@ -34,7 +34,8 @@ void assertSettSample(const Region &a,
 void test0() {
   Region a({10, 8}, {{{{1, 1, 0}}}, {{{1, 1, 0}}}});
   Region where{{10, 8}, {{{{1, 1, 0}}}, {{{1, 1, 0}}}}};
-  Region expectedSample({5, 4}, {{{{}}}, {{{}}}});
+  Region expectedSample({5, 4},
+                        {Sett::createAlwaysOn(), Sett::createAlwaysOn()});
   assertSettSample(a, where, {expectedSample});
 }
 
@@ -43,7 +44,7 @@ void test1() {
   Region a(s, {{{{1, 1, 0}}}, {{{1, 1, 0}}}});
   Region where{s, {{{{1, 1, 1}}}, {{{1, 1, 0}}}}};
   Region expectedSample({s.dim(0) / 2, s.dim(1) / 2},
-                        {{{{0, 1, 0}}}, {{{}}}});
+                        {{{{0, 1, 0}}}, Sett::createAlwaysOn()});
   assertSettSample(a, where, {expectedSample});
 }
 

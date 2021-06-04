@@ -31,9 +31,13 @@ void test0() {
 
 void test2() {
 
-  const Region r0({4, 1, 3}, {{{{1, 1, 0}}}, {{{}}}, {{{1, 2, 0}}}});
-  const Region r1({4, 1, 3}, {{{{1, 1, 0}}}, {{{}}}, {{{2, 1, 2}}}});
-  const Region r2({4, 1, 3}, {{{{1, 1, 1}}}, {{{}}}, {{{}}}});
+  const Region r0({4, 1, 3},
+                  {{{{1, 1, 0}}}, Sett::createAlwaysOn(), {{{1, 2, 0}}}});
+  const Region r1({4, 1, 3},
+                  {{{{1, 1, 0}}}, Sett::createAlwaysOn(), {{{2, 1, 2}}}});
+  const Region r2(
+      {4, 1, 3},
+      {{{{1, 1, 1}}}, Sett::createAlwaysOn(), Sett::createAlwaysOn()});
   const DisjointRegions drs({4, 1, 3}, {r0, r1, r2});
   const auto expanded = drs.expand({5, 4, 6, 3});
 

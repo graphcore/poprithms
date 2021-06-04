@@ -19,6 +19,9 @@ std::ostream &operator<<(std::ostream &ost, const std::vector<uint64_t> &x) {
   return ost;
 }
 
+static_assert(std::is_nothrow_move_constructible<Shape>::value,
+              "Expect Shape to be nothrow move constructible");
+
 } // namespace
 
 uint64_t Shape::dimProduct_u64(int64_t l, int64_t u) const {

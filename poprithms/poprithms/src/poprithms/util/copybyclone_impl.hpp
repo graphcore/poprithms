@@ -19,8 +19,9 @@ CopyByClone<T> &CopyByClone<T>::operator=(const CopyByClone<T> &rhs) {
   this->uptr = rhs.uptr->clone();
   return *this;
 }
+
 template <typename T>
-CopyByClone<T> &CopyByClone<T>::operator=(CopyByClone<T> &&rhs) {
+CopyByClone<T> &CopyByClone<T>::operator=(CopyByClone<T> &&rhs) noexcept {
   if (this == &rhs) {
     return *this;
   }
@@ -31,7 +32,7 @@ CopyByClone<T> &CopyByClone<T>::operator=(CopyByClone<T> &&rhs) {
 // Constructors
 //
 template <typename T>
-CopyByClone<T>::CopyByClone(CopyByClone<T> &&rhs)
+CopyByClone<T>::CopyByClone(CopyByClone<T> &&rhs) noexcept
     : uptr(std::move(rhs.uptr)) {}
 
 template <typename T>

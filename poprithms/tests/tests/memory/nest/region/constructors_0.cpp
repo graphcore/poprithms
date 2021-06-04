@@ -9,8 +9,8 @@ int main() {
 
   using namespace poprithms::memory::nest;
 
-  const Region r0({3, 5}, {{{{}}}, {{{1, 1, 0}}}});
-  const Region r1({4, 6}, {{{{}}}, {{{1, 1, 0}}}});
+  const Region r0({3, 5}, {Sett::createAlwaysOn(), {{{1, 1, 0}}}});
+  const Region r1({4, 6}, {Sett::createAlwaysOn(), {{{1, 1, 0}}}});
   // copy constructor
   auto r2 = r0;
   // copy operator

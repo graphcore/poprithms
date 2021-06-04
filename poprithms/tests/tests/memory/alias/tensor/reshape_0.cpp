@@ -57,15 +57,18 @@ void test1() {
 
   // select the 0s from sliced, using filter
   // 11....11....11....
-  const auto sInter0 = sliced.settSample({{2, 18}, {{{{}}}, {{{2, 4, 0}}}}});
+  const auto sInter0 =
+      sliced.settSample({{2, 18}, {Sett::createAlwaysOn(), {{{2, 4, 0}}}}});
 
   // select the 1s from sliced
   // ..111...111...111.
-  const auto sInter1 = sliced.settSample({{2, 18}, {{{{}}}, {{{3, 3, 2}}}}});
+  const auto sInter1 =
+      sliced.settSample({{2, 18}, {Sett::createAlwaysOn(), {{{3, 3, 2}}}}});
 
   // select the 2s from sliced
   // .....1.....1.....1
-  const auto sInter2 = sliced.settSample({{2, 18}, {{{{}}}, {{{1, 5, 5}}}}});
+  const auto sInter2 =
+      sliced.settSample({{2, 18}, {Sett::createAlwaysOn(), {{{1, 5, 5}}}}});
 
   const auto allocs = std::vector{alloc0, alloc1, alloc2};
   const auto sInter = std::vector{sInter0, sInter1, sInter2};

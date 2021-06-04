@@ -48,6 +48,12 @@ public:
 
   virtual ~Node() = default;
 
+  Node(Node &&)      = default;
+  Node(const Node &) = default;
+
+  Node &operator=(Node &&) = default;
+  Node &operator=(const Node &) = default;
+
   Node(const State &ob, const Origins &oris)
       : ins_(ob.ins), outs_(ob.outs), inShapes_(ob.inShapes), id_(ob.id),
         shape_(ob.shape), origins_(oris) {}
@@ -130,11 +136,11 @@ public:
   const Origins &origins() const { return origins_; }
 
 private:
-  const std::vector<TensorId> ins_;
+  std::vector<TensorId> ins_;
   std::vector<TensorId> outs_;
-  const std::vector<Shape> inShapes_;
-  const TensorId id_;
-  const Shape shape_;
+  std::vector<Shape> inShapes_;
+  TensorId id_;
+  Shape shape_;
   Origins origins_;
 };
 

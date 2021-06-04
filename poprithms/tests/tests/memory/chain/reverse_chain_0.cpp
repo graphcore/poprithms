@@ -7,6 +7,7 @@
 namespace {
 
 using namespace poprithms::memory::chain;
+using namespace poprithms::memory;
 
 void testReverseChain0() {
 
@@ -14,13 +15,15 @@ void testReverseChain0() {
   chain.reshape({5, 10, 120});
   chain.dimShuffle({{1, 2, 0}});
   chain.reverse(Dimensions({2}));
-  chain.settSample({{{{1, 1, 0}}}, {{{1, 1, 0}}}, {{{}}}});
+  chain.settSample(
+      {{{{1, 1, 0}}}, {{{1, 1, 0}}}, nest::Sett::createAlwaysOn()});
 
   const auto revChain = chain.mirror();
 
   Chain expected({5, 60, 5});
   expected.settFillInto(
-      Region({10, 120, 5}, {{{{1, 1, 0}}}, {{{1, 1, 0}}}, {{{}}}}));
+      Region({10, 120, 5},
+             {{{{1, 1, 0}}}, {{{1, 1, 0}}}, nest::Sett::createAlwaysOn()}));
   expected.reverse(Dimensions({2}));
   expected.dimShuffle({{2, 0, 1}});
   expected.reshape({10, 20, 30});

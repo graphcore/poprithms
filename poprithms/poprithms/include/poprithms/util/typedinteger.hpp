@@ -37,9 +37,11 @@ namespace util {
 
 template <char T, typename INT> class TypedInteger {
 public:
-  TypedInteger()        = default;
+  TypedInteger()                      = default;
+  TypedInteger(TypedInteger &&x)      = default;
+  TypedInteger(const TypedInteger &x) = default;
+  TypedInteger &operator=(TypedInteger &&x) = default;
   TypedInteger &operator=(const TypedInteger &x) = default;
-  TypedInteger(const TypedInteger &x)            = default;
 
   template <typename INT2> TypedInteger(INT2 v_) : v(static_cast<INT>(v_)) {
     static_assert(std::is_integral<INT2>::value,

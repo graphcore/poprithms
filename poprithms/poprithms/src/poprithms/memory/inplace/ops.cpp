@@ -17,6 +17,10 @@ namespace inplace {
 
 namespace {
 
+static_assert(std::is_nothrow_move_constructible<
+                  poprithms::memory::inplace::DimShuffle>::value,
+              "Expect DimShuffle to be nothrow move constructible");
+
 template <typename T>
 std::ostream &operator<<(std::ostream &ost, const std::vector<T> &ts) {
   poprithms::util::append(ost, ts);

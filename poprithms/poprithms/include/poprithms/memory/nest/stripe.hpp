@@ -54,6 +54,10 @@ public:
    * \param phase The offset from 0 to the first '1'.
    */
   Stripe(int64_t on, int64_t off, int64_t phase);
+  Stripe(Stripe &&)      = default;
+  Stripe(const Stripe &) = default;
+  Stripe &operator=(Stripe &&) = default;
+  Stripe &operator=(const Stripe &) = default;
 
   int64_t on() const { return sOn; }
   int64_t off() const { return sOff; }

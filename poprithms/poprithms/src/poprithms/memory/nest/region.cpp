@@ -582,7 +582,7 @@ Region Region::fromStripe(const Shape &sh,
         << " and dimension=" << dimension;
     throw error(oss.str());
   }
-  std::vector<Sett> setts(sh.rank_u64(), {{{}}});
+  std::vector<Sett> setts(sh.rank_u64(), Sett::createAlwaysOn());
   setts[dimension] = Sett({stripe0});
   return Region(sh, setts);
 }
@@ -892,6 +892,9 @@ Region Region::fromStride(const Shape &shape, Stride s, Dimension d) {
 DisjointRegions DisjointRegions::getComplement() const {
   return DisjointRegions::createFull(shape()).subtract(*this);
 }
+
+static_assert(std::is_nothrow_move_constructible<DisjointRegions>::value,
+              "Expect DisjointRegions to be nothrow move constructible");
 
 } // namespace nest
 } // namespace memory

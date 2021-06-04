@@ -25,20 +25,22 @@ int main() {
                     DisjointRegions::createEmpty({}),
                     true);
 
-  DisjointRegions a({100, 200}, {{{100, 200}, {{{{}}}, {{{}}}}}});
+  DisjointRegions a(
+      {100, 200},
+      {{{100, 200}, {Sett::createAlwaysOn(), Sett::createAlwaysOn()}}});
 
   DisjointRegions b({100, 200},
-                    {{{100, 200}, {{{{}}}, {{{1, 1, 1}}}}},
-                     {{100, 200}, {{{{}}}, {{{1, 1, 0}}}}}});
+                    {{{100, 200}, {Sett::createAlwaysOn(), {{{1, 1, 1}}}}},
+                     {{100, 200}, {Sett::createAlwaysOn(), {{{1, 1, 0}}}}}});
 
   DisjointRegions c({100, 200},
-                    {{{100, 200}, {{{{}}}, {{{1, 3, 1}}}}},
-                     {{100, 200}, {{{{}}}, {{{1, 1, 0}}}}}});
+                    {{{100, 200}, {Sett::createAlwaysOn(), {{{1, 3, 1}}}}},
+                     {{100, 200}, {Sett::createAlwaysOn(), {{{1, 1, 0}}}}}});
 
   DisjointRegions d({100, 200},
-                    {{{100, 200}, {{{{1, 2, 0}}}, {{{}}}}},
-                     {{100, 200}, {{{{1, 2, 1}}}, {{{}}}}},
-                     {{100, 200}, {{{{1, 2, 2}}}, {{{}}}}}});
+                    {{{100, 200}, {{{{1, 2, 0}}}, Sett::createAlwaysOn()}},
+                     {{100, 200}, {{{{1, 2, 1}}}, Sett::createAlwaysOn()}},
+                     {{100, 200}, {{{{1, 2, 2}}}, Sett::createAlwaysOn()}}});
 
   assertEquivalence(a, a, true);
   assertEquivalence(b, d, true);

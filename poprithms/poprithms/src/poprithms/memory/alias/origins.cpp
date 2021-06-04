@@ -11,6 +11,9 @@ namespace poprithms {
 namespace memory {
 namespace alias {
 
+static_assert(std::is_nothrow_move_constructible<Origins>::value,
+              "Expect Origins to be nothrow move constructible");
+
 bool Origins::isAliasedTo(const Origins &rhs) const {
 
   std::vector<AllocId> commonAllocIds;
