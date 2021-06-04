@@ -195,6 +195,11 @@ public:
   /** All Tensors which are aliased to \a t */
   TensorIds allAliases(const TensorId &t) const;
 
+  /**
+   * \return true if the two Tensors \a a and \a b are aliased.
+   * */
+  bool areAliased(const TensorId &a, const TensorId &b) const;
+
   /** Insert a topological constraint, ensuring that \a before appears before
    * \a after in all schedules. */
   void constraint(OpId before, OpId after);
@@ -291,7 +296,51 @@ public:
   /** Append a string describing this Graph to \a ost */
   void append(std::ostream &ost) const;
 
+  /**
+   * Consider a graph:
+   *
+   * a <- variable({})
+   * b <- modify(a)
+   * c <- modify(a),
+   *
+   *    variable
+   *       |
+   *    +--+-----+
+   *    |        |
+   * modify    modify.
+   *
+   * without any topological constraints between b and c, the final value of a
+   * is potentially ambiguous. Suppose that b is 'sqrt' and c is 'sin'. The
+   * final value of 'a' depends on the schedule:
+   *
+   * (a,b,c) : a <- sin(sqrt(a))
+   * (a,c,b) : a <- sqrt(sin(a)).
+   *
+   * This method detects ambiguities of this form. In particular, if there is
+   * memory which is modified more than once, and the order of the modifiers
+   * acting on that memory is not completely determined by constraints in the
+   * graph, then 'true' is returned.
+   * */
+  bool containsAmbiguity() const;
+
+protected:
+  //  if there is no ambiguity: false is returned
+  //  if there is an ambiguity: true/false is returned
+  bool mightContainAmbiguity() const;
+
+  //  if there is no ambiguity: false is returned
+  //  if there is an ambiguity: true is returned
+  bool definitelyContainsAmbiguity() const {
+    return containsAmbiguity(getFwdEdges<uint64_t>({}));
+  }
+
 private:
+  // Decoupling the true edges (constraints) from ambiguity detection allows
+  // us to quickly determine if a graph is ambiguity free using a subset of
+  // the edges in the graph.
+  bool
+  containsAmbiguity(const std::vector<std::vector<uint64_t>> &edges) const;
+
   template <class T, class... Args>
   OpId
   createOp(const TensorIds &inIds, const Shapes &outShapes, Args... args);
@@ -303,10 +352,18 @@ private:
   Op &op(OpId);
   const Op &op(OpId) const;
 
+  template <typename T> using Edges = std::vector<std::vector<T>>;
+
   // Get a simple edge map, which can be passed into an external scheduling
-  // algorithm API.
-  using FwdEdges = std::vector<std::vector<decltype(OpId().get())>>;
-  FwdEdges getFwdEdges(const Constraints &additional) const;
+  // algorithm. Additional constraints can be included via 'additional'
+  template <typename T>
+  Edges<T> getFwdEdges(const Constraints &additional) const;
+
+  // Get a simple edge map, which can be passed into an external scheduling
+  // algorithm. Constraints can be removed by using the Condition filter.
+  // The edge map includes all edges a->b for which cond(a, b) = true.
+  template <typename T, typename Condition>
+  Edges<T> getConditionalFwdEdges(Condition &&condition) const;
 
   std::vector<std::array<TensorId, 2>>
   createBroadcastPadElements(const Shape &,

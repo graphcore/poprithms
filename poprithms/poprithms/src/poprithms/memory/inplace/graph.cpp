@@ -14,6 +14,7 @@
 #include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/schedule/scc/scc.hpp>
+#include <poprithms/schedule/transitiveclosure/partitionedtransitiveclosure.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
@@ -152,16 +153,6 @@ std::vector<OpId> toOpIds(const std::vector<decltype(OpId().get())> &vals) {
     opIds.push_back(OpId(v));
   }
   return opIds;
-}
-
-std::vector<decltype(OpId().get())>
-fromOpIds(const std::vector<OpId> &opIds) {
-  std::vector<decltype(OpId().get())> vals;
-  vals.reserve(opIds.size());
-  for (auto opId : opIds) {
-    vals.push_back(opId.get());
-  }
-  return vals;
 }
 
 } // namespace
@@ -311,6 +302,12 @@ TensorIds Graph::allAliases(const TensorId &id) const {
   return tensorMap.fromAliasGraphIds(aGraph().allAliases(aliasGraphId));
 }
 
+bool Graph::areAliased(const TensorId &a, const TensorId &b) const {
+  const auto id0 = tensorMap.toAliasGraphId(a);
+  const auto id1 = tensorMap.toAliasGraphId(b);
+  return aGraph().areAliased(id0, id1);
+}
+
 uint64_t Graph::scheduleIndex(OpId id) const {
   if (!scheduleIsValid) {
     throw error("call to scheduleIndex but !scheduleIsValid");
@@ -377,7 +374,7 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   // The schedule is not kept up-to-date while the Graph is being constructed,
   // so we update it here, if necessary.
   if (!scheduleIsValid) {
-    const auto fwdEdges = getFwdEdges({});
+    const auto fwdEdges = getFwdEdges<int64_t>({});
 
     setSchedule(toOpIds(poprithms::schedule::vanilla::getSchedule_i64(
         fwdEdges,
@@ -539,7 +536,7 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
 
   auto proposedSchedule =
       toOpIds(poprithms::schedule::vanilla::getSchedule_i64(
-          getFwdEdges(newConstraints),
+          getFwdEdges<int64_t>(newConstraints),
           schedule::vanilla::ErrorIfCycle::No,
           schedule::vanilla::VerifyEdges::No));
 
@@ -595,14 +592,34 @@ void Graph::constraints(const Constraints &constraints_) {
   }
 }
 
-Graph::FwdEdges Graph::getFwdEdges(const Constraints &additional) const {
-  FwdEdges fwdEdges;
-  fwdEdges.reserve(nOps());
+template <typename T>
+std::vector<std::vector<T>>
+Graph::getFwdEdges(const Constraints &additional) const {
+  Edges<T> fwdEdges(nOps());
   for (uint64_t i = 0; i < nOps(); ++i) {
-    fwdEdges.push_back(fromOpIds(op(i).outs()));
+    auto outs_ = op(i).outs();
+    fwdEdges[i].reserve(outs_.size());
+    for (auto o : outs_) {
+      fwdEdges[i].push_back(static_cast<T>(o.get()));
+    }
   }
   for (const auto &[from, to] : additional) {
-    fwdEdges[from.get()].push_back(to.get());
+    fwdEdges[static_cast<uint64_t>(from.get())].push_back(
+        static_cast<T>(to.get()));
+  }
+  return fwdEdges;
+}
+
+template <typename T, typename Conditional>
+Graph::Edges<T> Graph::getConditionalFwdEdges(Conditional &&condition) const {
+  Edges<T> fwdEdges(nOps());
+  for (uint64_t from = 0; from < nOps(); ++from) {
+    fwdEdges[from].reserve(op(from).nOuts());
+    for (auto to : op(from).outs()) {
+      if (condition(from, to)) {
+        fwdEdges[from].push_back(static_cast<T>(to.get()));
+      }
+    }
   }
   return fwdEdges;
 }
@@ -710,6 +727,139 @@ TensorId Graph::subSample(const TensorId &id, const Strides &strides) {
 
 TensorId Graph::flatten(const TensorId &id) {
   return reshape(id, {shape(id).nelms()});
+}
+
+bool Graph::mightContainAmbiguity() const {
+
+  // For performance reasons, we first search for an ambiguity with a
+  // carefully chosen subset of all edges (constraints). If no ambiguity is
+  // found, we can be sure that there is no ambiguity with the full set of
+  // edges, as more edges implies less scheduling freedom. If there is an
+  // ambiguity found, we must check for an ambiguity with the full set of
+  // edges. This 'trick' to accelerate the ambiguity search assumes that in
+  // most cases, there is no ambiguity.
+  //
+  //
+  // 1) What is the "specially chosen" subset of edges, and why might this
+  // subset be a good proxy for the full set of edges?
+  // -----------
+  // We do not include an edge a->b if it is a data dependency where none of
+  // the outputs of a are aliased to any outputs of b. An example of where
+  // this might result in a false positive (detecting an ambiguity where there
+  // is none) is:
+  //
+  // a -> m0 (data constraint, m0 is a modifier)
+  // a -> m1 (data constraint, m1 is a modifier)
+  // m0 -> b (data constraint, with no aliases between outputs of m0 and
+  //          outputs of b)
+  // b -> m1 (a non-data constraint).
+  //
+  // In this case, the proxy edge set does not contain m0->b. The presence of
+  // edge m0 -> b ensures there is no ambiguity when considering the full set
+  // of edges, but its exclusion from the proxy set means
+  // `mightContainAmbiguity` returns `true` even though there is no ambiguity.
+  //
+  // Diagramatically:
+  //
+  // ----> data constraint
+  // ....> non-data contraint.
+  //
+  //
+  //       the edge which is missing
+  //       with the 'proxy' edge set
+  //                  v
+  //       +---> m0 ----> aliasGate(b)
+  //       |                  .
+  //  a >--+                  .
+  //       |                  .
+  //       +--->  m1  <.......+
+  //
+  //
+  // 2) Why do we think this subset is a good choice for performance reasons?
+  // -----------
+  // The PartitionedTransitiveClosure is quadratic in memory in the size of
+  // its largest connected component. By removing edges, it becomes more
+  // likely for large components to be divided into smaller components.
+  //
+  //
+  // It's worth repeating that this is a proxy purely for performance reasons:
+  // if an ambiguity is detected, then the full edge graph will be used.
+  //
+  // The inclusion condition:
+  auto inclusionCondition = [this](OpId from, OpId to) {
+    const auto toIns = op(to).inTensorIds();
+
+    // Non-data dependency.
+    if (std::all_of(toIns.cbegin(), toIns.cend(), [from](auto tId) {
+          return tId.opId() != from;
+        })) {
+      return true;
+    }
+
+    // Non-aliasing data dependency.
+    for (auto t0 : op(from).outTensorIds()) {
+      for (auto t1 : op(to).outTensorIds()) {
+        if (areAliased(t0, t1)) {
+          return true;
+        }
+      }
+    }
+    // aliasing data dependency.
+    return false;
+  };
+
+  return containsAmbiguity(
+      getConditionalFwdEdges<uint64_t>(inclusionCondition));
+}
+
+bool Graph::containsAmbiguity() const {
+
+  if (!mightContainAmbiguity()) {
+    return false;
+  }
+
+  // An ambiguity was found with the reduced edge map, see if there is still
+  // one with the full edge map.
+  return definitelyContainsAmbiguity();
+}
+
+bool Graph::containsAmbiguity(
+    const std::vector<std::vector<uint64_t>> &edges) const {
+
+  // We look for 2 modifiers, which modify the same data, but are
+  // unconstrained, relative to each other.
+  //
+  // The TransitiveClosure class (and the PartitionedTransitiveClosure class)
+  // is used for querying whether any 2 Ops in a graph are relatively
+  // unconstrained.
+
+  schedule::transitiveclosure::PartitionedTransitiveClosure ptc(edges);
+
+  /// For every modifying consumer #m0, of every Tensor #t0,
+  for (auto t0 : tensorIds()) {
+    auto mods0 = modifiers(t0);
+    if (!mods0.empty()) {
+
+      /// and for all aliases of #t0, called #t1, and modifiers #m1 of #t1,
+      for (auto t1 : allAliases(t0)) {
+        auto mods1 = modifiers(t1);
+        for (auto m0 : mods0) {
+          for (auto m1 : mods1) {
+
+            /// Are #m0 and #m1 relatively unconstrained? If so, the graph
+            /// contains an ambiguity.
+            if (m0.opId() != m1.opId()) {
+              if (ptc.unconstrainedInBothDirections(m0.opId().get(),
+                                                    m1.opId().get())) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return false;
 }
 
 } // namespace inplace

@@ -58,5 +58,8 @@ add_memory_inplace_test(memory_inplace_binary_0
 add_memory_inplace_test(memory_inplace_pad_0  
                                        pad_0.cpp)
 
+add_memory_inplace_test(memory_inplace_ambiguity_0  
+                                       ambiguity_0.cpp)
+
 add_memory_inplace_test(memory_inplace_crosslink_0  
                                        crosslink_0.cpp)

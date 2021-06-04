@@ -90,9 +90,11 @@ public:
 
   /** Ops which must be scheduled before this Op. */
   const OpIds &ins() const { return ins_; }
+  uint64_t nIns() const { return ins_.size(); }
 
   /** Ops which must be scheduled after this Op. */
   const OpIds &outs() const { return outs_; }
+  uint64_t nOuts() const { return outs_.size(); }
 
   State getState() const {
     return State{common::multiout::Op::getState(), ins_, outs_};
