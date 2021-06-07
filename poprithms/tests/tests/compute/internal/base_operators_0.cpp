@@ -56,7 +56,16 @@ void test0() {
 
   // Sqrt
   confirmUnary(9.0, Sqrt<double>()(9.0), 3.0, "Sqrt");
-  confirmUnary(5, Sqrt<int>()(5), 2, "Sqrt");
+
+  bool caught = false;
+  try {
+    Sqrt<int>()(5);
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw error("Failed to catch case of square-rooting an int");
+  }
 
   // Modder
   confirmUnary(7.5, Modder<double>()(7.5, 3), 1.5, "Mod");

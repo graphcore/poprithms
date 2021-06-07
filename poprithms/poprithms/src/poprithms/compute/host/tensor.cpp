@@ -328,6 +328,22 @@ Tensor Tensor::add_(const Tensor &rhs) const {
   return *this;
 }
 
+Tensor Tensor::encodeOneHot_(const std::vector<uint64_t> &indices) const {
+  shape().assertOneHotEncodeable({static_cast<int64_t>(indices.size())});
+  for (auto i : indices) {
+    if (i >= dim(1)) {
+      std::ostringstream oss;
+      oss << "Invalid one hot encoding index, " << i
+          << ", for Tensor of shape " << shape()
+          << ". Expect all encoding indices to be less than " << dim(1)
+          << '.';
+      throw error(oss.str());
+    }
+  }
+  tData().encodeOneHot_(indices);
+  return *this;
+}
+
 Tensor Tensor::mul(const Tensor &rhs) const {
   auto co = getRowMajorPair(*this, rhs);
   return {co.shape, dtype(), co.arg0.tData().mul(co.arg1.tData())};
@@ -544,6 +560,18 @@ Tensor Tensor::copy() const {
 Tensor Tensor::abs() const { return {shape(), dtype(), tData().abs()}; }
 Tensor Tensor::abs_() const {
   tData().abs_();
+  return *this;
+}
+
+Tensor Tensor::exp() const { return {shape(), dtype(), tData().exp()}; }
+Tensor Tensor::exp_() const {
+  tData().exp_();
+  return *this;
+}
+
+Tensor Tensor::log() const { return {shape(), dtype(), tData().log()}; }
+Tensor Tensor::log_() const {
+  tData().log_();
   return *this;
 }
 

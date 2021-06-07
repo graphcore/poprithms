@@ -74,10 +74,66 @@ template <typename T> inline T fromDouble(double t) {
   return static_cast<T>(t);
 }
 
-template <typename T> class Sqrt {
+template <typename T> class NoIntType {
+public:
+  NoIntType(std::string name) : name_(name) {}
+  T operator()(T) const {
+    throw error(
+        "Failure in " + name_ + "<" + ndarray::pcase(ndarray::get<T>()) +
+        ">, only floating point (fp) types allowed. Explicity cast to "
+        "fp type.");
+  }
+
+private:
+  std::string name_;
+};
+
+template <typename T, class Enable = void> class Sqrt {};
+template <typename T>
+class Sqrt<T,
+           typename std::enable_if_t<std::is_floating_point_v<T> ||
+                                     std::is_same<T, IeeeHalf>::value>> {
 public:
   T operator()(T a) const { return static_cast<T>(std::sqrt(a)); }
   static std::string name() { return name_<T>("Sqrt"); }
+};
+template <typename T>
+class Sqrt<T, typename std::enable_if_t<std::is_integral_v<T>>>
+    : public NoIntType<T> {
+public:
+  Sqrt() : NoIntType<T>("Sqrt") {}
+};
+
+template <typename T, class Enable = void> class Log {};
+template <typename T>
+class Log<T,
+          typename std::enable_if_t<std::is_floating_point_v<T> ||
+                                    std::is_same<T, IeeeHalf>::value>> {
+public:
+  T operator()(T a) const { return static_cast<T>(std::log(a)); }
+  static std::string name() { return name_<T>("Log"); }
+};
+template <typename T>
+class Log<T, typename std::enable_if_t<std::is_integral_v<T>>>
+    : public NoIntType<T> {
+public:
+  Log() : NoIntType<T>("Log") {}
+};
+
+template <typename T, class Enable = void> class Exp {};
+template <typename T>
+class Exp<T,
+          typename std::enable_if_t<std::is_floating_point_v<T> ||
+                                    std::is_same<T, IeeeHalf>::value>> {
+public:
+  T operator()(T a) const { return static_cast<T>(std::exp(a)); }
+  static std::string name() { return name_<T>("Exp"); }
+};
+template <typename T>
+class Exp<T, typename std::enable_if_t<std::is_integral_v<T>>>
+    : public NoIntType<T> {
+public:
+  Exp() : NoIntType<T>("Exp") {}
 };
 
 template <typename T, class Enable = void> class Ceil {};

@@ -367,6 +367,12 @@ public:
   BaseDataSP abs() const final { return unary<Abs<T>>(); }
   void abs_() const final { unary_<Abs<T>>(); }
 
+  BaseDataSP exp() const final { return unary<Exp<T>>(); }
+  void exp_() const final { unary_<Exp<T>>(); }
+
+  BaseDataSP log() const final { return unary<Log<T>>(); }
+  void log_() const final { unary_<Log<T>>(); }
+
   BaseDataSP sqrt() const final { return unary<Sqrt<T>>(); }
   void sqrt_() const final { unary_<Sqrt<T>>(); }
 
@@ -457,6 +463,20 @@ public:
 
   bool containsAliases() const final {
     return !GridPointHelper::allUnique(indices(), offsets());
+  }
+
+  void encodeOneHot_(const std::vector<uint64_t> &indices) const final {
+    if (containsAliases()) {
+      throw error("ViewData::encodeOneHot_ not implemented for self-aliases");
+    }
+    const auto nRows = indices.size();
+    const auto nCols = nelms_u64() / nRows;
+    for (uint64_t i = 0; i < nRows; ++i) {
+      for (uint64_t j = 0; j < nCols; ++j) {
+        *dataPtr(i * nCols + j) = 0;
+      }
+      *dataPtr(i * nCols + indices[i]) = 1;
+    }
   }
 
 private:

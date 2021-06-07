@@ -396,6 +396,28 @@ void testFlattenRange() {
   }
 }
 
+void assertCorrectRedDims(const Shape &from,
+                          const Shape &to,
+                          const std::vector<uint64_t> &expected) {
+  if (from.reductionDimensions(to) != Dimensions(expected)) {
+    std::ostringstream oss;
+    oss << "Expected " << from << ".reductionDimensions(to=" << to
+        << ") to be " << Dimensions(expected) << ", not "
+        << from.reductionDimensions(to) << ".";
+    throw error(oss.str());
+  }
+}
+
+void testReductionDimensions() {
+  assertCorrectRedDims({1, 4, 1, 5, 6}, {1, 5, 1}, {1, 4});
+  assertCorrectRedDims({}, {}, {});
+  assertCorrectRedDims({1, 1, 1, 1}, {1, 1, 1, 1}, {});
+  assertCorrectRedDims({1, 3, 1, 1}, {1, 1, 1, 1}, {1});
+  assertCorrectRedDims({1, 3, 1, 1}, {1, 1}, {1});
+  assertCorrectRedDims({10, 11, 12, 1, 14}, {14}, {0, 1, 2});
+  assertCorrectRedDims({1, 10, 11, 12, 1, 14}, {14}, {1, 2, 3});
+}
+
 } // namespace
 
 int main() {
@@ -419,5 +441,6 @@ int main() {
   testReduce();
   testAppend();
   testFlattenRange();
+  testReductionDimensions();
   return 0;
 }

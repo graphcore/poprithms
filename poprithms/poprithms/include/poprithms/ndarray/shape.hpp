@@ -91,6 +91,23 @@ public:
   void assertConcattable(const Shape &rhs, uint64_t axis) const;
 
   /**
+   * Assert that a tensor of this Shape can be one-hot encoded as positions
+   * defined by a tensor of shape #indices. More specifically, this Shape must
+   * be rank-2 for example (N, C) and \a indices must be rank-1, (N,). If
+   * these conditions are not satisfied, a desciptive error is thrown.
+   *
+   * Examples of valid and invalid Shapes:
+   * this     indices
+   * ----     -------
+   * (5,3)    (5)      valid
+   * (5,3)    (3)      invalid
+   * (5,4,3)  (5)      invalid
+   * (5)      (5)      invalid
+   * (5,3)    ()       invalid
+   * */
+  void assertOneHotEncodeable(const Shape &indices) const;
+
+  /**
    * Throws an error if either
    * 1) shapes is empty, or
    * 2) any 2 Shapes cannot be concatenated.
@@ -946,6 +963,20 @@ public:
     return getRowMajorBlockOrdered(
         {std::vector<int64_t>(rank_u64(), blockLength)});
   }
+
+  /**
+   * \return all the dimensions which this Shape must be reduced along to get
+   *        the shape #to. This includes any non-singleton initial dimensions
+   *        which this shape has.
+   *
+   * Example:
+   *
+   *  this        to       return
+   *  ----        --       ------
+   *  (1,4,2,5)   (2,1)    (1,3)
+   *     =   =
+   * */
+  Dimensions reductionDimensions(const Shape &to) const;
 
   void append(std::ostream &os) const;
 

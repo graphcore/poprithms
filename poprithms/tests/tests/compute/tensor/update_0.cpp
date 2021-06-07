@@ -118,6 +118,85 @@ void testUpdatePart2() {
   expected.assertAllEquivalent(toUpdate);
 }
 
+void oneHotTests() {
+
+  // Vanilla test:
+  {
+    auto t0 = Tensor::randomInt32(-100, 100, {2, 3}, 1011);
+    t0.encodeOneHot_({2, 0});
+    //  [[ 0 0 1 ]
+    //   [ 1 0 0 ]]
+    std::cout << t0 << std::endl;
+    t0.assertAllEquivalent(Tensor::int32({2, 3}, {0, 0, 1, 1, 0, 0}));
+  }
+
+  // Test where the tensor being encoded is not an origin tensor.
+  {
+    Tensor::concat_({Tensor::randomInt32(-100, 100, {2, 1}, 1011),
+                     Tensor::randomInt32(-100, 100, {2, 2}, 1011)},
+                    1)
+        .encodeOneHot_({2, 0})
+        .assertAllEquivalent(Tensor::int32({2, 3}, {0, 0, 1, 1, 0, 0}));
+  }
+
+  // test of the potential error cases:
+  {
+    bool caught{false};
+    try {
+      Tensor::randomInt32(-100, 100, {5, 4, 3}, 1011)
+          .encodeOneHot_({0, 1, 0, 0, 1});
+    } catch (const poprithms::error::error &) {
+      caught = true;
+    }
+    if (!caught) {
+      throw error("can't encode 3-d Tensorm should have caught this");
+    }
+  }
+
+  {
+    bool caught{false};
+    try {
+      Tensor::randomInt32(-100, 100, {3, 4}, 1011)
+          .encodeOneHot_({0, 1, 0, 0});
+    } catch (const poprithms::error::error &) {
+      caught = true;
+    }
+    if (!caught) {
+      throw error("expected 3 indices, not 4, should have caught this");
+    }
+  }
+
+  {
+    bool caught{false};
+    try {
+      Tensor::randomInt32(-100, 100, {3, 4}, 1011).encodeOneHot_({0, 1, 4});
+    } catch (const poprithms::error::error &) {
+      caught = true;
+    }
+    if (!caught) {
+      throw error("index 4 should have been caught (too large)");
+    }
+  }
+
+  {
+    bool caught{false};
+    try {
+      // Test where the tensor being encoded self-aliases. Currently not
+      // implemented, although it could be.
+      Tensor::float32(1.0)
+          .expand_({2, 3})
+          .encodeOneHot_({2, 0})
+          .assertAllEquivalent(Tensor::int32({2, 3}, {0, 0, 1, 1, 0, 0}));
+    } catch (const poprithms::error::error &) {
+      caught = true;
+    }
+    if (!caught) {
+      throw error("has the case of encoding a self-aliasing tensor been "
+                  "implemented?");
+    }
+  }
+}
+
 } // namespace
 
 int main() {
@@ -125,4 +204,5 @@ int main() {
   testUpdatePart0();
   testUpdatePart1();
   testUpdatePart2();
+  oneHotTests();
 }

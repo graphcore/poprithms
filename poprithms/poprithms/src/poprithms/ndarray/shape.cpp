@@ -28,6 +28,28 @@ uint64_t Shape::dimProduct_u64(int64_t l, int64_t u) const {
   return static_cast<uint64_t>(dimProduct(l, u));
 }
 
+void Shape::assertOneHotEncodeable(const Shape &indicesShape) const {
+
+  auto base = [this, &indicesShape]() {
+    std::ostringstream oss;
+    oss << "Invalid shapes in assertOneHotEncodeable. "
+        << "The shape of the tensor to encode (this shape) is " << *this
+        << ", and the shape of indices tensor is " << indicesShape << ". ";
+    return oss.str();
+  };
+
+  if (rank_u64() != 2) {
+    throw error(base() + "The tensor to encode must be rank-2.");
+  }
+  if (indicesShape.rank_u64() != 1) {
+    throw error(base() + "The indices Tensor must be rank-1.");
+  }
+  if (dim(0) != indicesShape.dim(0)) {
+    throw error(base() +
+                "The 2 Tensors should be the same size in dimension 0.");
+  }
+}
+
 Shape Shape::batchedMultiChannelConvolve(
     const Shape &kernel,
     const std::vector<uint64_t> &lowPrePads,
@@ -1862,6 +1884,34 @@ void Shape::assertDynamicUpdate(const Shape &updater,
            "dimension.";
     throw error(oss.str());
   }
+}
+
+Dimensions Shape::reductionDimensions(const Shape &to) const {
+  assertCanReduceTo(to);
+
+  // to must be of rank at least as low as this Shape's rank, as we have
+  // asserted that this Shape can be reduced to #to.
+  auto delta = rank_u64() - to.rank_u64();
+
+  std::vector<uint64_t> dims;
+
+  // For all the dimensions which #to does not have, if it's not of size 1 for
+  // this Shape, it must be reduced.
+  for (uint64_t i = 0; i < delta; ++i) {
+    if (dim(i) != 1) {
+      dims.push_back(i);
+    }
+  }
+
+  // For all dimensions which both this Shape and #to have, if the size for
+  // this Shape is larger (which means that #to is of size 1 in this
+  // dimension), it must be reduced along.
+  for (uint64_t i = delta; i < rank_u64(); ++i) {
+    if (to.dim(i - delta) != dim(i)) {
+      dims.push_back(i);
+    }
+  }
+  return Dimensions(dims);
 }
 
 } // namespace ndarray

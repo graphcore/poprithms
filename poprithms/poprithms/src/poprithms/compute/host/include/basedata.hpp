@@ -125,6 +125,8 @@ public:
    * Unary operators.
    * */
   virtual BaseDataSP abs() const          = 0;
+  virtual BaseDataSP exp() const          = 0;
+  virtual BaseDataSP log() const          = 0;
   virtual BaseDataSP sqrt() const         = 0;
   virtual BaseDataSP ceil() const         = 0;
   virtual BaseDataSP floor() const        = 0;
@@ -135,10 +137,14 @@ public:
    * Unary modifiers.
    * */
   virtual void abs_() const        = 0;
+  virtual void exp_() const        = 0;
+  virtual void log_() const        = 0;
   virtual void sqrt_() const       = 0;
   virtual void ceil_() const       = 0;
   virtual void floor_() const      = 0;
   virtual void reciprocal_() const = 0;
+
+  virtual void encodeOneHot_(const std::vector<uint64_t> &indices) const = 0;
 
   /**
    * Non-aliasing, view-changing operators.

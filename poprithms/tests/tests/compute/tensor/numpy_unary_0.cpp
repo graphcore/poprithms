@@ -10,16 +10,36 @@ namespace {
 using namespace poprithms::compute::host;
 
 void testSqrt() {
-  Tensor::int32(1024).expand_({2, 2}).sqrt_().assertAllEquivalent(
+  Tensor::float64(1024).expand_({2, 2}).sqrt_().assertAllEquivalent(
       Tensor::float64({2, 2}, {32., 32., 32., 32}));
-  Tensor::int32(5).expand_({1, 1, 1}).sqrt().assertAllEquivalent(
-      Tensor::unsigned8({1, 1, 1}, {2}));
+  Tensor::float32(16).expand_({1, 1, 1}).sqrt().assertAllEquivalent(
+      Tensor::float32({1, 1, 1}, {4}));
   Tensor::float16(9.0).sqrt().assertAllEquivalent(Tensor::float32(3.));
 }
 
 void testAbs() {
   Tensor::int32(-12).expand({3, 1}).abs().assertAllEquivalent(
       Tensor::float32({3, 1}, {12., 12., 12.}));
+}
+
+void testExp0() {
+  // In this test, we use that 2.71^x < e^x < 2.72^x for  x in [1, 3).
+  auto t0 = Tensor::uniformFloat64(1., 3., {100}, 1011);
+  auto a  = Tensor::float64(2.71).pow(t0);
+  auto b  = t0.exp();
+  auto c  = Tensor::float64(2.72).pow(t0);
+  auto N =
+      ((b < a).to(DType::Int32) + (c < b).to(DType::Int32)).reduceSum({});
+  N.assertAllEquivalent(Tensor::int32(0));
+}
+
+void testLog0() {
+
+  // log(exp(x)) = x for all x.
+
+  auto t0  = Tensor::uniformFloat64(-3., 3., {100}, 1011);
+  auto out = t0.exp().log();
+  out.assertAllClose(t0, 0.0, 1e-6);
 }
 
 void testCeil() {
@@ -51,6 +71,8 @@ int main() {
   testCeil();
   testFloor();
   testMod();
+  testExp0();
+  testLog0();
 
   return 0;
 }

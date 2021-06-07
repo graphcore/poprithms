@@ -955,6 +955,20 @@ public:
   }
 
   /**
+   * Set this 2-d Tensor to be sparse, with exactly one 1 in each row. If this
+   * Tensor is of Shape (N, C), then indices is of length N, and has values in
+   * the range [0, C).
+   *
+   * Example. This Tensor is of Shape (3,4) and indices is {0,1,0}, then this
+   * Tensor is updated to,
+   *
+   *       [[ 1 0 0 0 ]
+   *        [ 0 1 0 0 ]
+   *        [ 1 0 0 0 ]].
+   * */
+  Tensor encodeOneHot_(const std::vector<uint64_t> &indices) const;
+
+  /**
    * Add \a v to all elements of this Tensor.
    * */
   Tensor increment_(int64_t v) const;
@@ -997,10 +1011,26 @@ public:
   Tensor operator>=(const Tensor &rhs) const;
   Tensor operator==(const Tensor &rhs) const;
 
-  /** Elementwise unary operations. The versions with the suffix _ act
-   * inplace on the memory of this Tensor. */
+  /**
+   * Elementwise unary operations. The versions with the suffix '_' acts
+   * inplace on the memory of this Tensor.
+   * */
   Tensor abs() const;
   Tensor abs_() const;
+
+  /**
+   * e (2.71828...) to the power of this Tensor. This method is only available
+   * to floating point Tensors.
+   * */
+  Tensor exp() const;
+  Tensor exp_() const;
+
+  /**
+   * log base e (2.71828...), also known as the natural logarithm, of this
+   * Tensor. This method is only available to floating point Tensors.
+   * */
+  Tensor log() const;
+  Tensor log_() const;
 
   Tensor ceil() const;
   Tensor ceil_() const;
@@ -1017,6 +1047,10 @@ public:
   Tensor neg() const;
   Tensor neg_() const;
 
+  /**
+   * The square root of this Tensor. This method is only available to floating
+   * point Tensors.
+   * */
   Tensor sqrt() const;
   Tensor sqrt_() const;
 
