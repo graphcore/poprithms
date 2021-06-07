@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 #include <sstream>
+#include <vector>
 
 #include <poprithms/common/schedulable/error.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
@@ -235,6 +236,30 @@ void mayBeFinals0() {
   }
 }
 
+void tensorIds0() {
+  Graph g;
+  auto gId0    = g.createSubGraphId("g0");
+  auto gId1    = g.createSubGraphId("g1");
+  const auto a = g.insert({}, 1, gId0, "");
+  const auto b = g.insert({}, 1, gId1, "");
+  const auto c = g.insert({{a, 0}}, 2, gId0, "");
+  const auto d = g.insert({}, 1, gId1, "");
+  auto in0     = g.tensorIds(gId0);
+  std::sort(in0.begin(), in0.end());
+  auto in1 = g.tensorIds(gId1);
+  std::sort(in1.begin(), in1.end());
+
+  if (in0 != std::vector<TensorId>{{a, 0}, {c, 0}, {c, 1}}) {
+    throw poprithms::common::schedulable::error(
+        "expected outs of a and c in sub-graph 0");
+  }
+
+  if (in1 != std::vector<TensorId>{{b, 0}, {d, 0}}) {
+    throw poprithms::common::schedulable::error(
+        "expected outs of b and d in sub-graph 1");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -246,6 +271,7 @@ int main() {
   toggleEager0();
   ensureLastOf0();
   mayBeFinals0();
+  tensorIds0();
 
   return 0;
 }

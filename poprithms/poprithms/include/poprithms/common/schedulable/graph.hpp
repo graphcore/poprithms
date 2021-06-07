@@ -94,9 +94,14 @@ public:
   void binConstraint(const std::vector<OpIds> &bins);
 
   /**
-   * Get all Ops in this Graph which have the SubGraphId #subGraphId.
+   * Get all Ops in the Graph which has SubGraphId #subGraphId.
    * */
   OpIds opIds(SubGraphId subGraphId) const;
+
+  /**
+   * Get all Tensors in the Graph which has SubGraphId #subGraphId.
+   * */
+  TensorIds tensorIds(SubGraphId subGraphId) const;
 
   /**
    * A link is a strong type of constraint. It not only ensures that an Op

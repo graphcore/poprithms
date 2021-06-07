@@ -319,7 +319,7 @@ SubGraphIds Graph::subGraphIds(const TensorIds &ids) const {
 // SubGraphState) which partitions OpIds by Graph, but in my (PopART)
 // experience it's often that this partition is needed.
 OpIds Graph::opIds(SubGraphId subGraphId_) const {
-  return subGraphStates[subGraphId_.get_u64()].ops();
+  return subGraphStates.at(subGraphId_.get_u64()).ops();
 }
 
 SubGraphId Graph::subGraphId(const TensorId &id) const {
@@ -389,6 +389,16 @@ Graph::getSchedulableColumns(const OpIds &opIds) const {
   cols.push_back({"Graph", std::move(sg__)});
   cols.push_back({"NonDataIns", std::move(nonDataIns__)});
   return cols;
+}
+
+TensorIds Graph::tensorIds(SubGraphId subGraphId) const {
+  TensorIds tensorIds;
+  for (auto opId : opIds(subGraphId)) {
+    for (auto outId : outTensorIds(opId)) {
+      tensorIds.push_back(outId);
+    }
+  }
+  return tensorIds;
 }
 
 } // namespace schedulable
