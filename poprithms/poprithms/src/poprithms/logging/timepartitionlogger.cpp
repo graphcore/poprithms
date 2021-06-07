@@ -106,14 +106,26 @@ void TimePartitionLogger::verifyEvents(const TimelessEvents &expected) const {
   }
 }
 
-void TimePartitionLogger::increment(std::map<std::string, double> &m,
-                                    const std::string &k,
-                                    double t) const {
+void TimePartitionLogger::incrementTime(
+    std::map<std::string, TimeAndCount> &m,
+    const std::string &k,
+    double t) const {
   auto found = m.find(k);
   if (found == m.end()) {
-    m.insert({k, t});
+    m.insert({k, TimeAndCount(t, 0)});
   } else {
-    found->second += t;
+    found->second.time += t;
+  }
+}
+
+void TimePartitionLogger::incrementCount(
+    std::map<std::string, TimeAndCount> &m,
+    const std::string &k) const {
+  auto found = m.find(k);
+  if (found == m.end()) {
+    m.insert({k, TimeAndCount(0., 1)});
+  } else {
+    found->second.count += 1;
   }
 }
 
@@ -132,7 +144,7 @@ double TimePartitionLogger::accounted() const {
   double totalAccounted{0.};
   for (const auto &[scope, delta] : stopwatches) {
     (void)scope;
-    totalAccounted += delta;
+    totalAccounted += delta.time;
   }
 
   // And add any time not logged:
@@ -149,15 +161,16 @@ void TimePartitionLogger::summarizeInfo(double minPercentage) const {
 void TimePartitionLogger::append(std::ostream &ost,
                                  double minPercentage) const {
 
-  std::map<std::string, double> stopwatchesCopy = stopwatches;
+  std::map<std::string, TimeAndCount> stopwatchesCopy = stopwatches;
 
-  // Make a final increment to the stopwatch which is currently on (if there
-  // is one which is currently on).
+  // Make a final increment to the time on the stopwatch which is currently on
+  // (if there is one which is currently on).
   if (isOn()) {
-    increment(stopwatchesCopy, currentStopwatch(), beenOnFor());
+    incrementTime(stopwatchesCopy, currentStopwatch(), beenOnFor());
   }
 
   std::map<std::string, std::string> stopwatchTimeStrings;
+  std::map<std::string, std::string> stopwatchCountStrings;
   std::map<std::string, double> stopwatchPercs;
 
   const auto total = sinceConstruction();
@@ -171,8 +184,8 @@ void TimePartitionLogger::append(std::ostream &ost,
   const std::string totalTime       = ensureUnique("Total");
   const std::string unaccountedTime = ensureUnique("Unaccounted for");
 
-  stopwatchesCopy.emplace(totalTime, total);
-  stopwatchesCopy.emplace(unaccountedTime, unaccounted());
+  stopwatchesCopy.emplace(totalTime, TimeAndCount{total});
+  stopwatchesCopy.emplace(unaccountedTime, TimeAndCount{unaccounted()});
 
   // this vector will collect all the entries to be logged, then sort from
   // longest time to shortest time:
@@ -182,31 +195,42 @@ void TimePartitionLogger::append(std::ostream &ost,
   // representation:
   uint64_t maxScopeLength{0};
   uint64_t maxTimeLength{0};
-  for (const auto &[scope, delta] : stopwatchesCopy) {
-    const auto perc    = 100. * delta / total;
-    const auto timeStr = std::to_string(delta) + " [s]";
-    if (perc >= minPercentage || scope == totalTime ||
-        scope == unaccountedTime) {
+  uint64_t maxCountLength{0};
+  for (const auto &[scope, timesAndCount] : stopwatchesCopy) {
+    const auto perc    = 100. * timesAndCount.time / total;
+    const auto timeStr = std::to_string(timesAndCount.time) + " [s]";
+    const auto countStr =
+        (timesAndCount.hasCount)
+            ? ("#" + std::to_string(timesAndCount.count) + "")
+            : ("n/a");
+    if (perc >= minPercentage || !timesAndCount.hasCount) {
       stopwatchTimeStrings.emplace(scope, timeStr);
+      stopwatchCountStrings.emplace(scope, countStr);
       stopwatchPercs.emplace(scope, perc);
       maxScopeLength = std::max<uint64_t>(maxScopeLength, scope.size());
       maxTimeLength  = std::max<uint64_t>(maxTimeLength, timeStr.size());
-      timesAndScopes.push_back({delta, scope});
+      maxCountLength = std::max<uint64_t>(maxCountLength, countStr.size());
+      timesAndScopes.push_back({timesAndCount.time, scope});
     }
   }
 
   auto append = [maxScopeLength,
                  maxTimeLength,
+                 maxCountLength,
                  &ost,
-                 &stopwatchPercs,
-                 &stopwatchTimeStrings](const std::string &scope) {
-    const auto timeStr = stopwatchTimeStrings.at(scope);
-    const auto perc    = stopwatchPercs.at(scope);
-    const auto percStr = std::to_string(int(perc));
+                 &stopwatchTimeStrings,
+                 &stopwatchCountStrings,
+                 &stopwatchPercs](const std::string &scope) {
+    const auto timeStr  = stopwatchTimeStrings.at(scope);
+    const auto countStr = stopwatchCountStrings.at(scope);
+    const auto perc     = stopwatchPercs.at(scope);
+    const auto percStr  = std::to_string(int(perc));
 
     ost << "       " << scope << util::spaceString(maxScopeLength + 2, scope)
         << " : " << timeStr << util::spaceString(maxTimeLength + 2, timeStr)
-        << " :" << util::spaceString(5, percStr) << percStr << " %";
+        << " : " << countStr
+        << util::spaceString(maxCountLength + 2, countStr) << " : "
+        << util::spaceString(5, percStr) << percStr << " %";
   };
 
   std::sort(timesAndScopes.rbegin(), timesAndScopes.rend());
@@ -234,7 +258,7 @@ double TimePartitionLogger::get(const std::string &s) const {
                 ", error in TimePartitionLogger::get. ");
   }
 
-  auto t0 = found->second;
+  auto t0 = found->second.time;
   if (isOn() && currentStopwatch() == s) {
     t0 += beenOnFor();
   }
@@ -263,7 +287,7 @@ void TimePartitionLogger::registerStartEvent(const std::string &stopwatch) {
   clockState        = ClockState::On;
   currentStopwatch_ = stopwatch;
   lastEventTime     = std::chrono::high_resolution_clock::now();
-  increment(0.);
+  incrementTime(0.);
   events_.push_back({stopwatch, Event::Type::Start, sinceConstruction()});
 }
 
@@ -272,13 +296,19 @@ void TimePartitionLogger::registerStopEvent() {
   if (isOff()) {
     throw error("Cannot register stop event when all stopwatches are off");
   }
-  increment(beenOnFor());
+  incrementTime(beenOnFor());
   events_.push_back(
       {currentStopwatch(), Event::Type::Stop, sinceConstruction()});
   clockState        = ClockState::Off;
   currentStopwatch_ = "none";
   lastEventTime     = std::chrono::high_resolution_clock::now();
 }
+
+TimePartitionLogger::TimeAndCount::TimeAndCount(double time_)
+    : time{time_}, count{0ull}, hasCount{false} {}
+
+TimePartitionLogger::TimeAndCount::TimeAndCount(double time_, uint64_t count_)
+    : time{time_}, count{count_}, hasCount{true} {}
 
 std::string TimePartitionLogger::currentStopwatch() const {
   if (isOff()) {
@@ -295,6 +325,7 @@ void TimePartitionLogger::start(const std::string &stopwatch) {
     preHandleStartFromOn(stopwatch);
   }
   registerStartEvent(stopwatch);
+  incrementCount(stopwatch);
 }
 
 void ManualTimePartitionLogger::preHandleStartFromOn(

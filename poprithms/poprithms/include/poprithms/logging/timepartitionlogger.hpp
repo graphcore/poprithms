@@ -73,12 +73,14 @@ public:
   void stop();
 
   /**
-   * A summary of the times on each stopwatch. An example might be:
+   * A summary of the times (the total cumulative time on the stopwatch in
+   * seconds) and counts (the number of times the stopwatch was started) on
+   * each stopwatch. An example might be:
    *
-   *  first-stopwatch         : 0.005162 [s]    :    66 %
-   *  second-stopwatch        : 0.002535 [s]    :    31 %
-   *  unaccounted             : 0.000034 [s]    :     3 %
-   *  total                   : 0.007730 [s]    :   100 %.
+   *  first-stopwatch         : 0.005162 [s]    : #967     :    66 %
+   *  second-stopwatch        : 0.002535 [s]    : #3112    :    31 %
+   *  unaccounted             : 0.000034 [s]    : #13      :     3 %
+   *  total                   : 0.007730 [s]    : n/a      :   100 %.
    * */
   std::string str(double minPercentage) const;
 
@@ -187,8 +189,22 @@ protected:
   void registerStopEvent();
 
 private:
-  // Cumulative times on each of the stopwatches.
-  std::map<std::string, double> stopwatches;
+  struct TimeAndCount {
+    // Construct with just time, no count.
+    TimeAndCount(double time);
+    // Construct with time and count.
+    TimeAndCount(double time, uint64_t count);
+
+    // Cumulative time for a stopwatch.
+    double time;
+    // Number of times a stopwatch has been triggered.
+    uint64_t count;
+    // True if the stopwatch has a count.
+    bool hasCount;
+  };
+
+  // Cumulative times and counts on each of the stopwatches.
+  std::map<std::string, TimeAndCount> stopwatches;
 
   // Are there any stopwatches currently running?
   enum class ClockState { On, Off };
@@ -196,16 +212,26 @@ private:
 
   std::string currentStopwatch_;
 
-  // m[k] += t if k in m, else m[k] = t.
-  void increment(std::map<std::string, double> &m,
-                 const std::string &k,
-                 double t) const;
+  // m[k].time += t if k in m, else m[k] = { time=t, count=0 }.
+  void incrementTime(std::map<std::string, TimeAndCount> &m,
+                     const std::string &k,
+                     double t) const;
 
-  void increment(const std::string &k, double t) {
-    increment(stopwatches, k, t);
+  void incrementTime(const std::string &k, double t) {
+    incrementTime(stopwatches, k, t);
   }
 
-  void increment(double t) { increment(currentStopwatch(), t); }
+  void incrementTime(double t) { incrementTime(currentStopwatch(), t); }
+
+  // m[k].count += 1 if k in m, else m[k] = { time=0., count=1 }.
+  void incrementCount(std::map<std::string, TimeAndCount> &m,
+                      const std::string &k) const;
+
+  void incrementCount(const std::string &k) {
+    incrementCount(stopwatches, k);
+  }
+
+  void incrementCount() { incrementCount(currentStopwatch()); }
 
   using TimePoint = std::chrono::high_resolution_clock::time_point;
 
