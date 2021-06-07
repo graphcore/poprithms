@@ -187,6 +187,13 @@ public:
    * */
   uint64_t nMultioutRows(const OpIds &) const;
 
+  /**
+   * Confirm that the Tensor #tId is in this Graph. Specifically, that the Op
+   * which creates #tId exists and has an #tId as an output. If not, a
+   * descriptive error is thrown.
+   * */
+  void confirmValidTensorId(const TensorId &tId) const;
+
 protected:
   /**
    * Insert \a op into this Graph, and add it to the consumer lists of its

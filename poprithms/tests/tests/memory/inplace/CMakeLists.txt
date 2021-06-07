@@ -63,3 +63,6 @@ add_memory_inplace_test(memory_inplace_ambiguity_0
 
 add_memory_inplace_test(memory_inplace_crosslink_0  
                                        crosslink_0.cpp)
+
+add_memory_inplace_test(memory_inplace_traversal_0  
+                                       traversal_0.cpp)

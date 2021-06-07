@@ -19,6 +19,33 @@ namespace poprithms {
 namespace common {
 namespace multiout {
 
+void Graph::confirmValidTensorId(const TensorId &tId) const {
+
+  if (tId.opId().get() >= static_cast<int64_t>(ops_.size())) {
+    std::ostringstream oss;
+    oss << "Failure in confirmValidTensorId(TensorId=" << tId << "). "
+        << "In total only " << ops_.size()
+        << " Ops have ever been created in this Graph. ";
+    throw error(oss.str());
+  }
+
+  if (!ops_[tId.opId().get()].uptr) {
+    std::ostringstream oss;
+    oss << "Failure in confirmValidTensorId(TensorId=" << tId << "). "
+        << "The Op " << tId.opId() << " no longer exists.";
+    throw error(oss.str());
+  }
+
+  if (tId.outIndex().get() >= op(tId.opId()).nOutTensors()) {
+    std::ostringstream oss;
+    oss << "Failure in confirmValidTensorId(TensorId=" << tId
+        << "). Invalid output index (" << tId.outIndex() << ") as Op "
+        << tId.opId() << "(" << op(tId.opId()) << ") only has "
+        << op(tId.opId()).nOutTensors() << " output Tensors. ";
+    throw error(oss.str());
+  }
+}
+
 uint64_t Graph::nInTensors(OpId id) const { return op(id).nInTensors(); }
 uint64_t Graph::nOutTensors(OpId id) const { return op(id).nOutTensors(); }
 
@@ -73,7 +100,6 @@ const Op &Graph::op(OpId a) const {
 
   const auto &opPtr = ops_[static_cast<uint64_t>(a.get())].uptr;
 
-  // In case we decide that we need to delete Ops at some point:
   if (!opPtr) {
     throw error("nullptr in op(" + std::to_string(a.get()) + ").");
   }

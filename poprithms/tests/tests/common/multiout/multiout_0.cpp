@@ -9,6 +9,8 @@
 #include <poprithms/common/multiout/consumptionid.hpp>
 #include <poprithms/common/multiout/error.hpp>
 #include <poprithms/common/multiout/graph.hpp>
+#include <poprithms/common/multiout/optraversal.hpp>
+#include <poprithms/common/multiout/traversal.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/stringutil.hpp>
 
@@ -187,6 +189,99 @@ void testHashTensorId() {
     throw poprithms::common::multiout::error("Failed hash test");
   }
 }
+void testTraversal0() {
+  test::Graph g;
+  auto a = g.insert({}, 2);
+  auto b = g.insert({}, 2);
+
+  // 4 ins, 2 outs: 8 paths through this op
+  auto c = g.insert({{a, 0}, {a, 1}, {b, 0}, {b, 1}}, 2);
+
+  // 4 ins, 3 outs: 12 paths through this op
+  auto d = g.insert({{a, 0}, {a, 1}, {b, 0}, {b, 1}}, 3);
+
+  // 4 ins, 5 outs: 20 paths through this op
+  g.insert({{a, 0}, {b, 0}, {c, 0}, {d, 0}}, 5);
+
+  // 40 paths in total:
+  if (multiout::depthFirstForward(
+          g, {{a, 0}, {a, 1}, {b, 0}, {b, 1}}, [](auto) { return true; })
+          .size() != 40) {
+    throw multiout::error("Expected 40 OpTraversals");
+  }
+
+  if (multiout::depthFirstForward(
+          g, {{a, 0}, {a, 1}, {b, 0}, {b, 1}}, [](auto) { return false; })
+          .size() != 0) {
+    throw multiout::error("Expected 0 OpTraversals");
+  }
+
+  if (multiout::depthFirstForward(g,
+                                  {{a, 0}, {a, 1}, {b, 0}, {b, 1}},
+                                  [](auto opTraversal) {
+                                    return opTraversal.outIndex().get() % 2 ==
+                                           0;
+                                  })
+          .size() != 24) {
+    // 4 through c (all to (c,0)).
+    // 8 through d (all to (d,0) and (d,2)).
+    // 12 through e.
+    throw multiout::error("Expected 24 OpTraversals: 4 through c, 8 through "
+                          "d and 12 through e.");
+  }
+}
+
+void testTraversal1() {
+  test::Graph g;
+
+  auto a = g.insert({}, 1);
+  auto b = g.insert({}, 1);
+  auto c = g.insert({{a, 0}, {b, 0}}, 2);
+  auto out =
+      multiout::depthFirstForward(g, {{a, 0}, {b, 0}}, [](auto opTraversal) {
+        return opTraversal.inIndex() == 0 && opTraversal.outIndex() == 1;
+      });
+
+  multiout::OpTraversal expected{0, c, 1};
+  if (out != std::vector{expected}) {
+    throw multiout::error("Failed in basic traversal test");
+  }
+}
+
+void testTraversal2() {
+
+  //                       +-- x1 --------------------+
+  //                       |                          |
+  //        +---- (op0) ---+-- x2 -- (op1) -- x3      |
+  //        |                                         |
+  //   x0 --+-----(op2) ---+-- x4                     |
+  //                       |                          v
+  //                       +-- x5 -- (op3) -- x6 -- (op4) -- x7
+  //
+  test::Graph g;
+  TensorId x0{g.insert({}, 1), 0};
+  auto op0 = g.insert({x0}, 2);
+  /* auto op1 = */ g.insert({x0}, 1);
+  auto op2 = g.insert({x0}, 2);
+  auto op3 = g.insert({{op2, 1}}, 1);
+  auto op4 = g.insert({{op0, 0}, {op3, 0}}, 1);
+
+  {
+    auto out = multiout::depthFirstBackward(
+        g, {{op4, 0}}, [](auto) { return true; });
+
+    std::vector<multiout::OpTraversal> expected;
+    expected.push_back({0, op4, 0});
+    expected.push_back({1, op4, 0});
+    expected.push_back({0, op3, 0});
+    expected.push_back({0, op0, 0});
+    expected.push_back({0, op2, 1});
+    std::sort(expected.begin(), expected.end());
+    if (out != expected) {
+      throw multiout::error("failure in test of backwards traversal");
+    }
+  }
+}
 
 } // namespace
 
@@ -195,5 +290,8 @@ int main() {
   testLogging0();
   testInsAndOuts();
   testHashTensorId();
+  testTraversal0();
+  testTraversal1();
+  testTraversal2();
   return 0;
 }
