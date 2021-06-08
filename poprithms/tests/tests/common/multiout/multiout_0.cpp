@@ -1,11 +1,12 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include "poprithms/common/multiout/consumptionid.hpp"
-
 #include <algorithm>
 #include <iostream>
 #include <numeric>
+#include <random>
 #include <sstream>
+#include <unordered_set>
 
+#include <poprithms/common/multiout/consumptionid.hpp>
 #include <poprithms/common/multiout/error.hpp>
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/ndarray/shape.hpp>
@@ -150,11 +151,49 @@ void testInsAndOuts() {
   }
 }
 
+void testHashTensorId() {
+  std::unordered_set<uint64_t> nDistintHashes;
+  uint64_t nTensors{10000};
+
+  std::mt19937_64 gen(1011);
+  for (uint64_t i = 0; i < nTensors; ++i) {
+
+    TensorId tId;
+    auto k = gen() % 3;
+
+    // random OpId and OutIndex
+    if (k == 0) {
+      tId = TensorId(static_cast<uint32_t>(gen()),
+                     static_cast<uint32_t>(gen()));
+    }
+
+    // repeated OpIds, random OutIndex
+    else if (k == 1) {
+      tId = TensorId(gen() % 3, static_cast<uint32_t>(gen()));
+    }
+
+    // repeates OutIndex, random OpIds
+    else {
+      tId = TensorId(static_cast<uint32_t>(gen()), gen() % 3);
+    }
+    nDistintHashes.emplace(std::hash<TensorId>{}(tId));
+  }
+
+  std::cout << nDistintHashes.size() << std::endl;
+
+  if (static_cast<double>(nDistintHashes.size()) /
+          static_cast<double>(nTensors) <
+      0.99) {
+    throw poprithms::common::multiout::error("Failed hash test");
+  }
+}
+
 } // namespace
 
 int main() {
   test0();
   testLogging0();
   testInsAndOuts();
+  testHashTensorId();
   return 0;
 }

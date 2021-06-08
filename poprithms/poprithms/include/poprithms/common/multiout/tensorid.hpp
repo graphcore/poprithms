@@ -8,6 +8,7 @@
 
 #include <poprithms/common/multiout/ioindices.hpp>
 #include <poprithms/common/multiout/opid.hpp>
+#include <poprithms/util/hashcombine.hpp>
 
 namespace poprithms {
 namespace common {
@@ -54,5 +55,23 @@ std::ostream &operator<<(std::ostream &, const TensorIds &);
 } // namespace multiout
 } // namespace common
 } // namespace poprithms
+
+// To enable hashing of new classes, this is the recommended approach from
+// https://en.cppreference.com/w/cpp/utility/hash
+namespace std {
+template <> struct hash<poprithms::common::multiout::TensorId> {
+  std::size_t
+  operator()(poprithms::common::multiout::TensorId const &tId) const
+      noexcept {
+
+    using namespace poprithms::common::multiout;
+    using namespace poprithms::util;
+    size_t seed = 0;
+    hash_combine(seed, std::hash<OpId>{}(tId.opId()));
+    hash_combine(seed, std::hash<OutIndex>{}(tId.outIndex()));
+    return seed;
+  }
+};
+} // namespace std
 
 #endif
