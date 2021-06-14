@@ -504,7 +504,7 @@ bool TransitiveClosure::unconstrainedWithAtLeastOne(
 
   // The non-final bitset, where all bits correspond to ops:
   else {
-    auto index     = opId * getNBitSetsPerOp(opId) + bitSetIndex;
+    auto index     = opId * nBitSetsPerOp + bitSetIndex;
     BitSet neither = fwdEdgeSet[index] | bwdEdgeSet[index];
     neither.flip();
     if (neither.any()) {
