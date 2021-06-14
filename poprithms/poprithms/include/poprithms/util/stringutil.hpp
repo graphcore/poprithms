@@ -31,9 +31,12 @@ std::string spaceString(uint64_t target, const std::string &ts);
  *
  * */
 struct StringColumn {
+
+  enum class Align { Left = 0, Right };
   StringColumn(const std::string &title,
                const std::vector<std::string> &entries,
-               char delimiter = '-');
+               char delimiter = '-',
+               Align          = Align::Left);
 
   const std::string &title() const { return title_; }
   std::string entry(uint64_t i) const { return entries_[i]; }
@@ -43,18 +46,20 @@ struct StringColumn {
   /** The maximum width, over title and all entries*/
   uint64_t width() const { return width_; }
   uint64_t nEntries() const { return entries_.size(); }
+  Align align() const { return align_; }
 
 private:
   std::string title_;
   std::vector<std::string> entries_;
   char delimiter_ = '-';
   uint64_t width_;
+  Align align_;
 };
 
 /**
  * Return a string of aligned columns, for example:
  *
- * aliginedColumms({
+ * alignedColumns({
  *   {"title1", {"e0", "averylongentry"}, '-'},
  *   {"anotherTitle", {"foo", "anotherEntry"}, '+'}
  * });

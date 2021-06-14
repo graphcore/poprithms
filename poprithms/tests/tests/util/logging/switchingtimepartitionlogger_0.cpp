@@ -71,21 +71,22 @@ void testPercentage() {
     }
     return n;
   };
-  if (countPerc(c.str(100.)) != 2) {
+  if (countPerc(c.str(100.)) != 3) {
     std::ostringstream oss;
     oss << "Counting the number of scopes which have at least 100 percent. "
-        << "Expected 2 : total and unaccounted, the 2 which always appear as "
-        << "the threshold is not applied to them. The log is\n "
+        << "Expected 3 : total, accounted, and unaccounted, the 3 which "
+           "always appear as the threshold is not applied to them. The log "
+           "is\n "
         << c.str(100.);
     throw error(oss.str());
   }
 
-  if (countPerc(c.str(0.)) != 5) {
+  if (countPerc(c.str(0.)) != 6) {
     std::ostringstream oss;
     oss << "Counting the number of scopes which have at least 0 percent. "
-        << "Expected 5: total and unaccounted, the 2 which always appear as "
-        << "the threshold is not applied to them, and a, b, and c. The log "
-           "is\n "
+        << "Expected 6: total, accounted, unaccounted -- the 3 which always "
+           "appear as the threshold is not applied to them -- and a, b, and "
+           "c. The log is\n "
         << c.str(0.);
     throw error(oss.str());
   }
@@ -201,6 +202,7 @@ void testConstructors0() {
 }
 
 void testOrder0() {
+  std::cout << "In test order 0" << std::endl;
   SwitchingTimePartitionLogger watcher("aSwitchingLogger", true);
 
   const uint64_t nScopes = 6;
@@ -218,24 +220,33 @@ void testOrder0() {
   /**
    * Summary string looks something like:
    *
-   *     foo_9              : 0.133324 [s]    :    18 %
-   *     foo_5              : 0.122544 [s]    :    16 %
-   *     foo_1              : 0.115147 [s]    :    15 %
-   *     foo_6              : 0.092928 [s]    :    12 %
+   *  Scope              Time [s]        Count  Percentage
+   *  -----              --------        -----  ----------
+   *  foo_4              0.006390            1        33 %
+   *  foo_3              0.004140            1        21 %
+   *  foo_2              0.003815            1        19 %
+   *  foo_1              0.002541            1        13 %
+   *  foo_5              0.001416            1         7 %
+   *  foo_0              0.001183            1         6 %
+   *  Total              0.019593          n/a       100 %
+   *  Accounted for      0.019486          n/a        99 %
+   *  Unaccounted for    0.000107          n/a         1 %
    *
    * We test that the times (second column) are sorted.
    */
   const auto summary = watcher.str(loggingPercentageThreshold);
+  std::cout << "\n\n" << summary << std::endl;
 
   const auto x0 = summary.find('\n', 0);
   const auto x1 = summary.find('\n', x0 + 1);
+  const auto x2 = summary.find('\n', x1 + 1);
 
   // Distance between lines
-  const auto delta = x1 - x0;
+  const auto delta = x2 - x1;
 
   // range where the time (in seconds) is found.
-  const auto y0 = summary.find(':', 0);
-  const auto y1 = summary.find("[s]", y0);
+  const auto y0 = summary.find("0.", 0);
+  const auto y1 = summary.find(" ", y0);
 
   // extract all the times from the string
   std::vector<double> times;

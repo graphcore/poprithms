@@ -13,8 +13,9 @@ namespace util {
 
 StringColumn::StringColumn(const std::string &t,
                            const std::vector<std::string> &es,
-                           char d)
-    : title_(t), entries_(es), delimiter_(d) {
+                           char d,
+                           Align align)
+    : title_(t), entries_(es), delimiter_(d), align_(align) {
 
   // Set the maximum width:
   uint64_t w = title_.size();
@@ -43,8 +44,19 @@ std::string spaceString(uint64_t target, const std::string &ts) {
 
 namespace {
 
-std::string padded(const std::string &x, uint64_t wd) {
-  return x + std::string(wd > x.size() ? wd - x.size() : 0, ' ');
+std::string
+padded(const std::string &x, uint64_t wd, StringColumn::Align align) {
+  const std::string space_(wd > x.size() ? wd - x.size() : 0, ' ');
+  switch (align) {
+  case StringColumn::Align::Left: {
+    return x + space_;
+  }
+  case StringColumn::Align::Right: {
+    return space_ + x;
+  }
+  }
+
+  throw error("Unhandled alignment case in.");
 }
 
 } // namespace
@@ -63,18 +75,19 @@ std::string alignedColumns(const std::vector<StringColumn> &scs) {
 
   std::ostringstream oss;
   for (const auto &sc : scs) {
-    oss << padded(sc.title(), sc.width() + 1);
+    oss << padded(sc.title(), sc.width() + 1, sc.align());
   }
   oss << '\n';
   for (const auto &sc : scs) {
     oss << padded(std::string(sc.title().size(), sc.delimiter()),
-                  sc.width() + 1);
+                  sc.width() + 1,
+                  sc.align());
   }
 
   for (uint64_t i = 0; i < scs[0].nEntries(); ++i) {
     oss << '\n';
     for (const auto &sc : scs) {
-      oss << padded(sc.entry(i), sc.width() + 1);
+      oss << padded(sc.entry(i), sc.width() + 1, sc.align());
     }
   }
 

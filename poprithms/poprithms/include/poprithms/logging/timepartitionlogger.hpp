@@ -41,7 +41,7 @@ private:
 
 /**
  * An extension to the Logger class which can summarize the times spent in
- * multiple mutually exclusive timing scopes.
+ * multiple mutually exclusive timing scopes (stopwatches).
  *
  * A TimePartitionLogger can be thought of as a set of stopwatches, where
  * there is never more than 1 stopwatch running at a time. Each stopwatch is
@@ -55,7 +55,7 @@ class TimePartitionLogger : public Logger {
 public:
   TimePartitionLogger(const std::string &id, bool extendIdToMakeUnique)
       : Logger(id, extendIdToMakeUnique),
-        constructionTime(std::chrono::high_resolution_clock::now()) {}
+        timeOfConstruction(std::chrono::high_resolution_clock::now()) {}
 
   /**
    * Start the stopwatch \a stopwatch. The behaviour in the case where there
@@ -77,10 +77,16 @@ public:
    * seconds) and counts (the number of times the stopwatch was started) on
    * each stopwatch. An example might be:
    *
-   *  first-stopwatch         : 0.005162 [s]    : #967     :    66 %
-   *  second-stopwatch        : 0.002535 [s]    : #3112    :    31 %
-   *  unaccounted             : 0.000034 [s]    : #13      :     3 %
-   *  total                   : 0.007730 [s]    : n/a      :   100 %.
+   *  Scope              Time [s]        Count  Percentage
+   *  -----              --------        -----  ----------
+   *  stopwatch-0        0.006390          100        40 %
+   *  watch-1            0.004140           22        25 %
+   *  another            0.003815            1        14 %
+   *  Total              0.019593          n/a       100 %
+   *  Accounted for      0.019486          n/a        99 %
+   *  Unaccounted for    0.000107          n/a         1 %
+   *
+   *
    * */
   std::string str(double minPercentage) const;
 
@@ -105,9 +111,11 @@ public:
   void append(std::ostream &ost, double minPercentage) const;
 
   /**
-   * Return the total time spent in stopwatch \a s, in seconds.
+   * Get the total time that stopwatch #stopwatch has been on for, in seconds.
+   * This method is O(number-of-times any stopwatches swtiched on) and so
+   * should be used sparingly.
    * */
-  double get(const std::string &s) const;
+  double get(const std::string &stopwatch) const;
 
   /**
    * Return the total elapsed time since this TimePartitionLogger was
@@ -148,20 +156,28 @@ public:
    * */
   ScopedStopwatch scopedStopwatch(const std::string &stopwatch);
 
-  /** \return true if there is currently a stopwatch which is on. */
-  bool isOn() const { return clockState == ClockState::On; }
-
-  /** \return true if currently all stopwatches are off. */
-  bool isOff() const { return !isOn(); }
-
   /**
    * An Event: when a stopwatch either starts of stops.
    * */
   struct Event {
+    // the name of the stopwatch
     std::string stopwatch;
+
+    // the type of the event on the stopwatch
     enum class Type { Start, Stop } type;
-    double sinceConstruction;
+
+    // the (global) time of the event
+    std::chrono::high_resolution_clock::time_point time_;
+
+    bool isStart() const { return type == Type::Start; }
+    bool isStop() const { return type == Type::Stop; }
   };
+
+  /** \return true if there is currently a stopwatch which is on. */
+  bool isOn() const { return !events_.empty() && events_.back().isStart(); }
+
+  /** \return true if currently all stopwatches are off. */
+  bool isOff() const { return !isOn(); }
 
   /** \return A vector of all the Events registered. */
   const std::vector<Event> &events() const { return events_; }
@@ -178,10 +194,14 @@ public:
 
   /**
    * How long has the current stopwatch been on for, if any stopwatches are
-   * on.
+   * on, in seconds.
    * */
   double beenOnFor() const;
 
+  /**
+   * Return the stopwatch which is currently running, if there is one.
+   * Otherwise throw an error.
+   * */
   std::string currentStopwatch() const;
 
 protected:
@@ -189,51 +209,11 @@ protected:
   void registerStopEvent();
 
 private:
-  struct TimeAndCount {
-    // Construct with just time, no count.
-    TimeAndCount(double time);
-    // Construct with time and count.
-    TimeAndCount(double time, uint64_t count);
-
-    // Cumulative time for a stopwatch.
-    double time;
-    // Number of times a stopwatch has been triggered.
-    uint64_t count;
-    // True if the stopwatch has a count.
-    bool hasCount;
-  };
-
-  // Cumulative times and counts on each of the stopwatches.
-  std::map<std::string, TimeAndCount> stopwatches;
-
-  // Are there any stopwatches currently running?
-  enum class ClockState { On, Off };
-  ClockState clockState{ClockState::Off};
-
-  std::string currentStopwatch_;
-
-  // m[k].time += t if k in m, else m[k] = { time=t, count=0 }.
-  void incrementTime(std::map<std::string, TimeAndCount> &m,
-                     const std::string &k,
-                     double t) const;
-
-  void incrementTime(const std::string &k, double t) {
-    incrementTime(stopwatches, k, t);
-  }
-
-  void incrementTime(double t) { incrementTime(currentStopwatch(), t); }
-
-  // m[k].count += 1 if k in m, else m[k] = { time=0., count=1 }.
-  void incrementCount(std::map<std::string, TimeAndCount> &m,
-                      const std::string &k) const;
-
-  void incrementCount(const std::string &k) {
-    incrementCount(stopwatches, k);
-  }
-
-  void incrementCount() { incrementCount(currentStopwatch()); }
-
   using TimePoint = std::chrono::high_resolution_clock::time_point;
+
+  std::vector<Event> completeAndGet() const;
+
+  TimePoint timeOfConstruction;
 
   /**
    * Handle the case of starting a stopwatch, when there is already one on.
@@ -246,8 +226,6 @@ private:
    */
   virtual void postHandleStartFromOn() = 0;
 
-  TimePoint constructionTime;
-  TimePoint lastEventTime;
   std::vector<Event> events_;
 
   std::mutex mut;
@@ -294,6 +272,9 @@ private:
 
   std::vector<std::string> onHoldStack;
 };
+
+std::ostream &operator<<(std::ostream &,
+                         const TimePartitionLogger::Event::Type &);
 
 } // namespace logging
 } // namespace poprithms
