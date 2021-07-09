@@ -73,6 +73,10 @@ std::ostream &operator<<(std::ostream &ost, const OpeningStatus &s) {
     ost << "NotParallelWriteable";
     break;
   }
+  case OpeningStatus::GateMultiInAlias: {
+    ost << "GateMultiInAlias";
+    break;
+  }
   default: {
     throw error("Unrecognised Status");
   }
@@ -122,6 +126,10 @@ OpeningResult OpeningResult::alreadyOpen() {
 
 OpeningResult OpeningResult::notParallelWriteable() {
   return OpeningResult(OpeningStatus::NotParallelWriteable, {}, {}, false);
+}
+
+OpeningResult OpeningResult::gateMultiInAlias() {
+  return OpeningResult(OpeningStatus::GateMultiInAlias, {}, {}, false);
 }
 
 std::ostream &operator<<(std::ostream &ost, const OpeningStatuses &statuses) {

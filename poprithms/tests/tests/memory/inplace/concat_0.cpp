@@ -42,7 +42,9 @@ void test0() {
   allCats.insert(allCats.end(), cats4.cbegin(), cats4.cend());
   allCats.insert(allCats.end(), cats8.cbegin(), cats8.cend());
 
-  g.tryOpenings0(Tensor::opIds(allCats), CheckParallelWriteable::Yes);
+  g.tryOpenings0(Tensor::opIds(allCats),
+                 CheckParallelWriteable::Yes,
+                 AllowMultiGateAlias::No);
 
   for (auto id : allCats) {
     if (id.aliasGateIsClosed()) {
@@ -69,7 +71,8 @@ void test1() {
   g.constraint(m.opId(), u.opId());
   Tensor::concat({m, u}, 0);
 
-  auto trial = g.tryOpenings0({m.opId()}, CheckParallelWriteable::No);
+  auto trial = g.tryOpenings0(
+      {m.opId()}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
   if (trial.size() != 1 || trial[0] != OpeningStatus::Cycle) {
     throw error("Opening the aliasGate makes the concat invalid. ");
   }

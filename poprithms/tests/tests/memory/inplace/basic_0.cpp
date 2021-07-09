@@ -13,9 +13,10 @@ using namespace poprithms::memory::inplace;
 // Check that all AliasGatees are open.
 void testUnaryChainBase(Graph g, const TensorIds &idOrder) {
 
-  const auto order = Tensor::tensors(g, idOrder);
-  const auto statuses =
-      g.tryOpenings0(Tensor::tensorIds(order), CheckParallelWriteable::Yes);
+  const auto order    = Tensor::tensors(g, idOrder);
+  const auto statuses = g.tryOpenings0(Tensor::tensorIds(order),
+                                       CheckParallelWriteable::Yes,
+                                       AllowMultiGateAlias::No);
   for (auto t : order) {
     if (t.aliasGateIsClosed()) {
       std::ostringstream oss;
@@ -53,7 +54,8 @@ void testUnaryChain() {
 
 void testUnaryTriFork0Base(Graph g, const TensorIds &idOrder) {
   const auto order    = Tensor::tensors(g, idOrder);
-  const auto statuses = g.tryOpenings0(idOrder, CheckParallelWriteable::Yes);
+  const auto statuses = g.tryOpenings0(
+      idOrder, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
 
   if (order.size() != 3) {
     throw error("order must be of size 3 in this test - bad test");
@@ -148,7 +150,8 @@ void testUnaryTriLongFork0() {
     }
 
     auto g = g0_;
-    g.tryOpenings0(aliasGateOrder, CheckParallelWriteable::Yes);
+    g.tryOpenings0(
+        aliasGateOrder, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
 
     auto firstForker = [&outs, &order, &isForker]() {
       for (auto x : order) {
@@ -189,7 +192,8 @@ void testMixedBiFork0Base(Graph g,
   const auto order                    = Tensor::tensors(g, idsOrder);
   const auto expectedClosedAliasGates = Tensor::tensors(g, idsExpected);
 
-  const auto statuses = g.tryOpenings0(Tensor::tensorIds(order), obey);
+  const auto statuses =
+      g.tryOpenings0(Tensor::tensorIds(order), obey, AllowMultiGateAlias::No);
 
   auto getBaseString = [&gIn, &order, &expectedClosedAliasGates]() {
     std::ostringstream oss;
@@ -294,7 +298,8 @@ void testConstraint0() {
   // The attempt to inplace x1 fails, as it
   // is constrained to be before x0.
   g.tryOpenings0({x1aliasGate.opId(), x0aliasGate.opId()},
-                 CheckParallelWriteable::Yes);
+                 CheckParallelWriteable::Yes,
+                 AllowMultiGateAlias::No);
   if (x1aliasGate.aliasGateIsOpen()) {
     throw error(
         "Failed to inplace correctly with constraint - x0 not outplace");

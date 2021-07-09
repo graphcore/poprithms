@@ -18,7 +18,8 @@ void test0() {
 
   {
     auto g0 = g;
-    g0.tryOpening({x0.opId(), 0}, CheckParallelWriteable::Yes);
+    g0.tryOpening(
+        {x0.opId(), 0}, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
     if (g0.aliasGateIsOpen(x0.opId())) {
       throw error("inplace modified a constant");
     }
@@ -26,7 +27,8 @@ void test0() {
 
   {
     auto g1 = g;
-    g1.tryOpening({x0.opId(), 0}, CheckParallelWriteable::No);
+    g1.tryOpening(
+        {x0.opId(), 0}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
     if (g1.aliasGateIsClosed(x0.opId())) {
       throw error("failed to inplace when obey=false");
     }

@@ -60,8 +60,9 @@ int main() {
   // Should we make sure not to make an Op inplace if it results in a Tensor
   // which is 1) constant, or 2) contains self-aliases, from being modified?
 
-  const auto results =
-      g.tryOpenings0(Tensor::opIds(toInplace), CheckParallelWriteable::Yes);
+  const auto results = g.tryOpenings0(Tensor::opIds(toInplace),
+                                      CheckParallelWriteable::Yes,
+                                      AllowMultiGateAlias::No);
 
   std::cout << results << std::endl;
 

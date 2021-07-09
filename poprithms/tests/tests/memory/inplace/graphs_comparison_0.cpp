@@ -56,7 +56,8 @@ void graphAliasGateTest0() {
         "Graph comparison should have been different");
   }
 
-  g0.tryOpening(Proposal(m0, 0), CheckParallelWriteable::Yes);
+  g0.tryOpening(
+      Proposal(m0, 0), CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
   if (g0 != g1) {
     throw error(
         "g0 should have succeeded inplacing its AliasGate, thus removinf "

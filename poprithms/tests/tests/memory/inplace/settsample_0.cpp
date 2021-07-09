@@ -47,9 +47,10 @@ void test0() {
   const auto &gStart = g;
   auto test          = [&gStart](const Tensors &order,
                         std::vector<bool> expectedInplace) {
-    auto g0 = gStart;
-    auto results =
-        g0.tryOpenings0(Tensor::opIds(order), CheckParallelWriteable::Yes);
+    auto g0      = gStart;
+    auto results = g0.tryOpenings0(Tensor::opIds(order),
+                                   CheckParallelWriteable::Yes,
+                                   AllowMultiGateAlias::No);
     for (uint64_t i = 0; i < expectedInplace.size(); ++i) {
       auto id = order[i];
       if (id.aliasGateIsOpen() != expectedInplace[i]) {

@@ -11,6 +11,7 @@
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/memory/alias/graph.hpp>
+#include <poprithms/memory/inplace/allowmultigatealias.hpp>
 #include <poprithms/memory/inplace/checkparallelwriteable.hpp>
 #include <poprithms/memory/inplace/constantpadding.hpp>
 #include <poprithms/memory/inplace/crosslink.hpp>
@@ -241,8 +242,11 @@ public:
    * \param proposal The proposed AliasGate to open, and the InIndex to open
    *                 at.
    *
-   * \param check Whether to disallow the opening if it results in
-   *              non-parallel writes.
+   * \param checkParWrite Whether to disallow the opening if it results in
+   *                      non-parallel writes.
+   *
+   * \param allowMultiGateAlias Whether to allow the input at the open index
+   *                            of an alias gate to alias other inputs.
    *
    * \return The status of the attempt, describing whether or not the change
    *         took place. Possible failure Statuses:
@@ -255,16 +259,18 @@ public:
    *
    * NotParallelWriteable: Sometimes, opening an AliasGate results in a
    *                       Tensor which is not parallel writeable being
-   *                       modified. If this happens, and \a check is Yes, the
-   *                       proposal is rejected.
+   *                       modified. If this happens, and \a checkParWri is
+   *                       Yes, the proposal is rejected.
    *
    * AlreadyOpen: If the AliasGate is already open, the proposal is rejected.
    *
    * \see OpeningResult
    * \see Proposal
    * */
-  OpeningStatus tryOpening(const Proposal &proposal,
-                           CheckParallelWriteable check);
+  OpeningStatus tryOpening(
+      const Proposal &proposal,
+      CheckParallelWriteable checkParWrite,
+      AllowMultiGateAlias allowMultiGateAlias = AllowMultiGateAlias::Yes);
 
   /**
    * Attempt to open an AliasGate, without inserting final constraints and
@@ -280,7 +286,10 @@ public:
    * AliasGate closed even after tryOpening has confirmed that it is valid.
    * This method makes such use cases possible.
    * */
-  OpeningResult tryOpeningPartial(const Proposal &, CheckParallelWriteable);
+  OpeningResult
+  tryOpeningPartial(const Proposal &,
+                    CheckParallelWriteable,
+                    AllowMultiGateAlias = AllowMultiGateAlias::Yes);
 
   /** Perform final Graph modifications */
   void completeOpening(const OpeningResult &);
@@ -289,9 +298,19 @@ public:
   void backoutOpening(const Proposal &);
 
   /** Attempt Proposals in order, returning OpeningResults for each */
-  OpeningStatuses tryOpenings(const Proposals &, CheckParallelWriteable);
-  OpeningStatuses tryOpenings0(const TensorIds &, CheckParallelWriteable);
-  OpeningStatuses tryOpenings0(const OpIds &, CheckParallelWriteable);
+  OpeningStatuses tryOpenings(const Proposals &,
+                              CheckParallelWriteable,
+                              AllowMultiGateAlias = AllowMultiGateAlias::Yes);
+
+  OpeningStatuses
+  tryOpenings0(const TensorIds &,
+               CheckParallelWriteable,
+               AllowMultiGateAlias = AllowMultiGateAlias::Yes);
+
+  OpeningStatuses
+  tryOpenings0(const OpIds &,
+               CheckParallelWriteable,
+               AllowMultiGateAlias = AllowMultiGateAlias::Yes);
 
   /** Append a string describing this Graph to \a ost */
   void append(std::ostream &ost) const;

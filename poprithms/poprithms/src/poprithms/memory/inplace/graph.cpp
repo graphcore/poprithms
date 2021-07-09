@@ -8,6 +8,7 @@
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include <poprithms/memory/inplace/color.hpp>
@@ -256,23 +257,26 @@ const Op &Graph::op(OpId a) const {
 Op &Graph::op(OpId a) { return static_cast<Op &>(multioutOp(a)); }
 
 OpeningStatuses Graph::tryOpenings(const Proposals &proposals,
-                                   CheckParallelWriteable check) {
+                                   CheckParallelWriteable check,
+                                   AllowMultiGateAlias allow) {
   OpeningStatuses statuses;
   statuses.reserve(proposals.size());
   for (const auto &p : proposals) {
-    statuses.push_back(tryOpening(p, check));
+    statuses.push_back(tryOpening(p, check, allow));
   }
   return statuses;
 }
 
 OpeningStatuses Graph::tryOpenings0(const TensorIds &ids,
-                                    CheckParallelWriteable xp) {
-  return tryOpenings(Proposal::open0(ids), xp);
+                                    CheckParallelWriteable xp,
+                                    AllowMultiGateAlias allow) {
+  return tryOpenings(Proposal::open0(ids), xp, allow);
 }
 
 OpeningStatuses Graph::tryOpenings0(const OpIds &ids,
-                                    CheckParallelWriteable xp) {
-  return tryOpenings(Proposal::open0(ids), xp);
+                                    CheckParallelWriteable xp,
+                                    AllowMultiGateAlias allow) {
+  return tryOpenings(Proposal::open0(ids), xp, allow);
 }
 
 void Graph::constraints(OpId a, const OpIds &bs) {
@@ -352,7 +356,8 @@ AliasGate &Graph::asAliasGate(OpId mid) {
 }
 
 OpeningResult Graph::tryOpeningPartial(const Proposal &p,
-                                       CheckParallelWriteable check) {
+                                       CheckParallelWriteable check,
+                                       AllowMultiGateAlias allow) {
 
   auto &aliasGate_ = asAliasGate(p.aliasGateId());
 
@@ -420,7 +425,8 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   //       aliasGate (proposal to make reshape_)
   //
   std::vector<AliInfo> inAliasModified;
-  for (auto ali : allAliases(inTensorToAlias)) {
+  const auto aliasesOfInTensorToAlias = allAliases(inTensorToAlias);
+  for (auto ali : aliasesOfInTensorToAlias) {
     const auto m = modifiers(ali);
     if (!m.empty()) {
       inAliasModified.push_back({ali, m, allAliases(ali)});
@@ -447,7 +453,8 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
   //   unary
   //
   std::vector<AliInfo> outAliasModified;
-  for (auto ali : allAliases(outTensorToAlias)) {
+  const auto aliasesOfOutTensorToAlias = allAliases(outTensorToAlias);
+  for (auto ali : aliasesOfOutTensorToAlias) {
     const auto m = modifiers(ali);
     if (!m.empty()) {
       outAliasModified.push_back({ali, m, allAliases(ali)});
@@ -479,6 +486,45 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
           aGraph().containsAliases(tId)) {
         aliasGate_.close(aGraph(), tensorMap);
         return OpeningResult::notParallelWriteable();
+      }
+    }
+  }
+
+  // Ensure that this inplacing does not result in any alias gates having
+  // outputs with aliases to multiple inputs
+  if (allow == AllowMultiGateAlias::No) {
+
+    // All tensors which are aliased to an input/output of the alias gate
+    // being opened in this proposal. These are the tensors which have
+    // different aliases under the proposal.
+    auto tensorsToConsider = aliasesOfInTensorToAlias;
+    tensorsToConsider.insert(tensorsToConsider.end(),
+                             aliasesOfOutTensorToAlias.cbegin(),
+                             aliasesOfOutTensorToAlias.cend());
+
+    // All alias gates which the tensors to consider (above) go into. We are
+    // only interested here in alias gates with more than 1 input, as we're
+    // looking for alias gates with inputs which alias each other.
+    std::unordered_set<const AliasGate *> aliasGatesToConsider;
+    for (auto tensorToConsider : tensorsToConsider) {
+      for (auto c : consumptionIds(tensorToConsider)) {
+        const auto aliGate = dynamic_cast<const AliasGate *>(&op(c.opId()));
+        if (aliGate && aliGate->nInTensors() > 1 && aliGate->open()) {
+          aliasGatesToConsider.insert(aliGate);
+        }
+      }
+    }
+
+    // check for inputs at closed indices which alias the input at the open
+    // index.
+    for (auto aliGate : aliasGatesToConsider) {
+      const auto inIds     = aliGate->inTensorIds();
+      const auto openIndex = aliGate->inIndex().get();
+      for (uint64_t i = 0; i < aliGate->nInTensors(); ++i) {
+        if (i != openIndex && areAliased(inIds[i], inIds[openIndex])) {
+          aliasGate_.close(aGraph(), tensorMap);
+          return OpeningResult::gateMultiInAlias();
+        }
       }
     }
   }
@@ -550,9 +596,10 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
 }
 
 OpeningStatus Graph::tryOpening(const Proposal &p,
-                                const CheckParallelWriteable check) {
+                                const CheckParallelWriteable check,
+                                const AllowMultiGateAlias allow) {
 
-  auto partial = tryOpeningPartial(p, check);
+  auto partial = tryOpeningPartial(p, check, allow);
   if (partial.status() == OpeningStatus::Valid) {
     completeOpening(partial);
   }

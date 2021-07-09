@@ -16,7 +16,8 @@ void testBadShape() {
   const auto c = Tensor::aliasGate({a, b});
   bool caught{false};
   try {
-    g.tryOpening({c, 0}, CheckParallelWriteable::Yes);
+    g.tryOpening(
+        {c, 0}, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
   } catch (const poprithms::error::error &) {
     caught = true;
   }
@@ -38,7 +39,8 @@ void testNoConst() {
   const auto b = Tensor::variable(g, {3});
   const auto c = Tensor::aliasGate({a, b});
   c.modify();
-  g.tryOpenings({{c, 0}, {c, 1}}, CheckParallelWriteable::Yes);
+  g.tryOpenings(
+      {{c, 0}, {c, 1}}, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
   auto alis = c.allAliases();
   if (std::find(alis.cbegin(), alis.cend(), a) != alis.cend()) {
     throw error("Expected a to NOT be aliased to c, as it is constant");
@@ -54,7 +56,8 @@ void testMultiplePossibilities() {
   const auto b = Tensor::variable(g, {3});
   const auto c = Tensor::aliasGate({a, b});
   // Both valid inplacings, but only the first one should be applied.
-  g.tryOpenings({{c, 0}, {c, 1}}, CheckParallelWriteable::Yes);
+  g.tryOpenings(
+      {{c, 0}, {c, 1}}, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
   auto alis = c.allAliases();
   std::sort(alis.begin(), alis.end());
   if (alis != Tensors{a, c}) {
@@ -75,7 +78,9 @@ void testChain0() {
   }
   std::mt19937_64 generator(1015);
   std::shuffle(aliasGates.begin(), aliasGates.end(), generator);
-  g.tryOpenings0(Tensor::opIds(aliasGates), CheckParallelWriteable::Yes);
+  g.tryOpenings0(Tensor::opIds(aliasGates),
+                 CheckParallelWriteable::Yes,
+                 AllowMultiGateAlias::No);
   for (auto m : aliasGates) {
     if (m.aliasGateIsClosed()) {
       throw error("Expected all aliasGate ops to be inplaced");

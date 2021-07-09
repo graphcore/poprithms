@@ -33,7 +33,8 @@ void testReverse0() {
     // "0", "1", "2":
     OpIds aliasGates{
         v0AliasGate.opId(), postRevAliasGate.opId(), preRevAliasGate.opId()};
-    g.tryOpenings0(aliasGates, CheckParallelWriteable::Yes);
+    g.tryOpenings0(
+        aliasGates, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
 
     if (v0AliasGate.aliasGateIsClosed() ||
         postRevAliasGate.aliasGateIsClosed()) {
@@ -83,7 +84,7 @@ void testReshape0() {
   auto test         = [&gBase](const TensorIds &ts,
                        const std::vector<bool> &expectedOpen) {
     auto g2 = gBase;
-    g2.tryOpenings0(ts, CheckParallelWriteable::Yes);
+    g2.tryOpenings0(ts, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
     for (uint64_t i = 0; i < ts.size(); ++i) {
       if (g2.aliasGateIsOpen(ts[i].opId()) != expectedOpen[i]) {
         std::ostringstream oss;
@@ -111,7 +112,8 @@ void testEmptySlice0() {
   auto f            = e.modify().closedAliasGate();
   auto g_           = b.modify().closedAliasGate();
   auto aliasGateIds = Tensor::opIds({b, c, d, e, f, g_});
-  g.tryOpenings0(aliasGateIds, CheckParallelWriteable::Yes);
+  g.tryOpenings0(
+      aliasGateIds, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
   std::cout << g << std::endl;
   for (auto id : aliasGateIds) {
     if (g.aliasGateIsClosed(id)) {

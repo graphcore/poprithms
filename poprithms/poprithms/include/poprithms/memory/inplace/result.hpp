@@ -17,6 +17,8 @@ enum OpeningStatus {
   AlreadyOpen, ///< Opening is invalid, because the AliasGate is already open
   NotParallelWriteable, ///< The opening is invalid, as it results in writing
                         ///< a Tensor which is not parallel writeable.
+  GateMultiInAlias,     ///< The opening is invalid, as it results in an alias
+                        ///< gate's output aliasing multiple inputs.
 };
 
 /** A summary of the result of attempting to open an AliasGate.
@@ -33,6 +35,7 @@ public:
   static OpeningResult cycle();
   static OpeningResult alreadyOpen();
   static OpeningResult notParallelWriteable();
+  static OpeningResult gateMultiInAlias();
 
   OpeningStatus status() const { return status_; }
   bool isValid() const { return status() == OpeningStatus::Valid; }

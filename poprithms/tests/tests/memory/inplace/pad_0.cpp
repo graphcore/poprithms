@@ -20,8 +20,9 @@ void testPad0() {
   const auto aliasGatePll = v0.pad({{{1}, {1}}}, true).closedAliasGate();
   aliasGatePll.modify();
 
-  const auto tryNotPll =
-      graph.tryOpening({aliasGateNotPll, 0}, CheckParallelWriteable::Yes);
+  const auto tryNotPll = graph.tryOpening({aliasGateNotPll, 0},
+                                          CheckParallelWriteable::Yes,
+                                          AllowMultiGateAlias::No);
   if (tryNotPll != OpeningStatus::NotParallelWriteable) {
     std::ostringstream oss;
     oss << "If this AliasGate is opened, the Tensor which is padded with "
@@ -29,8 +30,9 @@ void testPad0() {
         << "But CheckParallelWriteable::Yes is set, so this is not allowed. ";
     throw error(oss.str());
   }
-  const auto tryPll =
-      graph.tryOpening({aliasGatePll, 0}, CheckParallelWriteable::Yes);
+  const auto tryPll = graph.tryOpening({aliasGatePll, 0},
+                                       CheckParallelWriteable::Yes,
+                                       AllowMultiGateAlias::No);
   if (tryPll != OpeningStatus::Valid) {
     throw error(
         "The Tensor padded with non-broadcast variable can be modified. ");

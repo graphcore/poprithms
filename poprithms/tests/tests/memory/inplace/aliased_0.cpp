@@ -30,7 +30,8 @@ void sliceTest0() {
     const auto x0 = Tensor::concat({s0, s1}, 0).closedAliasGate();
 
     x0.modify();
-    g.tryOpening({x0.opId(), 0}, CheckParallelWriteable::Yes);
+    g.tryOpening(
+        {x0.opId(), 0}, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
 
     if (squareSize > 5 && x0.aliasGateIsOpen()) {
       throw error(
@@ -64,7 +65,9 @@ void expandTest0() {
     if (tryExpandFirst) {
       std::swap(order[0], order[1]);
     }
-    g.tryOpenings0(Tensor::opIds(order), CheckParallelWriteable::Yes);
+    g.tryOpenings0(Tensor::opIds(order),
+                   CheckParallelWriteable::Yes,
+                   AllowMultiGateAlias::No);
 
     const auto open0 = order[0].aliasGateIsOpen();
     const auto open1 = order[1].aliasGateIsOpen();

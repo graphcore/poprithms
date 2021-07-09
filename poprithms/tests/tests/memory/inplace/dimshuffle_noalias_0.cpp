@@ -32,7 +32,8 @@ void testDimShuffle0() {
   Tensors order{s1AliasGate, s0AliasGate, x0AliasGate, catAliasGate};
 
   std::cout << g.tryOpenings0(Tensor::opIds(order),
-                              CheckParallelWriteable::Yes)
+                              CheckParallelWriteable::Yes,
+                              AllowMultiGateAlias::No)
             << std::endl;
   for (auto id : order) {
     if (id != catAliasGate) {

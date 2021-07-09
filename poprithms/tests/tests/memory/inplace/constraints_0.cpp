@@ -35,7 +35,7 @@ void test0() {
     g.constraint(v0.opId(), x3.opId(), x2.opId(), x1.opId());
   }
 
-  g.tryOpening({x2m, 0}, CheckParallelWriteable::No);
+  g.tryOpening({x2m, 0}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
   if (x2m.aliasGateIsOpen()) {
     throw error("cannot inplace x2, as constrained to be before x1");
   }
@@ -68,14 +68,17 @@ void testLateConstraint() {
   const auto catAliasGate = cat.closedAliasGate();
 
   // inplace
-  g.tryOpening({catAliasGate, 0}, CheckParallelWriteable::No);
+  g.tryOpening(
+      {catAliasGate, 0}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
   g.constraint(x1_.opId(), x0aliasGate.opId());
 
   // not inplace, as x0 must be before it
-  g.tryOpening({x1aliasGate, 0}, CheckParallelWriteable::No);
+  g.tryOpening(
+      {x1aliasGate, 0}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
 
   // inplace
-  g.tryOpening({x0aliasGate, 0}, CheckParallelWriteable::No);
+  g.tryOpening(
+      {x0aliasGate, 0}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
   if (x0aliasGate.aliasGateIsClosed() || x1aliasGate.aliasGateIsOpen()) {
     throw error("incorrect logic in testLateConstraint");
   }
@@ -99,7 +102,8 @@ void testConstraintsNotSetInPartialOpening() {
 
   Proposal p{ag0, 0};
 
-  const auto status = g.tryOpeningPartial(p, CheckParallelWriteable::No);
+  const auto status = g.tryOpeningPartial(
+      p, CheckParallelWriteable::No, AllowMultiGateAlias::No);
 
   if (!status.isValid()) {
     throw error("incorrect logic in testConstraintsNotSetInPartialOpening: "

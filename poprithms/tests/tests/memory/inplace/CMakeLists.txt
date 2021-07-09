@@ -66,3 +66,6 @@ add_memory_inplace_test(memory_inplace_crosslink_0
 
 add_memory_inplace_test(memory_inplace_traversal_0  
                                        traversal_0.cpp)
+
+add_memory_inplace_test(memory_inplace_allowmultigatealias_0  
+                                       allowmultigatealias_0.cpp)
