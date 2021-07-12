@@ -104,6 +104,38 @@ public:
   Sqrt() : NoIntType<T>("Sqrt") {}
 };
 
+template <typename T, class Enable = void> class Cos {};
+template <typename T>
+class Cos<T,
+          typename std::enable_if_t<std::is_floating_point_v<T> ||
+                                    std::is_same<T, IeeeHalf>::value>> {
+public:
+  T operator()(T a) const { return static_cast<T>(std::cos(a)); }
+  static std::string name() { return name_<T>("Cos"); }
+};
+template <typename T>
+class Cos<T, typename std::enable_if_t<std::is_integral_v<T>>>
+    : public NoIntType<T> {
+public:
+  Cos() : NoIntType<T>("Cos") {}
+};
+
+template <typename T, class Enable = void> class Sin {};
+template <typename T>
+class Sin<T,
+          typename std::enable_if_t<std::is_floating_point_v<T> ||
+                                    std::is_same<T, IeeeHalf>::value>> {
+public:
+  T operator()(T a) const { return static_cast<T>(std::sin(a)); }
+  static std::string name() { return name_<T>("Sin"); }
+};
+template <typename T>
+class Sin<T, typename std::enable_if_t<std::is_integral_v<T>>>
+    : public NoIntType<T> {
+public:
+  Sin() : NoIntType<T>("Sin") {}
+};
+
 template <typename T, class Enable = void> class Log {};
 template <typename T>
 class Log<T,

@@ -34,7 +34,8 @@ void Shape::assertOneHotEncodeable(const Shape &indicesShape) const {
     std::ostringstream oss;
     oss << "Invalid shapes in assertOneHotEncodeable. "
         << "The shape of the tensor to encode (this shape) is " << *this
-        << ", and the shape of indices tensor is " << indicesShape << ". ";
+        << ", and the shape of the indices tensor is " << indicesShape
+        << ". ";
     return oss.str();
   };
 

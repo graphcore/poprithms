@@ -224,6 +224,17 @@ public:
 
   std::vector<T> getNativeVector() const final { return castToVector<T>(); }
 
+  T getNativeValue(uint64_t i) const final {
+    if (i >= nelms_u64()) {
+      std::ostringstream oss;
+      oss << "Invalid index " << i
+          << " in getNativeValue, OriginData only has " << nelms_u64()
+          << " elements. ";
+      throw error(oss.str());
+    }
+    return *(dataPtr() + i);
+  }
+
   BaseDataSP toOriginData() const final {
     return std::make_shared<AllocData<T>>(std::move(castToVector<T>()));
   }
@@ -239,6 +250,12 @@ public:
 
   BaseDataSP sqrt() const final { return unary<Sqrt<T>>(); }
   void sqrt_() const final { unary_<Sqrt<T>>(); }
+
+  BaseDataSP sin() const final { return unary<Sin<T>>(); }
+  void sin_() const final { unary_<Sin<T>>(); }
+
+  BaseDataSP cos() const final { return unary<Cos<T>>(); }
+  void cos_() const final { unary_<Cos<T>>(); }
 
   BaseDataSP ceil() const final { return unary<Ceil<T>>(); }
   void ceil_() const final { unary_<Ceil<T>>(); }

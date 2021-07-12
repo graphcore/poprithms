@@ -15,18 +15,28 @@ namespace {
 
 constexpr uint64_t asUnsigned64(DType t) { return static_cast<uint64_t>(t); }
 
+enum class NonNegative { No = 0, Yes };
+
 struct NumericTypeInfo {
 public:
   DType type;
   int nbytes;
   bool isFixedPoint;
+  NonNegative isNonNegative;
   std::string pcase;
   std::string lcase;
 
+  bool nonNegative() const { return isNonNegative == NonNegative::Yes; }
+
   NumericTypeInfo() = default;
 
-  NumericTypeInfo(DType type__, int nb__, bool ifp__, std::string pcase__)
-      : type(type__), nbytes(nb__), isFixedPoint(ifp__), pcase(pcase__) {
+  NumericTypeInfo(DType type__,
+                  int nb__,
+                  bool ifp__,
+                  NonNegative inn__,
+                  std::string pcase__)
+      : type(type__), nbytes(nb__), isFixedPoint(ifp__), isNonNegative(inn__),
+        pcase(pcase__) {
 
     lcase = pcase;
     std::transform(lcase.begin(), lcase.end(), lcase.begin(), [](char c) {
@@ -42,31 +52,35 @@ constexpr const char *unsetCase = "___unset___case___";
 
 std::array<NumericTypeInfo, NTypes> initInfoArray() {
 
-  NumericTypeInfo undefined(DType::N, -100, false, unsetCase);
+  NumericTypeInfo undefined(
+      DType::N, -100, false, NonNegative::No, unsetCase);
   std::array<NumericTypeInfo, NTypes> infos;
   infos.fill(undefined);
 
   auto registerInfo = [&infos](DType t,
                                int numberOfBytes,
                                bool isFixedPoint,
+                               NonNegative isNonNegative,
                                std::string upperCaseName) {
-    infos[asUnsigned64(t)] = {t, numberOfBytes, isFixedPoint, upperCaseName};
+    infos[asUnsigned64(t)] = {
+        t, numberOfBytes, isFixedPoint, isNonNegative, upperCaseName};
   };
 
-  registerInfo(DType::Float16, 2, false, "Float16");
-  registerInfo(DType::Float32, 4, false, "Float32");
-  registerInfo(DType::Float64, 8, false, "Float64");
+  registerInfo(DType::Float16, 2, false, NonNegative::No, "Float16");
+  registerInfo(DType::Float32, 4, false, NonNegative::No, "Float32");
+  registerInfo(DType::Float64, 8, false, NonNegative::No, "Float64");
 
-  registerInfo(DType::Int8, 1, true, "Int8");
-  registerInfo(DType::Int16, 2, true, "Int16");
-  registerInfo(DType::Int32, 4, true, "Int32");
-  registerInfo(DType::Int64, 8, true, "Int64");
+  registerInfo(DType::Int8, 1, true, NonNegative::No, "Int8");
+  registerInfo(DType::Int16, 2, true, NonNegative::No, "Int16");
+  registerInfo(DType::Int32, 4, true, NonNegative::No, "Int32");
+  registerInfo(DType::Int64, 8, true, NonNegative::No, "Int64");
 
-  registerInfo(DType::Boolean, sizeof(bool), true, "Boolean");
-  registerInfo(DType::Unsigned8, 1, true, "Unsigned8");
-  registerInfo(DType::Unsigned16, 2, true, "Unsigned16");
-  registerInfo(DType::Unsigned32, 4, true, "Unsigned32");
-  registerInfo(DType::Unsigned64, 8, true, "Unsigned64");
+  registerInfo(
+      DType::Boolean, sizeof(bool), true, NonNegative::Yes, "Boolean");
+  registerInfo(DType::Unsigned8, 1, true, NonNegative::Yes, "Unsigned8");
+  registerInfo(DType::Unsigned16, 2, true, NonNegative::Yes, "Unsigned16");
+  registerInfo(DType::Unsigned32, 4, true, NonNegative::Yes, "Unsigned32");
+  registerInfo(DType::Unsigned64, 8, true, NonNegative::Yes, "Unsigned64");
 
   // Check that all the DTypes have been registered.
   for (auto &v : infos) {
@@ -115,6 +129,10 @@ bool isFixedPoint(DType dtype) {
   return getInfoArray().at(asUnsigned64(dtype)).isFixedPoint;
 }
 
+bool isNonNegative(DType dtype) {
+  return getInfoArray().at(asUnsigned64(dtype)).nonNegative();
+}
+
 template <typename T> void verify(DType t) {
   if (t != get<T>()) {
     std::ostringstream ss;
@@ -122,6 +140,10 @@ template <typename T> void verify(DType t) {
        << lcase(get<T>()) << '.';
     throw error(ss.str());
   }
+}
+
+bool isUnsignedFixedPoint(DType t) {
+  return isFixedPoint(t) && isNonNegative(t);
 }
 
 template <> DType get<double>() { return DType::Float64; }

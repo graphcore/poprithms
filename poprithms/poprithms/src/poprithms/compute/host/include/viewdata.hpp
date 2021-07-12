@@ -376,6 +376,12 @@ public:
   BaseDataSP sqrt() const final { return unary<Sqrt<T>>(); }
   void sqrt_() const final { unary_<Sqrt<T>>(); }
 
+  BaseDataSP sin() const final { return unary<Sin<T>>(); }
+  void sin_() const final { unary_<Sin<T>>(); }
+
+  BaseDataSP cos() const final { return unary<Cos<T>>(); }
+  void cos_() const final { unary_<Cos<T>>(); }
+
   BaseDataSP ceil() const final { return unary<Ceil<T>>(); }
   void ceil_() const final { unary_<Ceil<T>>(); }
 
@@ -552,6 +558,8 @@ public:
     }
     return out;
   }
+
+  T getNativeValue(uint64_t i) const final { return *dataPtr(i); }
 };
 
 } // namespace host

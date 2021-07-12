@@ -135,6 +135,22 @@ void testAccumulate0() {
   out.assertAllEquivalent(Tensor::unsigned64(45).expand_({3, 2}));
 }
 
+void assertl2Norm(const Tensor &t, double expected) {
+  if (t.l2norm() != expected) {
+    std::ostringstream oss;
+    oss << "Failed in test of l2 norm. For Tensor " << t << ", expected "
+        << expected << " but observed " << t.l2norm();
+    throw error(oss.str());
+  }
+}
+
+void testl2norm() {
+  assertl2Norm(Tensor::float64({2}, {3.0, 4.0}), 5.0);
+  assertl2Norm(Tensor::unsigned8({5}, {1, 1, 1, 2, 3}), 4.0);
+  assertl2Norm(Tensor::boolean({6}, {true, true, false, true, true, false}),
+               2);
+}
+
 } // namespace
 
 int main() {
@@ -147,6 +163,7 @@ int main() {
   testAtSlice1();
   testSlice0();
   testAccumulate0();
+  testl2norm();
 
   return 0;
 }

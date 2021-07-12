@@ -474,6 +474,12 @@ public:
   std::string values() const;
 
   /**
+   * \return The value in this Tensor at index #rowMajorIndex, cast to a
+   *         string.
+   * */
+  std::string valueAsStr(uint64_t rowMajorIndex) const;
+
+  /**
    * \return A copy of this Tensor. The returned Tensor is a new memory
    *         allocation. This is consistent with the PyTorch '_' notation used
    *         for all Tensor methods.
@@ -635,6 +641,11 @@ public:
   Tensor reduceMax(const Shape &outShape) const;
   Tensor reduceProduct(const Shape &outShape) const;
   Tensor reduce(const Shape &, CommutativeOp) const;
+
+  /**
+   * \return the l2-norm of this Tensor. That is, the square root of the sum
+   *         of the squares of the values. */
+  double l2norm() const;
 
   /**
    * Reduce a set of Tensors of the same size, using a particular commutative
@@ -972,6 +983,7 @@ public:
    * Add \a v to all elements of this Tensor.
    * */
   Tensor increment_(int64_t v) const;
+  Tensor increment(int64_t v) const;
 
   /** \return True for all of strings [Pow, Mod, Add, Sub, Subtract, Div,
    *          Divide, Mul, Multiply] and for of their case variants (pow and
@@ -1017,6 +1029,12 @@ public:
    * */
   Tensor abs() const;
   Tensor abs_() const;
+
+  /**
+   * \return a Tensor if the same type as this tensor, which have value +1 if
+   *         it negative, 0 if it is 0, and +1 if it is positive.
+   * */
+  Tensor sign() const;
 
   /**
    * e (2.71828...) to the power of this Tensor. This method is only available
@@ -1065,6 +1083,12 @@ public:
    * */
   Tensor relu() const;
   Tensor relu_() const;
+
+  Tensor sin() const;
+  Tensor sin_() const;
+
+  Tensor cos() const;
+  Tensor cos_() const;
 
   /**
    * Set all values in this Tensor to 0.
@@ -1131,6 +1155,8 @@ public:
    * type, constructed from casting \a v.
    * */
   static Tensor scalar(DType type, double v);
+
+  Tensor scalarOfSameType(double v) const { return scalar(dtype(), v); }
 
   /**
    * Return the row-major contiguous data of this Tensor, as a char vector

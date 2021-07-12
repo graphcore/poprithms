@@ -128,6 +128,8 @@ public:
   virtual BaseDataSP exp() const          = 0;
   virtual BaseDataSP log() const          = 0;
   virtual BaseDataSP sqrt() const         = 0;
+  virtual BaseDataSP sin() const          = 0;
+  virtual BaseDataSP cos() const          = 0;
   virtual BaseDataSP ceil() const         = 0;
   virtual BaseDataSP floor() const        = 0;
   virtual BaseDataSP clone() const        = 0;
@@ -140,6 +142,8 @@ public:
   virtual void exp_() const        = 0;
   virtual void log_() const        = 0;
   virtual void sqrt_() const       = 0;
+  virtual void sin_() const        = 0;
+  virtual void cos_() const        = 0;
   virtual void ceil_() const       = 0;
   virtual void floor_() const      = 0;
   virtual void reciprocal_() const = 0;
@@ -219,6 +223,8 @@ public:
    *
    * \see append */
   virtual void appendValues(std::ostream &ost, const Shape &shape) const = 0;
+
+  virtual std::string valueAsStr(uint64_t i) const = 0;
 
   /**
    * \return true iff this is an OriginData.

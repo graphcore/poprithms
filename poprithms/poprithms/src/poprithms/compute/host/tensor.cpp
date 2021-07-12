@@ -112,6 +112,19 @@ template <> Tensor Tensor::Caster::go<bool>(const Shape &, const void *) {
 }
 
 Tensor Tensor::copy(DType t, const Shape &s, const void *vp) {
+
+  if (t == DType::Boolean) {
+    std::ostringstream oss;
+    oss << "Failure in Tensor::copy(DType=" << t << ", Shape=" << s
+        << "const void* data=" << vp << "). "
+        << "It is not clear at this point how to reinterpret 'data' as " << t
+        << " (is it bit-packed or not?). "
+        << "Consider either (1) avoiding the void-pointer constructors, "
+        << "or if this is not possible then (2) "
+        << "pass integer data, something like copy(DType=" << DType::Int8
+        << ", Shape=" << s << ", 'data').to(" << DType::Boolean << "). ";
+    throw error(oss.str());
+  }
   return typeSwitch<Caster, Tensor>(t, s, vp);
 }
 
@@ -248,6 +261,10 @@ std::string Tensor::values() const {
   std::ostringstream oss;
   tData().appendValues(oss, shape());
   return oss.str();
+}
+
+std::string Tensor::valueAsStr(uint64_t i) const {
+  return tData().valueAsStr(i);
 }
 
 const Tensor &OptionalTensor::value() const {
@@ -445,6 +462,10 @@ Tensor Tensor::increment_(int64_t i) const {
   return add_(Tensor::scalar(dtype(), static_cast<double>(i)));
 }
 
+Tensor Tensor::increment(int64_t i) const {
+  return add(Tensor::scalar(dtype(), static_cast<double>(i)));
+}
+
 Tensor Tensor::updatePart_(const Tensor &updater,
                            const Dimensions &dims,
                            const std::vector<uint64_t> &starts) const {
@@ -578,6 +599,18 @@ Tensor Tensor::log_() const {
 Tensor Tensor::sqrt() const { return {shape(), dtype(), tData().sqrt()}; }
 Tensor Tensor::sqrt_() const {
   tData().sqrt_();
+  return *this;
+}
+
+Tensor Tensor::sin() const { return {shape(), dtype(), tData().sin()}; }
+Tensor Tensor::sin_() const {
+  tData().sin_();
+  return *this;
+}
+
+Tensor Tensor::cos() const { return {shape(), dtype(), tData().cos()}; }
+Tensor Tensor::cos_() const {
+  tData().cos_();
   return *this;
 }
 
@@ -830,6 +863,15 @@ Tensor Tensor::gather(const std::vector<std::vector<int64_t>> &where) const {
 
 Tensor Tensor::gather_(const std::vector<std::vector<int64_t>> &where) const {
   return {fromVecOfVecs(where), dtype(), tData().gather_(shape(), where)};
+}
+
+double Tensor::l2norm() const {
+  const auto asDouble =
+      (dtype() == DType::Float64) ? *this : to(DType::Float64);
+  const auto squared = asDouble * asDouble;
+  const auto reduced = squared.reduceSum({});
+  const auto root    = reduced.sqrt();
+  return root.getFloat64Vector()[0];
 }
 
 Tensor Tensor::reduceSum(const Shape &outShape) const {
@@ -1757,6 +1799,22 @@ Tensor Tensor::randomUnsigned8(uint8_t low,
 
 Tensor Tensor::randomBoolean(const Shape &s, uint32_t seed) {
   return tRandomInt<int>(0, 2, s, seed).toBoolean();
+}
+
+Tensor Tensor::sign() const {
+
+  if (dtype() == DType::Boolean) {
+    return copy();
+  }
+
+  const auto zero = scalar(dtype(), 0.);
+  const auto gt   = operator>(zero).to(dtype());
+  if (ndarray::isUnsignedFixedPoint(dtype())) {
+    return gt;
+  }
+
+  const auto lt = operator<(zero).to(dtype());
+  return gt - lt;
 }
 
 } // namespace host

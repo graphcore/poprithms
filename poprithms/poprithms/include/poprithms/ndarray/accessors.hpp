@@ -44,6 +44,10 @@ struct Dimension : BaseScalarU64 {
   explicit Dimension(uint64_t s_) : BaseScalarU64(s_) {}
 };
 
+struct Offset : BaseScalarU64 {
+  explicit Offset(uint64_t s_) : BaseScalarU64(s_) {}
+};
+
 struct Dilation : BaseScalarU64 {
   explicit Dilation(uint64_t s_);
 };
@@ -172,6 +176,17 @@ struct Dimensions : public VU64<uint64_t, Dimensions, Dimension> {
 };
 std::ostream &operator<<(std::ostream &, const Dimensions &);
 std::ostream &operator<<(std::ostream &, const std::vector<Dimensions> &);
+
+struct Offsets : public VU64<uint64_t, Offsets, Offset> {
+  using Base = VU64<uint64_t, Offsets, Offset>;
+  Offsets() : Base() {}
+  explicit Offsets(const std::vector<uint64_t> &d) : Base(d) {}
+  explicit Offsets(std::initializer_list<uint64_t> d) : Base(d) {}
+  explicit Offsets(std::vector<uint64_t> &&d) : Base(std::move(d)) {}
+  explicit Offsets(const std::vector<Offset> &d) : Offsets(get_u64(d)) {}
+};
+std::ostream &operator<<(std::ostream &, const Offsets &);
+std::ostream &operator<<(std::ostream &, const std::vector<Offsets> &);
 
 } // namespace ndarray
 } // namespace poprithms

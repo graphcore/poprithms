@@ -20,7 +20,7 @@ namespace inplace {
  *                 |
  *  in2 -----------+
  *
- * #out is an exact alias of #in1 (by definition of an alias gate). 
+ * #out is an exact alias of #in1 (by definition of an alias gate).
  *
  * If #in1 is aliased to #in0, then #out is also aliased to to #in0.
  * Similarly, if #in1 is aliased to #in2, then #out is aliased to #in2.

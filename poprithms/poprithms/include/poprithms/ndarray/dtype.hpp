@@ -53,6 +53,13 @@ const std::string &pcase(DType);
  *          an integer type and not a floating point type. */
 bool isFixedPoint(DType t);
 
+/** \return true iff data type \a t is non-negative. */
+bool isNonNegative(DType t);
+
+/** \return true iff data type \a t is non-negative and fixed point. In other
+ *          words, iff \a t is an unsigned intger. */
+bool isUnsignedFixedPoint(DType t);
+
 /** Assert that the template parameter T corresponds to the function argument
  * \a t. This function is useful for error checking where strongly typed and
  * untyped functions 'meet'. */

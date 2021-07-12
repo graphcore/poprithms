@@ -18,6 +18,8 @@ public:
 
   virtual std::vector<T> getNativeVector() const = 0;
 
+  virtual T getNativeValue(uint64_t i) const = 0;
+
   void appendValues(std::ostream &ost, const Shape &sh) const final {
     auto nvt = getNativeVector();
     std::vector<std::string> nv;
@@ -26,6 +28,10 @@ public:
       nv.push_back(std::to_string(x));
     }
     NumpyFormatter::append(nv, ost, sh, 50);
+  }
+
+  std::string valueAsStr(uint64_t i) const {
+    return std::to_string(getNativeValue(i));
   }
 
   std::shared_ptr<AllocData<float>> toFloat32() const final {

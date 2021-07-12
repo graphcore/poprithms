@@ -71,5 +71,15 @@ std::ostream &operator<<(std::ostream &ost,
   return ost;
 }
 
+std::ostream &operator<<(std::ostream &o, const Offsets &offsets) {
+  util::append(o, offsets.get());
+  return o;
+}
+
+std::ostream &operator<<(std::ostream &ost, const std::vector<Offsets> &x) {
+  util::append(ost, x);
+  return ost;
+}
+
 } // namespace ndarray
 } // namespace poprithms
