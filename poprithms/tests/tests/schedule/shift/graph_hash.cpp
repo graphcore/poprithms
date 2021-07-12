@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 
 namespace {
@@ -42,10 +42,12 @@ void test0() {
   {
     const auto g1 = g0;
     if (g0.hash(true) != g1.hash(true)) {
-      throw error("g0 == g1 but g0.hash(true) != g1.hash(true)");
+      throw poprithms::test::error(
+          "g0 == g1 but g0.hash(true) != g1.hash(true)");
     }
     if (g0.hash(false) != g1.hash(false)) {
-      throw error("g0 == g1 but g0.hash(false) != g1.hash(false)");
+      throw poprithms::test::error(
+          "g0 == g1 but g0.hash(false) != g1.hash(false)");
     }
   }
 
@@ -54,11 +56,11 @@ void test0() {
     auto g1 = g0;
     g1.insertConstraint(b, d);
     if (g0.hash(true) == g1.hash(true)) {
-      throw error(
+      throw poprithms::test::error(
           "g1 has an extra constraint, but g0.hash(true) == g1.hash(true)");
     }
     if (g0.hash(false) == g1.hash(false)) {
-      throw error(
+      throw poprithms::test::error(
           "g1 has an extra constraint, but g0.hash(false) == g1.hash(false)");
     }
   }
@@ -68,10 +70,12 @@ void test0() {
     auto g1 = g0;
     g1.insertOp("extra");
     if (g0.hash(true) == g1.hash(true)) {
-      throw error("g1 has an extra op, but g0.hash(true) == g1.hash(true)");
+      throw poprithms::test::error(
+          "g1 has an extra op, but g0.hash(true) == g1.hash(true)");
     }
     if (g0.hash(false) == g1.hash(false)) {
-      throw error("g1 has an extra op, but g0.hash(false) == g1.hash(false)");
+      throw poprithms::test::error(
+          "g1 has an extra op, but g0.hash(false) == g1.hash(false)");
     }
   }
 
@@ -80,10 +84,11 @@ void test0() {
     auto g1 = g0;
     g1.insertLink(a, b);
     if (g0.hash(true) == g1.hash(true)) {
-      throw error("g1 has an extra link, but g0.hash(true) == g1.hash(true)");
+      throw poprithms::test::error(
+          "g1 has an extra link, but g0.hash(true) == g1.hash(true)");
     }
     if (g0.hash(false) == g1.hash(false)) {
-      throw error(
+      throw poprithms::test::error(
           "g1 has an extra link, but g0.hash(false) == g1.hash(false)");
     }
   }
@@ -97,12 +102,14 @@ void test0() {
     g2.insertOp("bar");
 
     if (g1.hash(true) == g2.hash(true)) {
-      throw error("g1 and g2 use different names, but g1.hash(true) == "
-                  "g2.hash(true)");
+      throw poprithms::test::error(
+          "g1 and g2 use different names, but g1.hash(true) == "
+          "g2.hash(true)");
     }
     if (g1.hash(false) != g2.hash(false)) {
-      throw error("g1 and g2 use different names only, but g1.hash(false) != "
-                  "g2.hash(false)");
+      throw poprithms::test::error(
+          "g1 and g2 use different names only, but g1.hash(false) != "
+          "g2.hash(false)");
     }
   }
 
@@ -114,12 +121,14 @@ void test0() {
     g2.insertAlloc(6);
 
     if (g1.hash(true) == g2.hash(true)) {
-      throw error("g1 and g2 do not have the same allocs, but g1.hash(true) "
-                  "== g2.hash(true)");
+      throw poprithms::test::error(
+          "g1 and g2 do not have the same allocs, but g1.hash(true) "
+          "== g2.hash(true)");
     }
     if (g1.hash(false) == g2.hash(false)) {
-      throw error("g1 and g2 do not have the same allocs, but g1.hash(false) "
-                  "== g2.hash(false)");
+      throw poprithms::test::error(
+          "g1 and g2 do not have the same allocs, but g1.hash(false) "
+          "== g2.hash(false)");
     }
   }
 
@@ -138,12 +147,12 @@ void test0() {
     }
 
     if (g1.hash(true) == g2.hash(true)) {
-      throw error(
+      throw poprithms::test::error(
           "The 2 Graphs are not the same, the final alloc is "
           "assigned to different Ops, but g1.hash(true) == g2.hash(true)");
     }
     if (g1.hash(false) == g2.hash(false)) {
-      throw error(
+      throw poprithms::test::error(
           "The 2 Graphs are not the same, the final alloc is "
           "assigned to different Ops, but g1.hash(false) == g2.hash(false)");
     }

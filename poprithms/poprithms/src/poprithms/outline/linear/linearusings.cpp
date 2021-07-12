@@ -1,9 +1,9 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <ostream>
+#include <outline/linear/error.hpp>
 #include <sstream>
 #include <string>
 
-#include <poprithms/outline/linear/error.hpp>
 #include <poprithms/outline/linear/linearusings.hpp>
 
 namespace poprithms {

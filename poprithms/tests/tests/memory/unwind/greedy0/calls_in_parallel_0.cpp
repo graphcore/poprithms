@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
 
@@ -114,7 +114,8 @@ int main() {
   const Solution soln1(std::move(g1));
 
   if (soln1.getScore() != manualScore) {
-    throw error("Did not correctly compute the score using Greedy0");
+    throw poprithms::test::error(
+        "Did not correctly compute the score using Greedy0");
   }
 
   return 0;

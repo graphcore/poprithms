@@ -5,7 +5,7 @@
 #include <random>
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -104,7 +104,8 @@ void testGetSubScheduleCanHandleUnsortedSubset() {
   const auto actual = sg.getSubSchedule(subset);
 
   if (actual != expected) {
-    throw error(scheduleMismatchTestFailureStr(actual, expected));
+    throw poprithms::test::error(
+        scheduleMismatchTestFailureStr(actual, expected));
   }
 }
 
@@ -134,7 +135,8 @@ void testGetSubScheduleOnUserOpsOnlyDoesNotContainInternalOps() {
   const auto actual = sg.getSubSchedule(ops);
 
   if (actual != expected) {
-    throw error(scheduleMismatchTestFailureStr(actual, expected));
+    throw poprithms::test::error(
+        scheduleMismatchTestFailureStr(actual, expected));
   }
 }
 
@@ -157,7 +159,8 @@ void testGetSubScheduleSameAsViewInternalWhenNoInternalOps() {
   const auto &expected = sg.viewInternalScheduleToOp();
 
   if (actual != expected) {
-    throw error(scheduleMismatchTestFailureStr(actual, expected));
+    throw poprithms::test::error(
+        scheduleMismatchTestFailureStr(actual, expected));
   }
 }
 
@@ -167,12 +170,14 @@ int main() {
 
   if (testGetSubScheduleOnInvalidOpAddress() !=
       ThrowingTestResult::DidThrow) {
-    throw error("Calling getSubSchedule on non-existant Op did not throw");
+    throw poprithms::test::error(
+        "Calling getSubSchedule on non-existant Op did not throw");
   }
 
   if (testGetSubScheduleOnDuplicateOpAddresses() !=
       ThrowingTestResult::DidThrow) {
-    throw error("Calling getSubSchedule on duplicate ops did not throw");
+    throw poprithms::test::error(
+        "Calling getSubSchedule on duplicate ops did not throw");
   }
 
   testGetSubScheduleCanHandleUnsortedSubset();

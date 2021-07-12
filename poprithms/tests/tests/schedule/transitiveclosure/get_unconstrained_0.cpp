@@ -3,8 +3,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
-#include <poprithms/schedule/transitiveclosure/error.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <testutil/schedule/transitiveclosure/randomedges.hpp>
@@ -44,7 +44,7 @@ void test0() {
     oss << "0 is constrained to be before all other Ops, "
         << " not unconstrained with ";
     appendVector(oss, pl.getUnconstrained(0));
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (pl.getUnconstrained(1) != std::vector<OpId>{2}) {
@@ -52,19 +52,19 @@ void test0() {
     oss << "1 is unconstrained only w.r.t. 2, not:(";
     poprithms::util::append(oss, pl.getUnconstrained(1));
     oss << ").";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (pl.getUnconstrained(3) != std::vector<OpId>{2}) {
-    throw error("3 is unconstrained only w.r.t. 2");
+    throw poprithms::test::error("3 is unconstrained only w.r.t. 2");
   }
 
   if (pl.getUnconstrained(2) != std::vector<OpId>{1, 3}) {
-    throw error("3 is unconstrained only w.r.t. {1,3}");
+    throw poprithms::test::error("3 is unconstrained only w.r.t. {1,3}");
   }
 
   if (pl.getUnconstrained(4) != std::vector<OpId>{}) {
-    throw error("4 is constraned to be after all other Ops");
+    throw poprithms::test::error("4 is constraned to be after all other Ops");
   }
 }
 
@@ -81,13 +81,13 @@ void test1() {
     for (uint64_t j = 0; j < N; ++j) {
       if (unConIndex < unCons.size() && j == unCons[unConIndex]) {
         if (!pm.unconstrainedInBothDirections(i, j)) {
-          throw error(
+          throw poprithms::test::error(
               "Disagreement on whether 2 Ops are constrained (in set)");
         }
         ++unConIndex;
       } else {
         if (i != j && pm.unconstrainedInBothDirections(i, j)) {
-          throw error(
+          throw poprithms::test::error(
               "Disagreement on whether 2 Ops are constrained (not in set)");
         }
       }

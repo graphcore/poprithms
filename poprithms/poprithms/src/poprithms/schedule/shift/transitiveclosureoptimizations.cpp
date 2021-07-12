@@ -1,8 +1,8 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <array>
 #include <ostream>
+#include <schedule/shift/error.hpp>
 
-#include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/schedule/shift/transitiveclosureoptimizations.hpp>
 
 namespace poprithms {

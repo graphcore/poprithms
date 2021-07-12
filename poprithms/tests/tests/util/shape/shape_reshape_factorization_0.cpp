@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <vector>
 
-#include <poprithms/ndarray/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -35,11 +35,12 @@ void assertFactorization(const Shape &from,
   };
 
   if (observed != expected) {
-    throw error(baseError() + " Incorrect observed. ");
+    throw poprithms::test::error(baseError() + " Incorrect observed. ");
   }
 
   if (expectedOrthogonal != from.isOrthogonalReshape(to)) {
-    throw error(baseError() + " Incorrect observedOrthogonal. ");
+    throw poprithms::test::error(baseError() +
+                                 " Incorrect observedOrthogonal. ");
   }
 }
 

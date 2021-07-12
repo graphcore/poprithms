@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/ndarray/error.hpp>
+#include <ndarray/error.hpp>
 
 namespace poprithms {
 namespace ndarray {

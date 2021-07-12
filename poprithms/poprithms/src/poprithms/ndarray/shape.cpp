@@ -1,11 +1,11 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <ndarray/error.hpp>
 #include <numeric>
 #include <ostream>
 #include <sstream>
 
 #include <poprithms/ndarray/accessors.hpp>
-#include <poprithms/ndarray/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
 #include <poprithms/util/printiter.hpp>

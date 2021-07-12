@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <schedule/vanilla/error.hpp>
 #include <sstream>
 
-#include <poprithms/schedule/vanilla/error.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 
 namespace poprithms {

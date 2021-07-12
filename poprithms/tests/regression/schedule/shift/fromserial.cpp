@@ -3,8 +3,8 @@
 #include <sstream>
 #include <streambuf>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
-#include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/schedule/shift/logging.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
@@ -39,15 +39,17 @@ int main(int argc, char **argv) {
   } else if (optTCO == "no" || optTCO == "0" || optTCO == "false") {
     applyTCOs = false;
   } else {
-    throw error("Invalid value for option \"tco\", must be one of "
-                "{no,0,false,yes,1,true} and not " +
-                optTCO);
+    throw poprithms::test::error(
+        "Invalid value for option \"tco\", must be one of "
+        "{no,0,false,yes,1,true} and not " +
+        optTCO);
   }
 
   log().debug("Loading json file into buffer");
   std::ifstream jsfn(opts.at("filename"));
   if (!jsfn.is_open()) {
-    throw error(std::string("Failed to open ") + opts.at("filename"));
+    throw poprithms::test::error(std::string("Failed to open ") +
+                                 opts.at("filename"));
   }
 
   std::stringstream buffer;

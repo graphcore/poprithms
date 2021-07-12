@@ -2,7 +2,7 @@
 #include <array>
 #include <iostream>
 
-#include <poprithms/ndarray/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -32,7 +32,7 @@ void confirmConvShape(const Shape &data,
         << ", uppPrePads=" << uppPrePads << ", dilations=" << dilations.get()
         << ", strides=" << strides.get() << ')' << " But observed "
         << observed;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

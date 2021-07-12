@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/logging.hpp>
 
 int main() {
@@ -32,10 +32,12 @@ int main() {
         << "folks!";
     log().debug(oss.str());
   } else {
-    throw error("Expected to be able to log at debug-level.");
+    throw poprithms::test::error(
+        "Expected to be able to log at debug-level.");
   }
   if (log().shouldLogTrace()) {
-    throw error("Didn't expect to be able to log at trace-level.");
+    throw poprithms::test::error(
+        "Didn't expect to be able to log at trace-level.");
   }
 
   return 0;

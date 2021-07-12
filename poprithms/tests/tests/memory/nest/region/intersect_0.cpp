@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -20,7 +20,7 @@ void assertIntersection(const Region &a,
     oss << "in test for Region::equivalent, detected failure. "
         << "Expected the intersection of " << a << " and " << b << " to be "
         << inter << ", but it is " << foo << ".";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (inter.size() < foo.size()) {
@@ -28,7 +28,7 @@ void assertIntersection(const Region &a,
     oss << "Got the correct intersection between " << a << " and " << b
         << " in this test for Region intersection, "
         << " but the expected solution is more compact. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

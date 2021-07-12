@@ -3,7 +3,7 @@
 #include <limits>
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 
 namespace {
@@ -19,7 +19,7 @@ bool serializesCorrectly(const Graph &g) {
 void test0() {
   Graph g;
   if (!serializesCorrectly(g)) {
-    throw error("Serialization failed for empty Graph");
+    throw poprithms::test::error("Serialization failed for empty Graph");
   }
 }
 
@@ -27,7 +27,8 @@ void test1() {
   Graph g;
   g.insertLink(g.insertOp("op1"), g.insertOp("op2"));
   if (!serializesCorrectly(g)) {
-    throw error("Serialization failed for Graph with no Allocs");
+    throw poprithms::test::error(
+        "Serialization failed for Graph with no Allocs");
   }
 }
 
@@ -36,7 +37,8 @@ void test2() {
   g.insertAlloc(100.0);
   g.insertAlloc(2.0);
   if (!serializesCorrectly(g)) {
-    throw error("Serialization failed for Graph with no Ops");
+    throw poprithms::test::error(
+        "Serialization failed for Graph with no Ops");
   }
 }
 
@@ -85,11 +87,11 @@ void test3() {
   if (newGraph != g) {
     std::cout << newGraph << std::endl;
     std::cout << g << std::endl;
-    throw error(
+    throw poprithms::test::error(
         "Graph and serialized Graph differ (direct Graph comparison)");
   }
   if (newGraph.getSerializationString() != g.getSerializationString()) {
-    throw error(
+    throw poprithms::test::error(
         "Graph and serialiazed Graph differ (serialization comparison)");
   }
 }

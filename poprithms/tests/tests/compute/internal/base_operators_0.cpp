@@ -18,7 +18,7 @@ void confirmUnary(T in_, T out_, T expected_, const std::string &name) {
     oss << "Error for the base unary operator " << name << ". In = " << in_
         << ", expected = " << expected_ << ", out = " << out_
         << ". This for type " << poprithms::ndarray::lcase<T>() << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -34,7 +34,7 @@ void confirmBinary(InType in0_,
         << ", In1 = " << in1_ << ", expected = " << expected_
         << ", out = " << out_ << ". This for input type "
         << poprithms::ndarray::lcase<InType>() << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -64,7 +64,8 @@ void test0() {
     caught = true;
   }
   if (!caught) {
-    throw error("Failed to catch case of square-rooting an int");
+    throw poprithms::test::error(
+        "Failed to catch case of square-rooting an int");
   }
 
   // Modder

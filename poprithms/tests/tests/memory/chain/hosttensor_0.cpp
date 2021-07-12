@@ -1,8 +1,8 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
-#include <poprithms/memory/chain/error.hpp>
 
 namespace {
 
@@ -66,8 +66,9 @@ void test1() {
   // equivalent to a copy with a small perturbation.
   if (t1.allEquivalent(
           t2 + Tensor::uniformFloat32(-1e-6, +1e-6, t2.shape(), 1011))) {
-    throw error("The perturbed Tensor should not compare equivalent to the "
-                "unperturbed Tensor");
+    throw poprithms::test::error(
+        "The perturbed Tensor should not compare equivalent to the "
+        "unperturbed Tensor");
   }
 }
 

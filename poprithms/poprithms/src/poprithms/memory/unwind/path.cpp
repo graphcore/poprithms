@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <memory/unwind/error.hpp>
 #include <poprithms/memory/unwind/path.hpp>
 #include <poprithms/util/printiter.hpp>
 

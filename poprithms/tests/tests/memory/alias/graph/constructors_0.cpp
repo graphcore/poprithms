@@ -2,7 +2,7 @@
 #include <iostream>
 #include <numeric>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 int main() {
@@ -44,7 +44,8 @@ int main() {
   std::cout << g5 << std::endl;
 
   if (g5 != g2) {
-    throw error("Failed Graph comparison in constuctors test");
+    throw poprithms::test::error(
+        "Failed Graph comparison in constuctors test");
   }
 
   // identical, except dimshuffle switched
@@ -56,7 +57,7 @@ int main() {
   g6.reverse(arr3, {0});
   g6.allocate({1, 2, 3});
   if (g6 == g2) {
-    throw error("g6 is different, failed in comparison");
+    throw poprithms::test::error("g6 is different, failed in comparison");
   }
 
   return 0;

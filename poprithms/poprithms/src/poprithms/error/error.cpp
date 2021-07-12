@@ -31,4 +31,11 @@ std::string error::formatMessage(const std::string &base,
 }
 
 } // namespace error
+
+namespace test {
+poprithms::error::error error(const std::string &what) {
+  static const std::string t("test");
+  return poprithms::error::error(t, what);
+}
+} // namespace test
 } // namespace poprithms

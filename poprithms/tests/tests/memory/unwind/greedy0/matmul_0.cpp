@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/hosttensorhelper.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
@@ -32,11 +32,11 @@ void matmul0() {
   auto soln = Solution(g);
 
   if (!g.isMatMulLhsSource(soln.inwardsPaths(lhs).at(0).src().opId())) {
-    throw error("Expected layout of lhs to be lhsSource");
+    throw poprithms::test::error("Expected layout of lhs to be lhsSource");
   }
 
   if (!g.isMatMulRhsSource(soln.inwardsPaths(rhs).at(0).src().opId())) {
-    throw error("Expected layout of rhs to be rhsSource");
+    throw poprithms::test::error("Expected layout of rhs to be rhsSource");
   }
 }
 } // namespace

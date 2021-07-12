@@ -2,8 +2,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/crosslink.hpp>
-#include <poprithms/memory/inplace/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 
 int main() {
@@ -16,11 +16,13 @@ int main() {
     m3      = std::move(m2);
     CrossLink m4(std::move(m3));
     if (!m1.isModifying() || !m4.isModifying()) {
-      throw error("Error in testing move semantics of CrossLink");
+      throw poprithms::test::error(
+          "Error in testing move semantics of CrossLink");
     }
 
     if (!m1.isAliasing() || m1.isPureAliasing()) {
-      throw error("Error testing aliasing of a modiying CrossLink");
+      throw poprithms::test::error(
+          "Error testing aliasing of a modiying CrossLink");
     }
   }
 

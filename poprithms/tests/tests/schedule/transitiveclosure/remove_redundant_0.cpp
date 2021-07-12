@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/schedule/transitiveclosure/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 
 namespace {
@@ -41,7 +41,7 @@ void test1() {
         std::ostringstream oss;
         oss << "Incorrect redundancy for edge " << from << "->" << to
             << ", expected = " << expected;
-        throw error(oss.str());
+        throw poprithms::test::error(oss.str());
       }
     }
   }

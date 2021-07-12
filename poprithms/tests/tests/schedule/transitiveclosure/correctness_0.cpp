@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/schedule/transitiveclosure/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 
 int main() {
@@ -22,25 +22,27 @@ int main() {
     oss << "Start of diamond range returned : ";
     oss << "[" << em.earliest(0) << ", " << em.latest(0) << "]. ";
     oss << " But start of diamond must be scheduled first.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
   if (em.earliest(3) != 3 || em.latest(3) != 3) {
-    throw error("End of diamond be registered last");
+    throw poprithms::test::error("End of diamond be registered last");
   }
   for (OpId id : {1, 2}) {
     if (em.earliest(id) != 1 || em.latest(id) != 2) {
-      throw error("Edge of diamonds must be scheduled at 1 or 2");
+      throw poprithms::test::error(
+          "Edge of diamonds must be scheduled at 1 or 2");
     }
   }
 
   if (!(em.constrained(0, 1) && em.constrained(0, 2) &&
         em.constrained(0, 3) && em.unconstrainedInBothDirections(1, 2) &&
         em.constrained(1, 3) && em.constrained(2, 3))) {
-    throw error("incorrect diamond constraints");
+    throw poprithms::test::error("incorrect diamond constraints");
   }
 
   if (em.getFlattenedRedundants(diamondEdges).size() != 0) {
-    throw error("there are no redundant edges in this diamond");
+    throw poprithms::test::error(
+        "there are no redundant edges in this diamond");
   }
 
   /*
@@ -59,16 +61,16 @@ int main() {
   em = TransitiveClosure{stripyEdges};
   for (uint64_t i = 0; i < 5; ++i) {
     if (em.earliest(i) != i || em.latest(i) != i) {
-      throw error("stripy diamond has unique schedule");
+      throw poprithms::test::error("stripy diamond has unique schedule");
     }
     for (uint64_t j = 0; j < 5; ++j) {
       if (j > i) {
         if (!em.constrained(i, j)) {
-          throw error("Expected constrained to be true");
+          throw poprithms::test::error("Expected constrained to be true");
         }
       } else {
         if (em.constrained(i, j)) {
-          throw error("Expected constrained to be false");
+          throw poprithms::test::error("Expected constrained to be false");
         }
       }
     }
@@ -83,7 +85,7 @@ int main() {
     for (auto x : fwdRed) {
       oss << "(" << std::get<0>(x) << "," << std::get<1>(x) << ")";
     }
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   //
@@ -108,13 +110,14 @@ int main() {
       bool found =
           (std::find(fwdRed.cbegin(), fwdRed.cend(), x) != fwdRed.cend());
       if (found == ((j - i) == 1)) {
-        throw error("unexpected redundant fwd edge");
+        throw poprithms::test::error("unexpected redundant fwd edge");
       }
     }
   }
   for (uint64_t i = 0; i < nOps; ++i) {
     if (em.earliest(i) != i || em.latest(i) != i) {
-      throw error("unique schedule expected in test with redundant edges");
+      throw poprithms::test::error(
+          "unique schedule expected in test with redundant edges");
     }
   }
 
@@ -132,14 +135,16 @@ int main() {
     auto expectedLatest   = expectedEarliest + 3;
     if (em.earliest(i) != expectedEarliest ||
         em.latest(i) != expectedLatest) {
-      throw error("Parallel chain test of earliest-latest range has failed");
+      throw poprithms::test::error(
+          "Parallel chain test of earliest-latest range has failed");
     }
   }
   for (uint64_t i = 0; i < 3; ++i) {
     if (!em.unconstrainedInBothDirections(i, 3) ||
         !em.unconstrainedInBothDirections(i, 4) ||
         !em.unconstrainedInBothDirections(i, 5)) {
-      throw error("Expected parallel chains to be unconstrained");
+      throw poprithms::test::error(
+          "Expected parallel chains to be unconstrained");
     }
   }
   return 0;

@@ -4,7 +4,7 @@
 #include <numeric>
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 
 namespace {
@@ -49,7 +49,7 @@ void test0() {
   }
 
   if (badCatches != testStrings.size()) {
-    throw error("Did not catch all bad serializations");
+    throw poprithms::test::error("Did not catch all bad serializations");
   }
 }
 

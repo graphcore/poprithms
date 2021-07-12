@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 int main() {
@@ -16,7 +16,8 @@ int main() {
   g.insertConstraint(op1, op2);
   g.insertConstraint(op2, op0);
   if (ScheduledGraph::isSchedulable(g)) {
-    throw error("Triangle of dependencies is NOT schedulable");
+    throw poprithms::test::error(
+        "Triangle of dependencies is NOT schedulable");
   }
 
   g        = Graph();
@@ -29,7 +30,7 @@ int main() {
   g.insertConstraint(op1, op3);
   g.insertConstraint(op2, op3);
   if (!ScheduledGraph::isSchedulable(g)) {
-    throw error("This diamond DAG IS schedulable");
+    throw poprithms::test::error("This diamond DAG IS schedulable");
   }
 
   return 0;

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 
 namespace {
@@ -23,7 +23,8 @@ void test0() {
     caught = true;
   }
   if (!caught) {
-    throw error("Inserting constraint with non-existant Op was not caught");
+    throw poprithms::test::error(
+        "Inserting constraint with non-existant Op was not caught");
   }
 }
 
@@ -53,7 +54,8 @@ void test1() {
     caught = true;
   }
   if (!caught) {
-    throw error("Failed to detect invalid address in out edge");
+    throw poprithms::test::error(
+        "Failed to detect invalid address in out edge");
   }
 }
 } // namespace

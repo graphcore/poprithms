@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/util/interval.hpp>
 
 namespace {
@@ -31,20 +31,23 @@ void test0() {
              ". ";
     };
     if (i != i0[0]) {
-      throw error(baseString() + " This differs from i0[0], " + i0[0].str() +
-                  " but all Intervals in i0 are identical. ");
+      throw poprithms::test::error(
+          baseString() + " This differs from i0[0], " + i0[0].str() +
+          " but all Intervals in i0 are identical. ");
     }
     if (i == other) {
-      throw error(baseString() + " should not be the same as other, " +
-                  other.str());
+      throw poprithms::test::error(
+          baseString() + " should not be the same as other, " + other.str());
     }
 
     if (i.size() != 4) {
-      throw error(baseString() + ": All Intervals of size 4");
+      throw poprithms::test::error(baseString() +
+                                   ": All Intervals of size 4");
     }
 
     if (i.contiguousFromZero()) {
-      throw error(baseString() + ": Not contiguous from zero");
+      throw poprithms::test::error(baseString() +
+                                   ": Not contiguous from zero");
     }
   }
 }
@@ -69,7 +72,7 @@ void test1() {
               << ", expected is.subIntervals(r0 = " << r0 << ", r1 = " << r1
               << ") to be " << expected << ", not "
               << is.subIntervals(r0, r1);
-          throw error(ost.str());
+          throw poprithms::test::error(ost.str());
         }
       };
 
@@ -104,19 +107,19 @@ void test2() {
   // Test of empty intervals
   Interval a(3, 3);
   if (a.size() != 0) {
-    throw error("a is an empty Interval");
+    throw poprithms::test::error("a is an empty Interval");
   }
   Intervals b(3, 3);
   if (b.size() != 0) {
-    throw error("b is an empty Intervals");
+    throw poprithms::test::error("b is an empty Intervals");
   }
   Intervals c({{1, 1}, {10, 10}, {5, 5}});
   if (c.size() != 0) {
-    throw error("c is an empty Intervals");
+    throw poprithms::test::error("c is an empty Intervals");
   }
   Intervals d({{1, 1}, {10, 10}, {6, 7}, {5, 5}});
   if (d.size() != 1) {
-    throw error("d contains 1 element");
+    throw poprithms::test::error("d contains 1 element");
   }
 }
 

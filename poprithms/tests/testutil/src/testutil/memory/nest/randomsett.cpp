@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <random>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 
 namespace poprithms {

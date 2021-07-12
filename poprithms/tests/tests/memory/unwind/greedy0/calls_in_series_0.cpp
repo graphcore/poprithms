@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
 
@@ -129,7 +129,7 @@ void test(double valCopyInSame, double valMatmulOutAndInSame) {
           << "the poplibs API to be used, that is we "
           << "expect the activation input to have the same layout as "
           << "actInnSource. ";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   } else {
     if (soln.inwardsPaths(actInn)[0].src() != mmOut) {
@@ -142,7 +142,7 @@ void test(double valCopyInSame, double valMatmulOutAndInSame) {
           << valMatmulOutAndInSame
           << ". Using the Greedy0 algorithm, we therefore expect "
           << " the input and outputs to have ths layout. ";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 
@@ -151,7 +151,7 @@ void test(double valCopyInSame, double valMatmulOutAndInSame) {
     std::ostringstream oss;
     oss << "The choice of layout for " << b << " and " << c
         << " (b and c) should always match. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
   if (valCopyInSame > valCopyOutSame) {
     if (soln.inwardsPaths(b)[0].src() != soln.inwardsPaths(actInn)[0].src()) {
@@ -160,7 +160,7 @@ void test(double valCopyInSame, double valMatmulOutAndInSame) {
           << "than copies out of calls. "
           << "Therefore expect b and c to have the same layout as "
           << "the matmul input. ";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   } else {
     if (soln.inwardsPaths(b)[0].src() != soln.inwardsPaths(mmOut)[0].src()) {
@@ -169,7 +169,7 @@ void test(double valCopyInSame, double valMatmulOutAndInSame) {
           << "than copies out of calls. "
           << "Therefore expect b and c to have the same layout as "
           << "the matmul output. ";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 }

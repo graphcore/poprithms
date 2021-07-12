@@ -2,12 +2,12 @@
 #include <algorithm>
 #include <iomanip>
 #include <numeric>
+#include <schedule/shift/error.hpp>
 #include <string>
 
 #include <boost/functional/hash.hpp>
 
 #include <poprithms/schedule/shift/allocweight.hpp>
-#include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {

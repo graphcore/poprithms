@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <common/multiout/error.hpp>
 #include <iterator>
 #include <memory>
 #include <numeric>
@@ -8,7 +9,6 @@
 #include <string>
 #include <utility>
 
-#include <poprithms/common/multiout/error.hpp>
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/op.hpp>
 #include <poprithms/util/printiter.hpp>

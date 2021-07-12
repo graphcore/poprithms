@@ -2,8 +2,8 @@
 #include <iostream>
 #include <numeric>
 
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/viewchange.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace {
@@ -22,7 +22,7 @@ void expandTest0() {
     expected[i] = i % 5 + 5 * (i / 20);
   }
   if (out != expected) {
-    throw error("Unexpected result in basic expand test");
+    throw poprithms::test::error("Unexpected result in basic expand test");
   }
 }
 
@@ -33,7 +33,8 @@ void dimShuffleTest0() {
       ViewChange<int>::dimShuffle({{2, 2, 2}, iotic.data()}, {{2, 0, 1}});
   const std::vector<int> expected{0, 2, 4, 6, 1, 3, 5, 7};
   if (expected != out) {
-    throw error("Unexpected result in basic dim shuffle test");
+    throw poprithms::test::error(
+        "Unexpected result in basic dim shuffle test");
   }
 }
 
@@ -44,7 +45,7 @@ void sliceTest0() {
       ViewChange<int>::slice({{3, 5}, iotic.data()}, {0, 0}, {2, 3});
   const std::vector<int> expected{0, 1, 2, 5, 6, 7};
   if (expected != out) {
-    throw error("Unexpected result in basic slice test");
+    throw poprithms::test::error("Unexpected result in basic slice test");
   }
 }
 
@@ -63,7 +64,7 @@ void concatTest0() {
         << "       3 4 5 10\n"
         << "       6 7 8 11\n\nnot:";
     poprithms::util::append(oss, b);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -83,7 +84,7 @@ void reverseTest(const std::vector<int> &input,
     poprithms::util::append(oss, expectedOut);
     oss << "\nShape=" << shape << "\ndimensions=";
     poprithms::util::append(oss, dims);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -119,7 +120,7 @@ void subsampleTest(const std::vector<int> &input,
     poprithms::util::append(oss, expectedOut);
     oss << "\ninShape=" << inShape << "\nstrides=";
     poprithms::util::append(oss, strides);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

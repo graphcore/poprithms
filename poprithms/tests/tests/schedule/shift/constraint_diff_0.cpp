@@ -1,5 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 
 int main() {
@@ -38,7 +38,7 @@ int main() {
   }
 
   if (diff != expected) {
-    throw error("Diff is not as expected");
+    throw poprithms::test::error("Diff is not as expected");
   }
 
   return 0;

@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <testutil/memory/nest/randomsett.hpp>
 
@@ -41,7 +41,7 @@ int main() {
           oss << "Failure in comparison of getOns(0, " << range
               << ") between canonicalized Sett, \n   " << can
               << " and non-canonicalized Sett, \n   " << nCan << ".";
-          throw error(oss.str());
+          throw poprithms::test::error(oss.str());
         }
       }
     }

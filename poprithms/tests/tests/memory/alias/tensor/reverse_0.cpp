@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 namespace {
@@ -20,14 +20,15 @@ void test0() {
   const auto sl1    = r0.slice({0, 0, 0}, {5, 20, 30});
   const auto sl2    = r0.slice({3, 0, 0}, {6, 20, 30});
   if (sl0.intersectsWith(sl1)) {
-    throw error("No intersection with half-mirror expected");
+    throw poprithms::test::error("No intersection with half-mirror expected");
   }
 
   if (!sl0.intersectsWith(sl2)) {
-    throw error("Intersection with flipped half-mirror expected");
+    throw poprithms::test::error(
+        "Intersection with flipped half-mirror expected");
   }
   if (!r1.intersectsWith(sl1) || !r1.intersectsWith(sl2)) {
-    throw error(
+    throw poprithms::test::error(
         "Intersection with sliced flips along other dimensions expected");
   }
 
@@ -38,7 +39,7 @@ void test0() {
                            .subsample(2, 2);
   const auto sample1 = alloc1.subsample(2, 0).subsample(2, 1).subsample(2, 2);
   if (!sample0.intersectsWith(sample1)) {
-    throw error("Expected intersection");
+    throw poprithms::test::error("Expected intersection");
   }
   std::cout << g << std::endl;
 }

@@ -3,8 +3,8 @@
 #include <iostream>
 #include <numeric>
 
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 
@@ -23,7 +23,7 @@ void test1() {
   }
   if (!didCatch) {
     // Plan is to support certain cases of this.
-    throw error("Failed to catch case of inplace alias add");
+    throw poprithms::test::error("Failed to catch case of inplace alias add");
   }
 }
 
@@ -35,29 +35,29 @@ void test2() {
 
   const auto x0 = aNon + bNon - aNon - bNon;
   if (!x0.abs().allZero()) {
-    throw error("Error in test 0 (+ and -)");
+    throw poprithms::test::error("Error in test 0 (+ and -)");
   }
 
   const auto x1 = aNon / bNon - aNon / bNon;
   if (!x1.abs().allZero()) {
-    throw error("Error in test 0 (/ and -)");
+    throw poprithms::test::error("Error in test 0 (/ and -)");
   }
 
   const auto x2 = aNon * bNon - bNon * aNon;
   if (!x1.abs().allZero()) {
-    throw error("Error in test 0 (* and -)");
+    throw poprithms::test::error("Error in test 0 (* and -)");
   }
 
   const auto x3 = (aNon < bNon).toInt32() + (aNon >= bNon).toInt32() -
                   Tensor::boolean(true).toInt32();
   if (!x3.abs().allZero()) {
-    throw error("Error in test 0 (< and >=)");
+    throw poprithms::test::error("Error in test 0 (< and >=)");
   }
 
   const auto x4 = (aNon <= bNon).toInt16() + (aNon > bNon).toInt16() -
                   Tensor::boolean(true).toInt16();
   if (!x4.abs().allZero()) {
-    throw error("Error in test 0 (<= and >)");
+    throw poprithms::test::error("Error in test 0 (<= and >)");
   }
 }
 
@@ -109,7 +109,8 @@ void testFromString() {
   a.binary("pow", b).assertAllEquivalent(Tensor::float32(25.));
   Tensor::assertIsBinary("Pow");
   if (Tensor::isBinary("zip")) {
-    throw error("There should not have been a binary op 'zip' detected");
+    throw poprithms::test::error(
+        "There should not have been a binary op 'zip' detected");
   }
 }
 

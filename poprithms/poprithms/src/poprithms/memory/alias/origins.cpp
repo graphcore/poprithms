@@ -4,7 +4,7 @@
 #include <ostream>
 #include <vector>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <memory/alias/error.hpp>
 #include <poprithms/memory/alias/origins.hpp>
 
 namespace poprithms {

@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 
 namespace {
@@ -13,7 +13,7 @@ void assertComplement(const Region &r0, const DisjointRegions &expe) {
     std::ostringstream oss;
     oss << "Failed in test assertComplement, for \nr0 = " << r0
         << ", \nexpected " << expe << ", \nobserved " << r0.getComplement();
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

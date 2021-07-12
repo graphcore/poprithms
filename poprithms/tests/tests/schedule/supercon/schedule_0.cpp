@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/schedule/supercon/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/supercon/graph.hpp>
 #include <poprithms/schedule/supercon/logging.hpp>
 
@@ -32,7 +32,7 @@ void assertCorrectness(const std::string &debugString,
 
   auto nOps = edges.size();
   if (schedule.size() != nOps) {
-    throw error(prefix + "Schedule not of expected size.");
+    throw poprithms::test::error(prefix + "Schedule not of expected size.");
   }
 
   std::vector<uint64_t> schedIndex(nOps);
@@ -44,7 +44,8 @@ void assertCorrectness(const std::string &debugString,
   for (uint64_t from = 0; from < nOps; ++from) {
     for (auto to : edges[from]) {
       if (schedIndex[from] >= schedIndex[to]) {
-        throw error(prefix + " A constraint was not satisfied.");
+        throw poprithms::test::error(prefix +
+                                     " A constraint was not satisfied.");
       }
     }
   }
@@ -55,7 +56,8 @@ void assertCorrectness(const std::string &debugString,
     auto c = alignedPair[2];
     auto d = alignedPair[3];
     if ((schedIndex[a] < schedIndex[b]) != (schedIndex[c] < schedIndex[d])) {
-      throw error(prefix + "An alignment pair was not satisfied");
+      throw poprithms::test::error(prefix +
+                                   "An alignment pair was not satisfied");
     }
   }
 }
@@ -162,7 +164,7 @@ void assertCoupleConstructor(const bool &&expCanConstruct,
     inSs << in;
     inSs << ")";
 
-    throw error(inSs.str());
+    throw poprithms::test::error(inSs.str());
   }
 }
 
@@ -190,7 +192,7 @@ void assertCanonicalize(const std::array<NodeId, 4> &&expOut,
     ss << expOut;
     ss << " but observed ";
     ss << actOut;
-    throw error(ss.str());
+    throw poprithms::test::error(ss.str());
   }
 }
 

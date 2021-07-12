@@ -2,7 +2,7 @@
 #include <numeric>
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -16,7 +16,7 @@ void testContains(bool expected, const Sett &a, const Sett &b) {
     std::ostringstream oss;
     oss << "In testContains, testing that " << a << ".contains(" << b
         << ") = " << expected << ". But is does not. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

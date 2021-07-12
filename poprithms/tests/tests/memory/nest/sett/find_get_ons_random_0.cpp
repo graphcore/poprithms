@@ -2,7 +2,7 @@
 #include <iostream>
 #include <random>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <testutil/memory/nest/randomsett.hpp>
 
 int main() {
@@ -39,7 +39,7 @@ int main() {
             oss << "Failure in test of Sett:find. For sett=" << sett << ". ";
             oss << "Expected " << sett << ".find(" << x << ") to be " << x1
                 << ", not " << sett.find(x);
-            throw error(oss.str());
+            throw poprithms::test::error(oss.str());
           }
         }
       }

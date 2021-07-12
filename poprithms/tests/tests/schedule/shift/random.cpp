@@ -8,7 +8,7 @@
 #include <tuple>
 #include <vector>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <testutil/schedule/shift/randomgraph.hpp>
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
 
   if (s != sg.getSumLiveness()) {
     std::cout << s << " != " << sg.getSumLiveness() << std::endl;
-    throw poprithms::schedule::shift::error(
+    throw poprithms::test::error(
         "Computed sum of final liveness incorrect in random example test");
   }
 
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
         << "This suggests a problem with Graph serialization. ";
     oss << "The serialization of G is "
         << sg.getGraph().getSerializationString();
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
   return 0;
 }

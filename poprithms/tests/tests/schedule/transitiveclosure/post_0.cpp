@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/schedule/transitiveclosure/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 
 int main() {
@@ -50,52 +50,58 @@ int main() {
   }};
 
   if (em.nPostPost(0, 0) != 10) {
-    throw error("Unexpected number of Ops returned in nPostPost(0,0)");
+    throw poprithms::test::error(
+        "Unexpected number of Ops returned in nPostPost(0,0)");
   }
   if (em.nPostPost(5, 7) != 3) {
     std::cout << em.nPostPost(5, 7);
-    throw error("Unexpected number of Ops returned in nPostPost(5,7)");
+    throw poprithms::test::error(
+        "Unexpected number of Ops returned in nPostPost(5,7)");
   }
   if (em.nPostPost(7, 12) != 1) {
     std::cout << em.nPostPost(7, 12);
-    throw error("Unexpected number of Ops returned in nPostPost(7,12)");
+    throw poprithms::test::error(
+        "Unexpected number of Ops returned in nPostPost(7,12)");
   }
   if (em.nPostPost(0, 14) != 0) {
-    throw error("Unexpected number of Ops returned in nPostPost(0,14)");
+    throw poprithms::test::error(
+        "Unexpected number of Ops returned in nPostPost(0,14)");
   }
   if (em.nPostPost(10, 5) != 3) {
-    throw error("Unexpected number of Ops returned in nPostPost(10,5)");
+    throw poprithms::test::error(
+        "Unexpected number of Ops returned in nPostPost(10,5)");
   }
 
   auto up_4_10 = em.getUnconstrainedPost(4, 10);
   std::sort(up_4_10.begin(), up_4_10.end());
   if (up_4_10 != std::vector<OpId>{7, 12, 15}) {
-    throw error("Expected unconstrainedPost for 4,10");
+    throw poprithms::test::error("Expected unconstrainedPost for 4,10");
   }
 
   auto up_2_7 = em.getUnconstrainedPost(2, 7);
   if (up_2_7.size() != 0) {
-    throw error("Expected no Ops to be unconstrained "
-                "w.r.t. 2 and after 7");
+    throw poprithms::test::error("Expected no Ops to be unconstrained "
+                                 "w.r.t. 2 and after 7");
   }
 
   if (em.sameUnconstrained(1, 2)) {
-    throw error("Expected different unconstrained sets "
-                "for Ops 1 and 2");
+    throw poprithms::test::error("Expected different unconstrained sets "
+                                 "for Ops 1 and 2");
   }
 
   if (!em.sameUnconstrained(8, 11)) {
-    throw error("Expected same sets for Ops 8 and 11");
+    throw poprithms::test::error("Expected same sets for Ops 8 and 11");
   }
 
   if (em.asEarlyAsAllUnconstrained(3)) {
-    throw error("3 cannot be scheduled as early as 9, which is in its "
-                "unconstrained set");
+    throw poprithms::test::error(
+        "3 cannot be scheduled as early as 9, which is in its "
+        "unconstrained set");
   }
 
   if (!em.asEarlyAsAllUnconstrained(9)) {
-    throw error("9 can be scheduled as early as any its "
-                "unconstrained partners");
+    throw poprithms::test::error("9 can be scheduled as early as any its "
+                                 "unconstrained partners");
   }
 
   return 0;

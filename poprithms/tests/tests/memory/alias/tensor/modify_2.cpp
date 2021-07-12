@@ -3,7 +3,7 @@
 #include <map>
 #include <set>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 namespace {
 using namespace poprithms::memory::alias;
@@ -13,10 +13,11 @@ void testToConcat() {
   const auto id1 = g.allocate({6, 4}, 3);
   g.allocationToConcat({id0, id0}, 0, id1);
   if (!g.containsAliases(id1)) {
-    throw error("After the transform to concat, id1 does containt aliases");
+    throw poprithms::test::error(
+        "After the transform to concat, id1 does containt aliases");
   }
   if (g.containsColor(id1, 3)) {
-    throw error("id1 is now of color 0");
+    throw poprithms::test::error("id1 is now of color 0");
   }
 }
 
@@ -33,7 +34,7 @@ void testToSettSample() {
 
   if (g.areAliased(id1, id2) || !g.areAliased(id0, id1) ||
       !g.areAliased(id0, id2)) {
-    throw error("error in testToSettSample");
+    throw poprithms::test::error("error in testToSettSample");
   }
 }
 
@@ -43,7 +44,7 @@ void testToDimShuffle() {
   const auto id1 = g.allocate({3, 4, 2}, 0);
   g.allocationToDimshuffle(id0, {{1, 2, 0}}, id1);
   if (!g.areAliased(id0, id1)) {
-    throw error("error in testToDimShuffle");
+    throw poprithms::test::error("error in testToDimShuffle");
   }
 }
 
@@ -53,7 +54,7 @@ void testToReshape() {
   const auto id1 = g.allocate({6}, 0);
   g.allocationToReshape(id0, id1);
   if (!g.areAliased(id0, id1)) {
-    throw error("error in testToDimShuffle");
+    throw poprithms::test::error("error in testToDimShuffle");
   }
 }
 
@@ -63,7 +64,7 @@ void testToExpand() {
   const auto id1 = g.allocate({2, 6, 11}, 0);
   g.allocationToExpand(id0, id1);
   if (!g.areAliased(id0, id1) || !g.containsAliases(id1)) {
-    throw error("error in testToExpand");
+    throw poprithms::test::error("error in testToExpand");
   }
 }
 
@@ -73,7 +74,7 @@ void testToReverse() {
   const auto t1 = g.tensor(g.allocate({2}, 0));
   g.allocationToReverse(t0.id(), {0}, t1.id());
   if (!g.areAliased(t0.slice({0}, {1}).id(), t1.slice({1}, {2}).id())) {
-    throw error("error in testToReverse");
+    throw poprithms::test::error("error in testToReverse");
   }
 }
 

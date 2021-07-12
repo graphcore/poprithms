@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -37,7 +37,8 @@ void test0() {
 
   g.tryOpening({x2m, 0}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
   if (x2m.aliasGateIsOpen()) {
-    throw error("cannot inplace x2, as constrained to be before x1");
+    throw poprithms::test::error(
+        "cannot inplace x2, as constrained to be before x1");
   }
 }
 
@@ -80,7 +81,7 @@ void testLateConstraint() {
   g.tryOpening(
       {x0aliasGate, 0}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
   if (x0aliasGate.aliasGateIsClosed() || x1aliasGate.aliasGateIsOpen()) {
-    throw error("incorrect logic in testLateConstraint");
+    throw poprithms::test::error("incorrect logic in testLateConstraint");
   }
 }
 
@@ -106,15 +107,17 @@ void testConstraintsNotSetInPartialOpening() {
       p, CheckParallelWriteable::No, AllowMultiGateAlias::No);
 
   if (!status.isValid()) {
-    throw error("incorrect logic in testConstraintsNotSetInPartialOpening: "
-                "Opening was invalid.");
+    throw poprithms::test::error(
+        "incorrect logic in testConstraintsNotSetInPartialOpening: "
+        "Opening was invalid.");
   }
 
   g.backoutOpening(p);
 
   if (h != g) {
-    throw error("invariant g == g.tryOpeningPartial(p).backoutOpening(p) has "
-                "failed.");
+    throw poprithms::test::error(
+        "invariant g == g.tryOpeningPartial(p).backoutOpening(p) has "
+        "failed.");
   }
 }
 

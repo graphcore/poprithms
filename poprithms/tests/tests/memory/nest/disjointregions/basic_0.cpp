@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 
 namespace {
@@ -26,7 +26,7 @@ void testReduce() {
   // Test 0
   const auto reduced0 = foo0.reduce({7, 1});
   if (!Region::equivalent(reduced0, DisjointRegions::createFull({7, 1}))) {
-    throw error("Unexpected result in testReduce, test 0");
+    throw poprithms::test::error("Unexpected result in testReduce, test 0");
   }
 
   // Test 1
@@ -34,7 +34,7 @@ void testReduce() {
   if (!Region::equivalent(
           reduced1,
           DisjointRegions({1, 17}, {{{{{1, 1, 0}}}, {{{2, 1, 0}}}}}))) {
-    throw error("Unexpected result in testReduce, test 1");
+    throw poprithms::test::error("Unexpected result in testReduce, test 1");
   }
 
   //   Test 2
@@ -48,7 +48,7 @@ void testReduce() {
           reduced2,
           DisjointRegions({7, 1},
                           {Region::fromStripe({7, 1}, 0, {1, 1, 0})}))) {
-    throw error("Unexpected result in testReduce, test 2");
+    throw poprithms::test::error("Unexpected result in testReduce, test 2");
   }
 
   //  Test 3
@@ -63,7 +63,7 @@ void testReduce() {
   if (!Region::equivalent(
           reduced3,
           DisjointRegions({1, 17}, {{{{{1, 1, 0}}}, {{{3, 1, 0}}}}}))) {
-    throw error("Unexpected result 3");
+    throw poprithms::test::error("Unexpected result 3");
   }
 }
 

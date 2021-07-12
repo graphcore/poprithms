@@ -5,7 +5,7 @@
 #include <sstream>
 #include <vector>
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace poprithms {
 namespace util {
@@ -26,7 +26,7 @@ std::vector<Value> getValues(const Keys &keys, Map &&m) {
       std::ostringstream oss;
       oss << "Failed in getValues with Keys=" << keys << ". Did not find key "
           << k << " in the Map 'm' of size " << m.size();
-      throw error(oss.str());
+      throw poprithms::error::error("util", oss.str());
     }
     vals.push_back(found->second);
   }

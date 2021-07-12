@@ -6,7 +6,7 @@
 #include <tuple>
 #include <vector>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
     std::ostringstream oss;
     oss << "getMaxLiveness() gives " << sg.getMaxLiveness() << " but "
         << "expected final max liveness to be 2*2*N + (N-2)*1 = " << expect;
-    throw poprithms::schedule::shift::error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   return 0;

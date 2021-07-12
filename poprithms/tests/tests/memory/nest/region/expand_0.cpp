@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 
 namespace {
@@ -13,7 +13,7 @@ void test1() {
   if (!expanded.equivalent(Region(
           {5, 6, 7, 8},
           {{{{1, 0, 0}}}, {{{1, 1, 0}}}, {{{1, 0, 0}}}, {{{2, 2, 0}}}}))) {
-    throw error("Failed to assert equivalence");
+    throw poprithms::test::error("Failed to assert equivalence");
   }
 }
 
@@ -24,7 +24,7 @@ void test0() {
            {{1, 1, 1}, {{{{1, 0, 0}}}, {{{1, 0, 0}}}, {{{1, 0, 0}}}}}}) {
     const auto expanded = r0.expand({1, 2, 3});
     if (!expanded.equivalent(Region::createFull({1, 2, 3}))) {
-      throw error("Failed in expand from 1 element Region");
+      throw poprithms::test::error("Failed in expand from 1 element Region");
     }
   }
 }
@@ -45,7 +45,7 @@ void test2() {
     std::ostringstream oss;
     oss << "Expected equivalence : the 3 Regions partition the full 3-d shape"
         << ", and therefore when expanded, partition the 4-d shape.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

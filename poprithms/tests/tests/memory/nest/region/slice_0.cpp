@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 
 namespace {
@@ -13,11 +13,11 @@ void assertNonEmptySlice(const Region &r,
                          const Region &expected) {
   const auto slice = r.slice(l, u);
   if (slice.empty()) {
-    throw error("expected non-empty slice");
+    throw poprithms::test::error("expected non-empty slice");
   }
 
   if (!slice.equivalent(expected)) {
-    throw error("Failed in assertSlice comparions");
+    throw poprithms::test::error("Failed in assertSlice comparions");
   }
 }
 
@@ -30,15 +30,16 @@ void assertEmptySlice(const Region &r,
   if (!sliced.empty()) {
     std::ostringstream oss;
     oss << "Failed empty slice test, sliced = " << sliced << ".";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (expected.rank_u64() != l.size()) {
-    throw error("bad test, expected wrong size");
+    throw poprithms::test::error("bad test, expected wrong size");
   }
   for (uint64_t i = 0; i < l.size(); ++i) {
     if (expected.dim(i) != u[i] - l[i]) {
-      throw error("Failed shape comparison in empty slice test");
+      throw poprithms::test::error(
+          "Failed shape comparison in empty slice test");
     }
   }
 }

@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 int main() {
@@ -92,7 +92,8 @@ int main() {
   // 000022000022000022111122111122000022
   const auto flat = prm.flatten();
   if (flat.numElements() != 36) {
-    throw error("Expected 36 elements in final flattened Tensor");
+    throw poprithms::test::error(
+        "Expected 36 elements in final flattened Tensor");
   }
 
   // logging string:

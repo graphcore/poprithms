@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <vector>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -18,7 +18,7 @@ void assertEqual(const std::vector<int64_t> &computed,
     poprithms::util::append(oss, computed);
     oss << " expected=";
     poprithms::util::append(oss, expected);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 } // namespace

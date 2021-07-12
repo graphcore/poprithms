@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -34,12 +34,12 @@ void sliceTest0() {
         {x0.opId(), 0}, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
 
     if (squareSize > 5 && x0.aliasGateIsOpen()) {
-      throw error(
+      throw poprithms::test::error(
           "Squares intersect, opening of aliasGate should not happen.");
     }
 
     else if (squareSize <= 5 && x0.aliasGateIsClosed()) {
-      throw error(
+      throw poprithms::test::error(
           "Squares don't intersect, opening of aliasGate should happen.");
     }
   }
@@ -79,7 +79,7 @@ void expandTest0() {
           << open0 << ". Was the second aliasGate tried open ? " << open1
           << ". In this test, "
           << "expected first attempted Op to be inplaced only. ";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 }

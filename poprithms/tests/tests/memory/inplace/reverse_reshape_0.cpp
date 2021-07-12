@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -38,13 +38,14 @@ void testReverse0() {
 
     if (v0AliasGate.aliasGateIsClosed() ||
         postRevAliasGate.aliasGateIsClosed()) {
-      throw error("slices should both be inplace");
+      throw poprithms::test::error("slices should both be inplace");
     }
 
     bool expectReverseInplace = sliceSize <= 5;
 
     if (preRevAliasGate.aliasGateIsOpen() != expectReverseInplace) {
-      throw error("expect reverse inplace iff sliceSize <= 5");
+      throw poprithms::test::error(
+          "expect reverse inplace iff sliceSize <= 5");
     }
   }
 }
@@ -90,7 +91,7 @@ void testReshape0() {
         std::ostringstream oss;
         oss << "With initial Graph " << gBase << ", final Graph is " << g2
             << ".";
-        throw error(oss.str());
+        throw poprithms::test::error(oss.str());
       }
     }
   };
@@ -117,7 +118,8 @@ void testEmptySlice0() {
   std::cout << g << std::endl;
   for (auto id : aliasGateIds) {
     if (g.aliasGateIsClosed(id)) {
-      throw error("Failed to inplace all in testEmptySlice0");
+      throw poprithms::test::error(
+          "Failed to inplace all in testEmptySlice0");
     }
   }
 }

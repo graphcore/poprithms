@@ -1,8 +1,8 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 
@@ -42,12 +42,12 @@ void constructors() {
     if (!t.allClose(t0, /*relTol = */ 0., /* absTol = */ 0.)) {
       std::ostringstream oss;
       oss << t << " and " << t0 << " ARE close.";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
     if (t.allClose(tRandom, 0., 0.)) {
       std::ostringstream oss;
       oss << t << " and " << tRandom << " are NOT close.";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 
@@ -172,7 +172,8 @@ void poplarStyleAliasing() {
                         .abs_();
 
   if (!(tensor < Tensor::int32(0)).allZero()) {
-    throw error("Expected all values to be non-zero, after calling abs_");
+    throw poprithms::test::error(
+        "Expected all values to be non-zero, after calling abs_");
   }
 }
 
@@ -180,13 +181,15 @@ void canCheckForAliases() {
 
   const auto tensor = Tensor::int32(Shape({3}), {1, 2, 3});
   if (tensor.containsAliases()) {
-    throw error("allocation {1,2,3} does not contain aliases");
+    throw poprithms::test::error(
+        "allocation {1,2,3} does not contain aliases");
   }
 
   // inplace (view-changing) concatenation:
   const auto concatted = concat_({tensor, tensor}, /* axis = */ 0);
   if (!concatted.containsAliases()) {
-    throw error("self-concattenation (inplace) contains aliases");
+    throw poprithms::test::error(
+        "self-concattenation (inplace) contains aliases");
   }
 }
 

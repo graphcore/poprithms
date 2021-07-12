@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -26,22 +26,22 @@ void assertReshape(const Region &r,
     oss << " As expected only contains " << expected.size()
         << ", but reshaped contains " << reshaped.size()
         << ", an error is being reported.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (!reshaped.isValid()) {
     oss << " reshaped is not a valid DisjointRegs.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (!expected.isValid()) {
     oss << " expected is not a valid DisjointRegs.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (!Region::equivalent(reshaped, expected)) {
     oss << " reshaped and expected are not equivalent.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

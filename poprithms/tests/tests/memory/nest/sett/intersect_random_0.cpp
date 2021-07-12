@@ -3,7 +3,7 @@
 #include <random>
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/unisort.hpp>
 #include <testutil/memory/nest/randomsett.hpp>
@@ -49,7 +49,7 @@ void assertAgreement(const poprithms::memory::nest::Sett &p0,
 
   if (p0.n(0, U) != static_cast<int64_t>(ons0.size()) ||
       p1.n(0, U) != static_cast<int64_t>(ons1.size())) {
-    throw error("Failed in piggy-back test for Sett::n(.)");
+    throw poprithms::test::error("Failed in piggy-back test for Sett::n(.)");
   }
 
   if (intersectMan != interOns) {
@@ -62,7 +62,7 @@ void assertAgreement(const poprithms::memory::nest::Sett &p0,
         << interOns.size() << "."
         << "\nThe baseline computed intersection has number of ons = "
         << intersectMan.size() << ".";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   // we also check disjoint
@@ -71,7 +71,7 @@ void assertAgreement(const poprithms::memory::nest::Sett &p0,
     std::ostringstream oss;
     oss << "Failed to compute disjoint correctly, for " << p1 << " and "
         << p0;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

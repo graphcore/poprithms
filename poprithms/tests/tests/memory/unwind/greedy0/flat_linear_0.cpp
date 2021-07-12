@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
 
@@ -39,11 +39,11 @@ int main() {
   if (std::find(paths.cbegin(), paths.cend(), p) == paths.cend()) {
     std::ostringstream oss;
     oss << "Expected the Path " << p << " to appear in the solution";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (20 * 100. != soln.getScore()) {
-    throw error("Incorrect score");
+    throw poprithms::test::error("Incorrect score");
   }
 
   return 0;

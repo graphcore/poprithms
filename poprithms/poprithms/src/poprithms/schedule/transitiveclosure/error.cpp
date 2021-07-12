@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/schedule/transitiveclosure/error.hpp>
+#include <schedule/transitiveclosure/error.hpp>
 
 namespace poprithms {
 namespace schedule {

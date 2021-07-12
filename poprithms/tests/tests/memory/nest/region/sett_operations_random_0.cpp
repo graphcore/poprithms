@@ -1,8 +1,8 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
-#include <poprithms/memory/nest/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <testutil/memory/nest/randomregion.hpp>
@@ -59,7 +59,7 @@ void test() {
       auto foo = x.settFillInto(b);
       for (const auto &reg : foo.get()) {
         if (!a.contains(reg)) {
-          throw error("failed test 1");
+          throw poprithms::test::error("failed test 1");
         }
       }
     }
@@ -74,7 +74,7 @@ void test() {
         oss << "b = " << b << '\n';
         oss << "part of inter (x) = " << x << '\n';
         oss << "a.settSample(x) = " << sampled << '\n';
-        throw error(oss.str());
+        throw poprithms::test::error(oss.str());
       }
     }
 
@@ -85,7 +85,7 @@ void test() {
     logger.info("test 3");
     for (const auto &f : filled.get()) {
       if (!b.contains(f)) {
-        throw error("error test 3 ");
+        throw poprithms::test::error("error test 3 ");
       }
     }
 
@@ -96,7 +96,7 @@ void test() {
     logger.info(oss.str());
 
     if (!Region::equivalent(filled, c.settFillInto(b))) {
-      throw error("error test 4");
+      throw poprithms::test::error("error test 4");
     }
   }
 }

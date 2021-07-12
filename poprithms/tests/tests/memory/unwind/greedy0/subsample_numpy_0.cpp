@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
 
@@ -77,7 +77,7 @@ void test0() {
 
   if (soln.barriersToSinks() != Paths{p0, p1} &&
       soln.barriersToSinks() != Paths{p1, p0}) {
-    throw error("Unexpected Paths ");
+    throw poprithms::test::error("Unexpected Paths ");
   }
 }
 

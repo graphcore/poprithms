@@ -3,8 +3,8 @@
 
 #include <memory/chain/op.hpp>
 #include <memory/inplace/ops.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
-#include <poprithms/memory/chain/error.hpp>
 #include <poprithms/memory/chain/settutil.hpp>
 #include <testutil/memory/nest/randomregion.hpp>
 

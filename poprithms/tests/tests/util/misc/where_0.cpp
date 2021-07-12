@@ -5,7 +5,7 @@
 #include <sstream>
 #include <vector>
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/where.hpp>
 
@@ -29,7 +29,7 @@ void testWhereKeysInVals(const std::vector<int> &keys,
     oss << "Failed in test of whereKeysInVals. Keys = " << keys
         << ". Vals = " << vals << " Expected = " << expected
         << " Observed = " << mask;
-    throw util::error(oss.str());
+    throw test::error(oss.str());
   }
 }
 void test0() {

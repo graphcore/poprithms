@@ -3,7 +3,6 @@
 #include <sstream>
 #include <vector>
 
-#include <poprithms/common/schedulable/error.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/op.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
@@ -29,7 +28,7 @@ void confirmSame(const Graph &g,
     oss << "Failure in confirming that the schedule " << expected
         << " is created for Graph " << g << ". "
         << "The observed schedule was " << observed << ".";
-    throw poprithms::common::schedulable::error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -113,7 +112,7 @@ void binConstraints0(uint64_t nBins, uint64_t nOps) {
     oss << "Failure to ensure that bin constraints are "
         << "satisfied while scheduling. "
         << "This with " << nBins << " bins and " << nOps << " Ops. ";
-    throw poprithms::common::schedulable::error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -128,7 +127,7 @@ void assertInOrder(uint64_t start, uint64_t end, const OpIds &schedule) {
     std::ostringstream oss;
     oss << "the values in [start=" << start << ", end=" << end
         << ") do not appear in order in " << schedule;
-    throw poprithms::common::schedulable::error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -143,7 +142,7 @@ void assertNotInOrder(uint64_t start, uint64_t end, const OpIds &schedule) {
     std::ostringstream oss;
     oss << "the values in [start=" << start << ", end=" << end
         << ") do appear in order in " << schedule;
-    throw poprithms::common::schedulable::error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -201,7 +200,7 @@ void ensureLastOf0() {
   }
   g.ensureLastOfCurrentOps(OpId(5));
   if (g.randomSchedule(1011).back() != OpId(5)) {
-    throw poprithms::common::schedulable::error(
+    throw poprithms::test::error(
         "Op 5 should be at the back, failure of ensureLastOfCurrentOps");
   }
 
@@ -213,8 +212,7 @@ void ensureLastOf0() {
     caught = true;
   }
   if (!caught) {
-    throw poprithms::common::schedulable::error(
-        "Should have detected a cylce");
+    throw poprithms::test::error("Should have detected a cylce");
   }
 }
 
@@ -231,7 +229,7 @@ void mayBeFinals0() {
   auto mays = g.mayBeFinals(gId);
   std::sort(mays.begin(), mays.end());
   if (mays != OpIds{c, d}) {
-    throw poprithms::common::schedulable::error(
+    throw poprithms::test::error(
         "c and d are the 2 Ops which have to potential to be scheduled last");
   }
 }
@@ -250,13 +248,11 @@ void tensorIds0() {
   std::sort(in1.begin(), in1.end());
 
   if (in0 != std::vector<TensorId>{{a, 0}, {c, 0}, {c, 1}}) {
-    throw poprithms::common::schedulable::error(
-        "expected outs of a and c in sub-graph 0");
+    throw poprithms::test::error("expected outs of a and c in sub-graph 0");
   }
 
   if (in1 != std::vector<TensorId>{{b, 0}, {d, 0}}) {
-    throw poprithms::common::schedulable::error(
-        "expected outs of b and d in sub-graph 1");
+    throw poprithms::test::error("expected outs of b and d in sub-graph 1");
   }
 }
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -19,7 +19,7 @@ void assertSettSample(const Region &a,
     oss << "in test for Region::equivalent, detected failure. "
         << "Expected the sample of a=" << a << " from where=" << where
         << " to be " << expectedSample << ", but it is " << foo << ".";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (expectedSample.size() < foo.size()) {
@@ -27,7 +27,7 @@ void assertSettSample(const Region &a,
     oss << "Got the correct expectedSample between " << a << " and " << where
         << " in this test for Region , "
         << " but the expected solution is more compact. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

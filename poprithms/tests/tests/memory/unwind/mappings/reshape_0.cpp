@@ -1,5 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 
 //
@@ -38,12 +38,13 @@ void test0() {
     std::ostringstream oss;
     oss << "Unexpected output Region from Reshape: " << observed
         << " != " << expected0;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (!g.inRegions(observed, 0, r0.opId(), 0).equivalent(in0)) {
-    throw error("Unexpected result inRegions(outRegions(X)) != X when passed "
-                "through reshape");
+    throw poprithms::test::error(
+        "Unexpected result inRegions(outRegions(X)) != X when passed "
+        "through reshape");
   }
 }
 int main() {

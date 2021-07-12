@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -43,7 +43,7 @@ void assertMethod1(const Sett &x, const Sett &indices, uint64_t range) {
     std::ostringstream oss;
     oss << "Failure in assertMethod1, where x = " << x
         << ", indices = " << indices << " and range = " << range;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -74,7 +74,7 @@ void assertMethod2(const Sett &x,
         << ", indices = " << indices << " expected = ";
     poprithms::util::append(oss, expected);
     oss << " and repls = " << repls;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

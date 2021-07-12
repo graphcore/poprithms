@@ -3,7 +3,7 @@
 #include <iostream>
 #include <random>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -30,7 +30,7 @@ void testBaseRunner(Graph g,
         << ". This with " << allowMultiGateAlias << ". "
         << "In this situation, the expected OpeningStatus was " << expected
         << ", but the observed OpeningStatus was " << observed << ". ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

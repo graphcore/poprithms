@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 using namespace poprithms::compute::host;
@@ -57,7 +57,7 @@ void testNeg0bool() {
   }
 
   if (!caught) {
-    throw error("Expect: No Neg defined for bool.");
+    throw poprithms::test::error("Expect: No Neg defined for bool.");
   }
 }
 
@@ -71,7 +71,7 @@ void testNeg1bool() {
   }
 
   if (!caught) {
-    throw error("Expect: No Neg defined for bool.");
+    throw poprithms::test::error("Expect: No Neg defined for bool.");
   }
 }
 
@@ -85,7 +85,7 @@ void testNeg0Unsigned(const DType &t) {
   }
 
   if (!caught) {
-    throw error("Expect: No Neg defined for unsigned.");
+    throw poprithms::test::error("Expect: No Neg defined for unsigned.");
   }
 }
 
@@ -99,7 +99,7 @@ void testNeg1Unsigned(const DType &t) {
   }
 
   if (!caught) {
-    throw error("Expect: No Neg defined for unsigned.");
+    throw poprithms::test::error("Expect: No Neg defined for unsigned.");
   }
 }
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -21,7 +21,7 @@ void test0() {
     g0.tryOpening(
         {x0.opId(), 0}, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
     if (g0.aliasGateIsOpen(x0.opId())) {
-      throw error("inplace modified a constant");
+      throw poprithms::test::error("inplace modified a constant");
     }
   }
 
@@ -30,7 +30,7 @@ void test0() {
     g1.tryOpening(
         {x0.opId(), 0}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
     if (g1.aliasGateIsClosed(x0.opId())) {
-      throw error("failed to inplace when obey=false");
+      throw poprithms::test::error("failed to inplace when obey=false");
     }
   }
 }

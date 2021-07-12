@@ -3,7 +3,7 @@
 #include <sstream>
 
 #include <poprithms/compute/host/tensor.hpp>
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/hosttensorhelper.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
@@ -112,7 +112,8 @@ void test0() {
   g.setName(sumLikeOut.out().opId(), "sumLike");
 
   if (sumLikeOut.mappings().size() != 1) {
-    throw error("Expected 1 element in SumLikeMappings for this binary add.");
+    throw poprithms::test::error(
+        "Expected 1 element in SumLikeMappings for this binary add.");
   }
   g.setName(sumLikeOut.barrier(0), "sumLike-barrier");
 

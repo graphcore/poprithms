@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 namespace {
@@ -35,12 +35,12 @@ void test0() {
                      TransitiveClosureOptimizations::allOff(),
                      RotationTermination::preStart());
   if (sg0.nOps() != 4) {
-    throw error("Expected 4 Ops in merged Graph");
+    throw poprithms::test::error("Expected 4 Ops in merged Graph");
   }
 
   auto linkMerged0 = g.getLinkMerged();
   if (std::get<0>(linkMerged0).nOps() != g.nOps()) {
-    throw error(
+    throw poprithms::test::error(
         "link merge with no links should result in graph of same size");
   }
 }
@@ -80,7 +80,8 @@ void test1() {
   std::sort(parents.begin(), parents.end());
   if (parents != Graph::ParentGraphOps{
                      {0}, {1}, {2, 3}, {4, 9}, {5, 6, 7, 8}, {10}, {11}}) {
-    throw error("unexpected mapping generated in getTightMerged");
+    throw poprithms::test::error(
+        "unexpected mapping generated in getTightMerged");
   }
 }
 

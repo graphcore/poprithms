@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/util/permutation.hpp>
 
@@ -13,12 +13,13 @@ int main() {
 
   const auto dimShuffled = r0.dimShuffle(perm);
   if (dimShuffled.shape() != Shape{5, 26, 4}) {
-    throw error("Permuted Region has incorrect Shape, test failed");
+    throw poprithms::test::error(
+        "Permuted Region has incorrect Shape, test failed");
   }
 
   for (uint64_t i = 0; i < 3; ++i) {
     if (!r0.sett(perm.get(i)).equivalent(dimShuffled.sett(i))) {
-      throw error("Permuted Sett failed test");
+      throw poprithms::test::error("Permuted Sett failed test");
     }
   }
   return 0;

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/ndarray/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 
 namespace {
@@ -19,7 +19,7 @@ void confirmRowMajorIndices(const Shape &s,
     oss << "Expected " << expected << ", but observed " << obs
         << " in confirmRowMajorIndices, where dimension = " << dimension
         << " and where = " << where;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -47,7 +47,7 @@ void testGather0() {
     std::ostringstream oss;
     oss << "Failure in multi-dimensionsal gather test. "
         << "Expected " << E << ", observed " << gathered << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

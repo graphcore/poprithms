@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <memory/chain/error.hpp>
 #include <memory/chain/hosttensormapper.hpp>
-#include <poprithms/memory/chain/error.hpp>
 
 namespace poprithms {
 namespace memory {

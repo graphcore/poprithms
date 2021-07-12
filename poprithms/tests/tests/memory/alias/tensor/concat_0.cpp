@@ -1,5 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 namespace {
@@ -15,8 +15,9 @@ void testConcatFirst(const Shape &in0,
   const auto b   = g.tensor(g.allocate(in1));
   const auto res = a.concatFirstDim({b}, 0);
   if (res.shape() != expected) {
-    throw error("Unexpected shape on concatenated tensors. Should be " +
-                expected.str() + ".");
+    throw poprithms::test::error(
+        "Unexpected shape on concatenated tensors. Should be " +
+        expected.str() + ".");
   }
 }
 
@@ -29,8 +30,9 @@ void testConcatFinal(const Shape &in0,
   const auto b   = g.tensor(g.allocate(in1));
   const auto res = a.concatFinalDim({b}, 0);
   if (res.shape() != expected) {
-    throw error("Unexpected shape on concatenated tensors. Should be " +
-                expected.str() + ".");
+    throw poprithms::test::error(
+        "Unexpected shape on concatenated tensors. Should be " +
+        expected.str() + ".");
   }
 }
 

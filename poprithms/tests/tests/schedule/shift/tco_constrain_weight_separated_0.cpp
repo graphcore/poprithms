@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 namespace {
@@ -103,20 +103,22 @@ int main() {
     if (i != 2) {
       if (g00.getOp(i).getIns() != g01.getOp(i).getIns() ||
           g10.getOp(i).getIns() != g11.getOp(i).getIns()) {
-        throw error("Expected unchanged inputs for all but 2");
+        throw poprithms::test::error(
+            "Expected unchanged inputs for all but 2");
       }
     }
     if (g01.getOp(2).getIns() != std::vector<OpAddress>{0, 1}) {
-      throw error(
+      throw poprithms::test::error(
           "Expected 0 and 1 as inputs to 2 post-optimization (no edge)");
     }
     if (g11.getOp(2).getIns() != std::vector<OpAddress>{0, 1, 4}) {
-      throw error(
+      throw poprithms::test::error(
           "Expected 0,1 and 4 as inputs to 2 post-optimization (+edge)");
     }
 
     if (g111.getOp(2).getIns() != g00.getOp(2).getIns()) {
-      throw error("Expected unchanged inputs with big cost drop on 6");
+      throw poprithms::test::error(
+          "Expected unchanged inputs with big cost drop on 6");
     }
   }
   return 0;

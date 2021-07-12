@@ -4,7 +4,7 @@
 #include <numeric>
 #include <vector>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/shift/shiftusings.hpp>
@@ -75,8 +75,7 @@ void assertGlobalMinimumBifurcatingGraph0(const ScheduledGraph &g,
                                           uint64_t D) {
   auto finalMaxLiveness = g.getMaxLiveness();
   if (finalMaxLiveness != AllocWeight(D + 2, 0)) {
-    throw poprithms::schedule::shift::error(
-        "expected final max liveness to be D + 2");
+    throw poprithms::test::error("expected final max liveness to be D + 2");
   }
 }
 

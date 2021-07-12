@@ -2,7 +2,7 @@
 #include <map>
 #include <set>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 void test0() {
@@ -109,7 +109,7 @@ void test0() {
   g.confirmAllAliasesMap(expectedAliases1);
 
   if (!in0_.containsColor(Color(11)) || in0_.containsColor(Color(0))) {
-    throw error("Color not updated correctly");
+    throw poprithms::test::error("Color not updated correctly");
   }
 }
 

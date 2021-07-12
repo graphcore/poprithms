@@ -3,7 +3,7 @@
 #include <iostream>
 #include <numeric>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 namespace {
@@ -22,7 +22,7 @@ poprithms::schedule::shift::Graph getBaseGraph(uint64_t N) {
   using namespace poprithms::schedule::shift;
 
   if (N % 2 != 0) {
-    throw error("N should be even in getBaseGraph");
+    throw poprithms::test::error("N should be even in getBaseGraph");
   }
 
   Graph g;
@@ -79,7 +79,8 @@ int main() {
   auto scheduled = getFilteredSchedule(g);
   for (uint64_t i = 0; i < N; ++i) {
     if (scheduled[i] != expected[i]) {
-      throw error("Failure in Test 1, schedule not as expected");
+      throw poprithms::test::error(
+          "Failure in Test 1, schedule not as expected");
     }
   }
 
@@ -89,7 +90,8 @@ int main() {
   scheduled = getFilteredSchedule(g);
   for (uint64_t i = 0; i < N; ++i) {
     if (scheduled[i] != expected[i]) {
-      throw error("Failure in Test 2, schedule not as expected");
+      throw poprithms::test::error(
+          "Failure in Test 2, schedule not as expected");
     }
   }
 
@@ -104,7 +106,8 @@ int main() {
   expected.back() = N - 1;
   for (uint64_t i = 0; i < N; ++i) {
     if (scheduled[i] != expected[i]) {
-      throw error("Failure in Test 3, schedule not as expected");
+      throw poprithms::test::error(
+          "Failure in Test 3, schedule not as expected");
     }
   }
 
@@ -145,7 +148,8 @@ int main() {
   scheduled       = getFilteredSchedule(g);
   for (uint64_t i = 0; i < N; ++i) {
     if (scheduled[i] != expected[i]) {
-      throw error("Failure in Test 4, schedule not as expected");
+      throw poprithms::test::error(
+          "Failure in Test 4, schedule not as expected");
     }
   }
 
@@ -161,7 +165,8 @@ int main() {
   scheduled = getFilteredSchedule(g);
   for (uint64_t i = 0; i < N; ++i) {
     if (scheduled[i] != expected[i]) {
-      throw error("Failure in Test 5, schedule not as expected");
+      throw poprithms::test::error(
+          "Failure in Test 5, schedule not as expected");
     }
   }
 

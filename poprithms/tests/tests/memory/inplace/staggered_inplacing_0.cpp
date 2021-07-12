@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -35,7 +35,7 @@ void testStaggered0() {
   auto r0       = g.tryOpening(
       {m0, 0}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
   if (r0 != OpeningStatus::Valid) {
-    throw error("No reason for r0 to have not been opened");
+    throw poprithms::test::error("No reason for r0 to have not been opened");
   }
 
   m0.flatten().modify();
@@ -44,14 +44,15 @@ void testStaggered0() {
 
   const auto u1Alis = u1.allAliases();
   if (u1Alis.size() != 4) {
-    throw error("Expected 4 aliases of u1 : output of aliasGate, output of "
-                "reshape, output of first unary, output of second unary. ");
+    throw poprithms::test::error(
+        "Expected 4 aliases of u1 : output of aliasGate, output of "
+        "reshape, output of first unary, output of second unary. ");
   }
 
   const auto r1 = g.tryOpening(
       {m1, 0}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
   if (r1 != OpeningStatus::Cycle) {
-    throw error(
+    throw poprithms::test::error(
         "Opening the second aliasGate creates 2 modifiers of x0. Thus "
         "expected the Status to be Cycle");
   }

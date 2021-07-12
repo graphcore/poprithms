@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <iostream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/connectedcomponents/connectedcomponents.hpp>
-#include <poprithms/schedule/connectedcomponents/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace {
@@ -18,7 +18,7 @@ void assertConnectedComponents(
 
   for (const auto &ep : expectedPartition) {
     if (ep.empty()) {
-      throw error("Empty partition: not expected");
+      throw poprithms::test::error("Empty partition: not expected");
     }
 
     // Each vector in expectedPartitions contains a group of nodes (by global
@@ -29,14 +29,14 @@ void assertConnectedComponents(
     // rather that the groupings are the same.
     for (auto x : ep) {
       if (cc.componentId(x) != cc.componentId(ep[0])) {
-        throw error("Components do not agree");
+        throw poprithms::test::error("Components do not agree");
       }
     }
   }
 
   // We confirm that the number of partitions is the same.
   if (expectedPartition.size() != cc.nComponents()) {
-    throw error("number of components do not agree");
+    throw poprithms::test::error("number of components do not agree");
   }
 }
 
@@ -70,7 +70,7 @@ void test1() {
   }
 
   if (!caught) {
-    throw error("Failed to catch negative edge");
+    throw poprithms::test::error("Failed to catch negative edge");
   }
 }
 
@@ -83,7 +83,7 @@ void test2() {
   }
 
   if (!caught) {
-    throw error("Failed to catch too-large edge end");
+    throw poprithms::test::error("Failed to catch too-large edge end");
   }
 }
 

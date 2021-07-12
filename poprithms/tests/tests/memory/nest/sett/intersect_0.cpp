@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/logging.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 
@@ -31,7 +31,8 @@ int main() {
                                        [](auto x) { return x.alwaysOff(); });
 
   if (intersectionEmpty != computedDisjoint) {
-    throw error("Disagreemment between disjoint and intersect");
+    throw poprithms::test::error(
+        "Disagreemment between disjoint and intersect");
   }
   return 0;
 }

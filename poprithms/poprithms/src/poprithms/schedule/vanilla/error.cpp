@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/schedule/vanilla/error.hpp>
+#include <schedule/vanilla/error.hpp>
 
 namespace poprithms {
 namespace schedule {

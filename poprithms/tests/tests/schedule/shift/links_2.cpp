@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <testutil/schedule/shift/randomgraph.hpp>
 
@@ -39,7 +39,7 @@ void test0() {
 
   if (sg.scheduleToOp(0) != 0 || sg.scheduleToOp(1) != 1 ||
       sg.scheduleToOp(2) != 2 || sg.scheduleToOp(3) != 3) {
-    throw error("The Links between Ops are not satisfied");
+    throw poprithms::test::error("The Links between Ops are not satisfied");
   }
 }
 
@@ -87,7 +87,7 @@ void test1() {
     if (op0.hasForwardLink()) {
       auto op1Address = op0.getForwardLink();
       if (sg1.opToSchedule(op1Address) != i + 1) {
-        throw error("Link is not satisfied");
+        throw poprithms::test::error("Link is not satisfied");
       }
     }
   }
@@ -97,8 +97,9 @@ void test1() {
   std::cout << "Link-less energy : " << linkLessSum << std::endl;
   std::cout << "With-link energy : " << linkedSum << std::endl;
   if (linkLessSum >= linkedSum) {
-    throw error("That is (very) odd, random links in a random graph result "
-                "in a lower shifted liveness sum");
+    throw poprithms::test::error(
+        "That is (very) odd, random links in a random graph result "
+        "in a lower shifted liveness sum");
   }
 }
 

@@ -2,10 +2,10 @@
 #include <algorithm>
 #include <limits>
 #include <numeric>
+#include <schedule/scc/error.hpp>
 #include <sstream>
 
 #include <poprithms/schedule/dfs/dfs.hpp>
-#include <poprithms/schedule/scc/error.hpp>
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/util/typedinteger.hpp>
 #include <poprithms/util/typedvector.hpp>

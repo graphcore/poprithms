@@ -3,8 +3,8 @@
 #include <iostream>
 #include <numeric>
 
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 
@@ -60,7 +60,7 @@ void test4() {
       Tensor::float64({3, 2}, {4, 5, 6, 7, 8, 9}).expand({1, 5, 1, 3, 2});
   const auto c = a.matmul(b);
   if (c.shape() != Shape({1, 5, 1, 1, 2})) {
-    throw error("Incorrect output Shape in test4");
+    throw poprithms::test::error("Incorrect output Shape in test4");
   }
 }
 

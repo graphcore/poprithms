@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/optionalset.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <testutil/memory/nest/randomsett.hpp>
@@ -18,7 +18,7 @@ void baseTest(const Sett &a, const Sett &b, bool expected) {
     std::ostringstream oss;
     oss << "Failure in test of merge. Sett::merge(" << a << ", " << b
         << ") = " << c << ", but expected = " << expected << ".";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (c.full()) {

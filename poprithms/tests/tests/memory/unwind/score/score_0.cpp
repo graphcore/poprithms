@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
 
@@ -51,7 +51,7 @@ void test0() {
       std::ostringstream oss;
       oss << "Expected a score of " << expected << ", observed was " << score
           << ". This with withReverse=" << withReverse << '.';
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 }

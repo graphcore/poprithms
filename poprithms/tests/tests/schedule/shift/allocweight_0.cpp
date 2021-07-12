@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/allocweight.hpp>
-#include <poprithms/schedule/shift/error.hpp>
 
 int main() {
 
@@ -14,33 +14,33 @@ int main() {
   auto wMax      = AllocWeight::numericMaxLimit();
 
   if (wSmallPos == wLargePos) {
-    throw error("Error with AllocWeight's operator==");
+    throw poprithms::test::error("Error with AllocWeight's operator==");
   }
 
   if (wZero != wZero) {
-    throw error("Error with AllocWeight's operator!=");
+    throw poprithms::test::error("Error with AllocWeight's operator!=");
   }
 
   if (!(wLargeNeg < wNegOne && wNegOne < wZero && wZero < wSmallPos &&
         wSmallPos < wLargePos && wLargePos < wMax)) {
-    throw error("Error with AllocWeight's operator<");
+    throw poprithms::test::error("Error with AllocWeight's operator<");
   }
 
   if (!(wMax <= wMax) || wMax < wZero) {
-    throw error("Error with AllocWeight's operator<=");
+    throw poprithms::test::error("Error with AllocWeight's operator<=");
   }
 
   if (wMax.get(+1) != std::numeric_limits<double>::max()) {
-    throw error("Error with AllocWeight::get(.)");
+    throw poprithms::test::error("Error with AllocWeight::get(.)");
   }
 
   if (wMax.getL1() != std::numeric_limits<double>::infinity()) {
-    throw error("Error with AllocWeight::getL1()");
+    throw poprithms::test::error("Error with AllocWeight::getL1()");
     //
   }
 
   if (wMax.getAbsolute() != wMax) {
-    throw error("Error with AllocWeight::getAbs()");
+    throw poprithms::test::error("Error with AllocWeight::getAbs()");
   }
 
   auto w0 = AllocWeight(10.0, +1);
@@ -49,7 +49,7 @@ int main() {
     std::ostringstream oss;
     oss << "Expected scaling 10.0 by 0.5 to give 5.0, at index +4, not "
         << w1.get(+4);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   return 0;

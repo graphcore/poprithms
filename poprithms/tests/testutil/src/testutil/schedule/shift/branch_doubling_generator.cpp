@@ -3,7 +3,7 @@
 #include <numeric>
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/shiftusings.hpp>
 #include <testutil/schedule/shift/branch_doubling_generator.hpp>
 
@@ -114,14 +114,14 @@ void assertGlobalMinimumBranchDoubling(const ScheduledGraph &sg,
   }
 
   if (expected.size() != sg.nOps()) {
-    throw error("Expected vector is not the correct length");
+    throw poprithms::test::error("Expected vector is not the correct length");
   }
 
   auto livenessString = sg.getLivenessString();
   for (auto i = 0; i < sg.nOps(); ++i) {
     auto dbs = sg.getOp(sg.scheduleToOp(i)).getDebugString();
     if (dbs != expected[i]) {
-      throw error("Unexpected");
+      throw poprithms::test::error("Unexpected");
     }
   }
 }

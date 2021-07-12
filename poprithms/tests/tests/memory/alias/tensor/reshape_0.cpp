@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 namespace {
@@ -22,7 +22,7 @@ void test0() {
   auto cat2           = concat({reshaped, reshaped}, 1);
   for (auto x : std::vector<Tensor>{alloc0, alloc1, alloc2}) {
     if (!cat2.intersectsWith(x)) {
-      throw error("Failed to detect intersection");
+      throw poprithms::test::error("Failed to detect intersection");
     }
   }
   std::cout << g << std::endl;
@@ -78,7 +78,7 @@ void test1() {
       if ((i == j) != (allocs[i].intersectsWith(sInter[j]))) {
         std::ostringstream oss;
         oss << "Failure with i = " << i << " and j = " << j;
-        throw error(oss.str());
+        throw poprithms::test::error(oss.str());
       }
     }
   }

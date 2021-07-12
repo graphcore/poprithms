@@ -7,10 +7,10 @@
 #include <unordered_set>
 
 #include <poprithms/common/multiout/consumptionid.hpp>
-#include <poprithms/common/multiout/error.hpp>
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/optraversal.hpp>
 #include <poprithms/common/multiout/traversal.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/stringutil.hpp>
 
@@ -61,7 +61,7 @@ void test0() {
   test::Graph g;
   g.setName("my_test_graph");
   if (g.getName() != "my_test_graph") {
-    throw multiout::error(
+    throw poprithms::test::error(
         "Failed to correctly set and get name in test::Graph class. ");
   }
 
@@ -70,7 +70,8 @@ void test0() {
     collected.push_back(g.insert({}, 0));
   }
   if (collected[34] != multiout::OpId(34)) {
-    throw multiout::error("Expected OpIds to increment by 1, starting at 0");
+    throw poprithms::test::error(
+        "Expected OpIds to increment by 1, starting at 0");
   }
 }
 
@@ -104,11 +105,11 @@ void testLogging0() {
 
   const auto outCols = g.getMultioutColumns();
   if (outCols.empty()) {
-    throw multiout::error("No multiout columns in test");
+    throw poprithms::test::error("No multiout columns in test");
   }
   for (auto x : outCols) {
     if (x.nEntries() != outCols[0].nEntries()) {
-      throw multiout::error("size of each column should be the same");
+      throw poprithms::test::error("size of each column should be the same");
     }
   }
 
@@ -130,7 +131,8 @@ void testLogging0() {
           [&isSpace](int a, const std::string &b) { return a + isSpace(b); });
 
       if (cnt != 2) {
-        throw multiout::error("Expected 2 empty rows in the Shape column");
+        throw poprithms::test::error(
+            "Expected 2 empty rows in the Shape column");
       }
     }
   }
@@ -149,7 +151,7 @@ void testInsAndOuts() {
 
   if (insNouts !=
       TensorIds({{a, 0}, {b, 1}, {b, 2}, {c, 0}, {c, 1}, {c, 2}, {c, 3}})) {
-    throw multiout::error("Incorrect input+output TensorIds");
+    throw poprithms::test::error("Incorrect input+output TensorIds");
   }
 }
 
@@ -186,7 +188,7 @@ void testHashTensorId() {
   if (static_cast<double>(nDistintHashes.size()) /
           static_cast<double>(nTensors) <
       0.99) {
-    throw poprithms::common::multiout::error("Failed hash test");
+    throw poprithms::test::error("Failed hash test");
   }
 }
 void testTraversal0() {
@@ -207,13 +209,13 @@ void testTraversal0() {
   if (multiout::depthFirstForward(
           g, {{a, 0}, {a, 1}, {b, 0}, {b, 1}}, [](auto) { return true; })
           .size() != 40) {
-    throw multiout::error("Expected 40 OpTraversals");
+    throw poprithms::test::error("Expected 40 OpTraversals");
   }
 
   if (multiout::depthFirstForward(
           g, {{a, 0}, {a, 1}, {b, 0}, {b, 1}}, [](auto) { return false; })
           .size() != 0) {
-    throw multiout::error("Expected 0 OpTraversals");
+    throw poprithms::test::error("Expected 0 OpTraversals");
   }
 
   if (multiout::depthFirstForward(g,
@@ -226,8 +228,9 @@ void testTraversal0() {
     // 4 through c (all to (c,0)).
     // 8 through d (all to (d,0) and (d,2)).
     // 12 through e.
-    throw multiout::error("Expected 24 OpTraversals: 4 through c, 8 through "
-                          "d and 12 through e.");
+    throw poprithms::test::error(
+        "Expected 24 OpTraversals: 4 through c, 8 through "
+        "d and 12 through e.");
   }
 }
 
@@ -244,7 +247,7 @@ void testTraversal1() {
 
   multiout::OpTraversal expected{0, c, 1};
   if (out != std::vector{expected}) {
-    throw multiout::error("Failed in basic traversal test");
+    throw poprithms::test::error("Failed in basic traversal test");
   }
 }
 
@@ -278,7 +281,7 @@ void testTraversal2() {
     expected.push_back({0, op2, 1});
     std::sort(expected.begin(), expected.end());
     if (out != expected) {
-      throw multiout::error("failure in test of backwards traversal");
+      throw poprithms::test::error("failure in test of backwards traversal");
     }
   }
 }

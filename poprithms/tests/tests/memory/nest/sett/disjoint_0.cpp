@@ -3,7 +3,7 @@
 #include <numeric>
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -18,7 +18,7 @@ void testDisjoint(bool expected, const std::vector<Sett> &b) {
     oss << "In testDisjoint, testing disjointedness of Setts in " << b
         << ", expected = " << expected << ". But computed = " << computed
         << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

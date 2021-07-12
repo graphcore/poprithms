@@ -3,8 +3,8 @@
 #include <sstream>
 
 #include <memory/inplace/ops.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
-#include <poprithms/memory/chain/error.hpp>
 #include <poprithms/memory/chain/settutil.hpp>
 #include <testutil/memory/nest/randomregion.hpp>
 
@@ -117,7 +117,7 @@ void test3() {
   if (canonicalized == expected) {
     std::ostringstream oss;
     oss << "Has Task T35668 been solved?";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

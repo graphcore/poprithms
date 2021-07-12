@@ -3,8 +3,8 @@
 #include <iostream>
 #include <numeric>
 
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 void test0() {
@@ -16,11 +16,12 @@ void test0() {
     x *= 0.5f;
   }
   if (vals.size() != 20) {
-    throw error("This arange should produce exactly 20 values");
+    throw poprithms::test::error(
+        "This arange should produce exactly 20 values");
   }
   for (uint64_t i = 0; i < 20; ++i) {
     if (vals[i] - (-5.f + 0.5f * static_cast<float>(i)) != 0.0f) {
-      throw error("An error in test0");
+      throw poprithms::test::error("An error in test0");
     }
   }
 }

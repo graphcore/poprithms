@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -72,7 +72,8 @@ int main() {
   // which should be simple.
 
   if (g.aliasGateIsOpen(slice1.opId())) {
-    throw error("Expected the final inplacing attempt to fail");
+    throw poprithms::test::error(
+        "Expected the final inplacing attempt to fail");
   }
 
   // As a bonus, you can query aliasing information:

@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 
 namespace {
@@ -11,7 +11,7 @@ void assertEquivalence(const DisjointRegions &a,
     std::ostringstream oss;
     oss << "Failed in assertEquivalence test for " << a << " and " << b
         << " : expected equiv=" << equiv;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 } // namespace

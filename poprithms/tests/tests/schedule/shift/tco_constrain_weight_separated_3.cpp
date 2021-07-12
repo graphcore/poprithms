@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 poprithms::schedule::shift::ScheduledGraph
@@ -77,7 +77,7 @@ int main() {
   auto g    = getGraph();
   auto outs = g.getOp(4).getOuts();
   if (std::find(outs.cbegin(), outs.cend(), 3) == outs.cend()) {
-    throw error("Expected 3 to be inserted as output of 4");
+    throw poprithms::test::error("Expected 3 to be inserted as output of 4");
   }
   return 0;
 }

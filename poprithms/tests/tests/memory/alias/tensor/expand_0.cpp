@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 namespace {
@@ -33,7 +33,7 @@ void test0() {
       expa0.concat({expa0, alloc1, alloc1.expand({4, 4, 3, 2, 1})}, 0, 0);
 
   if (out.shape() != Shape{15, 4, 3, 2, 1}) {
-    throw error("Incorrect Shape determined in test0");
+    throw poprithms::test::error("Incorrect Shape determined in test0");
   }
 }
 
@@ -45,7 +45,7 @@ void test1() {
   const auto exp    = cat.expand({4, 3, 2});
   if (!exp.intersectsWith(alloc1) || !exp.intersectsWith(alloc2) ||
       !exp.containsAliases()) {
-    throw error("Failure in test1");
+    throw poprithms::test::error("Failure in test1");
   }
 }
 } // namespace

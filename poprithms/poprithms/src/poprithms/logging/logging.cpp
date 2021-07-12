@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstddef>
 #include <iostream>
+#include <logging/error.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -10,7 +11,6 @@
 #include <random>
 #include <sstream>
 
-#include <poprithms/logging/error.hpp>
 #include <poprithms/logging/logging.hpp>
 #include <poprithms/util/stringutil.hpp>
 

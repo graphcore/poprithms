@@ -2,11 +2,11 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <ndarray/error.hpp>
 #include <sstream>
 #include <string>
 
 #include <poprithms/ndarray/dtype.hpp>
-#include <poprithms/ndarray/error.hpp>
 
 namespace poprithms {
 namespace ndarray {

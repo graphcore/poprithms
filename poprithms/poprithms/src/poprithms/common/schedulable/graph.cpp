@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <common/schedulable/error.hpp>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -10,7 +11,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include <poprithms/common/schedulable/error.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/op.hpp>
 #include <poprithms/schedule/shift/graph.hpp>

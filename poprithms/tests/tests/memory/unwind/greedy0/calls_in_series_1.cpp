@@ -2,7 +2,7 @@
 #include <iostream>
 #include <map>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
 
@@ -52,7 +52,7 @@ int main() {
   double call0val = 1.0;
   double call1val = 10.0;
   if (call0val >= call1val) {
-    throw error("This test requires call1val to be larger");
+    throw poprithms::test::error("This test requires call1val to be larger");
   }
   const auto out0 = g.call({a1}, {sinkInn}, {b0}, call0val)[0];
   const auto out1 = g.call({out0}, {sinkInn}, {b0}, call1val)[0];
@@ -87,7 +87,7 @@ int main() {
             << "Expected \n"
             << expe << ", observed \n"
             << s.inwardsPaths(tId);
-        throw error(oss.str());
+        throw poprithms::test::error(oss.str());
       }
     }
   }

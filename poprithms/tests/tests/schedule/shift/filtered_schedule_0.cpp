@@ -1,5 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/filteredschedule.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -20,7 +20,7 @@ void test(int c,
     poprithms::util::append(oss, expected);
     oss << "   Observed : ";
     poprithms::util::append(oss, sched0);
-    throw poprithms::schedule::shift::error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 } // namespace

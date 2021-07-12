@@ -6,6 +6,7 @@
 #include <sstream>
 #include <type_traits>
 
+#include <compute/host/error.hpp>
 #include <compute/host/include/allocdata.hpp>
 #include <compute/host/include/basedata.hpp>
 #include <compute/host/include/externdecl.hpp>
@@ -13,7 +14,6 @@
 #include <compute/host/include/pointerdata.hpp>
 #include <compute/host/include/typeswitch.hpp>
 #include <compute/host/include/viewdata.hpp>
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/util/printiter.hpp>

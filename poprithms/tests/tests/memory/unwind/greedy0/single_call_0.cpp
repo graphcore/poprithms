@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
 
@@ -69,14 +69,14 @@ void callWithCopies0(double attractionValue) {
     oss << "\"x0\", should be exactly like \"knownLayout\" "
         << "due to inserted attractor pair. Therefore we expected an "
         << "Identity Chain. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (soln.inwardsPaths(innerOutput) !=
       Paths{Path(knownLayout, Chain({40}), innerOutput)}) {
     oss << "\"innerOutput\" should have the same layout as "
         << "\"x0\", to soln.t copy-out-of-call points. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   auto c0 = Chain({40});
@@ -86,7 +86,7 @@ void callWithCopies0(double attractionValue) {
       Paths{Path(knownLayout, c0, innerInput)}) {
     oss << "\"innerOutput\" should have the layout of " << x0
         << ", unwound be reshaping and dimshuffling.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   auto c01 = c0;
@@ -99,7 +99,7 @@ void callWithCopies0(double attractionValue) {
       soln.inwardsPaths(outerInput) != Paths{p1, p0}) {
     oss << "\"outerInput\" should have its layout determined by "
         << "the target to which its slices are copied, in the inner graph. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   Chain cat0({40});
@@ -112,7 +112,7 @@ void callWithCopies0(double attractionValue) {
       soln.inwardsPaths(cat) != Paths{p1, p0}) {
     oss << "\"outerOutput\" should have its layout determined by "
         << "by concatening x0, which has a known layout. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   const auto elmsPerTensor = 40;
@@ -127,7 +127,7 @@ void callWithCopies0(double attractionValue) {
     std::ostringstream oss2;
     oss2 << "score with attraction value of " << attractionValue << " = "
          << soln.getScore() << ". Expected " << expectedScore << ". ";
-    throw error(oss2.str());
+    throw poprithms::test::error(oss2.str());
   }
 }
 

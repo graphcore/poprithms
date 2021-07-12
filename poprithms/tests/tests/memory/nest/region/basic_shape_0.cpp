@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 
 namespace {
@@ -10,7 +10,7 @@ void assertRanks(const Region &reg, uint64_t expectedRank) {
     std::ostringstream oss;
     oss << "Expected " << reg << " to be of rank " << expectedRank << ", not "
         << reg.rank_u64();
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 void rankTest() {
@@ -25,11 +25,12 @@ void assertNelms(const Region &reg, int64_t expected) {
     std::ostringstream oss;
     oss << "Expected " << reg << " to have exactly " << expected
         << " element(s), not " << reg.totalElms() << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if ((reg.totalElms() == 0) != reg.empty()) {
-    throw error("Error in asserNelms : empty and actual count don't agree");
+    throw poprithms::test::error(
+        "Error in asserNelms : empty and actual count don't agree");
   }
 }
 

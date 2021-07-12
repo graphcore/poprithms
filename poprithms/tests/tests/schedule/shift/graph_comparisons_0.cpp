@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 
 namespace {
@@ -48,7 +48,7 @@ void test0() {
     const auto g1 = g0;
     if (g0 != g1 || g0 < g1 || !g0.equalTo(g1, false) ||
         g0.lessThan(g1, false)) {
-      throw error("g0 == g1");
+      throw poprithms::test::error("g0 == g1");
     }
   }
 
@@ -57,7 +57,8 @@ void test0() {
     auto g1 = g0;
     g1.insertConstraint(b, d);
     if (!different(g0, g1)) {
-      throw error("g1 has an extra constraint, not the same");
+      throw poprithms::test::error(
+          "g1 has an extra constraint, not the same");
     }
   }
 
@@ -66,7 +67,7 @@ void test0() {
     auto g1 = g0;
     g1.insertOp("extra");
     if (!different(g0, g1)) {
-      throw error("g1 has an extra op, not the same");
+      throw poprithms::test::error("g1 has an extra op, not the same");
     }
   }
 
@@ -75,7 +76,7 @@ void test0() {
     auto g1 = g0;
     g1.insertLink(a, b);
     if (!different(g0, g1)) {
-      throw error("g1 has an extra link, not the same");
+      throw poprithms::test::error("g1 has an extra link, not the same");
     }
   }
 
@@ -87,11 +88,12 @@ void test0() {
     auto g2 = g0;
     g2.insertOp("bar");
     if (g1 == g2) {
-      throw error(
+      throw poprithms::test::error(
           "g1 and g2 are not equal, their ops don't have the same names");
     }
     if (!g1.equalTo(g2, false)) {
-      throw error("g1 and g2 are equal, if the names of ops are excluded");
+      throw poprithms::test::error(
+          "g1 and g2 are equal, if the names of ops are excluded");
     }
   }
 
@@ -102,7 +104,7 @@ void test0() {
     auto g2 = g0;
     g2.insertAlloc(6);
     if (!different(g1, g2)) {
-      throw error("g1 and g2 do not have the same allocs");
+      throw poprithms::test::error("g1 and g2 do not have the same allocs");
     }
   }
 
@@ -121,8 +123,9 @@ void test0() {
     }
 
     if (g1 == g2 || g1.equalTo(g2, false)) {
-      throw error("The 2 Graphs are not the same, the final alloc is "
-                  "assigned to different Ops");
+      throw poprithms::test::error(
+          "The 2 Graphs are not the same, the final alloc is "
+          "assigned to different Ops");
     }
 
     // Now, add allocs so that isomporphically the graphs are the same, but
@@ -133,8 +136,9 @@ void test0() {
       auto D = g1.insertAlloc(5);
       g1.insertOpAlloc(d, D);
       if (!different(g1, g2)) {
-        throw error("They shouldn't compare equal here, as we are not doing "
-                    "a true graph isomorphism.");
+        throw poprithms::test::error(
+            "They shouldn't compare equal here, as we are not doing "
+            "a true graph isomorphism.");
       }
     }
   }

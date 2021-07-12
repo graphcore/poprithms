@@ -3,7 +3,7 @@
 #include <random>
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/unisort.hpp>
 #include <testutil/memory/nest/randomsett.hpp>
@@ -56,7 +56,8 @@ void test(int max0, uint64_t nTests, bool exact, bool doCount) {
       const auto lcm = p0.smallestCommonMultiple(p1);
       if (2 * A.totalOns(lcm) + B.totalOns(lcm) + C.totalOns(lcm) !=
           p0.n(lcm) + p1.n(lcm)) {
-        throw error("Unexpected counts in random subtract test");
+        throw poprithms::test::error(
+            "Unexpected counts in random subtract test");
       }
     }
   }

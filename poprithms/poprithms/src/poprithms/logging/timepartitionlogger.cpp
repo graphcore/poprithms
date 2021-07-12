@@ -3,6 +3,7 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <logging/error.hpp>
 #include <map>
 #include <mutex>
 #include <numeric>
@@ -10,7 +11,6 @@
 #include <sstream>
 #include <unordered_set>
 
-#include <poprithms/logging/error.hpp>
 #include <poprithms/logging/timepartitionlogger.hpp>
 #include <poprithms/util/stringutil.hpp>
 

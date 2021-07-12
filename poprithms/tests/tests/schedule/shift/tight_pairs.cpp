@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 
 int main() {
@@ -19,7 +19,8 @@ int main() {
   auto op1 = g.insertOp("op1");
   g.insertConstraint(op0, op1);
   if (g.getTightPairs().size() != 1) {
-    throw error("Expected 1 tight edge in this bipole graph");
+    throw poprithms::test::error(
+        "Expected 1 tight edge in this bipole graph");
   }
 
   /*
@@ -37,7 +38,7 @@ int main() {
   g.insertConstraint(op1, op3);
   g.insertConstraint(op2, op3);
   if (g.getTightPairs().size() != 0) {
-    throw error("Expected 0 tight edge in this diamond");
+    throw poprithms::test::error("Expected 0 tight edge in this diamond");
   }
 
   /*
@@ -58,19 +59,19 @@ int main() {
   g.insertConstraint(op3, op4);
   g.insertConstraint(op4, op5);
   if (g.getTightPairs().size() != 2) {
-    throw error("Expected 2 tight edge in this tadpole");
+    throw poprithms::test::error("Expected 2 tight edge in this tadpole");
   }
 
   if (g.tightChainFrom(op0) != std::vector<OpAddress>{op0}) {
-    throw error("Expected singleton \"chain\" from Op 0");
+    throw poprithms::test::error("Expected singleton \"chain\" from Op 0");
   }
 
   if (g.tightChainFrom(op4) != std::vector<OpAddress>{op4, op5}) {
-    throw error("Expected {4,5} as tight chain from 4");
+    throw poprithms::test::error("Expected {4,5} as tight chain from 4");
   }
 
   if (g.tightChainFrom(op5) != std::vector<OpAddress>{op5}) {
-    throw error("Expected singleton \"chain\" from Op 5");
+    throw poprithms::test::error("Expected singleton \"chain\" from Op 5");
   }
 
   return 0;

@@ -3,8 +3,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
-#include <poprithms/memory/nest/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 
 namespace {
@@ -35,7 +35,7 @@ void test0() {
   Sett sett0({{10, 5, 0}, {1, 4, 2}});
   auto unflattened = sett0.unflatten(5);
   if (unflattened.size() != 1) {
-    throw error("Expected just 1 setting in test0");
+    throw poprithms::test::error("Expected just 1 setting in test0");
   }
   const auto p0 = std::get<0>(unflattened[0]);
   const auto p1 = std::get<1>(unflattened[0]);
@@ -58,7 +58,7 @@ void test1() {
   Sett sett0({{75, 0, 15}, {15, 15, 0}, {2, 3, -1}});
   auto unflattened = sett0.unflatten(15);
   if (unflattened.size() != 1) {
-    throw error("Expected just 1 setting in test0");
+    throw poprithms::test::error("Expected just 1 setting in test0");
   }
   const auto p0 = std::get<0>(unflattened[0]);
   const auto p1 = std::get<1>(unflattened[0]);
@@ -104,7 +104,7 @@ void test2() {
       oss << "\n      " << std::get<0>(x) << "  " << std::get<1>(x);
     }
 
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   auto counts = Sett::getRepeatingOnCount(Sett::scaledConcat(uf, p0));

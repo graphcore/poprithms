@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 
 namespace {
@@ -18,7 +18,7 @@ void assertSubtract(const Region &r0,
         << r0.subtract(r1);
     oss << ". This with " << r1 << ".getComplement() = \n  "
         << r1.getComplement();
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -83,7 +83,7 @@ void test2() {
     oss << "Failure in test of subtract for DisjointRegions. "
         << "Expected observed " << r << " and expected " << rExpected
         << " to be equivalent. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

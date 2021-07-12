@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <array>
 
-#include <poprithms/ndarray/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 
 namespace {
@@ -13,7 +13,7 @@ void confirmMatmulShape(const Shape &a, const Shape &b, const Shape &c) {
     std::ostringstream oss;
     oss << "Failure in confirmMatmulShape, expected " << a << ".matmul(" << b
         << ") to be " << c << ", not " << a.matmul(b);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   //
@@ -24,7 +24,7 @@ int main() {
 
   if (Shape::numpyVariadic({{{3, 1, 1}}, {{1, 4, 1}}, {{1, 1, 5}}}) !=
       Shape{3, 4, 5}) {
-    throw error("Failure in numpyVariadic test");
+    throw poprithms::test::error("Failure in numpyVariadic test");
   }
 
   std::vector<std::array<Shape, 3>> shapes{

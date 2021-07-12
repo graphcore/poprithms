@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 namespace {
@@ -44,11 +44,12 @@ void test0() {
     // in it:
     const auto F = message.find("omponent");
     if (F == std::string::npos) {
-      throw error("Message should be about Connected Components");
+      throw poprithms::test::error(
+          "Message should be about Connected Components");
     }
   }
   if (!caught) {
-    throw error("Cycle not detected");
+    throw poprithms::test::error("Cycle not detected");
   }
 }
 } // namespace

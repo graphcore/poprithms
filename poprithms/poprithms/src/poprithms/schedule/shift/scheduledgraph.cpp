@@ -5,9 +5,9 @@
 #include <limits>
 #include <numeric>
 #include <random>
+#include <schedule/shift/error.hpp>
 
 #include <poprithms/schedule/scc/scc.hpp>
-#include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/schedule/shift/filteredschedule.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 #include <poprithms/schedule/shift/logging.hpp>

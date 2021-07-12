@@ -4,7 +4,7 @@
 #include <iostream>
 #include <random>
 
-#include <poprithms/schedule/transitiveclosure/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 #include <testutil/schedule/transitiveclosure/randomedges.hpp>
 #include <testutil/schedule/transitiveclosure/transitiveclosurecommandlineoptions.hpp>

@@ -3,8 +3,8 @@
 #include <iostream>
 #include <numeric>
 
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 using namespace poprithms::compute::host;
@@ -12,17 +12,17 @@ using namespace poprithms::compute::host;
 void testZero() {
   const auto t = Tensor::boolean({2}, {true, false});
   if (t.allZero() || t.allNonZero()) {
-    throw error("t contains a mix of true and false");
+    throw poprithms::test::error("t contains a mix of true and false");
   }
   const auto tTrue  = Tensor::boolean({2}, {true, true});
   const auto tFalse = Tensor::boolean({2}, {false, false});
   if (!tTrue.allNonZero() || !tFalse.allZero()) {
-    throw error("tTrue are all true, tFalse are all false");
+    throw poprithms::test::error("tTrue are all true, tFalse are all false");
   }
 
   const auto t0 = Tensor::float64({3}, {0., 0., 0.});
   if (t0.allNonZero() || !t0.allZero()) {
-    throw error("t0 is all zeros");
+    throw poprithms::test::error("t0 is all zeros");
   }
 }
 
@@ -39,19 +39,19 @@ void testAllClose() {
   const auto rtol1 = 0.15;
 
   if (!t0.allClose(t1, rtol1, atol1)) {
-    throw error("should be close atol1 and rtol1");
+    throw poprithms::test::error("should be close atol1 and rtol1");
   }
 
   if (!t0.allClose(t1, rtol0, atol1)) {
-    throw error("should be close with atol0 and rtol1");
+    throw poprithms::test::error("should be close with atol0 and rtol1");
   }
 
   if (!t0.allClose(t1, rtol1, atol0)) {
-    throw error("should be close with atol1 and rtol0");
+    throw poprithms::test::error("should be close with atol1 and rtol0");
   }
 
   if (t0.allClose(t1, rtol0, atol0)) {
-    throw error("shouldn't be close with atol0 and rtol0");
+    throw poprithms::test::error("shouldn't be close with atol0 and rtol0");
   }
 
   t0.assertAllEquivalent(t0);
@@ -62,7 +62,7 @@ void testIdenticalTo() {
   const auto t0 = Tensor::int32(1);
   const auto t1 = Tensor::int32(1);
   if (t0.identicalTo(t1) || !t0.identicalTo(t0)) {
-    throw error("Error in indenticalTo test");
+    throw poprithms::test::error("Error in indenticalTo test");
   }
 }
 
@@ -70,7 +70,7 @@ void testIsOrigin() {
   const auto t0 = Tensor::int32({2, 2}, {2, 3, 4, 5});
   auto t1       = t0.reshape_({4}).slice_({1}, {3});
   if (t0.implIsView() || t1.implIsOrigin()) {
-    throw error("Error in testIsOrigin");
+    throw poprithms::test::error("Error in testIsOrigin");
   }
 }
 
@@ -98,7 +98,7 @@ void testAtSlice1() {
       caught = true;
     }
     if (!caught) {
-      throw error(
+      throw poprithms::test::error(
           "Failed to catch error of slicing with at(.) on negative index");
     }
   }
@@ -112,7 +112,7 @@ void testAtSlice1() {
       caught = true;
     }
     if (!caught) {
-      throw error(
+      throw poprithms::test::error(
           "Failed to catch error when slicing with at(.) on non-scalar");
     }
   }
@@ -140,7 +140,7 @@ void assertl2Norm(const Tensor &t, double expected) {
     std::ostringstream oss;
     oss << "Failed in test of l2 norm. For Tensor " << t << ", expected "
         << expected << " but observed " << t.l2norm();
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

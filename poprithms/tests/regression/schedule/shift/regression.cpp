@@ -7,8 +7,8 @@
 #include <iostream>
 #include <tuple>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
-#include <poprithms/schedule/shift/error.hpp>
 #include <testutil/schedule/shift/bifurcate_generator.hpp>
 #include <testutil/schedule/shift/branch_doubling_generator.hpp>
 #include <testutil/schedule/shift/diamond_generator.hpp>
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
         << "\nThe number of arguments received was argc=" << argc << '.'
         << "\nThe expected number of arguments was 1, "
         << " the name of the file to write logging information to. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   std::ofstream out(argv[1]);

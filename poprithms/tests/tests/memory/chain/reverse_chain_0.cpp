@@ -1,8 +1,8 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
-#include <poprithms/memory/chain/error.hpp>
 
 namespace {
 

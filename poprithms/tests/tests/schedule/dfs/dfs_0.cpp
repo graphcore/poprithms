@@ -3,8 +3,8 @@
 #include <iostream>
 #include <random>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/dfs/dfs.hpp>
-#include <poprithms/schedule/dfs/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace {
@@ -41,7 +41,7 @@ void assertCorrect(const Edges &edges) {
             << ". \nThis is not valid, as "
             << "the node " << nodeId << ", which appears at index "
             << schedule[scheduleIndex] << ", appears before " << outId << ".";
-        throw error(oss.str());
+        throw poprithms::test::error(oss.str());
       }
     }
   }
@@ -125,14 +125,14 @@ int main() {
   // Check that cycles are permitted:
   auto foo = postOrder({{1}, {2}, {0}});
   if (foo.size() != 3) {
-    throw error("Failed to process graph with cycle (1)");
+    throw poprithms::test::error("Failed to process graph with cycle (1)");
   }
 
   // Check a fully connected graph:
   foo = postOrder(
       {{1, 2, 3, 4}, {0, 2, 3, 4}, {0, 1, 3, 4}, {0, 1, 2, 4}, {0, 1, 2, 3}});
   if (foo.size() != 5) {
-    throw error("Failed to process graph with cycle (2)");
+    throw poprithms::test::error("Failed to process graph with cycle (2)");
   }
 
   return 0;

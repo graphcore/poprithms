@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 void skipping_bin_test() {
@@ -23,7 +23,8 @@ void skipping_bin_test() {
   ScheduledGraph sg(std::move(g));
   auto op1_before_op2 = sg.opToSchedule(ops[1]) < sg.opToSchedule(ops[2]);
   if (!op1_before_op2) {
-    throw error("Skipping bin constraints should force op1 to be before op2");
+    throw poprithms::test::error(
+        "Skipping bin constraints should force op1 to be before op2");
   }
 }
 
@@ -48,7 +49,8 @@ void multiple_bin_test() {
   ScheduledGraph sg(std::move(g));
   auto op1_before_op2 = sg.opToSchedule(ops[1]) < sg.opToSchedule(ops[2]);
   if (!op1_before_op2) {
-    throw error("Multiple bin constraints should force op1 to be before op2");
+    throw poprithms::test::error(
+        "Multiple bin constraints should force op1 to be before op2");
   }
 }
 

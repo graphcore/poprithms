@@ -1,11 +1,11 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <map>
+#include <schedule/supercon/error.hpp>
 #include <set>
 #include <sstream>
 #include <unordered_set>
 
-#include <poprithms/schedule/supercon/error.hpp>
 #include <poprithms/schedule/supercon/graph.hpp>
 #include <poprithms/schedule/supercon/logging.hpp>
 #include <poprithms/util/unisort.hpp>

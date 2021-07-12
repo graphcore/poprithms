@@ -1,10 +1,10 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <array>
+#include <outline/linear/error.hpp>
 #include <sstream>
 #include <tuple>
 #include <unordered_set>
 
-#include <poprithms/outline/linear/error.hpp>
 #include <poprithms/outline/linear/graph.hpp>
 #include <poprithms/outline/linear/logging.hpp>
 #include <poprithms/schedule/supercon/graph.hpp>

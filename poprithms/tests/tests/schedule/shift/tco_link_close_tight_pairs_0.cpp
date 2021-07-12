@@ -4,7 +4,7 @@
 #include <numeric>
 #include <random>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -48,7 +48,7 @@ getGraph(const std::vector<std::vector<uint64_t>> &tiers) {
         << "..." << nOps - 1 << "}, not ";
     poprithms::util::append(oss, flattened);
     oss << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   Graph g;
@@ -119,35 +119,38 @@ void test0() {
   auto chains =
       getLinkChains({{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}});
   if (chains != LChains{{1, 2, 3, 11}, {5, 6, 7, 10}, {8, 9}}) {
-    throw error("Expected all chains in the case where all Ops have same "
-                "liveness change. We tie-break on the side of linking");
+    throw poprithms::test::error(
+        "Expected all chains in the case where all Ops have same "
+        "liveness change. We tie-break on the side of linking");
   }
 
   chains = getLinkChains(
       {{0, 13}, {1}, {2}, {5}, {8}, {6}, {9}, {7}, {4, 12}, {10}, {3}, {11}});
   //            ========                      ===...........====  =========
   if (chains != LChains{{1, 2}, {3, 11}, {7, 10}}) {
-    throw error("Expected 3 chains of 2 in this particular case");
+    throw poprithms::test::error(
+        "Expected 3 chains of 2 in this particular case");
   }
 
   chains = getLinkChains(
       {{1}, {11}, {3}, {0, 13}, {2}, {7, 10}, {5, 6}, {4}, {9}, {8}, {12}});
   //   ===============..........===  ==============        ========
   if (chains != LChains{{1, 2, 3, 11}, {5, 6, 7, 10}, {8, 9}}) {
-    throw error("Expected 3 chains of 2 in this first case");
+    throw poprithms::test::error("Expected 3 chains of 2 in this first case");
   }
 
   chains = getLinkChains(
       {{{1}, {10}, {8}, {2}, {9}, {3}, {12}, {11}, {5, 6, 7}, {0, 4, 13}}});
   if (chains != LChains{{5, 6, 7}}) {
-    throw error("Expected just the 1 chain with no intersecting intruders to "
-                "be linked");
+    throw poprithms::test::error(
+        "Expected just the 1 chain with no intersecting intruders to "
+        "be linked");
   }
 
   chains = getLinkChains(
       {{9, 4}, {0, 8}, {3, 13}, {11, 2}, {7, 5}, {10, 1}, {6, 12}});
   if (chains != LChains{{2, 3, 11}, {7, 10}, {8, 9}}) {
-    throw error("Unexpected L1 Chains in this test");
+    throw poprithms::test::error("Unexpected L1 Chains in this test");
   }
 }
 } // namespace

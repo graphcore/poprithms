@@ -1,10 +1,10 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <schedule/shift/error.hpp>
 
 #include <boost/functional/hash.hpp>
 
 #include <poprithms/schedule/shift/alloc.hpp>
-#include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {

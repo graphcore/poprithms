@@ -4,7 +4,7 @@
 #include <ostream>
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <memory/nest/error.hpp>
 #include <poprithms/memory/nest/optionalset.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/ndarray/shape.hpp>

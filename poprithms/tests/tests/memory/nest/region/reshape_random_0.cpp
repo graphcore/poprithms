@@ -1,8 +1,8 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
-#include <poprithms/memory/nest/error.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <testutil/memory/nest/randomregion.hpp>
 
@@ -50,7 +50,7 @@ int main() {
             }
             if (!Region::equivalent(DisjointRegions{fromRegion},
                                     DisjointRegions(from, returned))) {
-              throw error("Darn");
+              throw poprithms::test::error("Darn");
             }
           }
         }

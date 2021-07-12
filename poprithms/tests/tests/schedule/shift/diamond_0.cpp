@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <testutil/schedule/shift/diamond_generator.hpp>
 #include <testutil/schedule/shift/shiftcommandlineoptions.hpp>

@@ -5,7 +5,7 @@
 #include <numeric>
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <poprithms/schedule/shift/shiftusings.hpp>
 #include <testutil/schedule/shift/recompute_generator.hpp>
@@ -200,19 +200,22 @@ void assertGlobalMinimumRecomputeGraph0(const ScheduledGraph &g) {
       // or preceded by a fwd of the same layer.
       else if (recomps[i - 1] != -1 && layers[i - 1] == layers[i]) {
       } else {
-        throw error("Bwd op in recompute test is not optimally scheduled");
+        throw poprithms::test::error(
+            "Bwd op in recompute test is not optimally scheduled");
       }
     }
     recompOrder[layers[i]].push_back(recomps[i]);
   }
   for (auto &x : recompOrder) {
     if (x.back() != -1) {
-      throw error("expected final appearance of layer to be a gradient");
+      throw poprithms::test::error(
+          "expected final appearance of layer to be a gradient");
     }
     x.pop_back();
     for (auto iter = std::next(x.cbegin()); iter != x.cend(); ++iter) {
       if (*std::prev(iter, 1) >= *iter) {
-        throw error("expected recomputation order to increase");
+        throw poprithms::test::error(
+            "expected recomputation order to increase");
       }
     }
   }

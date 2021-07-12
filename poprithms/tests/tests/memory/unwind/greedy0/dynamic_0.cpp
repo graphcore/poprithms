@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/hosttensorhelper.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
@@ -77,13 +77,13 @@ void dynamicUpdate0() {
 
   auto assertSource = [](const Paths &paths, const TensorId &expectedSource) {
     if (paths.size() != 1) {
-      throw error("Expected just 1 Path in assertSource");
+      throw poprithms::test::error("Expected just 1 Path in assertSource");
     }
     if (paths[0].src() != expectedSource) {
       std::ostringstream oss;
       oss << "Expected Source is " << expectedSource << ", not "
           << paths[0].src();
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   };
 

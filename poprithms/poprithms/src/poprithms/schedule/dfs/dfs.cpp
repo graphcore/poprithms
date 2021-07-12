@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <schedule/dfs/error.hpp>
+
 #include <poprithms/schedule/dfs/dfs.hpp>
-#include <poprithms/schedule/dfs/error.hpp>
 
 namespace poprithms {
 namespace schedule {

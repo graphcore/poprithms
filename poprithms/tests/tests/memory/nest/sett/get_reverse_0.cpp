@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 
 namespace {
@@ -31,7 +31,7 @@ void test2() {
   poprithms::memory::nest::Sett base{{}};
   auto rev = base.getReverse(133);
   if (rev.hasStripes()) {
-    throw error("reverse of no-stripes is no-stripes");
+    throw poprithms::test::error("reverse of no-stripes is no-stripes");
   }
 }
 

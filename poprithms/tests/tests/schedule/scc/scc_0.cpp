@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 
-#include <poprithms/schedule/scc/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -26,22 +26,22 @@ std::ostream &operator<<(std::ostream &os, const SCCs &sccs) {
 void test2ElementLoop() {
   auto sccs = getStronglyConnectedComponents({{1}, {0}});
   if (sccs.size() != 1) {
-    throw error("1->0->1 : a single component");
+    throw poprithms::test::error("1->0->1 : a single component");
   }
   std::sort(sccs[0].begin(), sccs[0].end());
   if (sccs[0] != SCC{0, 1}) {
-    throw error("incorrect 2 loop elements");
+    throw poprithms::test::error("incorrect 2 loop elements");
   }
 }
 
 void test2SelfLoops() {
   auto sccs = getStronglyConnectedComponents({{0}, {1}});
   if (sccs.size() != 2) {
-    throw error("0->0 and 1->1 : 2 components");
+    throw poprithms::test::error("0->0 and 1->1 : 2 components");
   }
   std::sort(sccs.begin(), sccs.end());
   if (sccs != SCCs{{0}, {1}}) {
-    throw error("incorrect self-loop elements");
+    throw poprithms::test::error("incorrect self-loop elements");
   }
 }
 
@@ -62,14 +62,15 @@ void testJustADag() {
   });
 
   if (sccs.size() != 10) {
-    throw error("Just a DAG, should have all singleton components");
+    throw poprithms::test::error(
+        "Just a DAG, should have all singleton components");
   }
 }
 
 void test2Loops() {
   const auto sccs = getStronglyConnectedComponents({{1}, {0}, {4}, {2}, {3}});
   if (sccs.size() != 2) {
-    throw error("expected 2 SCCs : {0,1}, {2,3,4}");
+    throw poprithms::test::error("expected 2 SCCs : {0,1}, {2,3,4}");
   }
 }
 
@@ -120,7 +121,7 @@ void testDiamond0() {
     std::sort(c.begin(), c.end());
   }
   if (components.size() != 4) {
-    throw error("expected 4 components in testDiamond0");
+    throw poprithms::test::error("expected 4 components in testDiamond0");
   }
 
   SCCs expected;
@@ -145,7 +146,7 @@ void testDiamond0() {
       oss << "Expected \n"
           << expected << ", but observed \n"
           << components << ".";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 }

@@ -1,10 +1,10 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/logging/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
 
 namespace {
 void fail(int stage) {
-  throw poprithms::logging::error("Failed at stage " + std::to_string(stage));
+  throw poprithms::test::error("Failed at stage " + std::to_string(stage));
 }
 } // namespace
 
@@ -81,7 +81,7 @@ int main() {
     caught = true;
   }
   if (!caught) {
-    throw error(
+    throw poprithms::test::error(
         "Failed to catch case where logger's with identical Ids are created");
   }
 

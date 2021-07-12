@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/ndarray/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -19,7 +19,7 @@ void assertDimShuffleIndices(const Shape &s,
     poprithms::util::append(oss, expected);
     oss << ", \nbut observed\n   ";
     poprithms::util::append(oss, indices);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -34,7 +34,7 @@ void assertExpandedIndices(const Shape &from,
     poprithms::util::append(oss, expected);
     oss << ", \nbut observed\n   ";
     poprithms::util::append(oss, indices);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 } // namespace
@@ -77,7 +77,8 @@ int main() {
   const auto s1 = Shape({3, 2});
   auto strides  = s1.getCustomStridedRowMajorIndices({4, 4});
   if (strides != decltype(strides){0, 4, 4, 8, 8, 12}) {
-    throw error("Error in generalized method, getRowMajorIndices");
+    throw poprithms::test::error(
+        "Error in generalized method, getRowMajorIndices");
   }
 
   return 0;

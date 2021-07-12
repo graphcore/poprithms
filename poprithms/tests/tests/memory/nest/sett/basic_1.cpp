@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 
 namespace {
@@ -15,7 +15,7 @@ void assertSCM(const Sett &a, const Sett &b, int64_t expected) {
     std::ostringstream oss;
     oss << "Expected " << a << ".smallestCommonMultiple(" << b << ") to be "
         << expected << ", not " << computed << std::endl;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -26,7 +26,7 @@ void assertSCM_v(const std::vector<Sett> &sett0s, int64_t expected) {
     oss << "Expected "
         << "Sett::smallestCommonMultiple(" << sett0s << ") to be " << expected
         << ", not " << computed << std::endl;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -67,12 +67,13 @@ void testEquivalence0() {
   Sett c{{{{9, 3, 6}, {7, 2, 4}, {100, 2, 2}}}};
   a.confirmEquivalent(b);
   if (!a.equivalent(b)) {
-    throw error(
+    throw poprithms::test::error(
         "expected equivalence in testEquivalence0, and moreover expected the "
         "difference to be caught in conirmEquivalent above");
   }
   if (a.equivalent(c)) {
-    throw error("Expected non-equivalence in testEquivalence0");
+    throw poprithms::test::error(
+        "Expected non-equivalence in testEquivalence0");
   }
 }
 
@@ -83,7 +84,7 @@ void testAlwaysOff() {
 
   if (a.alwaysOff() && b.alwaysOff() && !c.alwaysOff()) {
   } else {
-    throw error("Failure in testAlwaysOff");
+    throw poprithms::test::error("Failure in testAlwaysOff");
   }
 }
 

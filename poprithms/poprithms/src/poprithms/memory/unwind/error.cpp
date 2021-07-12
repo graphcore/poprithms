@@ -1,5 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/unwind/error.hpp>
+#include <memory/unwind/error.hpp>
 
 namespace poprithms {
 namespace memory {

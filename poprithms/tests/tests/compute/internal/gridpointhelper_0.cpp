@@ -3,7 +3,7 @@
 #include <sstream>
 
 #include <compute/host/include/gridpointhelper.hpp>
-#include <poprithms/compute/host/error.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 
@@ -51,7 +51,7 @@ void baseTest(const Rows &rows,
     std::ostringstream oss;
     oss << "Expected unique coords ? " << expectedUniqueness << ". "
         << "This with rows=" << rows << ", and columns=" << columns;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   auto unq = GridPointHelper::getUnique(rows, columns);
@@ -63,7 +63,7 @@ void baseTest(const Rows &rows,
         << "\nObserved=" << unq;
     oss << ", \nexpected=" << expected << ". "
         << "This with \nrows=" << rows << ",and \nColumns=" << columns;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

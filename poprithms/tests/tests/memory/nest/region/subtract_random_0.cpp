@@ -3,7 +3,7 @@
 #include <random>
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/unisort.hpp>
 #include <testutil/memory/nest/randomregion.hpp>
@@ -37,7 +37,7 @@ void test() {
       std::ostringstream oss;
       oss << "Failure in random region subtraction test. "
           << " This with \n  reg0 = " << reg0 << "  reg1 = " << reg1 << ".";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 }

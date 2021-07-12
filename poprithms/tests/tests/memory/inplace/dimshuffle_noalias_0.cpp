@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -22,7 +22,7 @@ void testDimShuffle0() {
   const auto x0AliasGate = x0.closedAliasGate();
   const auto d0          = x0AliasGate.dimShuffle({{1, 2, 0}});
   if (d0.shape() != Shape{3, 5, 2}) {
-    throw error("dimShuffle shape incorrect");
+    throw poprithms::test::error("dimShuffle shape incorrect");
   }
   const auto s0AliasGate = d0.slice({2, 2, 1}, {3, 3, 2}).closedAliasGate();
   const auto s1AliasGate = x0.slice({1, 2, 2}, {2, 3, 3}).closedAliasGate();
@@ -39,11 +39,12 @@ void testDimShuffle0() {
     if (id != catAliasGate) {
 
       if (id.aliasGateIsClosed()) {
-        throw error("Expected all except cat to be inplace");
+        throw poprithms::test::error("Expected all except cat to be inplace");
       }
     } else {
       if (id.aliasGateIsOpen()) {
-        throw error("Expected cat to be outplace (otherwise alias modified)");
+        throw poprithms::test::error(
+            "Expected cat to be outplace (otherwise alias modified)");
       }
     }
   }
@@ -57,7 +58,7 @@ void testNoAlias0() {
   const auto nax = Tensor::multi(g, {v0, v1}, {{1, 2}, {3, 4}, {5, 6}}, {});
 
   if (nax[1].shape() != Shape{3, 4}) {
-    throw error("incorrect output Shape of NoAlias Op");
+    throw poprithms::test::error("incorrect output Shape of NoAlias Op");
   }
 }
 

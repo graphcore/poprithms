@@ -4,7 +4,7 @@
 #include <numeric>
 #include <random>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 //
@@ -82,7 +82,7 @@ void test(double alloc0, double alloc1, double alloc2) {
           << ". This is greater than or equal to alloc0 + alloc2 (" << alloc0
           << " + " << alloc2
           << "), and so their should be links from B0 to C1 and B1 to C1";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   } else {
     if (chainLinks.size() != 0) {
@@ -90,7 +90,7 @@ void test(double alloc0, double alloc1, double alloc2) {
       oss << "2*alloc1 = " << 2 * alloc1
           << ". This is less than alloc0 + alloc2 (" << alloc0 << " + "
           << alloc2 << "), and so their should be no links.";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 }

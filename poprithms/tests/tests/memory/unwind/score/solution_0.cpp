@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/path.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
@@ -42,7 +42,7 @@ void testSourceAtSink0() {
   expected.canonicalize();
 
   if (soln.inwardsPaths(out).size() != 1) {
-    throw error("Expected 1 Path to output");
+    throw poprithms::test::error("Expected 1 Path to output");
   }
   soln.inwardsPaths(out)[0].chain().confirmEqual(expected);
 }
@@ -89,7 +89,7 @@ void testSourceMidSentence0() {
   for (int64_t i = 0; i < 4; ++i) {
     TensorId tId = tIds[i];
     if (soln.inwardsPaths(tId).size() != 1) {
-      throw error(
+      throw poprithms::test::error(
           "Chain of DimShuffles, expected each Tensor to have just 1 Path");
     }
 
@@ -100,7 +100,7 @@ void testSourceMidSentence0() {
       std::ostringstream oss;
       oss << "Error for TensorId " << tId << ", expected " << expected
           << " but observed " << soln.inwardsPaths(tId);
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 }

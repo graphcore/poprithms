@@ -3,7 +3,7 @@
 #include <sstream>
 
 #include <memory/inplace/ops.hpp>
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 
 namespace {
@@ -17,7 +17,7 @@ void baseTest(const Graph &g, bool expected) {
         << "The graph \n"
         << g << "\nwas expected to " << (expected ? "" : "NOT ")
         << "contain ambiguity. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -107,12 +107,13 @@ void test5() {
     std::ostringstream oss;
     oss << "Expected the edge from m0 -> aliasGate to be ommited in this "
            "case, and for an ambiguity to be present. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
   g.constraint(m0, m1);
   if (g.mightContainAmbiguity()) {
-    throw error("With the addition of m0 -> m1, there should not be any "
-                "ambiguity, even with the reduced edge map");
+    throw poprithms::test::error(
+        "With the addition of m0 -> m1, there should not be any "
+        "ambiguity, even with the reduced edge map");
   }
 }
 

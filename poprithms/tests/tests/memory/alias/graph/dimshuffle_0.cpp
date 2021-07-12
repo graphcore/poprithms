@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <numeric>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 int main() {
@@ -35,7 +35,7 @@ int main() {
       oss << "The permutation should repeat every shape.rank() = "
           << shape.rank_u64() << " iterations. The number of iterations "
           << "(modulo " << shape.rank_u64() << ") is " << offset << '.';
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
 
     if (offset != 0 && g.tensor(id).shape() == g.tensor(id0).shape()) {

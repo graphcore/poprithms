@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <memory/alias/error.hpp>
 #include <poprithms/memory/alias/nodes.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/util/printiter.hpp>

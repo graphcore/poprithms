@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-#include <poprithms/compute/host/error.hpp>
+#include <compute/host/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {

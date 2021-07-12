@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <numeric>
 
+#include <compute/host/error.hpp>
 #include <compute/host/include/gridpointhelper.hpp>
-#include <poprithms/compute/host/error.hpp>
 
 namespace poprithms {
 namespace compute {

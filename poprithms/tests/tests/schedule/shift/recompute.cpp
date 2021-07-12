@@ -3,7 +3,7 @@
 #include <numeric>
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <testutil/schedule/shift/recompute_generator.hpp>
@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
   } else if (recomputeType == "log") {
     pattern = getLogNSeries(nFwd);
   } else {
-    throw poprithms::schedule::shift::error(
+    throw poprithms::test::error(
         "Invalid type, log and sqrt are the current options");
   }
   auto g = getRecomputeGraph(pattern);

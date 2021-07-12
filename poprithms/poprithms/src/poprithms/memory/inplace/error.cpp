@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/inplace/error.hpp>
+#include <memory/inplace/error.hpp>
 
 namespace poprithms {
 namespace memory {

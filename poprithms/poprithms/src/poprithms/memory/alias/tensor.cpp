@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <memory/alias/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/alias/node.hpp>
 #include <poprithms/memory/alias/tensor.hpp>

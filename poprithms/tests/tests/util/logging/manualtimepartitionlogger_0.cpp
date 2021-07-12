@@ -3,7 +3,7 @@
 #include <iostream>
 #include <thread>
 
-#include <poprithms/logging/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/timepartitionlogger.hpp>
 
 namespace {
@@ -83,14 +83,14 @@ void globalTest() {
     std::ostringstream oss;
     oss << "part0 ran for a total for 3 milliseconds, "
         << "incorrect time of " << t0 << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (t1 < 3e-3) {
     std::ostringstream oss;
     oss << "part1 ran for a total for 4 milliseconds, "
         << "incorrect time of " << t1 << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   summarizer().summarizeInfo(0.0);
@@ -107,7 +107,8 @@ void noDoubleStart() {
     caught = true;
   }
   if (!caught) {
-    throw error("Failed in test that start cannot be called without a stop");
+    throw poprithms::test::error(
+        "Failed in test that start cannot be called without a stop");
   }
 }
 
@@ -123,7 +124,8 @@ void noDoubleStop() {
     caught = true;
   }
   if (!caught) {
-    throw error("Failed in test that stop cannot be called without start");
+    throw poprithms::test::error(
+        "Failed in test that stop cannot be called without start");
   }
 }
 
@@ -132,7 +134,7 @@ void timeRegisteredBeforeStop() {
   s.start("a");
   std::this_thread::sleep_for(std::chrono::milliseconds(2));
   if (s.get("a") < 1e-3) {
-    throw error(
+    throw poprithms::test::error(
         "Stop should not be required to get accurate time measurement. ");
   }
 }
@@ -150,7 +152,7 @@ void noTwoManualTimePartitionLoggersWithSameId() {
   }
 
   if (!caught) {
-    throw error(
+    throw poprithms::test::error(
         "Failed to catch error when ManualTimePartitionLoggers of same "
         "names constructed");
   }
@@ -181,8 +183,9 @@ void testReservedNames() {
   }
 
   if (l.get("Total") > l.sinceConstruction()) {
-    throw error("User chose to have Total as one of their scopes, not "
-                "working as expected");
+    throw poprithms::test::error(
+        "User chose to have Total as one of their scopes, not "
+        "working as expected");
   }
 
   l.verifyEvents({{"Total", Type::Start},

@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 
-#include <poprithms/ndarray/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -21,7 +21,7 @@ void assertBlockOrder(const Shape &shape,
     poprithms::util::append(oss, expected);
     oss << ", \nbut observed\n   ";
     poprithms::util::append(oss, indices);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -45,7 +45,8 @@ int main() {
   std::sort(indices.begin(), indices.end());
   for (int64_t i = 0; i < 4 * 8 * 7; ++i) {
     if (indices[i] != i) {
-      throw error("Failed in check for all indices (block order)");
+      throw poprithms::test::error(
+          "Failed in check for all indices (block order)");
     }
   }
 

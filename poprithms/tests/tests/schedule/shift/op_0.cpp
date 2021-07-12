@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 
 namespace {
@@ -16,7 +16,7 @@ void test1() {
   g.insertConstraint(foo, bar);
   g.insertConstraint(foo, bar);
   if (g.getOp(foo).nOuts() != 1 || g.getOp(foo).getOuts().size() != 1) {
-    throw error(
+    throw poprithms::test::error(
         "Duplicated constraints should be removed during construction");
   }
 }
@@ -40,11 +40,11 @@ void test2() {
   auto sorted = outs;
   std::sort(sorted.begin(), sorted.end());
   if (outs.size() != 4) {
-    throw error("Expected 4 outputs of op2");
+    throw poprithms::test::error("Expected 4 outputs of op2");
   }
 
   if (sorted != outs) {
-    throw error(
+    throw poprithms::test::error(
         "Constraints should be sorted at all times, done during insertion");
   }
 }
@@ -65,13 +65,14 @@ void test0() {
   auto g2 = g;
   for (uint64_t i = 0; i < nOps; ++i) {
     if (g2.getOp(i) != g.getOp(i)) {
-      throw error("Expect Ops in copied Graph to compare to equal");
+      throw poprithms::test::error(
+          "Expect Ops in copied Graph to compare to equal");
     }
   }
 
   for (uint64_t i = 0; i < nOps - 1; ++i) {
     if (!g.getOp(i).hasOut(nOps - 1) || !g.getOp(nOps - 1).hasIn(i)) {
-      throw error("Unexpected in/out");
+      throw poprithms::test::error("Unexpected in/out");
     }
   }
 
@@ -81,11 +82,11 @@ void test0() {
   op0.insertIn(2);
   op0.insertIn(4);
   if (!op0.hasIn(2)) {
-    throw error("2 in an input to op0");
+    throw poprithms::test::error("2 in an input to op0");
   }
   op0.removeIn(2);
   if (op0.hasIn(2)) {
-    throw error("2 has been removed as an input to op0");
+    throw poprithms::test::error("2 has been removed as an input to op0");
   }
 }
 

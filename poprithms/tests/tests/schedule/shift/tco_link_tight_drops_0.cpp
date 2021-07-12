@@ -4,7 +4,7 @@
 #include <numeric>
 #include <random>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/shift/transitiveclosureoptimizations.hpp>
 
@@ -35,8 +35,9 @@ void test0() {
                         TransitiveClosureOptimizations::allOff(),
                         RotationTermination::preStart());
   if (!sgCopy.getGraph().getLinkChains().empty()) {
-    throw error("With all transitive closure optimizations off, expected no "
-                "link chains");
+    throw poprithms::test::error(
+        "With all transitive closure optimizations off, expected no "
+        "link chains");
   }
 
   const auto pom =
@@ -49,13 +50,13 @@ void test0() {
   auto chainLinks = sg.getGraph().getLinkChains();
 
   if (chainLinks.size() != 3) {
-    throw error("Expected 3 chains");
+    throw poprithms::test::error("Expected 3 chains");
   }
 
   if (chainLinks[0] != std::vector<OpAddress>{0, 1, 2} ||
       chainLinks[1] != std::vector<OpAddress>{3, 4, 5} ||
       chainLinks[2] != std::vector<OpAddress>{6, 7}) {
-    throw error("Chain links not as expected in test0");
+    throw poprithms::test::error("Chain links not as expected in test0");
   }
 }
 
@@ -135,11 +136,11 @@ void test1() {
   }
 
   if (chainLinks.size() != expectedChains.size()) {
-    throw error("number of chains not as expected");
+    throw poprithms::test::error("number of chains not as expected");
   }
 
   if (chainLinks != expectedChains) {
-    throw error("Chain links not as expected");
+    throw poprithms::test::error("Chain links not as expected");
   }
 }
 

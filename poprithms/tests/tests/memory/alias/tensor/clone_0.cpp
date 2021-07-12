@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 namespace {
@@ -28,7 +28,7 @@ void test0() {
 
   const auto arr1 = arr0.clone();
   if (arr1.intersectsWith(arr0)) {
-    throw error("Clones should not intersect");
+    throw poprithms::test::error("Clones should not intersect");
   }
 }
 
@@ -59,15 +59,18 @@ void test1() {
   const auto arr0Clone = arr0.clone();
 
   if (outClone.getNonDisjoint().size() != 5) {
-    throw error("clone has different number of disjoint Tensors");
+    throw poprithms::test::error(
+        "clone has different number of disjoint Tensors");
   }
   if (outClone.intersectsWith(arr0Clone) || outClone.intersectsWith(out)) {
-    throw error("outClone intersects with Tensors in different clone zones");
+    throw poprithms::test::error(
+        "outClone intersects with Tensors in different clone zones");
   }
 
   if (arr0Clone.getNonDisjoint().size() != 1) {
-    throw error("The clone of an allocation should only intersect with "
-                "itself (if no consumers)");
+    throw poprithms::test::error(
+        "The clone of an allocation should only intersect with "
+        "itself (if no consumers)");
   }
 }
 

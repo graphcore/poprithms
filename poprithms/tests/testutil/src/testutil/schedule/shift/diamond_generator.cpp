@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/shift/shiftusings.hpp>
 #include <testutil/schedule/shift/diamond_generator.hpp>
@@ -56,7 +56,8 @@ void assertGlobalMinimumDiamondGraph0(const ScheduledGraph &graph,
 
   for (ScheduleIndex i = 0; i < graph.nOps(); ++i) {
     if (graph.scheduleToOp(i) != expected[i]) {
-      throw error("unexpected schedule in assertGlobalMinimumDiamondGraph0");
+      throw poprithms::test::error(
+          "unexpected schedule in assertGlobalMinimumDiamondGraph0");
     }
   }
 }

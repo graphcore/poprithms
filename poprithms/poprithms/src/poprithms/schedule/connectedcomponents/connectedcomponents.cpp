@@ -2,10 +2,10 @@
 
 #include <algorithm>
 #include <ostream>
+#include <schedule/connectedcomponents/error.hpp>
 #include <sstream>
 
 #include <poprithms/schedule/connectedcomponents/connectedcomponents.hpp>
-#include <poprithms/schedule/connectedcomponents/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {

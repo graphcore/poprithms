@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/ndarray/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 
 namespace {
@@ -14,7 +14,7 @@ void testSlice() {
   Shape f({4, 5});
   auto o = f.slice({0, 1}, {2, 3});
   if (o != Shape({2, 2})) {
-    throw error("Failed in testSlice");
+    throw poprithms::test::error("Failed in testSlice");
   }
 }
 
@@ -31,7 +31,7 @@ void confirmRowMajorIndices(const Shape &s,
     oss << "Expected " << expected << ", but observed " << obs
         << " in confirmRowMajorIndices, where s = " << s << ", l = " << l
         << ", and u = " << u;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 } // namespace

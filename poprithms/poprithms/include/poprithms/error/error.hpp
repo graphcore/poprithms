@@ -20,6 +20,11 @@ private:
 };
 
 } // namespace error
+
+namespace test {
+error::error error(const std::string &what);
+}
+
 } // namespace poprithms
 
 #endif

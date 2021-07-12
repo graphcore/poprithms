@@ -3,8 +3,8 @@
 #include <sstream>
 #include <variant>
 
+#include <memory/chain/error.hpp>
 #include <memory/chain/op.hpp>
-#include <poprithms/memory/chain/error.hpp>
 
 namespace poprithms {
 namespace memory {

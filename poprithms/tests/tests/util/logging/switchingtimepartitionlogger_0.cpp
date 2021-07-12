@@ -5,7 +5,7 @@
 #include <string>
 #include <thread>
 
-#include <poprithms/logging/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/timepartitionlogger.hpp>
 
 namespace {
@@ -78,7 +78,7 @@ void testPercentage() {
            "always appear as the threshold is not applied to them. The log "
            "is\n "
         << c.str(100.);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (countPerc(c.str(0.)) != 6) {
@@ -88,7 +88,7 @@ void testPercentage() {
            "appear as the threshold is not applied to them -- and a, b, and "
            "c. The log is\n "
         << c.str(0.);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -177,7 +177,8 @@ void testConstructors0() {
   // unique.
   SwitchingTimePartitionLogger b("x", true);
   if (b.id() == "x") {
-    throw error("b should not have id x, it should have been extended");
+    throw poprithms::test::error(
+        "b should not have id x, it should have been extended");
   }
 
   bool caught{false};
@@ -187,7 +188,7 @@ void testConstructors0() {
     caught = true;
   }
   if (!caught) {
-    throw error(
+    throw poprithms::test::error(
         std::string(
             "c should not be constructible, the name x is already taken ") +
         "and the option to extend the ID is false. ");
@@ -197,7 +198,7 @@ void testConstructors0() {
   ManualTimePartitionLogger e;
   SwitchingTimePartitionLogger f;
   if (f.id() == d.id() || e.id() == d.id()) {
-    throw error("d, e, and f should all have unique ids");
+    throw poprithms::test::error("d, e, and f should all have unique ids");
   }
 }
 
@@ -261,7 +262,7 @@ void testOrder0() {
   auto sortedTimes = times;
   std::sort(sortedTimes.rbegin(), sortedTimes.rend());
   if (sortedTimes != times) {
-    throw error("Times not sorted: " + summary);
+    throw poprithms::test::error("Times not sorted: " + summary);
   }
 }
 

@@ -4,10 +4,10 @@
 #include <variant>
 
 #include <memory/chain/disjointregionsmapper.hpp>
+#include <memory/chain/error.hpp>
 #include <memory/chain/hosttensormapper.hpp>
 #include <memory/chain/op.hpp>
 #include <poprithms/memory/chain/chain.hpp>
-#include <poprithms/memory/chain/error.hpp>
 #include <poprithms/memory/chain/type.hpp>
 #include <util/copybyclone_impl.hpp>
 

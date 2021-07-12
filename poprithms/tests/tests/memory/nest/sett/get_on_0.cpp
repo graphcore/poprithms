@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 
 namespace {
@@ -13,7 +13,7 @@ void assertOn(const Sett &p, uint64_t i, int64_t j) {
     std::ostringstream oss;
     oss << "Expected " << p << ".getOn(" << i << ") to be " << j << ", not "
         << computed << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 } // namespace

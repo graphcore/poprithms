@@ -4,7 +4,7 @@
 #include <numeric>
 #include <random>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/shift/transitiveclosureoptimizations.hpp>
 
@@ -88,7 +88,7 @@ void test(
     if (sg.getOp(i).getOuts() != gBefore.getOp(i).getOuts()) {
       std::ostringstream oss;
       oss << "Only expected Op 1 to change its outs, not " << i << ". ";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 
@@ -99,7 +99,7 @@ void test(
   if (outs != std::vector<OpAddress>{to, 3}) {
     std::ostringstream oss;
     oss << "Expected {" << to << ",3} to be the outputs of " << from;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 } // namespace

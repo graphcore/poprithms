@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 
 namespace {
@@ -14,7 +14,7 @@ void confirm(const Sett &s, const DisjointSetts &ec) {
     std::ostringstream oss;
     oss << "Failed to compute the complement of " << s << " correctly. "
         << "Expected " << ec << ", but observed " << c << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -50,7 +50,7 @@ void test3() {
   const auto diff = a.subtract(b);
   if (!Sett({{{{2, 8, 2}}}}).equivalent(diff)) {
     std::cout << diff << std::endl;
-    throw error("Failed in basic test of subtract");
+    throw poprithms::test::error("Failed in basic test of subtract");
   }
 }
 

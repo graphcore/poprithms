@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <random>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -22,7 +22,8 @@ void testBadShape() {
     caught = true;
   }
   if (!caught) {
-    throw error("Failed to catch error of inplacing on broadcast arg");
+    throw poprithms::test::error(
+        "Failed to catch error of inplacing on broadcast arg");
   }
 }
 
@@ -43,10 +44,12 @@ void testNoConst() {
       {{c, 0}, {c, 1}}, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
   auto alis = c.allAliases();
   if (std::find(alis.cbegin(), alis.cend(), a) != alis.cend()) {
-    throw error("Expected a to NOT be aliased to c, as it is constant");
+    throw poprithms::test::error(
+        "Expected a to NOT be aliased to c, as it is constant");
   }
   if (std::find(alis.cbegin(), alis.cend(), b) == alis.cend()) {
-    throw error("Expected b TO be aliased to c, as it is not constant");
+    throw poprithms::test::error(
+        "Expected b TO be aliased to c, as it is not constant");
   }
 }
 
@@ -61,7 +64,7 @@ void testMultiplePossibilities() {
   auto alis = c.allAliases();
   std::sort(alis.begin(), alis.end());
   if (alis != Tensors{a, c}) {
-    throw error("Incorrect aliases after inplacing");
+    throw poprithms::test::error("Incorrect aliases after inplacing");
   }
 }
 
@@ -83,7 +86,8 @@ void testChain0() {
                  AllowMultiGateAlias::No);
   for (auto m : aliasGates) {
     if (m.aliasGateIsClosed()) {
-      throw error("Expected all aliasGate ops to be inplaced");
+      throw poprithms::test::error(
+          "Expected all aliasGate ops to be inplaced");
     }
   }
 }

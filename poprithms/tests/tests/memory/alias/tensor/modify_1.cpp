@@ -3,7 +3,7 @@
 #include <map>
 #include <set>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 namespace {
 using namespace poprithms::memory::alias;
@@ -140,7 +140,8 @@ void testConcat0() {
   const auto gWithYsAsAllocs0 = g;
 
   if (gWithYsAsAllocs0 == gPreModifications) {
-    throw error("conversion to allocations had no effect - incorrect");
+    throw poprithms::test::error(
+        "conversion to allocations had no effect - incorrect");
   }
 
   std::map<TensorId, std::set<TensorId>> expectedAliases{
@@ -167,7 +168,7 @@ void testConcat0() {
     std::ostringstream oss;
     oss << "Converting to allocations, then back to concats, "
         << "should result in the same Graph as the initial one.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   // Convert ys to allocations again:
@@ -179,16 +180,16 @@ void testConcat0() {
 
   for (auto x : xs) {
     if (!g.ins(x).empty() || !g.outs(x).empty()) {
-      throw error("x allocations have no consumers");
+      throw poprithms::test::error("x allocations have no consumers");
     }
   }
   for (auto y : ys) {
     if (!g.ins(y).empty() || g.outs(y) != std::vector{z}) {
-      throw error("y allocations have z consumer");
+      throw poprithms::test::error("y allocations have z consumer");
     }
   }
   if (g.ins(z).size() != 2 || !g.outs(z).empty()) {
-    throw error("z has 2 inputs and 0 outputs");
+    throw poprithms::test::error("z has 2 inputs and 0 outputs");
   }
 
   if (gWithYsAsAllocs0 != gWithYsAsAllocs1) {
@@ -197,7 +198,7 @@ void testConcat0() {
         << "then to allocations, "
         << "should result in the same Graph as the initial "
         << "conversion to allocations.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -212,7 +213,7 @@ void testConcat1() {
   g.allocationToConcat({x0, x0, x0}, 0, x1);
 
   if (!g.containsAliases(x1)) {
-    throw error("x1 does contain aliases");
+    throw poprithms::test::error("x1 does contain aliases");
   }
 
   Graph g2;
@@ -220,7 +221,7 @@ void testConcat1() {
   g2.concat({x2, x2, x2}, 0);
 
   if (g != g2) {
-    throw error("Error in testConcat1");
+    throw poprithms::test::error("Error in testConcat1");
   }
 }
 

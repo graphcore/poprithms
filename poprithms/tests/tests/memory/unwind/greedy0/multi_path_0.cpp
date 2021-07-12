@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/hosttensorhelper.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
@@ -74,7 +74,7 @@ void test1() {
     std::ostringstream oss;
     oss << "Failed to compute correct score. "
         << "Expected half of the target layout to be matched. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 } // namespace

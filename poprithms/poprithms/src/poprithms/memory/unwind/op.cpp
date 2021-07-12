@@ -4,9 +4,9 @@
 #include <sstream>
 #include <type_traits>
 
+#include <memory/unwind/error.hpp>
 #include <memory/unwind/op.hpp>
 #include <poprithms/memory/alias/graph.hpp>
-#include <poprithms/memory/unwind/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {

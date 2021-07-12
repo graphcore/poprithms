@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 namespace {
@@ -84,10 +84,11 @@ int main() {
   using namespace poprithms::schedule::shift;
   auto g = getGraph();
   if (g.getOp(1).getIns() != std::vector<OpAddress>{0, 3, 4, 5, 6, 7, 8, 9}) {
-    throw error("Expected all unconstrained w.r.t. 1 to point to it");
+    throw poprithms::test::error(
+        "Expected all unconstrained w.r.t. 1 to point to it");
   }
   if (g.getOp(3).getIns() != std::vector<OpAddress>{0, 6, 7, 8, 9}) {
-    throw error(
+    throw poprithms::test::error(
         "Expected all unconstrained w.r.t. 3 on the 6-branch to point to it");
   }
   return 0;

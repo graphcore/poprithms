@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 
 namespace {
@@ -10,7 +10,7 @@ void assertNotEquiv(const Sett &a, const Sett &b) {
   if (a.equivalent(b)) {
     std::ostringstream oss;
     oss << "Expected(" << a << ".equivalent(" << b << ") to be false";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -38,12 +38,12 @@ void test0() {
 void test1() {
   auto b = Sett::createAlwaysOn();
   if (b.hasStripes()) {
-    throw error("No, b does not have stripes.");
+    throw poprithms::test::error("No, b does not have stripes.");
   }
 
   Sett c({{1, 2, 3}});
   if (!c.hasStripes()) {
-    throw error("Yes, c does have stripes");
+    throw poprithms::test::error("Yes, c does have stripes");
   }
 }
 
@@ -52,7 +52,7 @@ void testEquiv0() {
   Sett x1{{{4, 2, 1}, {1, 1, 1}}};
   Sett x2{{{1, 5, 0}}};
   if (!x0.equivalent(DisjointSetts({x1, x2})) || x0.equivalent(x1)) {
-    throw error("Failed in testEquiv0");
+    throw poprithms::test::error("Failed in testEquiv0");
   }
   x0.confirmEquivalent(DisjointSetts({x1, x2}));
 }
@@ -62,10 +62,10 @@ void testContains0() {
   Sett p2d{{{10, 30, 0}, {2, 2, 0}}};
   Sett p3d{{{10, 30, 0}, {2, 3, 0}}};
   if (!sett0.contains(p2d)) {
-    throw error("Failed in testContains0 (A)");
+    throw poprithms::test::error("Failed in testContains0 (A)");
   }
   if (sett0.contains(p3d)) {
-    throw error("Failed in testContains0 (B)");
+    throw poprithms::test::error("Failed in testContains0 (B)");
   }
 }
 
@@ -75,7 +75,7 @@ void testContainedInDisjoint0() {
   Sett p2d{{{10, 30, 0}, {1, 1, 0}}};
   Sett p3d{{{15, 25, 20}, {1, 1, 0}}};
   if (!sett0.containedIn(DisjointSetts({p2d, p3d}))) {
-    throw error("Failed in testContainedInDisjoint0");
+    throw poprithms::test::error("Failed in testContainedInDisjoint0");
   }
 }
 
@@ -83,7 +83,7 @@ void testHasStripes() {
   Sett p0{{}};
   Sett p1{{{4, 2, 3}}};
   if (p0.hasStripes() || !p1.hasStripes()) {
-    throw error("failed in test of has stripes");
+    throw poprithms::test::error("failed in test of has stripes");
   }
 }
 
@@ -92,7 +92,7 @@ void assertN(const Sett &s, int64_t a, int64_t b, int64_t n) {
     std::ostringstream oss;
     oss << "Expected " << s << " to contain " << n << " ons (\'1\'s) "
         << "in the range [" << a << ", " << b << ')';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

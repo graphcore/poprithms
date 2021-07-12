@@ -2,7 +2,7 @@
 #include <iostream>
 #include <unordered_set>
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/util/typedinteger.hpp>
 #include <poprithms/util/typedvector.hpp>
 
@@ -31,7 +31,7 @@ void testTypedInteger() {
 
   a += 3;
   if (a != d) {
-    throw error("Failed in typedinteger test : operator +=");
+    throw poprithms::test::error("Failed in typedinteger test : operator +=");
   }
 
   std::unordered_set<decltype(a)> usesHash;
@@ -42,13 +42,15 @@ void testTypedVector() {
 
   using T0 = TypedVector<int, 'T', '0'>;
   if (T0{1, 2, 3, 4}.size() != 4) {
-    throw error("Incorrect number of elements in T0{1,2,3,4}");
+    throw poprithms::test::error(
+        "Incorrect number of elements in T0{1,2,3,4}");
   }
   if (T0{5, 5}.size() != 2) {
-    throw error("Incorrect number of elements in T0{5,5}");
+    throw poprithms::test::error("Incorrect number of elements in T0{5,5}");
   }
   if (T0(std::vector(10, 8)).size() != 10) {
-    throw error("Incorrect number of elements in T0(std::vector(10,8))");
+    throw poprithms::test::error(
+        "Incorrect number of elements in T0(std::vector(10,8))");
   }
 
   using T1 = TypedVector<int, 'T', '1'>;

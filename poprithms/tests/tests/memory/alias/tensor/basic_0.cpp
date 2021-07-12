@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 int main() {
@@ -85,7 +85,8 @@ int main() {
   auto out = g.concat({arr10.flatten().id(), arr15.id()}, 0);
 
   if (g.tensor(out).numElements() != 800) {
-    throw error("Expected 800 elements in final Tensor (see log)");
+    throw poprithms::test::error(
+        "Expected 800 elements in final Tensor (see log)");
   }
 
   const auto r0 = Region::fromBounds({4, 3, 4}, {0, 0, 0}, {2, 3, 4});

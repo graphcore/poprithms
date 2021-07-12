@@ -3,8 +3,8 @@
 #include <sstream>
 
 #include <memory/chain/op.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
-#include <poprithms/memory/chain/error.hpp>
 
 namespace {
 
@@ -43,8 +43,9 @@ void testMapToEmpty() {
   c.mask(Region::fromStripe({10}, 0, {1, 2, 1}));
   c.canonicalize();
   if (c.nOps() > 2) {
-    throw error("This Chain is empty. the full Region gets mapped to empty "
-                "Region. This can be represented with 2 Ops");
+    throw poprithms::test::error(
+        "This Chain is empty. the full Region gets mapped to empty "
+        "Region. This can be represented with 2 Ops");
   }
 }
 
@@ -98,10 +99,11 @@ void testBubbleDimShuffleReverse0() {
 
   auto swapped = Op::bubbleReverseBack(inShape0, x0, x1);
   if (!swapped) {
-    throw error("Failed to swap reverse and dimShuffle");
+    throw poprithms::test::error("Failed to swap reverse and dimShuffle");
   }
   if (x0.type() != Type::Reverse) {
-    throw error("x0 and x1 should have had their types swapped");
+    throw poprithms::test::error(
+        "x0 and x1 should have had their types swapped");
   }
   if (x0.attr().dimensions() != Dimensions({1})) {
     std::ostringstream oss;
@@ -110,7 +112,7 @@ void testBubbleDimShuffleReverse0() {
         << ". dimension 0 after the permutation corresponds to dimension 1"
         << " before the permutation. Therefore expected the Dimensions of "
         << "the Reverse before the DimShuffle to be {1}.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

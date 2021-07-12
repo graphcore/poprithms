@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 namespace {
@@ -38,14 +38,15 @@ void test0() {
       {alloc0.id(), alloc1.id(), alloc2.id(), alloc3.id()}, regions);
 
   if (g.allAliases(filled).size() != 5) {
-    throw error("filled is aliased to 4 inputs and itself");
+    throw poprithms::test::error("filled is aliased to 4 inputs and itself");
   }
 
   const auto x2 = g.settSample(filled, r2);
   auto aliases  = g.allAliases(x2);
   std::sort(aliases.begin(), aliases.end());
   if (aliases != std::vector<TensorId>{alloc2.id(), filled, x2}) {
-    throw error("Expected x2 to be aliased to filled, and alloc2");
+    throw poprithms::test::error(
+        "Expected x2 to be aliased to filled, and alloc2");
   }
 
   // Using Tensor API;
@@ -61,7 +62,7 @@ void test0() {
         oss << "Using different settfill APIs, "
             << "one from Graph and one from Tensor, "
             << "should be identical. ";
-        throw error(oss.str());
+        throw poprithms::test::error(oss.str());
       }
     }
   }

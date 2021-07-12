@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <testutil/schedule/shift/randomgraph.hpp>
 
@@ -48,7 +48,8 @@ int main() {
        std::advance(x, 1)) {
     auto atLowerLimit = std::prev(x);
     if (!(*x < *atLowerLimit)) {
-      throw error("Expected liveness to be lower at higher swap limit");
+      throw poprithms::test::error(
+          "Expected liveness to be lower at higher swap limit");
     }
   }
   return 0;

@@ -1,8 +1,8 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
-#include <poprithms/memory/chain/error.hpp>
 #include <poprithms/memory/chain/settutil.hpp>
 #include <testutil/memory/nest/randomregion.hpp>
 
@@ -48,7 +48,7 @@ void baseTest(const Tensor &inTensor, const Region &r) {
         << "Using the settSample template, the returned Tensor was \n"
         << observed << ", using the gather approach, the returned Tensor was "
         << expected << ". They should be the same. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

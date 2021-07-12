@@ -3,8 +3,8 @@
 #include <iostream>
 #include <numeric>
 
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 
@@ -29,7 +29,7 @@ void testBasicConstructors() {
   const std::vector<double> expected{1., 2., 3, 4, 5, 6, 7, 8, 9, 10};
 
   if (abcd.getFloat64Vector() != expected) {
-    throw error("Unexpected result in construction test");
+    throw poprithms::test::error("Unexpected result in construction test");
   }
 }
 
@@ -38,7 +38,7 @@ void testRefConstructor() {
   auto a = Tensor::refFloat64({}, &x);
   a      = a.add_(a);
   if (x - 2.0 != 0.) {
-    throw error("Unexpected result in testRefConstructor");
+    throw poprithms::test::error("Unexpected result in testRefConstructor");
   }
 }
 
@@ -46,17 +46,20 @@ void testBoolConstructor() {
   const auto t = Tensor::boolean({5}, {true, false, false, true, true});
   const auto x = t.getInt64Vector();
   if (x != std::vector<int64_t>{1, 0, 0, 1, 1}) {
-    throw error("Unexpected result in testBoolConstructor (int vector)");
+    throw poprithms::test::error(
+        "Unexpected result in testBoolConstructor (int vector)");
   }
 
   const auto v = t.getBooleanVector();
   if (v != std::vector<bool>{1, 0, 0, 1, 1}) {
-    throw error("Unexpected result in testBoolConstructor (bool vector 1)");
+    throw poprithms::test::error(
+        "Unexpected result in testBoolConstructor (bool vector 1)");
   }
 
   const auto p = t.toFloat64().getBooleanVector();
   if (p != std::vector<bool>{1, 0, 0, 1, 1}) {
-    throw error("Unexpected result in testBoolConstructor (bool vector 2)");
+    throw poprithms::test::error(
+        "Unexpected result in testBoolConstructor (bool vector 2)");
   }
 }
 
@@ -92,7 +95,7 @@ void testCheckErrors0() {
   }
   if (!caught) {
     std::ostringstream oss;
-    throw error(
+    throw poprithms::test::error(
         "Attempt to construct non-empty Tensor from nullptr should fail.");
   }
 }
@@ -107,7 +110,7 @@ void testCheckErrors1() {
   }
   if (!caught) {
     std::ostringstream oss;
-    throw error(
+    throw poprithms::test::error(
         "Attempt to construct Tensor with Shape and n-elms mismatch.");
   }
 }

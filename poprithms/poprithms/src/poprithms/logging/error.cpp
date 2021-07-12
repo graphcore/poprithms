@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/logging/error.hpp>
+#include <logging/error.hpp>
 
 namespace poprithms {
 namespace logging {

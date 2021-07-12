@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -28,13 +28,13 @@ void testPad0() {
     oss << "If this AliasGate is opened, the Tensor which is padded with "
         << " a broadcast constant would be modified."
         << "But CheckParallelWriteable::Yes is set, so this is not allowed. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
   const auto tryPll = graph.tryOpening({aliasGatePll, 0},
                                        CheckParallelWriteable::Yes,
                                        AllowMultiGateAlias::No);
   if (tryPll != OpeningStatus::Valid) {
-    throw error(
+    throw poprithms::test::error(
         "The Tensor padded with non-broadcast variable can be modified. ");
   }
 }

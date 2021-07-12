@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <outline/linear/error.hpp>
 #include <sstream>
 
-#include <poprithms/outline/linear/error.hpp>
 #include <poprithms/outline/linear/op.hpp>
 #include <poprithms/outline/linear/tensor.hpp>
 

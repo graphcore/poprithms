@@ -3,8 +3,8 @@
 #include <iostream>
 #include <random>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
-#include <poprithms/memory/nest/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <testutil/memory/nest/randomregion.hpp>
@@ -21,8 +21,9 @@ std::array<Shape, 2> getShapes(uint32_t seed,
   std::mt19937 gen(seed);
   std::vector<int> factorPool{1, 2, 3, 5, 7, 11, 13, 17, 19, 23};
   if (nDistinctFactors > factorPool.size()) {
-    throw error("invalid nDistinctFactors, it should be less than " +
-                std::to_string(factorPool.size()));
+    throw poprithms::test::error(
+        "invalid nDistinctFactors, it should be less than " +
+        std::to_string(factorPool.size()));
   }
 
   // generate the factors

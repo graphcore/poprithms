@@ -1,8 +1,8 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
 #include <array>
+#include <schedule/shift/error.hpp>
 
-#include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/schedule/shift/kahntiebreaker.hpp>
 #include <poprithms/util/stringutil.hpp>
 

@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/origins.hpp>
 
 namespace {
@@ -13,21 +13,23 @@ void test0() {
   Origins oris({10, 20});
   oris.insert(AllocId(1), DisjointRegions::createFull({20, 1}));
   if (oris.isRowMajorSetContiguous()) {
-    throw error("Must contain self-aliases (20 < 20*10), and so cannot be "
-                "row major set contiguous");
+    throw poprithms::test::error(
+        "Must contain self-aliases (20 < 20*10), and so cannot be "
+        "row major set contiguous");
   }
 
   Origins oris2({100, 2});
   oris2.insert(AllocId(17), DisjointRegions::createFull({25, 8}));
   if (!oris2.isRowMajorSetContiguous()) {
-    throw error("oris2 should be row major set contiguous (100*2 = 25*8)");
+    throw poprithms::test::error(
+        "oris2 should be row major set contiguous (100*2 = 25*8)");
   }
 
   Origins oris3({100, 2});
   oris3.insert(AllocId(6), Region::fromStripe({1, 1, 200}, 2, {1, 1, 0}));
   oris3.insert(AllocId(6), Region::fromStripe({1, 1, 200}, 2, {1, 1, 1}));
   if (!oris3.isRowMajorSetContiguous()) {
-    throw error("oris3 should be row major set contiguous.");
+    throw poprithms::test::error("oris3 should be row major set contiguous.");
   }
 
   Origins oris4({100, 2});
@@ -37,7 +39,7 @@ void test0() {
     std::ostringstream oss;
     oss << "oris4 should not be row major set contiguous.\n"
         << "11.11.11.11.11.11.11.11.11.11.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   Origins oris5({10, 10});
@@ -52,7 +54,7 @@ void test0() {
         << ".....\n"
         << ".....\n";
 
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   Origins oris6({100, 2});
@@ -63,7 +65,7 @@ void test0() {
     oss << "111..\n"
         << "111..\n"
         << "111..\n";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

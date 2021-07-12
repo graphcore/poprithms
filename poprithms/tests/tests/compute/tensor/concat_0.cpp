@@ -3,8 +3,8 @@
 #include <iostream>
 #include <numeric>
 
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 using namespace poprithms::compute::host;
@@ -28,7 +28,7 @@ void test0() {
 
   std::cout << "f" << std::endl;
   if (t5.shape() != Shape{9, 3}) {
-    throw error("Incorrect shape after concat in test0");
+    throw poprithms::test::error("Incorrect shape after concat in test0");
   }
 
   std::cout << "g" << std::endl;

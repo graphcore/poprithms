@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 
 namespace {
@@ -9,7 +9,7 @@ void assertDepth(const Sett &p, uint64_t d) {
     std::ostringstream oss;
     oss << "Failure in Sett test of recursiveDepth. Expected " << p
         << " to have depth " << d << ", not " << p.recursiveDepth();
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -18,13 +18,13 @@ void assertStripe(const Sett &p, uint64_t d, const Stripe &s) {
     std::ostringstream oss;
     oss << "Failure in assertStripe, Sett " << p << " not deep enough, "
         << "expected deptth greater than " << d;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   if (p.atDepth(d) != s) {
     std::ostringstream oss;
     oss << "Expected " << s << " at depth " << d << " of " << p;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -108,7 +108,7 @@ int main() {
   p6 = Sett{{{{1, 100, 4}, {2, 4, 2}}}};
   assertDepth(p6, 1);
   if (p6.atDepth(0).on() != 0 || p6.atDepth(0).period() <= 0) {
-    throw error("Error in testing basic Sett");
+    throw poprithms::test::error("Error in testing basic Sett");
   }
 
   // .....xxxxxxxxxx..........xxxxxxxxxx..........
@@ -150,7 +150,7 @@ int main() {
   if (p6.atDepth(0).on() != 0) {
     std::ostringstream oss;
     oss << "Failed in test of " << p6;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   // .....x...........x..... (1,11,5)

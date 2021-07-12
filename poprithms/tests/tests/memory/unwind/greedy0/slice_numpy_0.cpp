@@ -2,7 +2,7 @@
 #include <iostream>
 
 #include <poprithms/compute/host/tensor.hpp>
-#include <poprithms/memory/unwind/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/hosttensorhelper.hpp>
 #include <poprithms/memory/unwind/solution.hpp>

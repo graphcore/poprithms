@@ -4,7 +4,7 @@
 #include <iostream>
 #include <random>
 
-#include <poprithms/schedule/transitiveclosure/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/transitiveclosure/partitionedtransitiveclosure.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 
@@ -20,7 +20,7 @@ void test0() {
 
   if (!ptc.constrained(0, 1) || ptc.constrained(1, 2) ||
       !ptc.constrained(3, 2)) {
-    throw error("constraints not expected 0->1 and 3->2");
+    throw poprithms::test::error("constraints not expected 0->1 and 3->2");
   }
 }
 
@@ -69,7 +69,7 @@ void test1() {
           if (ptc.constrained(start, end) != tc.constrained(start, end) ||
               ptc.unconstrainedInBothDirections(start, end) !=
                   tc.unconstrainedInBothDirections(start, end)) {
-            throw error("ptc and tc disagree");
+            throw poprithms::test::error("ptc and tc disagree");
           }
         }
       }
@@ -95,7 +95,7 @@ void test2() {
       std::ostringstream oss;
       oss << "Expected this PartitionedTransitiveClosure to have " << expected
           << " bits, not " << ptc.nBits() << '.';
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   };
 

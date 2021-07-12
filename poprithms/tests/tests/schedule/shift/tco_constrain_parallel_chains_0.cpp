@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 namespace {
@@ -72,11 +72,13 @@ void test0() {
       {1, 6}, {3, 6}, {5}, {2, 4}, {5}, {}, {4}};
 
   if (graph0({100, 1, 1, 1, 1, 1, 1}, +10.0).getForwardEdges() != expected0) {
-    throw error("Expected no constraints to be inserted when w06 = +10.");
+    throw poprithms::test::error(
+        "Expected no constraints to be inserted when w06 = +10.");
   }
   if (graph0({100, 1, 1, 1, 1, 1, 1}, +100000.0).getForwardEdges() !=
       expected0) {
-    throw error("Expected no constraints to be inserted when w06 = +100000.");
+    throw poprithms::test::error(
+        "Expected no constraints to be inserted when w06 = +100000.");
   }
   if (graph0({100, 1, 1, 1, 1, 1, 1}, .0).getForwardEdges() != expected1) {
     std::ostringstream oss;
@@ -84,13 +86,15 @@ void test0() {
         << "This relies on corresponding indices in the longer chain "
         << "being lower than those in the shorter chain. "
         << "i.e. that 1 < 6 and 3 < 4.";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
   if (graph0({100, 1, 1, 1, 1, 1, 10}, 0).getForwardEdges() != expected1) {
-    throw error("Expected a larger weight on 6 to not prevent constraints ");
+    throw poprithms::test::error(
+        "Expected a larger weight on 6 to not prevent constraints ");
   }
   if (graph0({100, 1, 1, 1, 1, 1, 0.1}, 0).getForwardEdges() != expected0) {
-    throw error("Expected a larger weight on 6 to prevent constraints ");
+    throw poprithms::test::error(
+        "Expected a larger weight on 6 to prevent constraints ");
   }
 }
 
@@ -138,7 +142,7 @@ void test1() {
   auto outs = sg.getOp(op1).getOuts();
   std::sort(outs.begin(), outs.end());
   if (outs != std::vector<OpAddress>{2, 3}) {
-    throw error("Expected 2 outs from 1 : 2 and 3");
+    throw poprithms::test::error("Expected 2 outs from 1 : 2 and 3");
   }
 }
 

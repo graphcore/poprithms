@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -48,7 +48,7 @@ void test0() {
 
   for (auto id : allCats) {
     if (id.aliasGateIsClosed()) {
-      throw error("expected all concats to be inplaced");
+      throw poprithms::test::error("expected all concats to be inplaced");
     }
   }
 }
@@ -74,7 +74,8 @@ void test1() {
   auto trial = g.tryOpenings0(
       {m.opId()}, CheckParallelWriteable::No, AllowMultiGateAlias::No);
   if (trial.size() != 1 || trial[0] != OpeningStatus::Cycle) {
-    throw error("Opening the aliasGate makes the concat invalid. ");
+    throw poprithms::test::error(
+        "Opening the aliasGate makes the concat invalid. ");
   }
 }
 

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 namespace {
@@ -43,16 +43,16 @@ void test0() {
   const auto p1 = g.pad(alloc, {0, 0}, {3, 4}, white, BroadcastPadding::Yes);
 
   if (g.containsAliases(p0)) {
-    throw error("p0 was created with no alias padding");
+    throw poprithms::test::error("p0 was created with no alias padding");
   }
   if (!g.containsAliases(p1)) {
-    throw error("p1 was created with alias padding");
+    throw poprithms::test::error("p1 was created with alias padding");
   }
   if (!g.containsColor(p0, red)) {
-    throw error("p0 was created with red padding");
+    throw poprithms::test::error("p0 was created with red padding");
   }
   if (!(g.shape(p1) == Shape{8, 9})) {
-    throw error("p1 has Shape {8,9}");
+    throw poprithms::test::error("p1 has Shape {8,9}");
   }
 }
 

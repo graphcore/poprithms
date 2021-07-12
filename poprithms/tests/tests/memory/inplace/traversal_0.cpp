@@ -4,7 +4,7 @@
 #include <sstream>
 
 #include <poprithms/common/multiout/traversal.hpp>
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -19,7 +19,7 @@ void testTraversal0() {
   if (poprithms::common::multiout::depthFirstForward(
           graph, {v0.id()}, [](auto) { return true; })
           .size() != 12) {
-    throw error("3 inputs, 4 outputs: 12 paths.");
+    throw poprithms::test::error("3 inputs, 4 outputs: 12 paths.");
   }
 }
 

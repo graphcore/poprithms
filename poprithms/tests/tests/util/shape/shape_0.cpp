@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
-#include <poprithms/ndarray/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -15,7 +15,7 @@ void assertNumpyBroadcast(const std::vector<int64_t> &a,
   if (out != expected) {
     std::ostringstream oss;
     oss << "Failed in assertNumpyBroadcast";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -23,7 +23,7 @@ void assertRowMajorIndex(const Shape &shape,
                          const std::vector<int64_t> &point,
                          int64_t expected) {
   if (shape.getRowMajorIndex(point) != expected) {
-    throw error("Failed in assertRowMajorIndex");
+    throw poprithms::test::error("Failed in assertRowMajorIndex");
   }
 }
 
@@ -77,18 +77,19 @@ void testConcat() {
   const Shape b({2, 2, 4});
   const auto c = a.concat(b, 1);
   if (c != Shape({2, 5, 4})) {
-    throw error("Failed in testConcat (1)");
+    throw poprithms::test::error("Failed in testConcat (1)");
   }
 
   const Shape d({0, 3, 4});
   const auto e = d.concat(a, 0);
   if (e != a) {
-    throw error("Failed in testConcat (2)");
+    throw poprithms::test::error("Failed in testConcat (2)");
   }
 
   auto points = Shape::concatPartitionPoints({a, b}, 1);
   if (points != std::vector<int64_t>({0, 3, 5})) {
-    throw error("Failed in testConcat : incorrect partition points");
+    throw poprithms::test::error(
+        "Failed in testConcat : incorrect partition points");
   }
 }
 
@@ -96,13 +97,13 @@ void testSqueeze() {
   const Shape a({2, 1, 1, 3, 1, 1, 4});
   auto s = a.squeeze();
   if (s != Shape({2, 3, 4})) {
-    throw error(
+    throw poprithms::test::error(
         "Failed to squeeze correctly in testSqueeze, expected (2,3,4)");
   }
 
   const auto foo = s.unsqueeze(0);
   if (foo != Shape({1, 2, 3, 4})) {
-    throw error(
+    throw poprithms::test::error(
         "Failed to unsqueeze correctly in testSqueeze, expected (1,2,3,4)");
   }
 }
@@ -113,7 +114,8 @@ void testSqueeze2() {
   const std::vector<uint64_t> dims{4, 0, 0, 0, 0, 0, 0, 0};
   const auto out = s.squeeze(dims);
   if (out != Shape{2, 1, 3}) {
-    throw error("Failed in testUnsqueeze2, expected {2,1,3}");
+    throw poprithms::test::error(
+        "Failed in testUnsqueeze2, expected {2,1,3}");
   }
 }
 
@@ -123,17 +125,19 @@ void testSqueeze3() {
   Shape s({1, 4, 1, 3, 2, 4, 1, 1});
 
   if (s.isSqueezed()) {
-    throw error("s is not squeezed, it contains 1's");
+    throw poprithms::test::error("s is not squeezed, it contains 1's");
   }
 
   const auto singletons = s.singletonDimensions();
   if (singletons != std::vector<uint64_t>({0, 2, 6, 7})) {
-    throw error("Incorrect singleton dimension in squeeze test");
+    throw poprithms::test::error(
+        "Incorrect singleton dimension in squeeze test");
   }
 
   const auto nonSingletons = s.nonSingletonDimensions();
   if (nonSingletons != std::vector<uint64_t>({1, 3, 4, 5})) {
-    throw error("Incorrect non-singleton dimension in squeeze test");
+    throw poprithms::test::error(
+        "Incorrect non-singleton dimension in squeeze test");
   }
 }
 
@@ -145,7 +149,7 @@ void assertDimProduct(uint64_t x0, uint64_t x1, int64_t expected) {
         << "For Shape " << s0 << " in call to dimProduct(" << x0 << ", " << x1
         << "), expected is " << expected << ". Observed is "
         << s0.dimProduct(x0, x1);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -160,7 +164,7 @@ void testDimProduct() {
 void testReverse() {
   const Shape s1({1, 2, 3});
   if (s1.reverse() != Shape{{3, 2, 1}}) {
-    throw error("Error in test of reverse");
+    throw poprithms::test::error("Error in test of reverse");
   }
 }
 
@@ -168,7 +172,8 @@ void testGetRowMajorIndices() {
   const Shape s1({4, 3});
   const auto inds = s1.getSlicedRowMajorIndices({1, 1}, {3, 2});
   if (inds != decltype(inds){4, 7}) {
-    throw error("Error in test of get row major indices (from slice)");
+    throw poprithms::test::error(
+        "Error in test of get row major indices (from slice)");
   }
 }
 
@@ -181,7 +186,7 @@ void testPrepend() {
     std::ostringstream oss;
     oss << "Failure in prepend test. Result is " << s0
         << ". Prepending 4, then 3, then 2, should produce (2,3,4).";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -193,7 +198,7 @@ void assertUnsqueeze(const Shape &a,
     oss << "Error in testing unsqueeze. Expected " << a << ".unsqueeze(";
     poprithms::util::append(oss, dims);
     oss << ") to be " << b << ", not " << a.unsqueeze(dims);
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -228,7 +233,7 @@ void testPadShapes0() {
       poprithms::util::append(oss, std::get<1>(padShape).get());
     }
     oss << ')';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -238,7 +243,7 @@ void assertFlatten2d(const Shape &inShape, uint64_t axis, const Shape &out) {
     oss << "Error in assertFlatten2d. Expected " << inShape << ".flattenTo2d("
         << axis << ") to be " << out << ", not " << inShape.flattenTo2d(axis)
         << ".";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -258,15 +263,17 @@ void testAssertConcattable() {
     caught = true;
   }
   if (!caught) {
-    throw error("Failure in testAssertConcattable. Did not catch error when "
-                "trying to concat empty vector of Shapes");
+    throw poprithms::test::error(
+        "Failure in testAssertConcattable. Did not catch error when "
+        "trying to concat empty vector of Shapes");
   }
 }
 
 void testAddToDims() {
   Shape a({2, 3});
   if (a.addToDims({-1, 3}) != Shape({1, 6})) {
-    throw error("Failed to correctly addDims in testAddToDims");
+    throw poprithms::test::error(
+        "Failed to correctly addDims in testAddToDims");
   }
 }
 
@@ -276,7 +283,7 @@ void assertReduceTo(const Shape &from, const Shape &to, bool valid) {
     oss << "Testing if " << from << " can be reduced to " << to
         << ", failed. Expected this to be " << (valid ? "" : "NOT ")
         << "valid. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -305,7 +312,7 @@ void testCanonicalReverseIndices() {
               1,
               0,
           }) != std::vector<uint64_t>{0, 3}) {
-    throw error("Expected the reduction to be {0,3}");
+    throw poprithms::test::error("Expected the reduction to be {0,3}");
   }
 }
 
@@ -319,7 +326,7 @@ void testReduceBase(const Shape &from,
         << "). Expected :\n"
         << expected << ", and observed :\n"
         << observed << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -340,12 +347,12 @@ void testAppend() {
   x      = x.append(4);
   x      = x.append(5);
   if (x != expected) {
-    throw error("l-value style append : incorrect result");
+    throw poprithms::test::error("l-value style append : incorrect result");
   }
 
   auto y = Shape({2}).append(3).append(4).append(5);
   if (y != expected) {
-    throw error("l-value style append : incorrect result");
+    throw poprithms::test::error("l-value style append : incorrect result");
   }
 }
 
@@ -359,7 +366,7 @@ void testFlattenRange() {
     std::ostringstream oss;
     oss << "Failed in call, " << s << ".flatten(1,5). "
         << "Expected " << expected << ", but observed " << f0 << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   auto f1 = s.flatten(1, 3).flatten(1, 4);
@@ -367,12 +374,13 @@ void testFlattenRange() {
     std::ostringstream oss;
     oss << "Failed in call, " << s << ".flatten(1,3).flatten(1,4). "
         << "Expected " << expected << ", but observed " << f0 << '.';
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   auto f2 = s.flatten(0, 6);
   if (f2 != Shape({s.nelms()})) {
-    throw error("Flatten(0, rank()) should be same as flatten()");
+    throw poprithms::test::error(
+        "Flatten(0, rank()) should be same as flatten()");
   }
 
   bool caught{false};
@@ -382,7 +390,8 @@ void testFlattenRange() {
     caught = true;
   }
   if (!caught) {
-    throw error("Failed to catch error of flatten beyond range");
+    throw poprithms::test::error(
+        "Failed to catch error of flatten beyond range");
   }
 
   caught = false;
@@ -392,7 +401,8 @@ void testFlattenRange() {
     caught = true;
   }
   if (!caught) {
-    throw error("Failed to catch error of flatten with from=to.");
+    throw poprithms::test::error(
+        "Failed to catch error of flatten with from=to.");
   }
 }
 
@@ -404,7 +414,7 @@ void assertCorrectRedDims(const Shape &from,
     oss << "Expected " << from << ".reductionDimensions(to=" << to
         << ") to be " << Dimensions(expected) << ", not "
         << from.reductionDimensions(to) << ".";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

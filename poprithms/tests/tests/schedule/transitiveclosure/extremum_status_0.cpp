@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
-#include <poprithms/schedule/transitiveclosure/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 
 namespace {
@@ -37,7 +37,7 @@ int main() {
       std::ostringstream oss;
       oss << "For OpId opId = " << opId << ", expected " << expected
           << " but observed " << observed << '.';
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   };
 

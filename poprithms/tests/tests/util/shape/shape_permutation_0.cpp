@@ -2,14 +2,13 @@
 #include <iostream>
 #include <vector>
 
-#include <poprithms/ndarray/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace {
 
-using poprithms::ndarray::error;
 using poprithms::ndarray::Shape;
 using poprithms::util::Permutation;
 
@@ -28,7 +27,7 @@ void assertPermutation(const Shape &inshape,
         << "expected this to be transformed to \n"
         << inshape << "--perm " << expected << "-->, but instead of "
         << expected << ", " << observed.second << " was computed. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 void test0() {
@@ -91,7 +90,7 @@ void assertNotPossible(const Shape &inShape,
     oss << "Attempt to move Permutation " << perm
         << " before the reshape (from " << inShape << " to " << reshape
         << ") passed, but should not have. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 
@@ -130,7 +129,7 @@ void testWithInOnes(const Shape &inShape,
     poprithms::util::append(oss, expectedSub);
     oss << " in sequence "
         << " but " << observed.second << " does not fit this pattern. ";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

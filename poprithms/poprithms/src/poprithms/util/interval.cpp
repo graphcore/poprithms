@@ -1,8 +1,8 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <sstream>
+#include <util/error.hpp>
 
-#include <poprithms/util/error.hpp>
 #include <poprithms/util/interval.hpp>
 #include <poprithms/util/printiter.hpp>
 

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <random>
 
-#include <poprithms/schedule/transitiveclosure/error.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace poprithms {
 namespace schedule {
@@ -19,10 +19,12 @@ getRandomEdges(uint64_t N, uint64_t E, uint64_t D, int seed) {
   std::iota(indices.begin(), indices.end(), 0);
 
   if (E > D) {
-    throw error("E cannot be larger than D in edgemap::getRandomEdges");
+    throw poprithms::test::error(
+        "E cannot be larger than D in edgemap::getRandomEdges");
   }
   if (D > N - 10) {
-    throw error("D cannot be larger than N - 10 in edgemap::getRandomEdges");
+    throw poprithms::test::error(
+        "D cannot be larger than N - 10 in edgemap::getRandomEdges");
   }
   auto nRando = N - D - 1;
   for (uint64_t i = 0; i < nRando; ++i) {

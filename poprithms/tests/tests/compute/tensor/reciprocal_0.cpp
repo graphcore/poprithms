@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 using namespace poprithms::compute::host;
@@ -59,7 +59,7 @@ void testReciprocal0bool() {
   }
 
   if (!caught) {
-    throw error("Expect: No Reciprocal defined for bool.");
+    throw poprithms::test::error("Expect: No Reciprocal defined for bool.");
   }
 }
 
@@ -73,7 +73,7 @@ void testReciprocal1bool() {
   }
 
   if (!caught) {
-    throw error("Expect: No Reciprocal defined for bool.");
+    throw poprithms::test::error("Expect: No Reciprocal defined for bool.");
   }
 }
 

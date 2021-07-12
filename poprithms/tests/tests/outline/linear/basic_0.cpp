@@ -1,8 +1,8 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
-#include <poprithms/outline/linear/error.hpp>
 #include <poprithms/outline/linear/graph.hpp>
 
 int main() {
@@ -34,7 +34,8 @@ int main() {
     didCatch = true;
   }
   if (!didCatch) {
-    throw error("Failed to catch case of duplicate Tensor inserts index");
+    throw poprithms::test::error(
+        "Failed to catch case of duplicate Tensor inserts index");
   }
 
   graph.insertOut(op1, 2, t2);

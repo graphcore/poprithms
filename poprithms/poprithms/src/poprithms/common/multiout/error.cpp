@@ -1,5 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <poprithms/common/multiout/error.hpp>
+#include <common/multiout/error.hpp>
 
 namespace poprithms {
 namespace common {

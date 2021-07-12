@@ -3,9 +3,9 @@
 #include <numeric>
 #include <ostream>
 #include <sstream>
+#include <util/error.hpp>
 #include <vector>
 
-#include <poprithms/util/error.hpp>
 #include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {

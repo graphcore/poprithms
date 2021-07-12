@@ -4,7 +4,6 @@
 #include <numeric>
 #include <sstream>
 
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/error/error.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -45,7 +44,7 @@ void testUpdate0() {
       oss << "Expected update_ to fail, where toUpdate has Shape "
           << toUpdate.shape() << ", and updater has Shape " << updaterShape
           << ". ";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   };
 
@@ -84,7 +83,7 @@ void testUpdatePart1() {
           << "\ntoUpdate = " << toUpdate << "\nupdater = " << updater
           << "\ndims = " << dims << "\nstarts = ";
       poprithms::util::append(oss, starts);
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   };
 
@@ -149,7 +148,8 @@ void oneHotTests() {
       caught = true;
     }
     if (!caught) {
-      throw error("can't encode 3-d Tensorm should have caught this");
+      throw poprithms::test::error(
+          "can't encode 3-d Tensorm should have caught this");
     }
   }
 
@@ -162,7 +162,8 @@ void oneHotTests() {
       caught = true;
     }
     if (!caught) {
-      throw error("expected 3 indices, not 4, should have caught this");
+      throw poprithms::test::error(
+          "expected 3 indices, not 4, should have caught this");
     }
   }
 
@@ -174,7 +175,8 @@ void oneHotTests() {
       caught = true;
     }
     if (!caught) {
-      throw error("index 4 should have been caught (too large)");
+      throw poprithms::test::error(
+          "index 4 should have been caught (too large)");
     }
   }
 
@@ -191,8 +193,9 @@ void oneHotTests() {
       caught = true;
     }
     if (!caught) {
-      throw error("has the case of encoding a self-aliasing tensor been "
-                  "implemented?");
+      throw poprithms::test::error(
+          "has the case of encoding a self-aliasing tensor been "
+          "implemented?");
     }
   }
 }

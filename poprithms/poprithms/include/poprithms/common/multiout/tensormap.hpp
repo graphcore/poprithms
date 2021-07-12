@@ -2,10 +2,10 @@
 #ifndef POPRITHMS_COMMON_MULTIOUT_TENSORMAP_HPP
 #define POPRITHMS_COMMON_MULTIOUT_TENSORMAP_HPP
 
+#include <common/multiout/error.hpp>
 #include <string>
 #include <vector>
 
-#include <poprithms/common/multiout/error.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 
 namespace poprithms {

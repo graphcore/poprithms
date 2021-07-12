@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 
 int main() {
@@ -22,7 +22,7 @@ int main() {
   Graph g5(std::move(g4));
 
   if (g5.nTensors() != 4) {
-    throw error("expected g5 to have 4 Tensors");
+    throw poprithms::test::error("expected g5 to have 4 Tensors");
   }
 
   return 0;

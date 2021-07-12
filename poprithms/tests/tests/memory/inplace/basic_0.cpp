@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include <poprithms/memory/inplace/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 
@@ -26,7 +26,7 @@ void testUnaryChainBase(Graph g, const TensorIds &idOrder) {
           << " all aliasGates should be opened. "
           << "With order = " << order
           << ", failed to open all, statuses = " << statuses;
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
   for (auto s : statuses) {
@@ -34,7 +34,7 @@ void testUnaryChainBase(Graph g, const TensorIds &idOrder) {
       std::ostringstream oss;
       oss << "With order = " << order
           << " not all statuses are Valid, they should be";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 }
@@ -58,21 +58,22 @@ void testUnaryTriFork0Base(Graph g, const TensorIds &idOrder) {
       idOrder, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
 
   if (order.size() != 3) {
-    throw error("order must be of size 3 in this test - bad test");
+    throw poprithms::test::error(
+        "order must be of size 3 in this test - bad test");
   }
 
   // We expect only the first proposal to be accepted:
   if (order[0].aliasGateIsClosed()) {
     std::ostringstream oss;
     oss << "With order = " << order << ", failed to inplace first";
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 
   for (auto i : {1, 2}) {
     if (order[i].aliasGateIsOpen()) {
       std::ostringstream oss;
       oss << "With order = " << order << ", incorrectly inplaced non-first";
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 }
@@ -159,7 +160,7 @@ void testUnaryTriLongFork0() {
           return outs[x];
         }
       }
-      throw error("first forker not found");
+      throw poprithms::test::error("first forker not found");
     }();
 
     for (auto x : order) {
@@ -169,14 +170,14 @@ void testUnaryTriLongFork0() {
           std::ostringstream oss;
           oss << "With order = " << aliasGateOrder << ", expected " << x
               << " to be outplace";
-          throw error(oss.str());
+          throw poprithms::test::error(oss.str());
         }
       } else {
         if (g.aliasGateIsClosed(id.opId())) {
           std::ostringstream oss;
           oss << "With order = " << aliasGateOrder << ", expected " << x
               << " to be inplace";
-          throw error(oss.str());
+          throw poprithms::test::error(oss.str());
         }
       }
     }
@@ -213,14 +214,14 @@ void testMixedBiFork0Base(Graph g,
         oss << getBaseString() << "\nFailed, as " << tId
             << " is not outplace. "
             << "Results were " << statuses;
-        throw error(oss.str());
+        throw poprithms::test::error(oss.str());
       }
     } else {
       if (tId.aliasGateIsClosed()) {
         std::ostringstream oss;
         oss << getBaseString() << "\nFailed, as " << tId
             << " is outplace. Results were " << statuses;
-        throw error(oss.str());
+        throw poprithms::test::error(oss.str());
       }
     }
   }
@@ -301,12 +302,12 @@ void testConstraint0() {
                  CheckParallelWriteable::Yes,
                  AllowMultiGateAlias::No);
   if (x1aliasGate.aliasGateIsOpen()) {
-    throw error(
+    throw poprithms::test::error(
         "Failed to inplace correctly with constraint - x0 not outplace");
   }
 
   if (x0aliasGate.aliasGateIsClosed()) {
-    throw error(
+    throw poprithms::test::error(
         "Failed to inplace correctly with constraint - x1 not outplace");
   }
 }

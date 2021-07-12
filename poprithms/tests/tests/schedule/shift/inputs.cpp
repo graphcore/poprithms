@@ -1,7 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 
 int main() {
@@ -22,7 +22,7 @@ int main() {
   auto inputs                     = g.getInputOps();
   std::sort(inputs.begin(), inputs.end());
   if (inputs != expected) {
-    throw error("incorrect input Ops");
+    throw poprithms::test::error("incorrect input Ops");
   }
   return 0;
 }

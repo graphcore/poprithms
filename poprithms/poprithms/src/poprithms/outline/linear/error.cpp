@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/outline/linear/error.hpp>
+#include <outline/linear/error.hpp>
 
 namespace poprithms {
 namespace outline {

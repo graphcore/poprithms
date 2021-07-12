@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/nest/error.hpp>
+#include <memory/nest/error.hpp>
 
 namespace poprithms {
 namespace memory {

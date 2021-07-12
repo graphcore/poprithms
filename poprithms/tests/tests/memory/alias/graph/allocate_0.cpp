@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 int main() {
@@ -15,11 +15,13 @@ int main() {
     Shape s({i, i});
     auto id = g.allocate(s);
     if (g.shape(id) != s) {
-      throw error("Failed in shape comparison (from Graph) in allocate_0");
+      throw poprithms::test::error(
+          "Failed in shape comparison (from Graph) in allocate_0");
     }
 
     if (g.tensor(id).shape() != s) {
-      throw error("Failed in shape comparison (from Tensor) in allocate_0");
+      throw poprithms::test::error(
+          "Failed in shape comparison (from Tensor) in allocate_0");
     }
   }
   return 0;

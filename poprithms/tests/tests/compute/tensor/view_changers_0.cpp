@@ -2,8 +2,8 @@
 #include <array>
 #include <numeric>
 
-#include <poprithms/compute/host/error.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 using namespace poprithms::compute::host;
@@ -12,7 +12,8 @@ void dimShuffleTest0() {
   const auto r0 = t0.reshape({2, 3, 5});
   const auto d0 = r0.dimShuffle({{1, 2, 0}});
   if (d0.shape() != Shape{3, 5, 2}) {
-    throw error("Incorrect Shape after dimShuffle (in test)");
+    throw poprithms::test::error(
+        "Incorrect Shape after dimShuffle (in test)");
   }
   std::vector<int16_t> expected{0,  15, 1,  16, 2,  17, 3,  18, 4,  19,
                                 5,  20, 6,  21, 7,  22, 8,  23, 9,  24,

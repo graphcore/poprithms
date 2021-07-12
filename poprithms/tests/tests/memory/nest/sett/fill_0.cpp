@@ -3,7 +3,7 @@
 #include <numeric>
 #include <sstream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -47,18 +47,19 @@ void testMultiOutSoln(const Sett &scaffold,
 
   Sett::confirmDisjoint(expected);
   if (getn(DisjointSetts(expected)) != getn(filled)) {
-    throw error("Different counts in [0, scm)");
+    throw poprithms::test::error("Different counts in [0, scm)");
   }
 
   for (const auto &x : expected) {
     if (!x.containedIn(filled)) {
-      throw error("Not identical elements");
+      throw poprithms::test::error("Not identical elements");
     }
   }
 
   if (filled.size() > maxAllowedParts) {
-    throw error("Correct, but expected at most " +
-                std::to_string(maxAllowedParts) + "  in output of fillWith");
+    throw poprithms::test::error("Correct, but expected at most " +
+                                 std::to_string(maxAllowedParts) +
+                                 "  in output of fillWith");
   }
 }
 
@@ -89,11 +90,11 @@ void testSingletonSoln(const Sett &scaffold,
   }
 
   if (filled.size() != 1) {
-    throw error("expected just 1 in output of fillWith");
+    throw poprithms::test::error("expected just 1 in output of fillWith");
   }
 
   if (!expected.equivalent(filled[0])) {
-    throw error("not as expected");
+    throw poprithms::test::error("not as expected");
   }
 }
 } // namespace
@@ -187,7 +188,8 @@ void fillEmptyTest() {
 
   const auto filled = scaffold.fillWith(ink);
   if (!filled.empty()) {
-    throw error("Filling an empty Sett results in an empty Sett");
+    throw poprithms::test::error(
+        "Filling an empty Sett results in an empty Sett");
   }
 }
 

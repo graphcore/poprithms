@@ -2,8 +2,8 @@
 #include <iostream>
 #include <vector>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
-#include <poprithms/schedule/shift/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <testutil/schedule/shift/randomgraph.hpp>
 
@@ -27,7 +27,7 @@ void test0() {
                     RotationTermination::preStart());
 
   if (sg.getSubSchedule(ops) != std::vector<OpAddress>{0, 1, 2}) {
-    throw error("Expected schedule to be {0,1,2}");
+    throw poprithms::test::error("Expected schedule to be {0,1,2}");
   }
 }
 
@@ -60,7 +60,7 @@ void test1() {
                     RotationTermination::preStart());
   if (sg.scheduleToOp(0) != 0 || sg.scheduleToOp(1) != 4 ||
       sg.scheduleToOp(5) != 2 || sg.scheduleToOp(6) != 6) {
-    throw error("Expected  4 tied to start and 2 to end");
+    throw poprithms::test::error("Expected  4 tied to start and 2 to end");
   }
 }
 
@@ -80,7 +80,8 @@ void test2() {
   g.insertConstraint(ops[0], ops[2]);
   g.insertConstraint(ops[2], ops[3]);
   if (ScheduledGraph::isSchedulable(g)) {
-    throw error("Diamond with tight edge is not schedulable");
+    throw poprithms::test::error(
+        "Diamond with tight edge is not schedulable");
   }
 }
 
@@ -100,7 +101,8 @@ void test3() {
   g.insertConstraint(ops[0], ops[2]);
   g.insertConstraint(ops[1], ops[3]);
   if (!ScheduledGraph::isSchedulable(g)) {
-    throw error("Diamond with separated tight edges is schedulable");
+    throw poprithms::test::error(
+        "Diamond with separated tight edges is schedulable");
   }
 }
 
@@ -127,8 +129,9 @@ void test4() {
                      RotationTermination::preStart());
 
   if (sg1.viewInternalScheduleToOp() != sched0) {
-    throw error("Expected that inserting links between all Ops in the "
-                "initial schedule would result in the same schedule");
+    throw poprithms::test::error(
+        "Expected that inserting links between all Ops in the "
+        "initial schedule would result in the same schedule");
   }
 }
 

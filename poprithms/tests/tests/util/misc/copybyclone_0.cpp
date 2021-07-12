@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include <poprithms/util/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <util/copybyclone_impl.hpp>
 
 namespace test {
@@ -58,21 +58,21 @@ int main() {
   // Assignment operators
   a3 = a1;
   if (a3.uptr->id() != 1) {
-    throw util::error("incorrect value from copy assignment");
+    throw poprithms::test::error("incorrect value from copy assignment");
   }
   a4 = std::move(a2);
   if (a4.uptr->id() != 2) {
-    throw util::error("incorrect value from move assignment");
+    throw poprithms::test::error("incorrect value from move assignment");
   }
 
   // Constructors
   auto a5 = a3;
   if (a5.uptr->id() != 1) {
-    throw util::error("incorrect value from copy constructor");
+    throw poprithms::test::error("incorrect value from copy constructor");
   }
   auto a6 = std::move(a4);
   if (a6.uptr->id() != 2) {
-    throw util::error("incorrect value from move constructor");
+    throw poprithms::test::error("incorrect value from move constructor");
   }
 
   Graph g;
@@ -83,11 +83,12 @@ int main() {
 
   auto g2 = g;
   if (!(g2 == g)) {
-    throw util::error("Directly after copying, graphs should compare equal");
+    throw poprithms::test::error(
+        "Directly after copying, graphs should compare equal");
   }
   g2.nodes[0].uptr->setId(100);
   if (g2 == g) {
-    throw util::error(
+    throw poprithms::test::error(
         "After g2 has been modified, the graphs should not compare equal. "
         "Note that copying Graph g involved cloning all of its Nodes, so "
         "when a Node in the copy was modified, this had no effect on g. If a "

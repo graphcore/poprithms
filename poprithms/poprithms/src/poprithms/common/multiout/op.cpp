@@ -1,10 +1,10 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <common/multiout/error.hpp>
 #include <memory>
 #include <numeric>
 #include <sstream>
 #include <type_traits>
 
-#include <poprithms/common/multiout/error.hpp>
 #include <poprithms/common/multiout/op.hpp>
 #include <poprithms/util/printiter.hpp>
 

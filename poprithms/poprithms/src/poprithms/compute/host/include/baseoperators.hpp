@@ -12,7 +12,7 @@
 #include <set>
 #include <type_traits>
 
-#include <poprithms/compute/host/error.hpp>
+#include <compute/host/error.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/shape.hpp>
 

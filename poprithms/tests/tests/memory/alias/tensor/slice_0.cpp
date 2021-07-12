@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include <poprithms/memory/alias/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 
 namespace {
@@ -32,13 +32,13 @@ void test0() {
     const auto slice0 = cat0.slice({10 * i}, {10 * (i + 1)});
     const auto slice1 = cat1.slice({10 * i}, {10 * (i + 1)});
     if (!slice0.intersectsWith(slice1)) {
-      throw error("slices are the same, test 1 fails");
+      throw poprithms::test::error("slices are the same, test 1 fails");
     }
     if (!slice0.intersectsWith(slices[order[i_u64]])) {
-      throw error("slices are the same, test 2 fails");
+      throw poprithms::test::error("slices are the same, test 2 fails");
     }
     if (slice0.intersectsWith(slices[i_u64]) && i != order[i]) {
-      throw error("slices are not the same, test 3 fails");
+      throw poprithms::test::error("slices are not the same, test 3 fails");
     }
   }
 }

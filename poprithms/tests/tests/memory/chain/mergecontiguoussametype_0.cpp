@@ -2,8 +2,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
-#include <poprithms/memory/chain/error.hpp>
 
 namespace {
 

@@ -1,5 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <poprithms/schedule/shift/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/shift/shiftusings.hpp>
@@ -70,7 +70,7 @@ void assertGlobalMinimumGridGraph0(const ScheduledGraph &g, uint64_t N) {
     oss << "In assertGlobalMinumumGridGraph0, g.getMaxLiveness() gives "
         << g.getMaxLiveness() << " but "
         << "expected final max liveness to be 2*2*N + (N-2)*1 = " << expect;
-    throw error(oss.str());
+    throw poprithms::test::error(oss.str());
   }
 }
 

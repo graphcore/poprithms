@@ -1,7 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
-#include <poprithms/memory/nest/error.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 
 namespace {
@@ -38,7 +38,7 @@ void test0() {
         oss << "Failure in test of Sett:find. ";
         oss << "Expected " << sett << ".find(" << x << ") to be " << x1
             << ", not " << sett.find(x);
-        throw error(oss.str());
+        throw poprithms::test::error(oss.str());
       }
     }
   }
@@ -61,7 +61,7 @@ void test1() {
       std::ostringstream oss;
       oss << "Failure in negative case find. "
           << "Expected sett.find(" << i << ") = " << f << ", not " << found;
-      throw error(oss.str());
+      throw poprithms::test::error(oss.str());
     }
   }
 }

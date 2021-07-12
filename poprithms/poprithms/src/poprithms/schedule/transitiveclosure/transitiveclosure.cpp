@@ -1,9 +1,9 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <limits>
+#include <schedule/transitiveclosure/error.hpp>
 #include <sstream>
 
-#include <poprithms/schedule/transitiveclosure/error.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 
 namespace poprithms {
