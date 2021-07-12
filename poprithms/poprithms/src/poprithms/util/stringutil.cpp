@@ -52,7 +52,7 @@ padded(const std::string &x, uint64_t wd, StringColumn::Align align) {
     return x + space_;
   }
   case StringColumn::Align::Right: {
-    return space_ + x;
+    return space_ + x + " ";
   }
   }
 

@@ -139,6 +139,19 @@ Permutation Permutation::reverse(uint64_t r) {
   return Permutation(p_);
 }
 
+Permutation Permutation::reverseFinalTwo(uint64_t r) {
+  if (r < 2) {
+    throw error("Cannot create permutation of 'final 2' dimensions which " +
+                std::string("is only of rank ") + std::to_string(r) +
+                ". Rank must be at least 2.");
+  }
+  std::vector<uint64_t> p_(r, 0);
+  std::iota(p_.begin(), p_.end() - 2, 0);
+  p_[r - 2] = r - 1;
+  p_[r - 1] = r - 2;
+  return Permutation(p_);
+}
+
 std::vector<uint32_t> Permutation::get_u32() const {
   std::vector<uint32_t> out(permutation.size());
   for (uint64_t d = 0; d < size(); ++d) {

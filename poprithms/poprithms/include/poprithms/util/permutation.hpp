@@ -59,6 +59,12 @@ public:
    * */
   static Permutation reverse(uint64_t r);
 
+  /**
+   * \return a Permutation which permutes the final 2 dimensions. This is
+   *         sometimes called the 'transpose' Permutation.
+   * */
+  static Permutation reverseFinalTwo(uint64_t r);
+
   const std::vector<uint64_t> &get() const { return permutation; }
   std::vector<uint32_t> get_u32() const;
   uint64_t get(uint64_t d) const { return permutation[d]; }
