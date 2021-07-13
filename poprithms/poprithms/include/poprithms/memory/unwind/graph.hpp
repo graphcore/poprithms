@@ -23,6 +23,7 @@ namespace poprithms {
 namespace memory {
 namespace unwind {
 
+using common::multiout::OpIds;
 using common::multiout::TensorIds;
 using memory::nest::Region;
 using ndarray::Dimension;
@@ -879,8 +880,8 @@ public:
   /** All ValuedPairs in this Graph. */
   ValuedPairs valuedPairs() const;
 
-  /** Append a string describing this Graph to \a ost */
-  void append(std::ostream &ost) const;
+  /** Append a string describing a subset of Ops in the Graph to \a ost */
+  void appendOpColumns(std::ostream &ost, const OpIds &) const final;
 
   /**
    * Map Regions #inRegs, which enter the Op #opId at the input index

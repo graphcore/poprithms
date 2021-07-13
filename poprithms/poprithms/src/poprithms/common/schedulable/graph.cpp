@@ -16,20 +16,84 @@
 #include <poprithms/schedule/shift/graph.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
+#include <poprithms/util/copybyclone_impl.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 #include <poprithms/util/unisort.hpp>
-#include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
 namespace common {
 namespace schedulable {
+
+// something faster TODO(T42434)
+OpIds Graph::vanillaSubSchedule(const std::set<OpId> &opIds) const {
+
+  if (opIds.empty()) {
+    return {};
+  }
+
+  // If all the Ops in the same sub-graph, we use only the schedule of that
+  // sub-graph.
+  const auto superSchedule = [this, &opIds]() {
+    const auto sg0 = subGraphId(*opIds.cbegin());
+    if (std::all_of(opIds.cbegin(), opIds.cend(), [this, sg0](auto opId) {
+          return subGraphId(opId) == sg0;
+        })) {
+      return vanillaSchedule(sg0);
+    }
+    return vanillaSchedule();
+  }();
+
+  // sort by topological order in fwd graph.
+  std::vector<OpId> schedule;
+  schedule.reserve(opIds.size());
+  for (auto opId : superSchedule) {
+    if (opIds.count(opId) != 0) {
+      schedule.push_back(opId);
+    }
+  }
+  return schedule;
+}
 
 bool Graph::hasUniqueSchedule(SubGraphId sgId) const {
   using namespace schedule;
   return vanilla::hasUniqueSchedule_u64(
       getForwardEdgeMap_u64(sgId).fwdEdgesCompact, vanilla::VerifyEdges::No);
   return true;
+}
+
+void Graph::assertSubGraphId(const TensorIds &tIds,
+                             SubGraphId subGraphId) const {
+  if (!tIds.empty() && subGraphIdFromTensorIds(tIds) != subGraphId) {
+    std::ostringstream oss;
+    oss << "\nThe SubGraphIds of the Tensors " << tIds << " are "
+        << subGraphIds(tIds)
+        << ", but the target SubGraphId in assertSubGraphId is " << subGraphId
+        << ": Invalid SubGraphId in assertion, ";
+    throw error(oss.str());
+  }
+}
+
+SubGraphId Graph::subGraphIdFromTensorIds(const TensorIds &ids) const {
+  if (ids.empty()) {
+    throw error(
+        "Failed to obtain SubGraphId from empty vector of TensorIds. ");
+  }
+
+  const auto subGraphId_ = subGraphId(ids[0]);
+  if (std::any_of(
+          ids.cbegin() + 1, ids.cend(), [&subGraphId_, this](const auto &id) {
+            return subGraphId(id) != subGraphId_;
+          })) {
+    std::ostringstream oss;
+    oss << "Contradictory solution while attemting to obtain "
+        << "SubGraphId from the TensorIds, " << ids
+        << ". Expected all TensorIds to have same SubGraphId, "
+        << "but the SubGraphIds are not all identical, " << subGraphIds(ids);
+    throw error(oss.str());
+  }
+
+  return subGraphId_;
 }
 
 void Graph::binConstraint(const std::vector<OpIds> &bins) {
@@ -167,7 +231,7 @@ SubGraphId Graph::createSubGraphId(const std::string &n) {
   return subGraphStates.size() - 1;
 }
 
-std::string Graph::graphName(SubGraphId id) const {
+std::string Graph::subGraphName(SubGraphId id) const {
   return subGraphStates[id.get_u64()].name();
 }
 
@@ -369,13 +433,17 @@ Graph::getSchedulableColumns(const OpIds &opIds) const {
   using Strings    = std::vector<std::string>;
   // extensions:
   Strings sg__(nTens, "");
+
   Strings nonDataIns__(nTens, "");
+  bool hasNonDataIns{false};
 
   uint64_t ti{0};
   for (auto i : opIds) {
-    nonDataIns__[ti]      = util::getStr(op(i).nonDataInOps());
+    const auto nonDataIns = op(i).nonDataInOps();
+    hasNonDataIns |= !nonDataIns.empty();
+    nonDataIns__[ti]      = util::getStr(nonDataIns);
     const auto subGraphId = op(i).subGraphId();
-    const auto gName      = graphName(subGraphId);
+    const auto gName      = subGraphName(subGraphId);
     sg__[ti]              = gName.empty() ? subGraphId.str()
                              : gName + "(id=" + subGraphId.str() + ")";
     for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
@@ -387,7 +455,9 @@ Graph::getSchedulableColumns(const OpIds &opIds) const {
   }
 
   cols.push_back({"Graph", std::move(sg__)});
-  cols.push_back({"NonDataIns", std::move(nonDataIns__)});
+  if (hasNonDataIns) {
+    cols.push_back({"NonDataIns", std::move(nonDataIns__)});
+  }
   return cols;
 }
 

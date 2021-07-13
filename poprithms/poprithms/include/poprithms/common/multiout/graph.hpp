@@ -10,6 +10,7 @@
 
 #include <poprithms/common/multiout/consumptionid.hpp>
 #include <poprithms/common/multiout/op.hpp>
+#include <poprithms/common/multiout/optraversal.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/copybyclone.hpp>
@@ -88,16 +89,24 @@ public:
   /** \return The number of outputs of the Op #id.*/
   uint64_t nOutTensors(OpId id) const;
 
+  /** \return The Shapes of the inputs of the Op #id. */
+  Shapes inShapes(OpId id) const;
+
+  /** \return The Shapes of the outputs of the Op #id. */
+  Shapes outShapes(OpId id) const;
+
   /**
    * The output TensorIds of Op #id.
    * These are simply TensorId(id, o) for o in [0, nOutTensors).
    * */
   TensorIds outTensorIds(OpId id) const;
+  TensorId outTensorId(OpId id, OutIndex o) const { return {id, o}; }
 
   /**
    * The TensorIds of the inputs of Op #id.
    * */
   TensorIds inTensorIds(OpId id) const;
+  TensorId inTensorId(OpId, InIndex) const;
 
   /**
    * The concatenation of the TensorIds of all input and output Tensors.
@@ -172,6 +181,13 @@ public:
   getMultioutColumns(const OpIds &) const;
 
   /**
+   * Append a summary of the the Ops in #opIds to the stream #ost.
+   * */
+  virtual void appendOpColumns(std::ostream &ost, const OpIds &) const = 0;
+
+  void append(std::ostream &ost) const { appendOpColumns(ost, opIds()); }
+
+  /**
    * \sa getMultioutColumns
    *
    * There is an entry (a row) for
@@ -188,6 +204,17 @@ public:
   uint64_t nMultioutRows(const OpIds &) const;
 
   /**
+   * The OpTraversal #opTraversal consists of
+   * (1) an input index #i
+   * (2) an op #op, and
+   * (3) an output index,
+   * This method returns the tensor which is the input #i to the op #op.
+   * */
+  TensorId inTensorId(const OpTraversal &) const;
+
+  static TensorId outTensorId(const OpTraversal &o);
+
+  /**
    * Confirm that the Tensor #tId is in this Graph. Specifically, that the Op
    * which creates #tId exists and has an #tId as an output. If not, a
    * descriptive error is thrown.
@@ -200,11 +227,15 @@ protected:
    * inputs' creators.
    * */
   OpId insertMultioutOp(std::unique_ptr<Op> op);
-  OpId insertMultioutOp(const Op &op) { return insertMultioutOp(op.clone()); }
+  OpId insertMultioutOp(const Op &op) {
+    return insertMultioutOp(op.cloneMultioutOp());
+  }
 
   /** Methods to access Ops in this Graph as multiout::Ops. */
   Op &multioutOp(OpId id) { return op(id); }
   const Op &multioutOp(OpId id) const { return op(id); }
+
+  OpId nxtOpId() const { return ops_.size(); }
 
 private:
   /**

@@ -24,7 +24,7 @@ class Op : public schedulable::Op {
 public:
   Op(const schedulable::Op::State &s);
   std::string typeString() const final;
-  std::unique_ptr<multiout::Op> clone() const final;
+  std::unique_ptr<multiout::Op> cloneMultioutOp() const final;
 
 private:
   bool schedulableTypeSpecificEqualTo(const schedulable::Op &) const final;
@@ -38,7 +38,7 @@ public:
               std::string name);
 
   virtual ~Graph() override;
-  void append(std::ostream &) const;
+  void appendOpColumns(std::ostream &, const OpIds &) const final;
 
   OpId insertBinBoundary(schedulable::SubGraphId sgId) final;
 

@@ -20,6 +20,7 @@ Op::State::State(const OpId id_,
                  const std::string &name_)
     : id(id_), inIds(inIds_), consumptionIds(consumptionIds_),
       inShapes(inShapes_), outShapes(outShapes_), name(name_) {
+
   if (inIds.size() != inShapes.size()) {
     std::ostringstream oss;
     oss << "The number of input Shapes should be the same as "

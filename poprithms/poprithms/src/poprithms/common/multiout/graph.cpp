@@ -11,13 +11,25 @@
 
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/op.hpp>
+#include <poprithms/util/copybyclone_impl.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
-#include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
 namespace common {
 namespace multiout {
+
+TensorId Graph::outTensorId(const OpTraversal &o) {
+  return {o.opId(), o.outIndex()};
+}
+
+TensorId Graph::inTensorId(const OpTraversal &ot) const {
+  return op(ot.opId()).inTensorId(ot.inIndex());
+}
+
+Shapes Graph::inShapes(OpId id) const { return op(id).inShapes(); }
+
+Shapes Graph::outShapes(OpId id) const { return op(id).outShapes(); }
 
 void Graph::confirmValidTensorId(const TensorId &tId) const {
 
@@ -50,6 +62,15 @@ uint64_t Graph::nInTensors(OpId id) const { return op(id).nInTensors(); }
 uint64_t Graph::nOutTensors(OpId id) const { return op(id).nOutTensors(); }
 
 OpId Graph::insertMultioutOp(std::unique_ptr<Op> createdOp) {
+
+  if (createdOp->id() != nxtOpId()) {
+    std::ostringstream oss;
+    oss << "Error in multiout::Graph::insertMultioutOp(createdOp="
+        << *createdOp << "). "
+        << "Expected createdOp to have OpId=" << nxtOpId()
+        << ", the next new OpId available. ";
+    throw error(oss.str());
+  }
 
   for (uint64_t inIndex = 0; inIndex < createdOp->nInTensors(); ++inIndex) {
     const auto inTensor = createdOp->inTensorId(inIndex);
@@ -206,6 +227,10 @@ OpIds Graph::opIds() const { return OpIds(live_.cbegin(), live_.cend()); }
 TensorIds Graph::outTensorIds(OpId id) const { return op(id).outTensorIds(); }
 
 TensorIds Graph::inTensorIds(OpId id) const { return op(id).inTensorIds(); }
+
+TensorId Graph::inTensorId(OpId opId, InIndex inIndex) const {
+  return op(opId).inTensorId(inIndex);
+}
 
 void Graph::setName(const TensorId &id, const std::string &name) {
   if (op(id.opId()).nOutTensors() != 1) {

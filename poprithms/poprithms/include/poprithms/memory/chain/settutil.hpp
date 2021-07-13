@@ -7,7 +7,6 @@
 
 #include <poprithms/memory/chain/chain.hpp>
 #include <poprithms/memory/chain/type.hpp>
-#include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
 namespace memory {

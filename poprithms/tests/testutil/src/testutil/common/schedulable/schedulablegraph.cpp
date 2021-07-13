@@ -10,7 +10,7 @@ namespace schedulable_test {
 
 Op::Op(const schedulable::Op::State &s) : schedulable::Op(s) {}
 std::string Op::typeString() const { return "ScazooOp"; }
-std::unique_ptr<multiout::Op> Op::clone() const {
+std::unique_ptr<multiout::Op> Op::cloneMultioutOp() const {
   return std::make_unique<Op>(*this);
 }
 
@@ -42,9 +42,9 @@ OpId Graph::insert(const TensorIds &ins,
 }
 
 Graph::~Graph() = default;
-void Graph::append(std::ostream &ost) const {
-  auto cols = getMultioutColumns();
-  for (auto c : getSchedulableColumns()) {
+void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
+  auto cols = getMultioutColumns(opIds);
+  for (auto c : getSchedulableColumns(opIds)) {
     cols.push_back(c);
   }
   ost << alignedColumns(cols);

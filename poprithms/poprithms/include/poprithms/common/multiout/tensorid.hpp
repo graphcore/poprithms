@@ -48,7 +48,6 @@ private:
   OutIndex outIndex_;
 };
 using TensorIds = std::vector<TensorId>;
-
 std::ostream &operator<<(std::ostream &, const TensorId &);
 std::ostream &operator<<(std::ostream &, const TensorIds &);
 

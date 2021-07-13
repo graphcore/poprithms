@@ -12,6 +12,7 @@ namespace schedulable {
 
 using multiout::OpId;
 using multiout::OpIds;
+using multiout::TensorIds;
 
 /**
  * A node in a Graph. It extends its base class by addings

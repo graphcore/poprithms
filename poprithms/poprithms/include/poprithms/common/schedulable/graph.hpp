@@ -161,6 +161,13 @@ public:
   OpIds vanillaSchedule() const;
 
   /**
+   * A sub-schedule of a set of ops. This is equivalent to
+   * 1) get the schedule for the complete graph, then
+   * 2) pull out the entries in #opIds, retaining their relative positiions.
+   * */
+  OpIds vanillaSubSchedule(const std::set<OpId> &opIds) const;
+
+  /**
    * Return a random scheduling of this Graph
    * */
   OpIds randomSchedule(uint32_t seed) const;
@@ -222,7 +229,7 @@ public:
   /**
    * Get the name of #subGraphId.
    * */
-  std::string graphName(SubGraphId subGraphId) const;
+  std::string subGraphName(SubGraphId subGraphId) const;
 
   /**
    * It can be useful to ensure that the Ops added to this Graph are
@@ -261,6 +268,12 @@ public:
    * an error is thrown.
    * */
   SubGraphId subGraphIdFromTensorIds(const TensorIds &tIds) const;
+
+  /**
+   * Assert that the tensors in #tIds are in the sub-graph #sgId. If they are
+   * not, a descriptive error is thrown.
+   * */
+  void assertSubGraphId(const TensorIds &tIds, SubGraphId sgId) const;
 
   /**
    * return all Ops with #subGraphId which can be scheduled last. That is,

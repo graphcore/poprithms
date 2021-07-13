@@ -313,7 +313,7 @@ public:
                AllowMultiGateAlias = AllowMultiGateAlias::Yes);
 
   /** Append a string describing this Graph to \a ost */
-  void append(std::ostream &ost) const;
+  void appendOpColumns(std::ostream &, const OpIds &) const final;
 
   /**
    * Consider a graph:

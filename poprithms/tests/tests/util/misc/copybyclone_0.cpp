@@ -5,7 +5,8 @@
 #include <vector>
 
 #include <poprithms/error/error.hpp>
-#include <util/copybyclone_impl.hpp>
+#include <poprithms/util/copybyclone_impl.hpp>
+#include <poprithms/util/copybyclone_impl.hpp>
 
 namespace test {
 

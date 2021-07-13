@@ -18,10 +18,10 @@
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/path.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
+#include <poprithms/util/copybyclone_impl.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 #include <poprithms/util/unisort.hpp>
-#include <util/copybyclone_impl.hpp>
 
 // For now in this translation unit
 #include <poprithms/memory/unwind/solution.hpp>
@@ -396,19 +396,19 @@ const Op &Graph::op(OpId a) const {
 }
 Op &Graph::op(OpId a) { return static_cast<Op &>(multioutOp(a)); }
 
-void Graph::append(std::ostream &ost) const {
+void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
 
-  auto cols = getMultioutColumns();
+  auto cols = getMultioutColumns(opIds);
   std::vector<std::string> copyAttractors(nMultioutRows(), "");
 
-  // copy the pattern from multiout Graph:
   uint64_t ti = 0;
-  for (uint64_t i = 0; i < nOps(); ++i) {
-    for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
-      copyAttractors[ti] = util::getStr(op(i).valuedPartners(o));
+  for (auto opId : opIds) {
+    const auto &op_ = op(opId);
+    for (uint64_t o = 0; o < op_.nOutTensors(); ++o) {
+      copyAttractors[ti] = util::getStr(op_.valuedPartners(o));
       ++ti;
     }
-    if (op(i).nOutTensors() == 0) {
+    if (op_.nOutTensors() == 0) {
       ++ti;
     }
   }

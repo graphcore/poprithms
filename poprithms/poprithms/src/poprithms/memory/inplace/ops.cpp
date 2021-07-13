@@ -75,7 +75,7 @@ Concat::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
 
   return {g.concat(m.toAliasGraphIds(inTensorIds()), axis())};
 }
-UpBop Concat::clone() const { return mu<Concat>(this); }
+UpMultioutOp Concat::cloneMultioutOp() const { return mu<Concat>(this); }
 
 // ------- //
 //  Alloc  //
@@ -89,7 +89,7 @@ bool Alloc::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   return color() == rhs_.color();
 }
 
-UpBop Alloc::clone() const { return mu<Alloc>(this); }
+UpMultioutOp Alloc::cloneMultioutOp() const { return mu<Alloc>(this); }
 
 std::vector<alias::TensorId>
 Alloc::typeSpecificGrow(alias::Graph &g, const TensorMap &) const {
@@ -107,7 +107,9 @@ std::vector<alias::TensorId>
 UnaryModifier::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.identity(m.toAliasGraphId(inTensorId(0)))};
 }
-UpBop UnaryModifier::clone() const { return mu<UnaryModifier>(this); }
+UpMultioutOp UnaryModifier::cloneMultioutOp() const {
+  return mu<UnaryModifier>(this);
+}
 
 // ------------ //
 //  SettSample  //
@@ -125,7 +127,9 @@ std::vector<alias::TensorId>
 SettSample::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.settSample(m.toAliasGraphId(inTensorId(0)), region())};
 }
-UpBop SettSample::clone() const { return mu<SettSample>(this); }
+UpMultioutOp SettSample::cloneMultioutOp() const {
+  return mu<SettSample>(this);
+}
 
 // ------------ //
 //  DimShuffle  //
@@ -141,7 +145,9 @@ std::vector<alias::TensorId>
 DimShuffle::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.dimShuffle(m.toAliasGraphId(inTensorId(0)), permutation())};
 }
-UpBop DimShuffle::clone() const { return mu<DimShuffle>(this); }
+UpMultioutOp DimShuffle::cloneMultioutOp() const {
+  return mu<DimShuffle>(this);
+}
 
 // --------- //
 //  Reverse  //
@@ -157,7 +163,7 @@ std::vector<alias::TensorId>
 Reverse::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.reverse(m.toAliasGraphId(inTensorId(0)), dimensions().get())};
 }
-UpBop Reverse::clone() const { return mu<Reverse>(this); }
+UpMultioutOp Reverse::cloneMultioutOp() const { return mu<Reverse>(this); }
 
 // --------- //
 //  Reshape  //
@@ -166,7 +172,7 @@ std::vector<alias::TensorId>
 Reshape::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.reshape(m.toAliasGraphId(inTensorId(0)), outShape(0))};
 }
-UpBop Reshape::clone() const { return mu<Reshape>(this); }
+UpMultioutOp Reshape::cloneMultioutOp() const { return mu<Reshape>(this); }
 
 Reshape::Reshape(const State &st) : ViewChange1to1(st) {
   if (st.baseState.inShapes.size() != 1 ||
@@ -191,7 +197,7 @@ std::vector<alias::TensorId>
 Expand::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   return {g.expand(m.toAliasGraphId(inTensorId(0)), outShape(0))};
 }
-UpBop Expand::clone() const { return mu<Expand>(this); }
+UpMultioutOp Expand::cloneMultioutOp() const { return mu<Expand>(this); }
 
 // ----- //
 // Multi //
@@ -275,7 +281,7 @@ std::string Multi::typeString() const {
   return oss.str();
 }
 
-UpBop Multi::clone() const { return mu<Multi>(this); }
+UpMultioutOp Multi::cloneMultioutOp() const { return mu<Multi>(this); }
 
 bool Multi::modifies(InIndex i) const { return inIndexIsModified_[i.get()]; }
 
@@ -371,7 +377,9 @@ std::string AliasGate::typeString() const {
   return oss.str();
 }
 
-UpBop AliasGate::clone() const { return mu<AliasGate>(this); }
+UpMultioutOp AliasGate::cloneMultioutOp() const {
+  return mu<AliasGate>(this);
+}
 
 bool AliasGate::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const AliasGate &>(rhs);

@@ -14,7 +14,7 @@ using ndarray::Dimensions;
 using nest::Region;
 using util::Permutation;
 
-using UpBop = std::unique_ptr<poprithms::common::multiout::Op>;
+using UpMultioutOp = std::unique_ptr<poprithms::common::multiout::Op>;
 
 class AliasGate : public Op {
 public:
@@ -25,7 +25,7 @@ public:
   AliasGate(const State &st);
 
   std::string typeString() const final;
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
   bool modifies(InIndex) const final { return false; }
 
   bool closed() const { return inIndex_ < 0; }
@@ -48,7 +48,7 @@ public:
   Alloc(const State &st, alias::Color color__) : Op(st), color_(color__) {}
   alias::Color color() const { return color_; }
   std::string typeString() const final;
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
   bool modifies(InIndex) const final { return false; }
 
 private:
@@ -67,7 +67,7 @@ public:
             Shape::concatPartitionPoints(st.baseState.inShapes, axis__)) {}
   uint64_t axis() const { return axis_; }
   std::string typeString() const final;
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
   bool modifies(InIndex) const final { return false; }
 
 private:
@@ -95,7 +95,7 @@ class UnaryModifier : public Unary {
 public:
   UnaryModifier(const State &st) : Unary(st) {}
   std::string typeString() const final { return "UnaryModifier"; }
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
   bool modifies(InIndex) const final { return true; }
 
 private:
@@ -119,7 +119,7 @@ public:
       : ViewChange1to1(st), region_(region__) {}
   Region region() const { return region_; }
   std::string typeString() const final;
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
 
 private:
   bool inplaceTypeSpecificEqualTo(const Op &other) const final;
@@ -135,7 +135,7 @@ public:
       : ViewChange1to1(st), permutation_(permutation__) {}
   Permutation permutation() const { return permutation_; }
   std::string typeString() const final;
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
 
 private:
   bool inplaceTypeSpecificEqualTo(const Op &other) const final;
@@ -150,7 +150,7 @@ public:
       : ViewChange1to1(st), dimensions_(dimensions__) {}
   Dimensions dimensions() const { return dimensions_; }
   std::string typeString() const final;
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
 
 private:
   bool inplaceTypeSpecificEqualTo(const Op &other) const final;
@@ -163,7 +163,7 @@ class Reshape : public ViewChange1to1 {
 public:
   Reshape(const State &st);
   std::string typeString() const final { return "Reshape"; }
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
 
 private:
   bool inplaceTypeSpecificEqualTo(const Op &) const final { return true; }
@@ -175,7 +175,7 @@ class Identity : public ViewChange1to1 {
 public:
   Identity(const State &st) : ViewChange1to1(st) {}
   std::string typeString() const final { return "Identity"; }
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
 
 private:
   bool inplaceTypeSpecificEqualTo(const Op &) const final { return true; }
@@ -187,7 +187,7 @@ class Expand : public ViewChange1to1 {
 public:
   Expand(const State &st) : ViewChange1to1(st) {}
   std::string typeString() const final { return "Expand"; }
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
 
 private:
   bool inplaceTypeSpecificEqualTo(const Op &) const final { return true; }
@@ -207,7 +207,7 @@ class Multi : public Op {
 public:
   Multi(const State &st, const CrossLinks &m__);
   std::string typeString() const final;
-  UpBop clone() const final;
+  UpMultioutOp cloneMultioutOp() const final;
   bool modifies(InIndex) const final;
 
 private:

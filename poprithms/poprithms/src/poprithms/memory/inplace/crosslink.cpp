@@ -3,8 +3,8 @@
 #include <typeinfo>
 
 #include <poprithms/memory/inplace/crosslink.hpp>
+#include <poprithms/util/copybyclone_impl.hpp>
 #include <poprithms/util/printiter.hpp>
-#include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
 namespace memory {

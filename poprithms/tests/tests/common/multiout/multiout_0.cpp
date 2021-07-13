@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iostream>
 #include <numeric>
+#include <ostream>
 #include <random>
 #include <sstream>
 #include <unordered_set>
@@ -17,6 +18,7 @@
 namespace {
 using namespace poprithms::common;
 using Shape = poprithms::ndarray::Shape;
+using poprithms::common::multiout::OpIds;
 using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
 using Shapes = poprithms::ndarray::Shapes;
@@ -27,7 +29,7 @@ class Op : public multiout::Op {
 public:
   Op(const multiout::Op::State &s) : multiout::Op(s) {}
   std::string typeString() const final { return "LazyMauveOp"; }
-  std::unique_ptr<multiout::Op> clone() const final {
+  std::unique_ptr<multiout::Op> cloneMultioutOp() const final {
     return std::make_unique<Op>(*this);
   }
 
@@ -47,7 +49,7 @@ public:
     return insertMultioutOp(std::make_unique<test::Op>(s));
   }
   virtual ~Graph() override = default;
-  void append(std::ostream &) const;
+  void appendOpColumns(std::ostream &, const OpIds &) const final;
 
 private:
   bool multiOutTypeSpecificEqualTo(const multiout::Graph &) const final {
@@ -75,8 +77,8 @@ void test0() {
   }
 }
 
-void test::Graph::append(std::ostream &ost) const {
-  const auto c = getMultioutColumns();
+void test::Graph::appendOpColumns(std::ostream &ost, const OpIds &ids) const {
+  const auto c = getMultioutColumns(ids);
   ost << alignedColumns(c);
 }
 
@@ -282,6 +284,24 @@ void testTraversal2() {
     std::sort(expected.begin(), expected.end());
     if (out != expected) {
       throw poprithms::test::error("failure in test of backwards traversal");
+    }
+
+    for (TensorId start : TensorIds({x0, {op3, 0}, {op0, 0}, {op2, 1}})) {
+      if (!multiout::isFwdReachable(
+              g, {start}, {op4, 0}, [](auto) { return true; })) {
+        throw poprithms::test::error("failure in test of isFwdReachable, "
+                              "testTraversal2. Is reachable from " +
+                              start.str());
+      }
+    }
+
+    for (TensorId start : TensorIds({{op0, 1}, {op2, 0}})) {
+      if (multiout::isFwdReachable(
+              g, {start}, {op4, 0}, [](auto) { return true; })) {
+        throw poprithms::test::error("failure in test of isFwdReachable, "
+                              "testTraversal2. Is NOT reachable from " +
+                              start.str());
+      }
     }
   }
 }

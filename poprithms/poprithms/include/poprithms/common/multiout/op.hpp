@@ -158,7 +158,9 @@ public:
   /**
    * Clone this Op, returning a unique_ptr to an indentical copy of it.
    * */
-  virtual std::unique_ptr<Op> clone() const = 0;
+  virtual std::unique_ptr<Op> cloneMultioutOp() const = 0;
+
+  std::unique_ptr<Op> clone() const { return cloneMultioutOp(); }
 
   /** Verify that the input and output indices are valid for this Op. If they
    * are not, a descriptive error message which includes #context is thrown.

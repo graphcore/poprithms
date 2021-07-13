@@ -1,5 +1,4 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/schedulable/op.hpp>
 
@@ -57,7 +56,8 @@ OpIds Op::nonDataInOps() const {
 }
 
 Op::Op(const State &ob)
-    : common::multiout::Op(ob.baseState), subGraphId_(ob.subGraphId) {}
+    : common::multiout::Op(ob.baseState), subGraphId_(ob.subGraphId),
+      inOps_(ob.inOps), outOps_(ob.outOps) {}
 
 bool Op::State::operator==(const State &rhs) const {
   return baseState == rhs.baseState &&   //

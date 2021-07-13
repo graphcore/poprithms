@@ -17,9 +17,9 @@
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/transitiveclosure/partitionedtransitiveclosure.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
+#include <poprithms/util/copybyclone_impl.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
-#include <util/copybyclone_impl.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -671,12 +671,12 @@ Graph::Edges<T> Graph::getConditionalFwdEdges(Conditional &&condition) const {
   return fwdEdges;
 }
 
-void Graph::append(std::ostream &ost) const {
+void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
 
-  const auto nTens     = nMultioutRows();
+  const auto nTens     = nMultioutRows(opIds);
   const auto aliasedTo = aGraph().allAliases();
 
-  auto cols = getMultioutColumns();
+  auto cols = getMultioutColumns(opIds);
 
   using Strings = std::vector<std::string>;
 
@@ -688,11 +688,11 @@ void Graph::append(std::ostream &ost) const {
   Strings constants__(nTens, "");
   Strings aliasedTo__(nTens, "");
 
-  uint ti = 0;
-  for (uint64_t i = 0; i < nOps(); ++i) {
-    inOps__[ti] = util::getStr(op(i).ins());
-    for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
-      const auto aliasId = tensorMap.toAliasGraphId(op(i).outTensorId(o));
+  uint64_t ti = 0;
+  for (auto opId : opIds) {
+    inOps__[ti] = util::getStr(op(opId).ins());
+    for (uint64_t o = 0; o < op(opId).nOutTensors(); ++o) {
+      const auto aliasId = tensorMap.toAliasGraphId(op(opId).outTensorId(o));
       tensorId__[ti]     = std::to_string(aliasId.get());
       tensorType__[ti]   = aGraph().typeString(aliasId);
       selfAliases__[ti]  = aGraph().containsAliases(aliasId) ? "yes" : "no";
@@ -701,7 +701,7 @@ void Graph::append(std::ostream &ost) const {
       aliasedTo__[ti] = getStr(aliasedTo[aliasId.get()]);
       ++ti;
     }
-    if (op(i).nOutTensors() == 0) {
+    if (op(opId).nOutTensors() == 0) {
       ++ti;
     }
   }

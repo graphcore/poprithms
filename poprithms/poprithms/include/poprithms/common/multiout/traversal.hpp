@@ -25,8 +25,7 @@ namespace multiout {
  * This is similar to depth-first search of all Ops in a graph, except that it
  * records all the ways in which the Ops can be entered and exited.
  *
- * \param G g The graph to traverse. G is expected to be derived from the
- *            multiout::Graph.
+ * \param G g The graph to traverse.
  *
  * \param starts The starting Tensors for the depth-first traversal.
  *
@@ -35,7 +34,8 @@ namespace multiout {
  *                                    final returned set, and to continue the
  *                                    forwards traversal.
  *
- * \return the unique OpTraversals, returned sorted by OpTraversal::operator<
+ * \return the OpTraversals travelled, returned unique and sorted by
+ *         OpTraversal::operator<
  *
  * */
 template <class G, class AcceptanceCondition>
@@ -78,6 +78,59 @@ std::vector<OpTraversal> depthFirstForward(const G &g,
     }
   }
   return util::unisorted(traversals);
+}
+
+template <class AcceptanceCondition> class SearchUntilOneFound {
+public:
+  SearchUntilOneFound(const TensorId &target_, AcceptanceCondition &&accept_)
+      : target(target_), accept(std::move(accept_)), found_(false) {}
+
+  bool found() const { return found_; }
+
+  bool isTarget(const OpTraversal &ot) const {
+    return ot.opId() == target.opId() && ot.outIndex() == target.outIndex();
+  }
+
+  bool operator()(const OpTraversal &ot) {
+    // untraversable
+    if (!accept(ot)) {
+      return false;
+    }
+
+    // If the target tensor has already been found, return false to terminate
+    // searches along any new paths.
+    if (found()) {
+      return false;
+    }
+    if (isTarget(ot)) {
+      found_ = true;
+    }
+    return true;
+  }
+
+private:
+  TensorId target;
+  AcceptanceCondition accept;
+  bool found_;
+};
+
+/**
+ * Starting from the tensors in #starts, is it possible to traverse the graph
+ * #g to the tensor #target along a path of traversals which are all accepted
+ * by the AcceptanceCondition #accept?
+ * */
+template <class G, class AcceptanceCondition>
+bool isFwdReachable(const G &g,
+                    const TensorIds &starts,
+                    const TensorId &target,
+                    AcceptanceCondition &&accept) {
+  SearchUntilOneFound<AcceptanceCondition> hyper(
+      target, std::forward<AcceptanceCondition>(accept));
+
+  // Perform a depth-first search, starting at #starts and traversing towards
+  // targets. Terminate the traversal as soon as the target is found.
+  depthFirstForward(g, starts, hyper);
+  return hyper.found();
 }
 
 /**
