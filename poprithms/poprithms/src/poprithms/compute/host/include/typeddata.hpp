@@ -30,6 +30,50 @@ public:
     NumpyFormatter::append(nv, ost, sh, 50);
   }
 
+  double getFloat64(uint64_t rmi) const final {
+    return static_cast<double>(getNativeValue(rmi));
+  }
+
+  float getFloat32(uint64_t rmi) const final {
+    return static_cast<float>(getNativeValue(rmi));
+  }
+
+  int64_t getInt64(uint64_t rmi) const final {
+    return static_cast<int64_t>(getNativeValue(rmi));
+  }
+
+  uint64_t getUnsigned64(uint64_t rmi) const final {
+    return static_cast<uint64_t>(getNativeValue(rmi));
+  }
+
+  int32_t getInt32(uint64_t rmi) const final {
+    return static_cast<int32_t>(getNativeValue(rmi));
+  }
+
+  uint32_t getUnsigned32(uint64_t rmi) const final {
+    return static_cast<uint32_t>(getNativeValue(rmi));
+  }
+
+  int16_t getInt16(uint64_t rmi) const final {
+    return static_cast<int16_t>(getNativeValue(rmi));
+  }
+
+  uint16_t getUnsigned16(uint64_t rmi) const final {
+    return static_cast<uint16_t>(getNativeValue(rmi));
+  }
+
+  int8_t getInt8(uint64_t rmi) const final {
+    return static_cast<int8_t>(getNativeValue(rmi));
+  }
+
+  uint8_t getUnsigned8(uint64_t rmi) const final {
+    return static_cast<uint8_t>(getNativeValue(rmi));
+  }
+
+  bool getBoolean(uint64_t rmi) const final {
+    return static_cast<bool>(getNativeValue(rmi));
+  }
+
   std::string valueAsStr(uint64_t i) const {
     return std::to_string(getNativeValue(i));
   }

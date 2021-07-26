@@ -34,6 +34,8 @@ using Tensors = std::vector<Tensor>;
 class BaseData;
 
 enum class CommutativeOp { Sum, Min, Max, Product };
+std::ostream &operator<<(std::ostream &, CommutativeOp);
+std::string str(CommutativeOp);
 
 /**
  * A Tensor class for just-in-time host computation with poplar aliasing
@@ -182,6 +184,34 @@ public:
   uniformFloat64(double low, double upp, const Shape &, uint32_t seed);
 
   /**
+   * Return a sorted (low to high) rank-1 Tensor, with N values in the range
+   * [0, range). The probability that i in [0, range) appears in the returned
+   * Tensor is N/range, and probabilities are independent for all i. An error
+   * is thrown if N > range.
+   * */
+  static Tensor sampleWithoutReplacementUnsigned64(uint64_t range,
+                                                   uint64_t N,
+                                                   uint32_t seed);
+
+  /**
+   * Return a Tensor of shape #s of type Unsigned64, with values in the range
+   * [0, range). The values do not repeat if #r is Replacement::No.
+   * */
+  enum class Replacement { No = 0, Yes };
+  static Tensor sampleUnsigned64(Replacement r,
+                                 const Shape &s,
+                                 uint64_t range,
+                                 uint64_t seed);
+
+  /**
+   * Return a Tensor of type #t and of Shape #s, with #nUnmasked 1s, and all
+   * the remaining values 0. An error is thrown if #nUnmasked exceeds the
+   * size of #s.
+   * */
+  static Tensor
+  mask(DType t, const Shape &s, uint64_t nUnmasked, uint32_t seed);
+
+  /**
    * Create a Tensor with values linearly spaced between \a start and \a end,
    * with interval \a step. Based on the numpy.ndarray equivalent:
    * https://numpy.org/doc/stable/reference/generated/numpy.arange.html
@@ -193,6 +223,12 @@ public:
    *         order
    * */
   std::vector<double> getFloat64Vector() const;
+
+  /**
+   * \return The #rowMajorIndex'th value in the tensor, cast to a double
+   *         value.
+   * */
+  double getFloat64(uint64_t rowMajorIndex) const;
 
   /**
    * Cast this Tensor to a Float64 Tensor.
@@ -215,6 +251,7 @@ public:
   static Tensor arangeFloat32(float start, float stop, float step);
   Tensor toFloat32() const;
   std::vector<float> getFloat32Vector() const;
+  float getFloat32(uint64_t rowMajorIndex) const;
 
   /**
    * Float16 specific Tensor methods. \see corresponding Float64 methods.
@@ -242,6 +279,7 @@ public:
   static Tensor arangeInt64(int64_t start, int64_t stop, int64_t step);
   Tensor toInt64() const;
   std::vector<int64_t> getInt64Vector() const;
+  int64_t getInt64(uint64_t rowMajorIndex) const;
 
   /**
    * Create a Tensor of type Int64 with values drawn independently from the
@@ -269,6 +307,7 @@ public:
   arangeUnsigned64(uint64_t start, uint64_t stop, uint64_t step);
   Tensor toUnsigned64() const;
   std::vector<uint64_t> getUnsigned64Vector() const;
+  uint64_t getUnsigned64(uint64_t rowMajorIndex) const;
   static Tensor
   randomUnsigned64(uint64_t low, uint64_t upp, const Shape &, uint32_t seed);
 
@@ -284,6 +323,7 @@ public:
   static Tensor arangeInt32(int32_t start, int32_t stop, int32_t step);
   Tensor toInt32() const;
   std::vector<int32_t> getInt32Vector() const;
+  int32_t getInt32(uint64_t rowMajorIndex) const;
   static Tensor randomInt32(int low, int upp, const Shape &, uint32_t seed);
 
   /** \return A Tensor of zeros, of type \a d and shape \a s. */
@@ -305,6 +345,7 @@ public:
   arangeUnsigned32(uint32_t start, uint32_t stop, uint32_t step);
   Tensor toUnsigned32() const;
   std::vector<uint32_t> getUnsigned32Vector() const;
+  uint32_t getUnsigned32(uint64_t rowMajorIndex) const;
   static Tensor
   randomUnsigned32(uint32_t low, uint32_t upp, const Shape &, uint32_t seed);
 
@@ -320,6 +361,7 @@ public:
   static Tensor arangeInt16(int16_t start, int16_t stop, int16_t step);
   Tensor toInt16() const;
   std::vector<int16_t> getInt16Vector() const;
+  int16_t getInt16(uint64_t rowMajorIndex) const;
   static Tensor
   randomInt16(int16_t low, int16_t upp, const Shape &, uint32_t seed);
 
@@ -336,6 +378,7 @@ public:
   arangeUnsigned16(uint16_t start, uint16_t stop, uint16_t step);
   Tensor toUnsigned16() const;
   std::vector<uint16_t> getUnsigned16Vector() const;
+  uint16_t getUnsigned16(uint64_t rowMajorIndex) const;
   static Tensor
   randomUnsigned16(uint16_t low, uint16_t upp, const Shape &, uint32_t seed);
 
@@ -351,6 +394,7 @@ public:
   static Tensor arangeInt8(int8_t start, int8_t stop, int8_t step);
   Tensor toInt8() const;
   std::vector<int8_t> getInt8Vector() const;
+  int8_t getInt8(uint64_t rowMajorIndex) const;
   static Tensor
   randomInt8(int8_t low, int8_t upp, const Shape &, uint32_t seed);
 
@@ -366,6 +410,7 @@ public:
   static Tensor arangeUnsigned8(uint8_t start, uint8_t stop, uint8_t step);
   Tensor toUnsigned8() const;
   std::vector<uint8_t> getUnsigned8Vector() const;
+  uint8_t getUnsigned8(uint64_t rowMajorIndex) const;
   static Tensor
   randomUnsigned8(uint8_t low, uint8_t upp, const Shape &, uint32_t seed);
 
@@ -382,6 +427,7 @@ public:
   static Tensor boolean(bool);
   Tensor toBoolean() const;
   std::vector<bool> getBooleanVector() const;
+  bool getBoolean(uint64_t rowMajorIndex) const;
   static Tensor randomBoolean(const Shape &, uint32_t seed);
 
   /** \return true if all the elements in this Tensor are 0. */
@@ -643,6 +689,16 @@ public:
   Tensor reduce(const Shape &, CommutativeOp) const;
 
   /**
+   * Reduction methods, where the reduction is across all elements of this
+   * Tensor, and the returned Tensor is rank-0.
+   * */
+  Tensor reduceSum() const { return reduceSum({}); }
+  Tensor reduceMin() const { return reduceMin({}); }
+  Tensor reduceMax() const { return reduceMax({}); }
+  Tensor reduceProduct() const { return reduceProduct({}); }
+  Tensor reduce(CommutativeOp cop) const { return reduce({}, cop); }
+
+  /**
    * \return the l2-norm of this Tensor. That is, the square root of the sum
    *         of the squares of the values. */
   double l2norm() const;
@@ -892,36 +948,61 @@ public:
 
   /**
    * Elementwise binary operations, which use numpy-style broadcasting rules.
-   * The versions with the suffix _ are inplace on this Tensor. Note that
-   * there is no implicit type casting, so \p rhs must have the same numerical
-   * type as this Tensor.
+   * The versions with the suffix _ are inplace on this Tensor.
+   *
+   * Note that there is no implicit type casting, so \p rhs must have the same
+   * numerical type as this Tensor.
    * */
   Tensor add(const Tensor &rhs) const;
   Tensor add_(const Tensor &rhs) const;
 
+  /**
+   * Elementwise binary operations with a scalar. The returned Tensor is of
+   * the same type and Shape as this Tensor. If the value v cannot be
+   * represented exactly as this Tensor's type, an error is thrown. For
+   * example, if this Tensor is of type Int32, then add(1.5) will result in an
+   * error.
+   * */
+  Tensor add(double v) const { return add(safeScalar(dtype(), v)); }
+  Tensor add_(double v) const { return add_(safeScalar(dtype(), v)); }
+
   Tensor mul(const Tensor &rhs) const;
   Tensor mul_(const Tensor &rhs) const;
+  Tensor mul(double v) const { return mul(safeScalar(dtype(), v)); }
+  Tensor mul_(double v) const { return mul_(safeScalar(dtype(), v)); }
 
   Tensor max(const Tensor &rhs) const;
   Tensor max_(const Tensor &rhs) const;
+  Tensor max(double v) const { return max(safeScalar(dtype(), v)); }
+  Tensor max_(double v) const { return max_(safeScalar(dtype(), v)); }
 
   Tensor min(const Tensor &rhs) const;
   Tensor min_(const Tensor &rhs) const;
+  Tensor min(double v) const { return min(safeScalar(dtype(), v)); }
+  Tensor min_(double v) const { return min_(safeScalar(dtype(), v)); }
 
   Tensor combine(const Tensor &, CommutativeOp) const;
   Tensor combine_(const Tensor &, CommutativeOp) const;
 
   Tensor subtract(const Tensor &rhs) const;
   Tensor subtract_(const Tensor &rhs) const;
+  Tensor subtract(double v) const { return subtract(safeScalar(dtype(), v)); }
+  Tensor subtract_(double v) const {
+    return subtract_(safeScalar(dtype(), v));
+  }
 
   Tensor divide(const Tensor &rhs) const;
   Tensor divide_(const Tensor &rhs) const;
+  Tensor divide(double v) const { return divide(safeScalar(dtype(), v)); }
+  Tensor divide_(double v) const { return divide_(safeScalar(dtype(), v)); }
 
   Tensor mod(const Tensor &rhs) const;
   Tensor mod_(const Tensor &rhs) const;
 
   Tensor pow(const Tensor &rhs) const;
   Tensor pow_(const Tensor &rhs) const;
+  Tensor pow(double v) const { return pow(safeScalar(dtype(), v)); }
+  Tensor pow_(double v) const { return pow_(safeScalar(dtype(), v)); }
 
   /**
    * Set the value of this Tensor to \a rhs.
@@ -1152,9 +1233,18 @@ public:
 
   /**
    * Construct a Tensor from a scalar value. The Tensor will be of type \a
-   * type, constructed from casting \a v.
+   * type, constructed from casting \a v. If the type is known at compile
+   * time, then the native Tensor constructors should be used. For example,
+   * Tensor::float32(1.5) is preferable to
+   * Tensor::scalar(DType::Float32, 1.5).
    * */
   static Tensor scalar(DType type, double v);
+
+  /**
+   * As per the method 'scalar' but checks are run that #v is a valid #type.
+   * This will become the default behaviour in a later release.
+   * */
+  static Tensor safeScalar(DType type, double v);
 
   Tensor scalarOfSameType(double v) const { return scalar(dtype(), v); }
 
@@ -1247,6 +1337,8 @@ Tensor operator%(const Tensor &a, const Tensor &b);
 
 Tensor concat(const std::vector<Tensor> &, uint64_t axis);
 Tensor concat_(const std::vector<Tensor> &, uint64_t axis);
+
+Tensor scalar(DType t, double v);
 
 } // namespace host
 } // namespace compute

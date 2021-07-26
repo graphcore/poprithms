@@ -63,9 +63,44 @@ void testBoolConstructor() {
   }
 }
 
-void testScalarConstructors() {
-  const auto a = Tensor::scalar(DType::Float16, 1.03);
-  const auto b = Tensor::scalar(DType::Float64, 1.03);
+void testScalarConstructors0() {
+  // no rounding error:
+  {
+    const auto a = Tensor::scalar(DType::Float32, 1.7f);
+    const auto b = Tensor::safeScalar(DType::Float32, 1.7f);
+  }
+
+  // rounding error but it's not detected (correctly)
+  { const auto b = Tensor::scalar(DType::Float32, 1.7); }
+
+  bool caught = false;
+  try {
+    const auto b = Tensor::safeScalar(DType::Float32, 1.7);
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw poprithms::test::error("Failed to catch rounding error, 1.7 != "
+                                 "1.7f in testScalarConstructors0");
+  }
+
+  caught = false;
+  try {
+    int64_t large = (1LL << 58) + 1;
+    const auto c  = Tensor::safeScalar(DType::Int64, large);
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw poprithms::test::error(
+        "Failed to catch construction of large integer tensor from double in "
+        "testScalarConstructors0");
+  }
+}
+
+void testScalarConstructors1() {
+  const auto a = Tensor::scalar(DType::Float16, 1.125);
+  const auto b = Tensor::scalar(DType::Float64, 1.125);
   const auto c = a - b.toFloat16();
   c.assertAllEquivalent(Tensor::scalar(DType::Float16, 0.0));
 }
@@ -121,7 +156,8 @@ int main() {
   testBasicConstructors();
   testRefConstructor();
   testBoolConstructor();
-  testScalarConstructors();
+  testScalarConstructors0();
+  testScalarConstructors1();
   testInitializerListConstructors0();
   testCheckErrors0();
   testCheckErrors1();

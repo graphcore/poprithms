@@ -5,6 +5,7 @@
 #include <random>
 #include <sstream>
 #include <type_traits>
+#include <unordered_set>
 
 #include <compute/host/error.hpp>
 #include <compute/host/include/allocdata.hpp>
@@ -22,6 +23,24 @@
 namespace poprithms {
 namespace compute {
 namespace host {
+
+std::ostream &operator<<(std::ostream &ost, CommutativeOp cop) {
+  ost << str(cop);
+  return ost;
+}
+std::string str(CommutativeOp cop) {
+  switch (cop) {
+  case CommutativeOp::Max:
+    return "Max";
+  case CommutativeOp::Min:
+    return "Min";
+  case CommutativeOp::Product:
+    return "Product";
+  case CommutativeOp::Sum:
+    return "Sum";
+  }
+  throw error("Unrecognised CommutativeOp in str(CommutativeOp)");
+}
 
 namespace {
 template <typename T>
@@ -202,8 +221,45 @@ public:
   }
 };
 
-Tensor Tensor::scalar(DType type, const double v) {
+Tensor scalar(DType t, double v) { return Tensor::scalar(t, v); }
+
+Tensor Tensor::scalar(const DType type, const double v) {
   return typeSwitch<ScalarCaster, Tensor>(type, v);
+}
+
+Tensor Tensor::safeScalar(DType type, const double v) {
+
+  // A Tensor of type 'type'.
+  const auto out = typeSwitch<ScalarCaster, Tensor>(type, v);
+
+  // Don't allow rounding errors. For example scalar(Int32, 1.5) will fail.
+  if (out.getFloat64(0) != v) {
+    std::ostringstream oss;
+    oss << "Failed to create " << type << " from the double value " << v
+        << ": rounding error of size " << out.getFloat64(0) - v
+        << "  occurred. Consider casting v to a " << type
+        << " before calling Tensor::scalar, something like "
+        << "Tensor::scalar(" << type << ", static_cast<\""
+        << ndarray::lcase(type) << "\">(" << v << ")). ";
+    throw error(oss.str());
+  }
+
+  // mantissa of double is 52 bits, so integers larger than 2^52 might not
+  // be representable. This might not be caught by the above code if the user
+  // does scalar(INT64, (2>55) +1), for example.
+  if (type == DType::Unsigned64 || type == DType::Int64) {
+    const double bound = static_cast<double>(1LL << 52);
+    if (v > bound || v < -bound) {
+      std::ostringstream oss;
+      oss << "scalar(type=" << type << ", v=" << v
+          << "). |v| > 2^52, rounding errors possible. ";
+      oss << "Refrain from using Tensor::scalar(DType, double) for "
+          << "constructing very large integer Tensors. ";
+      throw error(oss.str());
+    }
+  }
+
+  return out;
 }
 
 Tensor concat(const Tensors &ts, uint64_t axis) {
@@ -436,8 +492,8 @@ uint64_t getUint64(const Tensor &index) {
                 index.shape().str());
   }
 
-  const auto i_u64 = index.getUnsigned64Vector()[0];
-  const auto i_f64 = index.getFloat64Vector()[0];
+  const auto i_u64 = index.getUnsigned64(0);
+  const auto i_f64 = index.getFloat64(0);
 
   if (static_cast<double>(i_u64) - i_f64 != 0.0) {
     std::ostringstream oss;
@@ -871,7 +927,7 @@ double Tensor::l2norm() const {
   const auto squared = asDouble * asDouble;
   const auto reduced = squared.reduceSum({});
   const auto root    = reduced.sqrt();
-  return root.getFloat64Vector()[0];
+  return root.getFloat64(0);
 }
 
 Tensor Tensor::reduceSum(const Shape &outShape) const {
@@ -1067,7 +1123,7 @@ void Tensor::assertAllClose(const Tensor &b,
         << "This Tensor is \n"
         << *this << ", \nand b is " << b << ". Failed with relTol=" << relTol
         << " and absTol=" << absTol << ". The maximum absolute difference is "
-        << absDiffMax.getFloat64Vector()[0] << ". ";
+        << absDiffMax.getFloat64(0) << ". ";
     throw error(oss.str());
   }
 }
@@ -1191,7 +1247,96 @@ Tensor Tensor::tRandomInt(T low, T upp, const Shape &s, uint32_t seed) {
                 std::make_shared<AllocData<T>>(std::move(data__)));
 }
 
-// Type specific implementations:
+namespace {
+
+std::vector<uint64_t>
+withReplacement(uint64_t range, uint64_t N, uint32_t seed) {
+
+  std::mt19937 mt(seed);
+
+  std::vector<uint64_t> sam;
+  sam.reserve(N);
+  for (uint64_t i = 0; i < N; ++i) {
+    sam.push_back(range % mt());
+  }
+  return sam;
+}
+
+std::vector<uint64_t>
+withoutReplacement(uint64_t range, uint64_t N, uint32_t seed) {
+  if (N > range) {
+    std::ostringstream oss;
+    oss << "Invalid call, Tensor::withoutReplacementUnsigned64(range="
+        << range << ", N=" << N << ", seed=" << seed << "): N > range. ";
+    throw error(oss.str());
+  }
+
+  std::mt19937 mt(seed);
+
+  const double sampleRate =
+      static_cast<double>(N) / static_cast<double>(range);
+
+  // "dense" sampling. In the case where a significant fraction of values will
+  // be kept, we use this O(range) algorithm.
+  if (sampleRate > 0.25) {
+    std::vector<uint64_t> iot(range);
+    std::iota(iot.begin(), iot.end(), 0ULL);
+    std::vector<uint64_t> sam;
+    sam.reserve(N);
+
+    // Sample without replacement (see
+    // https://en.cppreference.com/w/cpp/algorithm/sample)
+    std::sample(iot.cbegin(), iot.cend(), std::back_inserter(sam), N, mt);
+    return sam;
+  }
+
+  // sparse sampling. When samples are sparse, we use a more efficient O(N
+  // log(N)) algo.
+  //
+  // Note: This could be extended to the dense case using Robert Floyd's algo
+  // [ https://math.stackexchange.com/questions/178690 ] but that is less
+  // efficient than the "vector" approach above for dense sampling.
+  else {
+    std::unordered_set<uint64_t> seen;
+    while (seen.size() < N) {
+      seen.insert(mt() % range);
+    }
+    std::vector<uint64_t> sam(seen.cbegin(), seen.cend());
+    std::sort(sam.begin(), sam.end());
+    return sam;
+  }
+}
+} // namespace
+
+Tensor Tensor::sampleWithoutReplacementUnsigned64(uint64_t range,
+                                                  uint64_t N,
+                                                  uint32_t seed) {
+  return Tensor::unsigned64({static_cast<int64_t>(N)},
+                            withoutReplacement(range, N, seed));
+}
+
+Tensor Tensor::sampleUnsigned64(Replacement r,
+                                const Shape &shape,
+                                uint64_t range,
+                                uint64_t seed) {
+
+  const auto indices =
+      r == Replacement::Yes
+          ? withReplacement(range, shape.nelms_u64(), seed)
+          : withoutReplacement(range, shape.nelms_u64(), seed);
+
+  return Tensor::unsigned64(shape, indices);
+}
+
+Tensor
+Tensor::mask(DType t, const Shape &shape, uint64_t nUnmasked, uint32_t seed) {
+  const auto indices = withoutReplacement(shape.nelms_u64(), nUnmasked, seed);
+  std::vector<bool> m(shape.nelms_u64(), false);
+  for (auto i : indices) {
+    m[i] = true;
+  }
+  return Tensor::boolean(shape, m).to(t);
+}
 
 // Float64
 Tensor Tensor::float64(const Shape &s, std::vector<double> &&vs) {
@@ -1207,6 +1352,10 @@ Tensor::uniformFloat64(double l, double u, const Shape &s, uint32_t seed) {
 
 std::vector<double> Tensor::getFloat64Vector() const {
   return tData().getFloat64Vector();
+}
+
+double Tensor::getFloat64(uint64_t rmi) const {
+  return tData().getFloat64(rmi);
 }
 
 Tensor Tensor::float64(double f) { return tScalar<double>(f); }
@@ -1239,6 +1388,9 @@ Tensor Tensor::arangeFloat32(float x0, float x1, float step) {
 }
 std::vector<float> Tensor::getFloat32Vector() const {
   return tData().getFloat32Vector();
+}
+float Tensor::getFloat32(uint64_t rmi) const {
+  return tData().getFloat32(rmi);
 }
 Tensor Tensor::copyFloat32(const Shape &s, const float *v) {
   return Tensor::tCopyData<float>(s, v);
@@ -1302,6 +1454,7 @@ Tensor Tensor::arangeInt64(int64_t x0, int64_t x1, int64_t step) {
 std::vector<int64_t> Tensor::getInt64Vector() const {
   return tData().getInt64Vector();
 }
+int64_t Tensor::getInt64(uint64_t rmi) const { return tData().getInt32(rmi); }
 Tensor Tensor::int64(int64_t f) { return tScalar<int64_t>(f); }
 
 // Unsigned64:
@@ -1326,6 +1479,9 @@ Tensor Tensor::arangeUnsigned64(uint64_t x0, uint64_t x1, uint64_t step) {
 std::vector<uint64_t> Tensor::getUnsigned64Vector() const {
   return tData().getUnsigned64Vector();
 }
+uint64_t Tensor::getUnsigned64(uint64_t rmi) const {
+  return tData().getUnsigned64(rmi);
+}
 Tensor Tensor::unsigned64(uint64_t f) { return tScalar<uint64_t>(f); }
 
 // Int32:
@@ -1348,6 +1504,9 @@ Tensor Tensor::arangeInt32(int32_t x0, int32_t x1, int32_t step) {
 std::vector<int32_t> Tensor::getInt32Vector() const {
   return tData().getInt32Vector();
 }
+
+int32_t Tensor::getInt32(uint64_t rmi) const { return tData().getInt32(rmi); }
+
 Tensor Tensor::int32(int32_t f) { return tScalar<int32_t>(f); }
 
 // Unsigned32:
@@ -1372,6 +1531,9 @@ Tensor Tensor::arangeUnsigned32(uint32_t x0, uint32_t x1, uint32_t step) {
 std::vector<uint32_t> Tensor::getUnsigned32Vector() const {
   return tData().getUnsigned32Vector();
 }
+uint32_t Tensor::getUnsigned32(uint64_t rmi) const {
+  return tData().getUnsigned32(rmi);
+}
 Tensor Tensor::unsigned32(uint32_t f) { return tScalar<uint32_t>(f); }
 
 // Int16:
@@ -1394,6 +1556,7 @@ Tensor Tensor::arangeInt16(int16_t x0, int16_t x1, int16_t step) {
 std::vector<int16_t> Tensor::getInt16Vector() const {
   return tData().getInt16Vector();
 }
+int16_t Tensor::getInt16(uint64_t rmi) const { return tData().getInt16(rmi); }
 Tensor Tensor::int16(int16_t f) { return tScalar<int16_t>(f); }
 
 // Unsigned16:
@@ -1418,6 +1581,9 @@ Tensor Tensor::arangeUnsigned16(uint16_t x0, uint16_t x1, uint16_t step) {
 std::vector<uint16_t> Tensor::getUnsigned16Vector() const {
   return tData().getUnsigned16Vector();
 }
+uint16_t Tensor::getUnsigned16(uint64_t rmi) const {
+  return tData().getUnsigned16(rmi);
+}
 Tensor Tensor::unsigned16(uint16_t f) { return tScalar<uint16_t>(f); }
 
 // Int8:
@@ -1440,6 +1606,7 @@ Tensor Tensor::arangeInt8(int8_t x0, int8_t x1, int8_t step) {
 std::vector<int8_t> Tensor::getInt8Vector() const {
   return tData().getInt8Vector();
 }
+int8_t Tensor::getInt8(uint64_t rmi) const { return tData().getInt8(rmi); }
 Tensor Tensor::int8(int8_t f) { return tScalar<int8_t>(f); }
 
 // Unsigned8:
@@ -1448,6 +1615,9 @@ Tensor Tensor::copyUnsigned8(const Shape &s, const uint8_t *v) {
 }
 Tensor Tensor::unsigned8(const Shape &s, std::vector<uint8_t> &&vs) {
   return tMoveVector<uint8_t>(s, std::move(vs));
+}
+uint8_t Tensor::getUnsigned8(uint64_t rmi) const {
+  return tData().getUnsigned8(rmi);
 }
 Tensor Tensor::refUnsigned8(const Shape &s, uint8_t *p) {
   return tRefData(s, p);
@@ -1477,6 +1647,9 @@ Tensor Tensor::boolean(bool f) { return boolean({}, {f}); }
 
 std::vector<bool> Tensor::getBooleanVector() const {
   return tData().getBoolVector();
+}
+bool Tensor::getBoolean(uint64_t rmi) const {
+  return tData().getBoolean(rmi);
 }
 
 namespace {

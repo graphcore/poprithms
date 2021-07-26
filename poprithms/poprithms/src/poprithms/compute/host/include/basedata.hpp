@@ -259,38 +259,50 @@ public:
   /** Cast this BaseData to Float64. */
   virtual std::shared_ptr<AllocData<double>> toFloat64() const = 0;
 
+  virtual double getFloat64(uint64_t rmi) const = 0;
+
   virtual std::vector<float> getFloat32Vector() const         = 0;
   virtual std::shared_ptr<AllocData<float>> toFloat32() const = 0;
+  virtual float getFloat32(uint64_t) const                    = 0;
 
   virtual std::vector<uint16_t> getFloat16Vector_u16() const     = 0;
   virtual std::shared_ptr<AllocData<IeeeHalf>> toFloat16() const = 0;
 
   virtual std::vector<int64_t> getInt64Vector() const         = 0;
   virtual std::shared_ptr<AllocData<int64_t>> toInt64() const = 0;
+  virtual int64_t getInt64(uint64_t) const                    = 0;
 
   virtual std::vector<uint64_t> getUnsigned64Vector() const         = 0;
   virtual std::shared_ptr<AllocData<uint64_t>> toUnsigned64() const = 0;
+  virtual uint64_t getUnsigned64(uint64_t) const                    = 0;
 
   virtual std::vector<int32_t> getInt32Vector() const         = 0;
   virtual std::shared_ptr<AllocData<int32_t>> toInt32() const = 0;
+  virtual int32_t getInt32(uint64_t) const                    = 0;
 
   virtual std::vector<uint32_t> getUnsigned32Vector() const         = 0;
   virtual std::shared_ptr<AllocData<uint32_t>> toUnsigned32() const = 0;
+  virtual uint32_t getUnsigned32(uint64_t) const                    = 0;
 
   virtual std::vector<int16_t> getInt16Vector() const         = 0;
   virtual std::shared_ptr<AllocData<int16_t>> toInt16() const = 0;
+  virtual int16_t getInt16(uint64_t) const                    = 0;
 
   virtual std::vector<uint16_t> getUnsigned16Vector() const         = 0;
   virtual std::shared_ptr<AllocData<uint16_t>> toUnsigned16() const = 0;
+  virtual uint16_t getUnsigned16(uint64_t) const                    = 0;
 
   virtual std::vector<int8_t> getInt8Vector() const         = 0;
   virtual std::shared_ptr<AllocData<int8_t>> toInt8() const = 0;
+  virtual int8_t getInt8(uint64_t) const                    = 0;
 
   virtual std::vector<uint8_t> getUnsigned8Vector() const         = 0;
   virtual std::shared_ptr<AllocData<uint8_t>> toUnsigned8() const = 0;
+  virtual uint8_t getUnsigned8(uint64_t) const                    = 0;
 
   virtual std::vector<bool> getBoolVector() const         = 0;
   virtual std::shared_ptr<AllocData<bool>> toBool() const = 0;
+  virtual bool getBoolean(uint64_t) const                 = 0;
 
   virtual std::vector<char> getNativeCharVector() const = 0;
 
