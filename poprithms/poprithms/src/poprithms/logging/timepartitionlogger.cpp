@@ -303,7 +303,7 @@ void TimePartitionLogger::append(std::ostream &ost,
   std::sort(v.rbegin(), v.rend());
 
   for (const auto &summary : v) {
-    auto perc = summary.time() / total;
+    auto perc = (100.0 * summary.time()) / total;
     if (perc >= minPercentage || !summary.hasCount()) {
       scopes.push_back(summary.stopwatch());
       times.push_back(summary.timeStr());
