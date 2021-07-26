@@ -7,11 +7,12 @@
 
 namespace poprithms {
 namespace error {
-std::string error::formatMessage(const std::string &base,
-                                 const std::string &what) {
+
+namespace {
+std::string withStackTrace(const std::string &prefix) {
+
   std::ostringstream oss;
-  static constexpr auto root = "poprithms::";
-  oss << root << base << " error. " << what;
+  oss << prefix;
 
 #ifdef POPRITHMS_USE_STACKTRACE
   // Configure Boost Stacktrace
@@ -28,6 +29,23 @@ std::string error::formatMessage(const std::string &base,
 #endif
 
   return oss.str();
+} // namespace
+} // namespace
+
+std::string error::formatMessage(const std::string &base,
+                                 const uint64_t id,
+                                 const std::string &what) {
+  const std::string prefix = std::string("poprithms::") + base +
+                             " error, code is POPRITHMS" +
+                             std::to_string(id) + ". " + what;
+  return withStackTrace(prefix);
+}
+
+std::string error::formatMessage(const std::string &base,
+                                 const std::string &what) {
+  const std::string prefix =
+      std::string("poprithms::") + base + " error. " + what;
+  return withStackTrace(prefix);
 }
 
 } // namespace error

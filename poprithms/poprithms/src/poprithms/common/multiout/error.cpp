@@ -5,9 +5,16 @@ namespace poprithms {
 namespace common {
 namespace multiout {
 
+namespace {
+constexpr const char *const nspace("common::multiout");
+}
+
 poprithms::error::error error(const std::string &what) {
-  static const std::string pr("poprithms::common::multiout");
-  return poprithms::error::error(pr, what);
+  return poprithms::error::error(nspace, what);
+}
+
+poprithms::error::error error(uint64_t id, const std::string &what) {
+  return poprithms::error::error(nspace, id, what);
 }
 
 } // namespace multiout

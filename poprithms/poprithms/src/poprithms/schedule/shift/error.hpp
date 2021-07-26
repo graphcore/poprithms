@@ -9,6 +9,7 @@ namespace schedule {
 namespace shift {
 
 poprithms::error::error error(const std::string &what);
+poprithms::error::error error(uint64_t id, const std::string &what);
 
 } // namespace shift
 } // namespace schedule

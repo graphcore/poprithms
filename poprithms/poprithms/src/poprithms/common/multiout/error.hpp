@@ -9,6 +9,7 @@ namespace common {
 namespace multiout {
 
 poprithms::error::error error(const std::string &what);
+poprithms::error::error error(uint64_t id, const std::string &what);
 
 } // namespace multiout
 } // namespace common

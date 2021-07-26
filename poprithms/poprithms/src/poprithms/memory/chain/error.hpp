@@ -9,6 +9,7 @@ namespace memory {
 namespace chain {
 
 poprithms::error::error error(const std::string &what);
+poprithms::error::error error(uint64_t id, const std::string &what);
 
 } // namespace chain
 } // namespace memory

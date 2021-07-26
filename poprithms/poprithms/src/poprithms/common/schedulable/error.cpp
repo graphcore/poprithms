@@ -5,9 +5,16 @@ namespace poprithms {
 namespace common {
 namespace schedulable {
 
+namespace {
+constexpr const char *const nspace("common::schedulable");
+}
+
 poprithms::error::error error(const std::string &what) {
-  static const std::string pr("poprithms::common::schedulable");
-  return poprithms::error::error(pr, what);
+  return poprithms::error::error(nspace, what);
+}
+
+poprithms::error::error error(uint64_t id, const std::string &what) {
+  return poprithms::error::error(nspace, id, what);
 }
 
 } // namespace schedulable

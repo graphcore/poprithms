@@ -1,13 +1,20 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <schedule/dfs/error.hpp>
 
 namespace poprithms {
 namespace schedule {
 namespace dfs {
 
+namespace {
+constexpr const char *const nspace("schedule::dfs");
+}
+
 poprithms::error::error error(const std::string &what) {
-  static const std::string dfs("schedule::dfs");
-  return poprithms::error::error(dfs, what);
+  return poprithms::error::error(nspace, what);
+}
+
+poprithms::error::error error(uint64_t id, const std::string &what) {
+  return poprithms::error::error(nspace, id, what);
 }
 
 } // namespace dfs
