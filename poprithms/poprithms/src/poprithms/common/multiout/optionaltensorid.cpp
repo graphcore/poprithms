@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <poprithms/common/multiout/error.hpp>
+#include <common/multiout/error.hpp>
+
 #include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/util/printiter.hpp>
 

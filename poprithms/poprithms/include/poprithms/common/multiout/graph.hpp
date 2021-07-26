@@ -10,7 +10,9 @@
 
 #include <poprithms/common/multiout/consumptionid.hpp>
 #include <poprithms/common/multiout/op.hpp>
+#include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/optraversal.hpp>
+#include <poprithms/common/multiout/removalevent.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/copybyclone.hpp>
@@ -66,6 +68,17 @@ public:
 
   /** All Consumers of a Tensor #id in this Graph. */
   ConsumptionIds consumptionIds(const TensorId &id) const;
+
+  /**
+   * The number of ConsumptionIds that the Tensor #id has. This is not
+   * necessarily the number of Ops which consume Tensor #id, but is an upper
+   * bound of that number. This is because Ops can consume the same Tensor at
+   * multiple InIndexes. As an example, suppose that Tensor #id is the input
+   * to Op #op0 at InIndex 0, and the input to Op #op1 at InIndexes 0 and 1.
+   * This method will return 3, as there are 3 consumption 'sites', even
+   * though only 2 Ops consume #id.
+   * */
+  uint64_t nConsumptionIds(const TensorId &id) const;
 
   /** Set the name of this Graph. */
   void setName(const std::string &n) { name_ = n; }
@@ -221,6 +234,16 @@ public:
    * */
   void confirmValidTensorId(const TensorId &tId) const;
 
+  /**
+   * \return A string summarizing the Ops which have been removed.
+   *
+   * When Ops are removed, a record of the removal 'event' is kept, with
+   * optional information about the transformation which removed it. This
+   * method provides a summary of all such removal events, and is used for
+   * improved logging and debugging.
+   * */
+  std::string removalEventsStr() const { return removals.str(); }
+
 protected:
   /**
    * Insert \a op into this Graph, and add it to the consumer lists of its
@@ -231,11 +254,38 @@ protected:
     return insertMultioutOp(op.cloneMultioutOp());
   }
 
+  /**
+   * Remove the Op #opToRemove from this Graph.
+   *
+   * The consumers of #opToRemove's output tensors need substitutes for their
+   * inputs, which will no longer exist with the removal of #opToRemove. These
+   * substitutes are provided in #outputSubstitutes. outputSubstitutes[i] may
+   * only be 'none' if nConsumptionIds(opToRemove, i) is 0. That is, if the
+   * i'th output of #opToRemove has any consumers, then a replacement must be
+   * provided.
+   *
+   * The optional string #removalContext is used for logging and debugging
+   * purposes. After #opToRemove has been removed from the set of 'live' ops,
+   * a lightweight record of it and its removal event are retained. This
+   * record is particularly useful if there is an attempted access of
+   * #opToRemove after it has been removed. Such an attempt will result in a
+   * descriptive error, including the #removalContext string.
+   * */
+  void removeMultioutOp(OpId opToRemove,
+                        const OptionalTensorIds &outputSubstitutes,
+                        const std::string &removalContext);
+
   /** Methods to access Ops in this Graph as multiout::Ops. */
   Op &multioutOp(OpId id) { return op(id); }
   const Op &multioutOp(OpId id) const { return op(id); }
 
   OpId nxtOpId() const { return ops_.size(); }
+
+  /**
+   * Verify that this Graph is in a valid state, by checking the correctness
+   * of the producer/consumer relationships between Ops.
+   * */
+  void assertMultioutGraphCorrectness() const;
 
 private:
   /**
@@ -260,9 +310,19 @@ private:
 
   /**
    * The Ops which have not been deleted.
-   * TODO(T39631) complete the deletion mechanism.
    * */
   std::set<OpId> live_;
+
+public:
+  const RemovalEvents &removalEvents() const { return removals; }
+
+private:
+  /**
+   * Every OpId in [0, ops_.size()) corresponds to either a 'live' Op, or to
+   * an op which once was live, but has been removed. If it was removed, a
+   * record of it and it's removal is kept. This object stores these records.
+   * */
+  RemovalEvents removals;
 
   // The name of this Graph.
   std::string name_;

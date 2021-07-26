@@ -290,17 +290,18 @@ void testTraversal2() {
       if (!multiout::isFwdReachable(
               g, {start}, {op4, 0}, [](auto) { return true; })) {
         throw poprithms::test::error("failure in test of isFwdReachable, "
-                              "testTraversal2. Is reachable from " +
-                              start.str());
+                                     "testTraversal2. Is reachable from " +
+                                     start.str());
       }
     }
 
     for (TensorId start : TensorIds({{op0, 1}, {op2, 0}})) {
       if (multiout::isFwdReachable(
               g, {start}, {op4, 0}, [](auto) { return true; })) {
-        throw poprithms::test::error("failure in test of isFwdReachable, "
-                              "testTraversal2. Is NOT reachable from " +
-                              start.str());
+        throw poprithms::test::error(
+            "failure in test of isFwdReachable, "
+            "testTraversal2. Is NOT reachable from " +
+            start.str());
       }
     }
   }

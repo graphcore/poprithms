@@ -101,6 +101,11 @@ std::string Op::str() const {
   return typeString() + std::string("::") + id();
 }
 
+bool Op::isConsumptionId(OutIndex o, const ConsumptionId &cid) const {
+  const auto &cs = consumptionIds_.at(o.get());
+  return std::find(cs.begin(), cs.end(), cid) != cs.cend();
+}
+
 bool Op::operator==(const Op &rhs) const {
   return
       // Same common properties:
@@ -109,6 +114,20 @@ bool Op::operator==(const Op &rhs) const {
       typeid(*this) == typeid(rhs) &&
       // Same derived class properties:
       multiOutTypeSpecificEqualTo(rhs);
+}
+
+void Op::removeConsumptionId(OutIndex o, const ConsumptionId &toRemove) {
+  auto &ids  = consumptionIds_[o.get()];
+  auto found = std::find(ids.begin(), ids.end(), toRemove);
+  if (found == ids.cend()) {
+    std::ostringstream oss;
+    oss << "Attempting to remove ConsumptionId " << toRemove
+        << " from this op, " << id() << " at output index " << o
+        << ". But ConsumptionId not present. "
+        << "The ConsumptionIds are " << ids << ". ";
+    throw error(oss.str());
+  }
+  ids.erase(found);
 }
 
 } // namespace multiout

@@ -2,11 +2,11 @@
 #ifndef POPRITHMS_COMMON_MULTIOUT_TENSORMAP_HPP
 #define POPRITHMS_COMMON_MULTIOUT_TENSORMAP_HPP
 
-#include <common/multiout/error.hpp>
 #include <string>
 #include <vector>
 
 #include <poprithms/common/multiout/tensorid.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace poprithms {
 namespace common {
@@ -94,16 +94,19 @@ private:
     uint64_t outIndex = tId.outIndex().get();
 
     if (values.size() <= opId) {
-      throw error("Invalid TensorId, " + tId.str() + ". Only " +
-                  std::to_string(values.size()) + " Ops in this TensorMap. ");
+      throw poprithms::error::error(
+          "common::multiout",
+          "Invalid TensorId, " + tId.str() + ". Only " +
+              std::to_string(values.size()) + " Ops in this TensorMap.");
     }
 
     if (values[opId].size() <= outIndex) {
-      throw error("Invalid TensorId, " + tId.str() + ". Only " +
-                  std::to_string(values[opId].size()) + " outputs for Op " +
-                  std::to_string(opId) +
-                  " in this TensorMap, so the OutIndex " +
-                  std::to_string(outIndex) + " is too large.");
+      throw poprithms::error::error(
+          "common::multiout",
+          "Invalid TensorId, " + tId.str() + ". Only " +
+              std::to_string(values[opId].size()) + " outputs for Op " +
+              std::to_string(opId) + " in this TensorMap, so the OutIndex " +
+              std::to_string(outIndex) + " is too large.");
     }
   }
 

@@ -18,6 +18,8 @@ namespace poprithms {
 namespace common {
 namespace multiout {
 
+class Graph;
+
 using Shape  = ndarray::Shape;
 using Shapes = ndarray::Shapes;
 
@@ -96,13 +98,13 @@ public:
   uint64_t nInElms(InIndex i) const { return inShape(i).nelms_u64(); }
 
   /** The Shape if the #i'th output of this Op. */
-  const Shape &outShape(OutIndex i) const { return outShapes_.at(i.get()); }
+  const Shape &outShape(OutIndex o) const { return outShapes_.at(o.get()); }
 
   /** The rank of the #i'th output of this Op. */
-  uint64_t outRank(OutIndex i) const { return outShape(i).rank_u64(); }
+  uint64_t outRank(OutIndex o) const { return outShape(o).rank_u64(); }
 
   /** The number of elements in the #i'th output of this Op. */
-  uint64_t nOutElms(OutIndex i) const { return outShape(i).nelms_u64(); }
+  uint64_t nOutElms(OutIndex o) const { return outShape(o).nelms_u64(); }
 
   /** The places where the Tensors created by this Op are consumed. */
   const std::vector<ConsumptionIds> &consumptionIds() const {
@@ -113,6 +115,9 @@ public:
   const ConsumptionIds &consumptionIds(OutIndex o) const {
     return consumptionIds_[o.get()];
   }
+
+  /** return true if #c is a consumer of the output of this op at @o */
+  bool isConsumptionId(OutIndex o, const ConsumptionId &c) const;
 
   const Shapes &inShapes() const { return inShapes_; }
 
@@ -141,10 +146,6 @@ public:
   TensorIds outTensorIds() const;
   TensorId outTensorId(OutIndex o) const { return {id(), o}; }
   uint64_t nOutTensors() const { return outShapes().size(); }
-
-  void insertConsumptionId(OutIndex o, const ConsumptionId &c) {
-    consumptionIds_[o.get()].push_back(c);
-  }
 
   /**
    * \sa multiOutTypeSpecificEqualTo. */
@@ -182,6 +183,21 @@ private:
    * is the same type as the instance invoking the function.
    * */
   virtual bool multiOutTypeSpecificEqualTo(const Op &other) const = 0;
+
+  void insertConsumptionId(OutIndex o, const ConsumptionId &c) {
+    consumptionIds_[o.get()].push_back(c);
+  }
+
+  /**
+   * Remove #toRemove as a ConsumptionId of the output tensor at #o. If
+   * #toRemove is not a ConsumptionId of this output tensor, an error is
+   * thrown.
+   * */
+  void removeConsumptionId(OutIndex o, const ConsumptionId &toRemove);
+
+  void resetInTensor(InIndex i, const TensorId &id) { inIds_[i.get()] = id; }
+
+  friend class multiout::Graph;
 };
 
 std::ostream &operator<<(std::ostream &, const Op &);

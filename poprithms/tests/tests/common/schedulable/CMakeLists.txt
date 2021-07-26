@@ -13,3 +13,4 @@ endfunction()
 
 
 add_common_test(util_common_schedulable_0 schedulable_0.cpp)
+add_common_test(util_common_schedulable_1 schedulable_1.cpp)

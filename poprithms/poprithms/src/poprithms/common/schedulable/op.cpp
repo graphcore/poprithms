@@ -12,9 +12,31 @@ void Op::insertOut(OpId ido) {
   }
 }
 
+bool Op::isIn(OpId op) const {
+  return std::find(inOps_.cbegin(), inOps_.cend(), op) != inOps_.cend();
+}
+
+bool Op::isOut(OpId op) const {
+  return std::find(outOps_.cbegin(), outOps_.cend(), op) != outOps_.cend();
+}
+
+void Op::removeOut(OpId id) {
+  auto found = std::find(outOps_.cbegin(), outOps_.cend(), id);
+  if (found != outOps_.cend()) {
+    outOps_.erase(found);
+  }
+}
+
 void Op::insertIn(OpId ido) {
   if (std::find(inOps_.cbegin(), inOps_.cend(), ido) == inOps_.cend()) {
     inOps_.push_back(ido);
+  }
+}
+
+void Op::removeIn(OpId id) {
+  auto found = std::find(inOps_.cbegin(), inOps_.cend(), id);
+  if (found != inOps_.cend()) {
+    inOps_.erase(found);
   }
 }
 

@@ -20,10 +20,32 @@
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 #include <poprithms/util/unisort.hpp>
+#include <poprithms/util/where.hpp>
 
 namespace poprithms {
 namespace common {
 namespace schedulable {
+
+void Graph::removeSchedulableOp(OpId opId,
+                                const OptionalTensorIds &substitutes,
+                                const std::string &context) {
+
+  assertSubGraphId(util::nonOptionals<TensorId>(substitutes),
+                   subGraphId(opId));
+
+  // transfer constraints. Note that we've lost track of which constraints are
+  // 'data' and 'non-data', so there might be some constraints in here which
+  // are no longer desired. These must be removed separately.
+  binConstraint({inOps(opId), outOps(opId)});
+  for (auto in_ : inOps(opId)) {
+    op(in_).removeOut(opId);
+  }
+  for (auto out_ : outOps(opId)) {
+    op(out_).removeIn(opId);
+  }
+
+  removeMultioutOp(opId, substitutes, context);
+}
 
 // something faster TODO(T42434)
 OpIds Graph::vanillaSubSchedule(const std::set<OpId> &opIds) const {
@@ -74,6 +96,22 @@ void Graph::assertSubGraphId(const TensorIds &tIds,
   }
 }
 
+SubGraphId
+Graph::subGraphIdFromTensorIds(const std::vector<TensorIds> &tidss) const {
+  uint64_t n = std::accumulate(
+      tidss.cbegin(), tidss.cend(), 0ULL, [](uint64_t nIn, const auto &x) {
+        return nIn + x.size();
+      });
+
+  TensorIds flat{};
+  flat.reserve(n);
+
+  for (const auto &x : tidss) {
+    flat.insert(flat.end(), x.cbegin(), x.cend());
+  }
+  return subGraphIdFromTensorIds(flat);
+}
+
 SubGraphId Graph::subGraphIdFromTensorIds(const TensorIds &ids) const {
   if (ids.empty()) {
     throw error(
@@ -116,8 +154,10 @@ void Graph::binConstraint(const std::vector<OpIds> &bins) {
       nonEmpty.push_back(i);
     }
   }
+
   if (nonEmpty.size() > 1) {
     for (uint64_t i = 1; i < nonEmpty.size(); ++i) {
+      // single op to manage all nIn * nOut constraints.
       auto boundary = insertBinBoundary(sgId);
       for (auto opId : bins[nonEmpty[i - 1]]) {
         constraint(opId, boundary);
@@ -469,6 +509,43 @@ TensorIds Graph::tensorIds(SubGraphId subGraphId) const {
     }
   }
   return tensorIds;
+}
+
+void Graph::assertSchedulableGraphCorrectness() const {
+
+  // check the base class is in a correct state:
+  assertMultioutGraphCorrectness();
+
+  // check that sub-graphs in in/out relationships agree.
+  for (auto opId : multiout::Graph::opIds()) {
+    for (auto in_ : inOps(opId)) {
+      if (!op(in_).isOut(opId)) {
+        std::ostringstream oss;
+        oss << "Op " << opId << " has " << in_ << " as an in dep, but " << in_
+            << " doesn't have " << opId
+            << " as an out dep. Correctness assertion failed. ";
+        throw error(oss.str());
+      }
+    }
+
+    for (auto out_ : outOps(opId)) {
+      if (!op(out_).isIn(opId)) {
+        std::ostringstream oss;
+        oss << "Op " << opId << " has " << out_ << " as an out dep, but "
+            << out_ << " doesn't have " << opId
+            << " as an in dep. Correctness assertion failed. ";
+        throw error(oss.str());
+      }
+
+      if (subGraphId(out_) != subGraphId(opId)) {
+        std::ostringstream oss;
+        oss << "There is a topological constraint, " << opId << " -> " << out_
+            << ", but these 2 ops are not in the same sub graph. "
+            << " Correctness assertion failed. ";
+        throw error(oss.str());
+      }
+    }
+  }
 }
 
 } // namespace schedulable

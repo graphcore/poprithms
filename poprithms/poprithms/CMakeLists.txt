@@ -62,6 +62,8 @@ set(common_multiout_sources
   ${common_src_dir}/multiout/op.cpp
   ${common_src_dir}/multiout/opid.cpp
   ${common_src_dir}/multiout/tensorid.cpp
+  ${common_src_dir}/multiout/removalevent.cpp
+  ${common_src_dir}/multiout/optionaltensorid.cpp
 )
 add_library(poprithms-common-multiout-objlib OBJECT ${common_multiout_sources})
 add_library(poprithms-common-multiout SHARED

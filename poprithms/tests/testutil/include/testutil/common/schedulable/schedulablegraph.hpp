@@ -32,6 +32,8 @@ private:
 
 class Graph : public schedulable::Graph {
 public:
+  using schedulable::Graph::removeSchedulableOp;
+
   OpId insert(const TensorIds &ins,
               uint64_t nOut,
               SubGraphId sgId,

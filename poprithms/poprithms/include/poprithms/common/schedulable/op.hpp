@@ -14,6 +14,8 @@ using multiout::OpId;
 using multiout::OpIds;
 using multiout::TensorIds;
 
+class Graph;
+
 /**
  * A node in a Graph. It extends its base class by addings
  *
@@ -75,17 +77,21 @@ public:
 
   SubGraphId subGraphId() const { return subGraphId_; }
 
+  /**
+   * Return all of the input depencies which do not produce a tensor which
+   * this Op consumes.
+   * */
   OpIds nonDataInOps() const;
 
   /**
-   * Insert an input dependency, if it does not already exist.
+   * Return all of the output dependencies which do not consume an output
+   * tensor of this Op.
    * */
-  void insertIn(OpId);
+  OpIds nonDataOutOps() const;
 
-  /**
-   * Insert an output dependency, if it does not already exist.
-   * */
-  void insertOut(OpId);
+  bool isIn(OpId) const;
+
+  bool isOut(OpId) const;
 
 private:
   SubGraphId subGraphId_;
@@ -97,7 +103,28 @@ private:
   multiOutTypeSpecificEqualTo(const common::multiout::Op &other) const final;
 
   virtual bool schedulableTypeSpecificEqualTo(const Op &other) const = 0;
+
+  /**
+   * Insert an input dependency, if it does not already exist.
+   * */
+  void insertIn(OpId);
+
+  /** Remove an input dependency, if it exists (else do nothing). */
+  void removeIn(OpId);
+
+  /**
+   * Insert an output dependency, if it does not already exist.
+   * */
+  void insertOut(OpId);
+
+  /** Remove an output dependency, if it exists (else do nothing). */
+  void removeOut(OpId);
+
+  // only the schedulable::Graph can modify an op after it's constructed, no
+  // class which inherits from it.
+  friend class schedulable::Graph;
 };
+
 } // namespace schedulable
 } // namespace common
 } // namespace poprithms

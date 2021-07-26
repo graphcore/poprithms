@@ -19,6 +19,114 @@ namespace poprithms {
 namespace common {
 namespace multiout {
 
+void Graph::removeMultioutOp(OpId opId,
+                             const OptionalTensorIds &substitutes,
+                             const std::string &context) {
+
+  const auto getBaseErr = [this, opId, &substitutes, &context]() {
+    std::ostringstream oss;
+    oss << "Failed to remove the op " << typeString(opId)
+        << " in Graph::removeMultioutOp(opId = " << opId
+        << ", substitutes = " << substitutes << ", context = " << context
+        << "). ";
+    return oss.str();
+  };
+
+  //
+  //   >-------+           +------> t0 / substitute0 -+--- consumer
+  //           |           |                          |
+  //           |           |                          +--- consumer
+  //           +---opId----+
+  //           |           |
+  //           |           |
+  //   >-------+           +------> t1 / substitute1 ----- consumer
+  //
+  //
+
+  // reset the consumers of the op's output tensors with substitutes
+  // (replace t0 with substitute0, etc.).
+  for (uint64_t o = 0; o < nOutTensors(opId); ++o) {
+    if (nConsumptionIds({opId, o}) != 0) {
+
+      if (!substitutes.at(o).has_value()) {
+        std::ostringstream oss;
+        oss << getBaseErr() << ". Expected a replacement for output at index "
+            << o << ", as there are consumer(s) ("
+            << consumptionIds({opId, o}) << ") of this tensor.";
+        throw error(oss.str());
+      }
+      const auto substitute = substitutes.at(o).value();
+
+      if (shape(substitute) != shape({opId, o})) {
+        std::ostringstream oss;
+        oss << getBaseErr() << ". The shape of substitute at output index "
+            << o << ", " << shape(substitute)
+            << " is not the same as the shape of the substitutee "
+            << shape({opId, o}) << '.';
+        throw error(oss.str());
+      }
+
+      for (auto c : consumptionIds({opId, o})) {
+        op(c.opId()).resetInTensor(c.inIndex(), substitute);
+        op(substitute.opId()).insertConsumptionId(substitute.outIndex(), c);
+      }
+    }
+  }
+
+  // reset the producers of the inputs, as this is no longer a consumer.
+  for (uint64_t i = 0; i < nInTensors(opId); ++i) {
+    const auto inTensor = inTensorId(opId, InIndex());
+    auto inOp           = inTensor.opId();
+    op(inOp).removeConsumptionId(inTensor.outIndex(), ConsumptionId(opId, i));
+  }
+
+  // register removal event, and perform removal.
+  removals.insert({opId, op(opId).getName(), ops_.size(), context});
+  ops_[opId.get()].uptr.reset();
+  live_.erase(opId);
+}
+
+void Graph::assertMultioutGraphCorrectness() const {
+  {
+    auto L = live_.size();
+    auto R = removals.size();
+    auto T = ops_.size();
+    if (L + R != T) {
+      std::ostringstream oss;
+      oss << "#live = " << L << " #removed = " << R
+          << " total created = " << T << ". But " << L << " + " << R
+          << " != " << T << ". Failed to assert correctness. ";
+    }
+  }
+
+  // for every, for every input, check that there's agreement with the
+  // producer of the input:
+  for (auto op_ : opIds()) {
+    for (uint64_t i = 0; i < nInTensors(op_); ++i) {
+      auto in_ = inTensorId(op_, i);
+      if (!op(in_.opId())
+               .isConsumptionId(in_.outIndex(), ConsumptionId(op_, i))) {
+        std::ostringstream oss;
+        oss << "Op " << op_ << " has " << in_
+            << " as an input, but is not registered as a consumer of it. ";
+        throw error(oss.str());
+      }
+
+      if (op(in_.opId()).outShape(in_.outIndex()) != op(op_).inShape(i)) {
+        std::ostringstream oss;
+        oss << "output shape of " << in_.opId() << " at index "
+            << in_.outIndex() << " does agree with input shape of " << op_
+            << " at index. " << i;
+        throw error(oss.str());
+      }
+    }
+  }
+}
+
+uint64_t Graph::nConsumptionIds(const TensorId &id) const {
+  return op(id.opId()).consumptionIds(id.outIndex()).size();
+}
+
 TensorId Graph::outTensorId(const OpTraversal &o) {
   return {o.opId(), o.outIndex()};
 }
@@ -108,21 +216,31 @@ const std::string &Graph::getName(OpId opId) const {
 bool Graph::operator==(const Graph &rhs) const {
   return getName() == rhs.getName() && ops_ == rhs.ops_ &&
          live_ == rhs.live_ && typeid(*this) == typeid(rhs) &&
-         multiOutTypeSpecificEqualTo(rhs);
+         multiOutTypeSpecificEqualTo(rhs) && removals == rhs.removals;
 }
 
 const Op &Graph::op(OpId a) const {
-  if (a.get() >= nOps_i64()) {
-    std::ostringstream oss;
-    oss << "The number of Ops in this Graph is " << nOps()
-        << ", so there is no Op with OpId " << a << '.';
-    throw error(oss.str());
-  }
 
   const auto &opPtr = ops_[static_cast<uint64_t>(a.get())].uptr;
 
   if (!opPtr) {
-    throw error("nullptr in op(" + std::to_string(a.get()) + ").");
+    if (removals.registered(a)) {
+      std::ostringstream oss;
+      oss << "Invalid call, multiout::Graph::op(OpId = " << a << "). The op "
+          << a << " was deleted, in RemovalEvent: \n     "
+          << removals.event(a).str() << ". ";
+      throw error(oss.str());
+    }
+
+    // this should never happen. Ops should either be live, or have a removal
+    // event registered for them.
+    {
+      std::ostringstream oss;
+      oss << "nullptr in op(" << std::to_string(a.get()) << "). ";
+      oss << "This is strange, Ops should either be live, or have a removal "
+          << "event registered. Neither is true for this op. ";
+      throw error(oss.str());
+    }
   }
   return *opPtr;
 }

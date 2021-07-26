@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <poprithms/common/multiout/graph.hpp>
+#include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/schedule/shift/kahntiebreaker.hpp>
@@ -23,6 +24,8 @@ class Op;
 
 using common::multiout::OpId;
 using common::multiout::OpIds;
+using common::multiout::OptionalTensorId;
+using common::multiout::OptionalTensorIds;
 using common::multiout::TensorId;
 using common::multiout::TensorIds;
 
@@ -268,6 +271,7 @@ public:
    * an error is thrown.
    * */
   SubGraphId subGraphIdFromTensorIds(const TensorIds &tIds) const;
+  SubGraphId subGraphIdFromTensorIds(const std::vector<TensorIds> &) const;
 
   /**
    * Assert that the tensors in #tIds are in the sub-graph #sgId. If they are
@@ -300,6 +304,12 @@ public:
     return getSchedulableColumns(multiout::Graph::opIds());
   }
 
+  /**
+   * Verify that this Graph is in a valid state, including all state inherited
+   * from base classes.
+   * */
+  void assertSchedulableGraphCorrectness() const;
+
 protected:
   OpId insertSchedulableOp(std::unique_ptr<Op>);
 
@@ -308,11 +318,39 @@ protected:
     return rhs.subGraphStates == subGraphStates;
   }
 
+  /**
+   * Remove the Op #toRemove from this Graph, substituting the ConsumptionIds
+   * of its outputs with #substitutes. See multiout::Graph::removeMultioutOp,
+   * for more information.
+   *
+   * All topological constraints of #toRemove are transferred. For
+   * example, if 'a' is an input dependency and 'b' and 'c' are output
+   * dependencies,
+   *
+   *  'a' --> toRemove --+--> 'b'
+   *                     |
+   *                     +--> 'c'
+   *
+   * then the new constraints after the removal of #toRemove will be 'a'->'b'
+   * and 'a'->'c'. These constraints might be indirect, via an intermediate
+   * 'bin boundary' op.
+   *
+   * Note that \b all constraints are transferred, not just the non-data
+   * constraints. This may not always be the desired behaviour, in which case
+   * constraints should be removed manually after this call.
+   * */
+  void removeSchedulableOp(OpId toRemove,
+                           const OptionalTensorIds &substitutes,
+                           const std::string &context);
+
 private:
   // Ops which inherit from this class should use insertSchedulableOp, and
   // not insertMultioutOp. By having this 'using' here, we make this method
   // private, preventing its use in derived classes.
   using common::multiout::Graph::insertMultioutOp;
+
+  // Same comment for removal of Ops. 
+  using common::multiout::Graph::removeMultioutOp;
 
   /**
    * Insert a "null" Op which serves no purpose other than to separate bins of

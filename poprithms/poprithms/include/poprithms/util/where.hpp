@@ -70,6 +70,20 @@ std::vector<Out> whereIdsInMap(Map &&m, const std::vector<In> &ids) {
   return outs;
 }
 
+/**
+ * \return all of the values in #os, omiting all 'none's.
+ * */
+template <typename NonOptional, typename Optionals>
+std::vector<NonOptional> nonOptionals(Optionals &&os) {
+  std::vector<NonOptional> nonOptionals;
+  for (auto &&o : os) {
+    if (o.has_value()) {
+      nonOptionals.push_back(o.value());
+    }
+  }
+  return nonOptionals;
+}
+
 } // namespace util
 } // namespace poprithms
 

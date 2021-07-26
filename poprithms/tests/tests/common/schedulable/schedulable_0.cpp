@@ -14,9 +14,9 @@ namespace {
 
 using namespace poprithms::common::schedulable_test;
 
-template <typename T>
-std::ostream &operator<<(std::ostream &ost, const std::vector<T> &opIds) {
-  poprithms::util::append(ost, opIds);
+template <typename t>
+std::ostream &operator<<(std::ostream &ost, const std::vector<t> &opids) {
+  poprithms::util::append(ost, opids);
   return ost;
 }
 

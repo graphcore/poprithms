@@ -19,12 +19,18 @@ public:
   bool has_value() const { return isSet; }
   void append(std::ostream &) const;
 
+  /** Either both are 'none', or they have the same #id. */
+  bool operator==(const OptionalTensorId &rhs) const {
+    return ((isSet == rhs.isSet) && isSet == false) || id == rhs.id;
+  }
+
 private:
   TensorId id;
   bool isSet{false};
 };
 
 using OptionalTensorIds = std::vector<OptionalTensorId>;
+
 std::ostream &operator<<(std::ostream &, const OptionalTensorId &);
 std::ostream &operator<<(std::ostream &, const OptionalTensorIds &);
 
