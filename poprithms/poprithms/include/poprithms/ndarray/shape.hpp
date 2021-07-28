@@ -24,6 +24,7 @@ using poprithms::util::Permutation;
 /**
  * A class to represent a N-dimensional rectangular volume of elements.
  * */
+
 class Shape {
 
 private:
@@ -45,6 +46,10 @@ public:
 
   Shape(const std::initializer_list<int64_t> &s)
       : Shape(std::vector<int64_t>(s)) {}
+
+  template <typename Container> static Shape createFrom(Container &&c) {
+    return Shape(std::vector<int64_t>(c.cbegin(), c.cend()));
+  }
 
   /**
    * \param inShapes The Shapes to concatenate.
@@ -153,6 +158,25 @@ public:
                            const Shape &offsetShape) const;
 
   Shape flatten() const { return Shape({nelms()}); }
+
+  /**
+   * Replace this Shape's dimensions in the range [from, to) with #newDims.
+   *
+   * Suppose this Shape is (1,4,1,5,6). Here are some example inputs/outputs:
+   *
+   * from   to   newDims     result
+   * ----   ---  -------     ------
+   *  0     0    {1}         (1,1,4,1,5,6)
+   *  0     3    {2,2}       (2,2,5,6)
+   *  0     5    {24,5}      (24,5)
+   *  2     3    {}          (1,4,5,6)
+   *
+   * The resulting Shape must have the same number of elements, otherwise an
+   * error is thrown. #from and #to must satisy from <= to <= rank.
+   * */
+  Shape reshapePartial(uint64_t from,
+                       uint64_t to,
+                       const std::vector<int64_t> &newDims) const;
 
   /**
    * Reshape to a rank-2 Shape, where the size of the first dimension is the

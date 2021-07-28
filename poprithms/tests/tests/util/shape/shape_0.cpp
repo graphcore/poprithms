@@ -428,6 +428,42 @@ void testReductionDimensions() {
   assertCorrectRedDims({1, 10, 11, 12, 1, 14}, {14}, {1, 2, 3});
 }
 
+void assertCorrectReshapePartial(const Shape &inShape,
+                                 uint64_t from,
+                                 uint64_t to,
+                                 const std::vector<int64_t> &newDims,
+                                 const Shape &expected) {
+
+  const auto observed = inShape.reshapePartial(from, to, newDims);
+  if (observed != expected) {
+    std::ostringstream oss;
+    oss << "Expected " << inShape << ".reshapePartial(from=" << from
+        << ", to=" << to << ", newDims=" << newDims << ") to be " << expected
+        << ", not " << observed << '.';
+    throw poprithms::test::error(oss.str());
+  }
+}
+
+void testReshapePartial() {
+  const Shape shape0{1, 4, 1, 5, 6};
+  assertCorrectReshapePartial(shape0, 0, 0, {1}, {1, 1, 4, 1, 5, 6});
+  assertCorrectReshapePartial(shape0, 0, 3, {2, 2}, {2, 2, 5, 6});
+  assertCorrectReshapePartial(shape0, 0, 5, {24, 5}, {24, 5});
+  assertCorrectReshapePartial(shape0, 2, 3, {}, {1, 4, 5, 6});
+
+  bool caught{false};
+  try {
+    shape0.reshapePartial(1, 2, {3});
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw poprithms::test::error(
+        "Failed to catch error in reshape partial where the output shape has "
+        "fewer elements than the input shape");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -452,5 +488,6 @@ int main() {
   testAppend();
   testFlattenRange();
   testReductionDimensions();
+  testReshapePartial();
   return 0;
 }

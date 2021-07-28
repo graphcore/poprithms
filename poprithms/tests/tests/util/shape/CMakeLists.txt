@@ -1,4 +1,5 @@
 add_util_test(util_shape_0 shape_0.cpp)
+add_util_test(util_shape_1 shape_1.cpp)
 add_util_test(util_shape_slice_0 shape_slice_0.cpp)
 add_util_test(util_shape_gather_0 shape_gather_0.cpp)
 add_util_test(util_shape_matmul_0 shape_matmul_0.cpp)

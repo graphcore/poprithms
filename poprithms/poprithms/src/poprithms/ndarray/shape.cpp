@@ -1,9 +1,11 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <functional>
 #include <ndarray/error.hpp>
 #include <numeric>
 #include <ostream>
 #include <sstream>
+#include <type_traits>
 
 #include <poprithms/ndarray/accessors.hpp>
 #include <poprithms/ndarray/shape.hpp>
@@ -1821,6 +1823,53 @@ Shape &&Shape::flatten(uint64_t from, uint64_t to) && {
   }
   shp.resize(rank_u64() - offset);
   return std::move(*this);
+}
+
+Shape Shape::reshapePartial(uint64_t from,
+                            uint64_t to,
+                            const std::vector<int64_t> &newDims) const {
+
+  const auto baseErr = [this, from, to, &newDims]() {
+    std::ostringstream oss;
+    oss << "Invalid call, " << *this << ".reshapePartial("
+        << "from=" << from << ", to=" << to << ", newDims=" << newDims
+        << "). ";
+    return oss.str();
+  };
+
+  if (to > rank_u64()) {
+    std::ostringstream oss;
+    oss << baseErr() << "The dimensions to replace [" << from << ", " << to
+        << ") must all be less than the rank of the calling Shape, "
+        << rank_u64() << '.';
+    throw error(oss.str());
+  }
+  if (from > to) {
+    throw error(baseErr() + "'from' cannot exceed 'to'.");
+  }
+
+  std::vector<int64_t> outShape;
+
+  outShape.reserve(newDims.size() + rank_u64() + from - to);
+
+  outShape.insert(
+      outShape.end(), shp.cbegin(), std::next(shp.cbegin(), from));
+
+  outShape.insert(outShape.end(), newDims.cbegin(), newDims.cend());
+
+  outShape.insert(outShape.end(), std::next(shp.cbegin(), to), shp.cend());
+
+  Shape toReturn(std::move(outShape));
+
+  if (toReturn.nelms() != nelms()) {
+    std::ostringstream oss;
+    oss << baseErr() << "Resulting Shape " << toReturn << " has "
+        << toReturn.nelms() << ", elements, but this Shape has " << nelms()
+        << '.';
+    throw error(oss.str());
+  }
+
+  return toReturn;
 }
 
 void Shape::assertDynamicUpdate(const Shape &updater,
