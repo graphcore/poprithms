@@ -32,6 +32,11 @@ std::string withStackTrace(const std::string &prefix) {
 } // namespace
 } // namespace
 
+std::ostream &operator<<(std::ostream &ost, const Code &c) {
+  ost << c.val();
+  return ost;
+}
+
 std::string error::formatMessage(const std::string &base,
                                  const uint64_t id,
                                  const std::string &what) {

@@ -9,7 +9,7 @@ namespace memory {
 namespace inplace {
 
 poprithms::error::error error(const std::string &what);
-poprithms::error::error error(uint64_t id, const std::string &what);
+poprithms::error::error error(error::Code code, const std::string &what);
 
 } // namespace inplace
 } // namespace memory

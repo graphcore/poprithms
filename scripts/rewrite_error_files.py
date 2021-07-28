@@ -35,7 +35,7 @@ def rewriteTheErrorFiles():
             x += ("namespace " + p + " { \n")
 
         x += "\n\npoprithms::error::error error(const std::string &what);\n"
-        x += "poprithms::error::error error(uint64_t id, const std::string &what);\n\n\n}"
+        x += "poprithms::error::error error(error::Code code, const std::string &what);\n\n\n}"
 
         for p in parts:
             x += "}"
@@ -69,8 +69,8 @@ def rewriteTheErrorFiles():
       return poprithms::error::error(nspace, what);
     }
     
-    poprithms::error::error error(uint64_t id, const std::string &what) {
-      return poprithms::error::error(nspace, id, what);
+    poprithms::error::error error(error::Code code, const std::string &what) {
+      return poprithms::error::error(nspace, code, what);
     }
     
     

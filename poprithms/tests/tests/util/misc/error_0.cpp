@@ -10,7 +10,8 @@
 namespace {
 
 void throw101() {
-  throw poprithms::error::error("testing", 101, "Flat tyre.");
+  throw poprithms::error::error(
+      "testing", poprithms::error::Code(101), "Flat tyre.");
 }
 
 } // namespace
@@ -26,7 +27,7 @@ int main() {
   } catch (const poprithms::error::error &e) {
 
     // Expect the code to be 101:
-    if (e.code() == 101ull) {
+    if (e.code() == poprithms::error::Code(101ull)) {
       std::cout << e.what() << std::endl;
       caught = true;
     }

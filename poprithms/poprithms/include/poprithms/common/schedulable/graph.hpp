@@ -349,7 +349,7 @@ private:
   // private, preventing its use in derived classes.
   using common::multiout::Graph::insertMultioutOp;
 
-  // Same comment for removal of Ops. 
+  // Same comment for removal of Ops.
   using common::multiout::Graph::removeMultioutOp;
 
   /**

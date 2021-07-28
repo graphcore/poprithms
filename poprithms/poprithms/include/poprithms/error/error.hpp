@@ -9,25 +9,55 @@
 namespace poprithms {
 namespace error {
 
+/**
+ * the poprithms::error class has an optional Code field. Codes can be useful
+ * when searching for information about errors 'in the wild', and for making
+ * testing more robust.
+ * */
+class Code {
+public:
+  explicit Code(uint64_t v) : v_(v) {}
+  uint64_t val() const { return v_; }
+
+  bool operator<=(const Code &r) const { return val() <= r.val(); }
+  bool operator<(const Code &r) const { return val() < r.val(); }
+  bool operator==(const Code &r) const { return r.val() == val(); }
+  bool operator!=(const Code &r) const { return r.val() != val(); }
+  bool operator>=(const Code &r) const { return val() >= r.val(); }
+  bool operator>(const Code &r) const { return val() > r.val(); }
+
+private:
+  uint64_t v_;
+};
+
+std::ostream &operator<<(std::ostream &, const Code &);
+
 class error : public std::runtime_error {
 public:
-  error(const std::string &base, uint64_t id, const std::string &what)
-      : std::runtime_error(formatMessage(base, id, what)), code_(id) {}
+  /**
+   * Construct an error with a Code.
+   * */
+  error(const std::string &base, Code code, const std::string &what)
+      : std::runtime_error(formatMessage(base, code.val(), what)),
+        code_(code) {}
 
+  /**
+   * Construct an error without a Code.
+   * */
   error(const std::string &base, const std::string &what)
-      : std::runtime_error(formatMessage(base, what)), code_(0ull) {}
+      : std::runtime_error(formatMessage(base, what)), code_(Code(0ull)) {}
 
-  uint64_t code() const { return code_; }
+  Code code() const { return code_; }
 
 private:
   static std::string formatMessage(const std::string &base,
-                                   uint64_t id,
+                                   uint64_t codeVal,
                                    const std::string &what);
 
   static std::string formatMessage(const std::string &base,
                                    const std::string &what);
 
-  uint64_t code_;
+  Code code_;
 };
 
 } // namespace error

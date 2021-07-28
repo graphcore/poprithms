@@ -9,7 +9,7 @@ namespace schedule {
 namespace transitiveclosure {
 
 poprithms::error::error error(const std::string &what);
-poprithms::error::error error(uint64_t id, const std::string &what);
+poprithms::error::error error(error::Code code, const std::string &what);
 
 } // namespace transitiveclosure
 } // namespace schedule
