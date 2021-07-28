@@ -5,6 +5,7 @@ set (schedule_test_util_source_dir
   ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/schedule)
 
 set(schedule-test-util-sources
+  ${schedule_test_util_source_dir}/base/randomdag.cpp
   ${schedule_test_util_source_dir}/shift/shiftcommandlineoptions.cpp
   ${schedule_test_util_source_dir}/shift/bifurcate_generator.cpp
   ${schedule_test_util_source_dir}/shift/branch_doubling_generator.cpp
