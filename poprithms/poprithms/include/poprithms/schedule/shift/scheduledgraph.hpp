@@ -70,8 +70,8 @@ public:
 
   ScheduledGraph(
       Graph &&,
-      KahnTieBreaker ktb                 = Settings::defaultKahnTieBreaker(),
-      TransitiveClosureOptimizations tco = Settings::defaultTCOs(),
+      KahnTieBreaker                 = Settings::defaultKahnTieBreaker(),
+      TransitiveClosureOptimizations = Settings::defaultTCOs(),
       RotationTermination rt         = Settings::defaultRotationTermination(),
       RotationAlgo algo              = Settings::defaultRotationAlgo(),
       uint32_t seed                  = Settings::defaultSeed(),

@@ -7,6 +7,7 @@
 #include <random>
 #include <schedule/shift/error.hpp>
 #include <schedule/shift/graphserialization.hpp>
+#include <vector>
 
 #include <boost/functional/hash.hpp>
 
@@ -511,6 +512,88 @@ size_t Graph::hash(bool includeNames) const {
   }
 
   return hash;
+}
+
+std::vector<std::vector<OpAddress>> Graph::getAllocPartitioned() const {
+  std::vector<bool> visited(nOps(), false);
+  std::vector<std::vector<OpAddress>> parts;
+  for (uint64_t start = 0; start < nOps(); ++start) {
+
+    // new partition, haven't seen this op yet.
+    if (!visited[start]) {
+      parts.push_back({});
+      std::vector<OpAddress> toProcess{start};
+      visited[start] = true;
+
+      // visit all ops with related allocs.
+      while (!toProcess.empty()) {
+        auto current = toProcess.back();
+        toProcess.pop_back();
+        parts.back().push_back(current);
+        for (auto alloc : getOp(current).getAllocs()) {
+          for (auto nxt : getAlloc(alloc).getOps()) {
+            if (!visited[nxt]) {
+              visited[nxt] = true;
+              toProcess.push_back(nxt);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return parts;
+}
+
+std::vector<std::vector<OpAddress>> Graph::getAllocPartitionedBins() const {
+
+  // partition the Ops by allocs. Specifically,
+  //
+  // op0 \in allocParts[i], and
+  // op1 \in allocParts[j], where i != j,
+  // means that intersect(op0.allocs(), op1.allocs()) = empty set.
+  auto allocParts = getAllocPartitioned();
+
+  // map each op to its allocation partition:
+  std::vector<uint64_t> opToPart(nOps(), static_cast<uint64_t>(-1));
+  for (uint64_t i = 0; i < allocParts.size(); ++i) {
+    for (auto op : allocParts[i]) {
+      opToPart[op] = i;
+    }
+  }
+
+  // get a graph, not necessarily a DAG, where each node is the union of all
+  // ops in an alloc partition (above). 'superGraph' is the forward edges of
+  // this.
+  std::vector<std::vector<uint64_t>> superGraph(allocParts.size());
+  for (uint64_t inOpPart = 0; inOpPart < allocParts.size(); ++inOpPart) {
+    for (auto inOp : allocParts[inOpPart]) {
+      for (auto outOp : getOp(inOp).getOuts()) {
+        auto &x        = superGraph[inOpPart];
+        auto outOpPart = opToPart[outOp];
+        if (inOpPart != outOpPart) {
+          if (std::find(x.cbegin(), x.cend(), outOpPart) == x.cend()) {
+            x.push_back(outOpPart);
+          }
+        }
+      }
+    }
+  }
+
+  // merge partition groups which are connected in a cycle, and create bins.
+  auto scc = scc::getStronglyConnectedComponents(superGraph);
+  std::vector<std::vector<OpAddress>> bins;
+  bins.reserve(scc.size());
+  for (const auto &comp : scc) {
+    bins.push_back({});
+    for (auto part : comp) {
+      for (auto op : allocParts[part]) {
+        bins.back().push_back(op);
+      }
+    }
+  }
+
+  return bins;
 }
 
 } // namespace shift

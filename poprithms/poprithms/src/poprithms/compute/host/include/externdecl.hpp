@@ -3,7 +3,7 @@
 #define POPRITHMS_COMPUTE_HOST_EXTERNDECL_HPP
 
 // Include this header to reduce the compile time of a translation unit. All
-// of these templates are guarenteed to be instantiated elsewhere (see types
+// of these templates are guaranteed to be instantiated elsewhere (see types
 // directory).
 
 #include <compute/host/include/allocdata.hpp>

@@ -198,7 +198,7 @@ public:
 
   /**
    * Merge all chains formed of Ops with Links. Recall that linked Ops are
-   * guarenteed to be scheduled contiguously.
+   * guaranteed to be scheduled contiguously.
    * */
   OpMerged getLinkMerged() const;
 
@@ -392,6 +392,116 @@ public:
   std::vector<std::vector<uint64_t>> getFwdEdges_u64() const;
 
   void removeConstraint(OpAddress before, OpAddress after);
+
+  /**
+   * Partition the Ops by their Allocs.
+   *
+   * Consider an undirected graph, where the nodes are the Allocs, and any 2
+   * nodes are connected by an edge if there is an Op which requires the 2
+   * corresponding Allocs to be live at the same time.
+   *
+   * Consider partitioning this graph into connected components. All the Ops
+   * can then be sensibly mapped to these components, as it is guaranteed that
+   * all the Allocs which an Op requires to be live when it is scheduled will
+   * be in the same component. This method partitions the Ops in this way.
+   *
+   * \return partitions. This is the unique partitioning of the Ops such that
+   *         for a \in partitions[i] and z \in partitions[j], if i == j, there
+   *         exists a sequence of Ops S= (a...z) such that every contiguous
+   *         pair S[k], S[k+1] of Ops shares at least 1 Alloc. If i != j, then
+   *         no such sequence exists.
+   *
+   * As an example, suppose the Ops a, b, c, and d are associated to Allocs A,
+   * B, C, D, and E as follows:
+   *    a: A, B
+   *    b: B, C
+   *    c: C, D
+   *    d: E.
+   *
+   * Then the Op partitioning is {{a,b,c}, {d}}.
+   *
+   * */
+  std::vector<std::vector<OpAddress>> getAllocPartitioned() const;
+
+  /**
+   *
+   * The motivation for this method is to find partitions of ops which do not
+   * share any Allocs, and to constrain them to be scheduled without
+   * overlapping. This constraint can accelerate scheduling. Consider this:
+   * example with 6 Ops (a,b,c,d,e,f) and 2 Allocs (A,B):
+   *
+   * A     A     A
+   * |     |     |
+   * a --> b --> c
+   *
+   * d --> e --> f
+   * |     |     |
+   * B     B     B
+   *
+   * So A must be live when a, b and c scheduled and B must b live when d, e,
+   * and f are scheduled.
+   *
+   * The 2 optimal schedules are (a,b,c,d,e,f) and (d,e,f,a,b,c), because in
+   * both of them A and B are both live for just 3 steps, the lowest possible
+   * for both. Specifically, a, b, and c are scheduled contiguously, as are d,
+   * e, and f.
+   *
+   * More generally, if Ops can be partitioned into groups with distinct
+   * Allocs, then the optimal schedule will always have these groups appearing
+   * contiguously in the overall schedule, if it is possible to do so.
+   *
+   * Ops can be partitioned by Allocs using the method getAllocPartitioned.
+   * Given such a partitioning, it is not always possible to schedule the
+   * partitions contiguously, as can be seen in following example with Ops (a,
+   * b, c) and Allocs (A, B):
+   *
+   *  a -> b -> c
+   *  |    |    |
+   *  A    B    A
+   *
+   * The partitioning of the ops by Alloc is {(a, c), (b)}, but it is not
+   * possible to schedule 'a' and 'c' next to each other.
+   *
+   * Consider the following graph with 6 Ops and 4 Allocs:
+   *
+   *            C      C
+   *            |      |
+   *      +---> d ---> e
+   *      |
+   *  a --+--- b -> c --> f
+   *  |        |    |     |
+   * A,D       B    A     D,
+   *
+   *
+   *  which has the following partitioning of Ops by Allocs:
+   *
+   *  partition 0 for Allocs (A, D) : (a, c, f)
+   *  partition 1 for Alloc B       : (b)
+   *  partition 2 for Alloc C       : (d,e).
+   *
+   * If a "supergraph" is constructed from the Alloc partitioning, where the
+   * "supernodes" inherit all edges from the ops they contain, then it has
+   * edges:
+   *   0->1 (as a->b)
+   *   1->0 (as b->c)
+   *   0->2 (as a->d).
+   *
+   * This graph has a cycle 0 -> 1 -> 0, which tells us that it is not
+   * possible to schedule the Ops in partitions 0 and 1 without interleaving
+   * them. The Ops in partition 2 can all be scheduled contiguously, which can
+   * be inferred from the supergraph, as 2 is not involved in a cycle.
+   *
+   * The grouping of the nodes in the super-graph into cycle-free components
+   * is precisely what the strongly connected components algorithms does, see
+   * for example https://en.wikipedia.org/wiki/Strongly_connected_component.
+   *
+   *
+   * In summary: We separate the Ops into the strongly connected components
+   * of the super-graph created by partitioning by Alloc. These are what are
+   * returned, with the strongly connected components returned in topological
+   * order.
+   * */
+  std::vector<std::vector<OpAddress>> getAllocPartitionedBins() const;
 
 private:
   std::vector<Op> allOps;

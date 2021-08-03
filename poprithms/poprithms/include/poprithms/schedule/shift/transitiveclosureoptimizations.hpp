@@ -31,7 +31,7 @@ enum class TransitiveClosureOptim {
 // or inbetween those of a and b, then upgrade (a,b) to a linked pair.
 //
 // ConstrainWeightSeparatedGroups: If a and b have common inputs, and it is
-// guarenteed that the increases in livenesses in PostUnconstrained(a,b) are
+// guaranteed that the increases in livenesses in PostUnconstrained(a,b) are
 // all less than or equal to those in PostUnconstrained(b,a), then insert a
 // constraint a->b and some related constraints.
 //
