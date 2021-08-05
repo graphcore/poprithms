@@ -194,7 +194,7 @@ public:
   getMultioutColumns(const OpIds &) const;
 
   /**
-   * Append a summary of the the Ops in #opIds to the stream #ost.
+   * Append a summary of the Ops in #opIds to the stream #ost.
    * */
   virtual void appendOpColumns(std::ostream &ost, const OpIds &) const = 0;
 

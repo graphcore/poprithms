@@ -30,3 +30,6 @@ add_schedule_test(schedule_transitiveclosure_bitset_performance_0
 
 add_schedule_test(schedule_transitiveclosure_partitionedtransitiveclosure_0
                         partitionedtransitiveclosure_0.cpp)
+
+add_schedule_test(schedule_transitiveclosure_durationbound_0
+                        durationbound_0.cpp)

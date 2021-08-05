@@ -6,9 +6,11 @@
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 
-int main() {
+namespace {
 
-  using namespace poprithms::schedule::transitiveclosure;
+using namespace poprithms::schedule::transitiveclosure;
+
+void test0() {
 
   //
   //
@@ -129,7 +131,7 @@ int main() {
   // 3    4    5
   // x -> x -> x
   //
-  em = {{{1}, {2}, {}, {4}, {5}, {}}};
+  em = TransitiveClosure(Edges({{1}, {2}, {}, {4}, {5}, {}}));
   for (uint64_t i = 0; i < 6; ++i) {
     auto expectedEarliest = i % 3;
     auto expectedLatest   = expectedEarliest + 3;
@@ -147,5 +149,44 @@ int main() {
           "Expected parallel chains to be unconstrained");
     }
   }
+}
+
+void testUnion() {
+  auto tc = TransitiveClosure(Edges({{1}, {2}, {3}, {4}, {5}, {}}));
+  const TransitiveClosure::Filters filters(
+      {{IsFirst::Yes, 1}, {IsFirst::Yes, 2}, {IsFirst::No, 4}});
+  auto uniOps = tc.opUnion(filters);
+  std::sort(uniOps.begin(), uniOps.end());
+  if (uniOps != OpIds{0, 1, 5}) {
+    throw poprithms::test::error("Expected union to be {0,1,5}");
+  }
+  if (tc.nUnion(filters) != 3) {
+    throw poprithms::test::error("Expected union to be {0,1,5}: of size 3");
+  }
+}
+
+void testEmptyMergers() {
+
+  for (uint64_t n : {1, 10, 500, 512, 600, 3000}) {
+    auto tc = TransitiveClosure(Edges(n));
+    if (tc.nUnion({}) != 0) {
+      throw poprithms::test::error(
+          "Expected union with no filters to be empty. This with n = " +
+          std::to_string(n));
+    }
+
+    if (tc.nIntersection({}) != n) {
+      throw poprithms::test::error("Expected intersection with no filters to "
+                                   "be complete. This with n = " +
+                                   std::to_string(n));
+    }
+  }
+}
+} // namespace
+
+int main() {
+  test0();
+  testUnion();
+  testEmptyMergers();
   return 0;
 }

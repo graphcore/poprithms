@@ -62,7 +62,7 @@ void test1() {
         PartitionedTransitiveClosure ptc(edges);
         TransitiveClosure tc(edges);
 
-        // Assert that the the same information is provided, 2*N times:
+        // Assert that the same information is provided, 2*N times:
         for (uint64_t i = 0; i < 2 * N; ++i) {
           auto start = g() % N;
           auto end   = g() % N;

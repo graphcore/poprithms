@@ -35,7 +35,7 @@ PartitionedTransitiveClosure::PartitionedTransitiveClosure(
 
 uint64_t PartitionedTransitiveClosure::nBits() const {
 
-  // The sum of all the bitset sizes of the the individual transitive
+  // The sum of all the bitset sizes of the individual transitive
   // closures.
   return std::accumulate(
       transitiveClosures.cbegin(),
