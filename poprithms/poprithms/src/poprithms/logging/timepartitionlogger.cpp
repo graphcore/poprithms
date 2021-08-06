@@ -114,10 +114,6 @@ double TimePartitionLogger::sinceConstruction() const {
   return total;
 }
 
-void TimePartitionLogger::summarizeInfo(double minPercentage) const {
-  summarize(minPercentage, Level::Info);
-}
-
 namespace {
 
 /**
@@ -323,15 +319,6 @@ std::string TimePartitionLogger::str(double minPercentage) const {
   std::ostringstream ost;
   append(ost, minPercentage);
   return ost.str();
-}
-
-void TimePartitionLogger::summarize(double minPercentage, Level l) const {
-
-  auto current         = getLevel();
-  const auto shouldLog = static_cast<int>(current) <= static_cast<int>(l);
-  if (shouldLog) {
-    std::cout << str(minPercentage) << std::endl;
-  }
 }
 
 void TimePartitionLogger::registerStartEvent(const std::string &stopwatch) {

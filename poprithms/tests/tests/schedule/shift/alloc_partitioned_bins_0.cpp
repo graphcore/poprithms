@@ -158,7 +158,7 @@ void test3() {
   }
 
   for (uint64_t i = 0; i < nAllocs - 1; ++i) {
-    if (g.getAllocPartitioned().size() != nAllocs  - i) {
+    if (g.getAllocPartitioned().size() != nAllocs - i) {
       std::ostringstream oss;
       oss << "At this point, " << i
           << " of the original partitions have been "

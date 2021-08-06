@@ -169,42 +169,9 @@ void moveScopeStopwatch0() {
   }
 }
 
-void testConstructors0() {
-
-  SwitchingTimePartitionLogger a("x", false);
-
-  // Construct another Logger with base id of "x", but extended to make
-  // unique.
-  SwitchingTimePartitionLogger b("x", true);
-  if (b.id() == "x") {
-    throw poprithms::test::error(
-        "b should not have id x, it should have been extended");
-  }
-
-  bool caught{false};
-  try {
-    SwitchingTimePartitionLogger c("x", false);
-  } catch (const poprithms::error::error &) {
-    caught = true;
-  }
-  if (!caught) {
-    throw poprithms::test::error(
-        std::string(
-            "c should not be constructible, the name x is already taken ") +
-        "and the option to extend the ID is false. ");
-  }
-
-  SwitchingTimePartitionLogger d;
-  ManualTimePartitionLogger e;
-  SwitchingTimePartitionLogger f;
-  if (f.id() == d.id() || e.id() == d.id()) {
-    throw poprithms::test::error("d, e, and f should all have unique ids");
-  }
-}
-
 void testOrder0() {
   std::cout << "In test order 0" << std::endl;
-  SwitchingTimePartitionLogger watcher("aSwitchingLogger", true);
+  SwitchingTimePartitionLogger watcher("aSwitchingLogger");
 
   const uint64_t nScopes = 6;
 
@@ -273,7 +240,6 @@ int main() {
   scopeStopwatch0();
   scopeStopwatch1();
   moveScopeStopwatch0();
-  testConstructors0();
   testPercentage();
   testOrder0();
 

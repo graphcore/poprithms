@@ -44,7 +44,7 @@ void summarizerTest0() {
   });
 
   // Print the events to std::cout.
-  summarizer.summarizeInfo(0.0);
+  std::cout << summarizer.str(0.0) << std::endl;
 }
 
 // A global summarizer is constructed and accessed in the various parts of the
@@ -93,7 +93,7 @@ void globalTest() {
     throw poprithms::test::error(oss.str());
   }
 
-  summarizer().summarizeInfo(0.0);
+  std::cout << summarizer().str(0.0) << std::endl;
 }
 
 void noDoubleStart() {
@@ -139,23 +139,11 @@ void timeRegisteredBeforeStop() {
   }
 }
 
-// This is really a repeat test of Logger's functionality.
-void noTwoManualTimePartitionLoggersWithSameId() {
+void twoManualTimePartitionLoggersWithSameId() {
 
+  // You can construct PartitionLoggers with the same name, unlike Loggers.
   ManualTimePartitionLogger a("new101");
-
-  bool caught{false};
-  try {
-    ManualTimePartitionLogger b("new101");
-  } catch (const poprithms::error::error &err) {
-    caught = true;
-  }
-
-  if (!caught) {
-    throw poprithms::test::error(
-        "Failed to catch error when ManualTimePartitionLoggers of same "
-        "names constructed");
-  }
+  ManualTimePartitionLogger b("new101");
 }
 
 void testScopedStopwatch0() {
@@ -206,7 +194,7 @@ int main() {
   noDoubleStart();
   noDoubleStop();
   timeRegisteredBeforeStop();
-  noTwoManualTimePartitionLoggersWithSameId();
+  twoManualTimePartitionLoggersWithSameId();
   testScopedStopwatch0();
   testReservedNames();
   poprithms::logging::setGlobalLevel(poprithms::logging::Level::Off);

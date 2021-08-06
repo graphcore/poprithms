@@ -50,12 +50,17 @@ private:
  * The TimePartitionLogger class might not work as expected with
  * multi-threadding.
  * */
-class TimePartitionLogger : public Logger {
+class TimePartitionLogger {
+
+private:
+  std::string id_;
 
 public:
-  TimePartitionLogger(const std::string &id, bool extendIdToMakeUnique)
-      : Logger(id, extendIdToMakeUnique),
+  TimePartitionLogger(const std::string &id)
+      : id_(id),
         timeOfConstruction(std::chrono::high_resolution_clock::now()) {}
+
+  std::string id() const { return id_; }
 
   /**
    * Start the stopwatch \a stopwatch. The behaviour in the case where there
@@ -89,20 +94,6 @@ public:
    *
    * */
   std::string str(double minPercentage) const;
-
-  /**
-   * Print the summary string to std::cout, if this TimePartitionLogger's
-   * Level is at least as high as \a l. See the base Logger class for
-   * information on setting this TimePartitionLogger's Level.
-   *
-   * \sa str
-   * */
-  void summarize(double minPercentage, Level l) const;
-
-  /**
-   * Summarize, at Level Info.
-   * */
-  void summarizeInfo(double minPercentage) const;
 
   /**
    * Append summary string to output stream \a ost
@@ -237,13 +228,10 @@ private:
  * */
 class ManualTimePartitionLogger : public TimePartitionLogger {
 public:
-  ManualTimePartitionLogger(const std::string &id, bool extendIdToMakeUnique)
-      : TimePartitionLogger(id, extendIdToMakeUnique) {}
-
   explicit ManualTimePartitionLogger(const std::string &id)
-      : ManualTimePartitionLogger(id, false) {}
+      : TimePartitionLogger(id) {}
 
-  ManualTimePartitionLogger() : ManualTimePartitionLogger({}, true) {}
+  ManualTimePartitionLogger() : ManualTimePartitionLogger(std::string{}) {}
 
 private:
   void preHandleStartFromOn(const std::string &stopwatch) final;
@@ -257,14 +245,18 @@ private:
 
 class SwitchingTimePartitionLogger : public TimePartitionLogger {
 public:
-  SwitchingTimePartitionLogger(const std::string &id,
-                               bool extendIdToMakeUnique)
-      : TimePartitionLogger(id, extendIdToMakeUnique) {}
-
   explicit SwitchingTimePartitionLogger(const std::string &id)
-      : SwitchingTimePartitionLogger(id, false) {}
+      : TimePartitionLogger(id) {}
 
-  SwitchingTimePartitionLogger() : SwitchingTimePartitionLogger({}, true) {}
+  /**
+   * \deprecated { Previously, SwitchingTimePartitionLogger could optionally
+   * be forced to have unique names. This option is no longer required. }
+   * */
+  SwitchingTimePartitionLogger(const std::string &s, bool /*deprecated*/)
+      : SwitchingTimePartitionLogger(s) {}
+
+  SwitchingTimePartitionLogger()
+      : SwitchingTimePartitionLogger(std::string{}) {}
 
 private:
   void preHandleStartFromOn(const std::string &stopwatch) final;
