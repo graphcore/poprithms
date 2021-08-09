@@ -24,6 +24,19 @@ namespace poprithms {
 namespace schedule {
 namespace shift {
 
+void Graph::updateWeight(AllocAddress aa, const AllocWeight &w) {
+  allAllocs[aa].setWeight(w);
+}
+
+void Graph::disconnectAlloc(AllocAddress aa) {
+  auto &alloc = allAllocs[aa];
+  for (auto opAddress : alloc.getOps()) {
+    auto &op = allOps[opAddress];
+    op.removeAlloc(alloc.getAddress());
+  }
+  alloc.removeAllOps();
+}
+
 OpAddress Graph::insertOp(const std::string &dbs) {
   OpAddress op = nOps();
   allOps.push_back({op, dbs});
@@ -594,6 +607,28 @@ std::vector<std::vector<OpAddress>> Graph::getAllocPartitionedBins() const {
   }
 
   return bins;
+}
+
+void Graph::update(AllocAddress aa,
+                   const std::vector<OpAddress> &toKeep,
+                   const std::vector<OpAddress> &toRemove) {
+
+  if (toKeep.size() + toRemove.size() != allAllocs[aa].nOps()) {
+    std::ostringstream oss;
+    oss << "Error in Graph::update(AllocAddress = " << aa << ", toKeep = ";
+    util::append(oss, toKeep);
+    oss << ", toRemove = ";
+    util::append(oss, toRemove);
+    oss << "). The combined sizes of toKeep and toRemove should be "
+        << allAllocs[aa].nOps() << '.';
+    throw error("Logic rror, toKeep.size() + toRemove.size() != nOps()");
+  }
+
+  for (auto opId : toRemove) {
+    allOps[opId].removeAlloc(aa);
+  }
+
+  allAllocs[aa].resetOps(toKeep);
 }
 
 } // namespace shift

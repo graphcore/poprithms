@@ -305,6 +305,9 @@ private:
   void finalizeTransitiveClosure();
   bool linkTightDrops();
   bool linkCloseTightPairs();
+
+  bool simplifyAllocations();
+
   bool constrainWeightSeparatedGroups();
   void processWeightSeparatedIdenticalIns(
       const std::vector<OpAddress> &opsWithIdenticalIns,
@@ -336,6 +339,9 @@ private:
   std::vector<AllocWeight> upperBoundChange;
 
   bool fromCache{false};
+
+  using OpAddresses    = std::vector<OpAddress>;
+  using AllocAddresses = std::vector<AllocAddress>;
 };
 
 } // namespace shift

@@ -37,6 +37,7 @@ public:
 
   AllocAddress getAddress() const { return address; }
   AllocWeight getWeight() const { return weight; }
+  void setWeight(const AllocWeight &w) { weight = w; }
 
   // The Ops which require this Alloc to be live when they are scheduled
   void insertOp(OpAddress opAddress);
@@ -61,6 +62,9 @@ public:
   getTuple() const {
     return {address, weight, ops};
   }
+
+  void removeAllOps() { ops.clear(); }
+  void resetOps(const std::vector<OpAddress> &newOps) { ops = newOps; }
 
 private:
   AllocAddress address;

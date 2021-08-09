@@ -39,6 +39,9 @@ public:
   void insertIn(OpAddress);
   void insertAlloc(AllocAddress);
 
+  // Remove aa if it is associated to this Op.
+  void removeAlloc(AllocAddress aa);
+
   const std::vector<OpAddress> &getIns() const { return ins; }
   OpAddress getIn(uint64_t i) const { return ins[i]; }
   uint64_t nIns() const { return getIns().size(); }

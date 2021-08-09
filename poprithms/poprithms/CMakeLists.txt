@@ -95,6 +95,7 @@ set(shift_source_dir ${schedule_src_dir}/shift)
 set(schedule_shift_sources
  ${shift_source_dir}/alloc.cpp
  ${shift_source_dir}/allocweight.cpp
+ ${shift_source_dir}/allocsimplifier.cpp
  ${shift_source_dir}/error.cpp
  ${shift_source_dir}/graph.cpp
  ${shift_source_dir}/graphserialization.cpp

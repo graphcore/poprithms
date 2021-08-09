@@ -8,12 +8,14 @@
 #include <schedule/shift/error.hpp>
 
 #include <poprithms/schedule/scc/scc.hpp>
+#include <poprithms/schedule/shift/allocsimplifier.hpp>
 #include <poprithms/schedule/shift/filteredschedule.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 #include <poprithms/schedule/shift/logging.hpp>
 #include <poprithms/schedule/shift/schedulechange.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/shift/solutioncache.hpp>
+#include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
@@ -806,8 +808,36 @@ void ScheduledGraph::applyTransitiveClosureOptimizations(
       log().debug("Applying TCO linkCloseTightPairs.");
       wasChange |= linkCloseTightPairs();
     }
+
     ++iteration;
   }
+}
+
+bool ScheduledGraph::simplifyAllocations() {
+
+  // TODO(T43735) make this pass on by default.
+
+  bool changed{true};
+  while (changed) {
+    changed = false;
+    changed |= AllocSimplifier::combineAllocsWithCommonOps(graph);
+    changed |= AllocSimplifier::disconnectAllocsWithOneOp(graph);
+    changed |= AllocSimplifier::disconnectAllocsWithZeroWeight(graph);
+    changed |= AllocSimplifier::disconnectInbetweenerAllocs(
+        graph, transitiveClosure);
+    changed |= AllocSimplifier::disconnectFixedDurationAllocs(
+        graph, transitiveClosure);
+    changed |=
+        AllocSimplifier::connectContiguousAllocs(graph, transitiveClosure);
+
+    const auto bins = graph.getAllocPartitionedBins();
+    if (!bins.empty()) {
+      changed = true;
+      graph.insertBinConstraints(bins, "AllocPartitionedBins");
+    }
+  }
+
+  return changed;
 }
 
 void ScheduledGraph::processWeightSeparatedIdenticalIns(

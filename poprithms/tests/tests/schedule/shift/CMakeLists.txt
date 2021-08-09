@@ -65,5 +65,7 @@ add_schedule_test(schedule_shift_constraint_diff_0 constraint_diff_0.cpp)
 
 add_schedule_test(schedule_shift_solutioncache_0 solutioncache_0.cpp)
 
+add_schedule_test(schedule_shift_alloc_simplifier_0 alloc_simplifier_0.cpp)
+
 add_schedule_test(schedule_shift_alloc_partitioned_bins_0 
                                  alloc_partitioned_bins_0.cpp)

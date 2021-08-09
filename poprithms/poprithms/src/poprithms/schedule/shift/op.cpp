@@ -82,6 +82,11 @@ void Op::appendSerialization(std::ostream &ost) const {
       << "\",\"fwdLink\":" << fwdLinkFragment << "}";
 }
 
+void Op::removeAlloc(AllocAddress aa) {
+  auto found = std::find(allocs.begin(), allocs.end(), aa);
+  allocs.erase(found);
+}
+
 Op::Op(OpAddress _address_, const std::string &_debugString_)
     : address(_address_), debugString(_debugString_) {}
 

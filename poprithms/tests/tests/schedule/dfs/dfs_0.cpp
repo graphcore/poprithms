@@ -22,6 +22,7 @@ std::ostream &operator<<(std::ostream &os, const Edges &x) {
   for (const auto &e : x) {
     os << "\n     " << cnt << ":";
     poprithms::util::append(os, e);
+    ++cnt;
   }
   return os;
 }

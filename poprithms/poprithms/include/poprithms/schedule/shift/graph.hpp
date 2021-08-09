@@ -503,6 +503,18 @@ public:
    * */
   std::vector<std::vector<OpAddress>> getAllocPartitionedBins() const;
 
+  void disconnectAlloc(AllocAddress aa);
+
+  /**
+   * Remove a set of Ops from an Alloc. The union of toKeep and toRemove
+   * should be the set of Ops associated to aa before this method is called.
+   */
+  void update(AllocAddress aa,
+              const std::vector<OpAddress> &toKeep,
+              const std::vector<OpAddress> &toRemove);
+
+  void updateWeight(AllocAddress, const AllocWeight &);
+
 private:
   std::vector<Op> allOps;
   std::vector<Alloc> allAllocs;
