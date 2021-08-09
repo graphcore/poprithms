@@ -7,6 +7,13 @@
 
 int main() {
 
+  if (std::getenv("POPRITHMS_LOG_LEVEL")) {
+    throw poprithms::test::error(
+        "Bailing from this logging test as POPRITHMS_LOG_LEVEL is set. "
+        "Unset it before running this test: `unset POPRITHMS_LOG_LEVEL` at "
+        "the command-line. ");
+  }
+
   using namespace poprithms::schedule::shift;
   using namespace poprithms::logging;
   for (auto level : {Level::Off, Level::Info, Level::Debug, Level::Trace}) {

@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
-#include <iostream>
 #include <logging/error.hpp>
 #include <map>
 #include <mutex>
@@ -322,14 +321,12 @@ std::string TimePartitionLogger::str(double minPercentage) const {
 }
 
 void TimePartitionLogger::registerStartEvent(const std::string &stopwatch) {
-  std::lock_guard<std::mutex> m(mut);
   events_.push_back({stopwatch,
                      Event::Type::Start,
                      std::chrono::high_resolution_clock::now()});
 }
 
 void TimePartitionLogger::registerStopEvent() {
-  std::lock_guard<std::mutex> m(mut);
   if (isOff()) {
     throw error("Cannot register stop event when all stopwatches are off");
   }

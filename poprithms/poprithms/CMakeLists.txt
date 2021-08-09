@@ -8,9 +8,8 @@ if (${POPRITHMS_WERROR})
 endif ()
 
 
-# Currently all Boost components used are header only,
-# so no "COMPONENTS foo" is needed when finding Boost.
-find_package(Boost REQUIRED)
+# The header only components don't need to be listed after COMPONENTS. 
+find_package(Boost REQUIRED COMPONENTS filesystem system)
 # Moreover, these lines are not needed while all boost deps are header only;
 # set(Boost_USE_STATIC_LIBS ON); set(Boost_USE_STATIC_RUNTIME ON)
 message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
@@ -106,6 +105,7 @@ set(schedule_shift_sources
  ${shift_source_dir}/settings.cpp
  ${shift_source_dir}/shiftandcost.cpp
  ${shift_source_dir}/solutioncache.cpp
+ ${shift_source_dir}/summarywriter.cpp
  ${shift_source_dir}/transitiveclosureoptimizations.cpp
 )
 set(dfs_source_dir ${schedule_src_dir}/dfs)

@@ -69,3 +69,9 @@ add_schedule_test(schedule_shift_alloc_simplifier_0 alloc_simplifier_0.cpp)
 
 add_schedule_test(schedule_shift_alloc_partitioned_bins_0 
                                  alloc_partitioned_bins_0.cpp)
+
+add_schedule_test(schedule_shift_summary_writer_0
+                                 summary_writer_0.cpp)
+
+
+

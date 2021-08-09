@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_SCHEDULE_SHIFT_SCHEDULEDGRAPH
 #define POPRITHMS_SCHEDULE_SHIFT_SCHEDULEDGRAPH
 
+#include <poprithms/logging/timepartitionlogger.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 #include <poprithms/schedule/shift/kahntiebreaker.hpp>
 #include <poprithms/schedule/shift/rotationalgo.hpp>
@@ -9,6 +10,7 @@
 #include <poprithms/schedule/shift/settings.hpp>
 #include <poprithms/schedule/shift/shiftandcost.hpp>
 #include <poprithms/schedule/shift/solutioncache.hpp>
+#include <poprithms/schedule/shift/summarywriter.hpp>
 #include <poprithms/schedule/shift/trackentry.hpp>
 #include <poprithms/schedule/shift/transitiveclosureoptimizations.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
@@ -66,6 +68,12 @@ public:
    *
    * \param seed The random seed is used when the KahnTieBreaker is Random, as
    *             well as in the rotation optimization algorithm.
+   *
+   * \param writer (optional) A summary of the algorithm's execution and the
+   *               graph that it schedules can optionally be written by
+   *               #writer. The default behaviour is to not record any
+   *               information. See ISummaryWriter and SummaryWriter classes
+   *               for more information.
    *   */
 
   ScheduledGraph(
@@ -77,17 +85,20 @@ public:
       uint32_t seed                  = Settings::defaultSeed(),
       DebugMode dm                   = Settings::defaultDebugMode(),
       const SolutionCache *readCache = nullptr,
-      SolutionCache *writeCache      = nullptr);
+      SolutionCache *writeCache      = nullptr,
+      const ISummaryWriter &writer   = SummaryWriter::None());
 
   ScheduledGraph(Graph &&,
                  const Settings &,
-                 const SolutionCache * = nullptr,
-                 SolutionCache *       = nullptr);
+                 const SolutionCache *  = nullptr,
+                 SolutionCache *        = nullptr,
+                 const ISummaryWriter & = SummaryWriter::None());
 
   ScheduledGraph(Graph &&,
                  const std::map<std::string, std::string> &,
-                 const SolutionCache * = nullptr,
-                 SolutionCache *       = nullptr);
+                 const SolutionCache *  = nullptr,
+                 SolutionCache *        = nullptr,
+                 const ISummaryWriter & = SummaryWriter::None());
 
   static bool isSchedulable(const Graph &);
 
@@ -342,6 +353,14 @@ private:
 
   using OpAddresses    = std::vector<OpAddress>;
   using AllocAddresses = std::vector<AllocAddress>;
+
+  // An object which records the time the various sub-algorithms spend in
+  // different top-level methods of this class. This is useful for first-pass
+  // analysis of the performance. For fine grained analysis, a more serious
+  // performance analysis tool should be used.
+  using TimeLogger = poprithms::logging::SwitchingTimePartitionLogger;
+  TimeLogger &timeLogger() { return swatch_; }
+  TimeLogger swatch_;
 };
 
 } // namespace shift

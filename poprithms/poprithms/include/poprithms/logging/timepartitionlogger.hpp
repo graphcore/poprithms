@@ -5,7 +5,6 @@
 #include <chrono>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <vector>
 
 #include <poprithms/logging/logging.hpp>
@@ -218,8 +217,6 @@ private:
   virtual void postHandleStartFromOn() = 0;
 
   std::vector<Event> events_;
-
-  std::mutex mut;
 };
 
 /**
