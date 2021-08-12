@@ -71,7 +71,10 @@ public:
    *
    * \param writer (optional) A summary of the algorithm's execution and the
    *               graph that it schedules can optionally be written by
-   *               #writer. The default behaviour is to not record any
+   *               #writer. The default is to try and set from it from
+   *               environment variables if they exist, or else never write.
+   *
+   *               The default behaviour is to not record any
    *               information. See ISummaryWriter and SummaryWriter classes
    *               for more information.
    *   */
@@ -86,19 +89,19 @@ public:
       DebugMode dm                   = Settings::defaultDebugMode(),
       const SolutionCache *readCache = nullptr,
       SolutionCache *writeCache      = nullptr,
-      const ISummaryWriter &writer   = SummaryWriter::None());
+      const ISummaryWriter &writer   = SummaryWriter::Default());
 
   ScheduledGraph(Graph &&,
                  const Settings &,
                  const SolutionCache *  = nullptr,
                  SolutionCache *        = nullptr,
-                 const ISummaryWriter & = SummaryWriter::None());
+                 const ISummaryWriter & = SummaryWriter::Default());
 
   ScheduledGraph(Graph &&,
                  const std::map<std::string, std::string> &,
                  const SolutionCache *  = nullptr,
                  SolutionCache *        = nullptr,
-                 const ISummaryWriter & = SummaryWriter::None());
+                 const ISummaryWriter & = SummaryWriter::Default());
 
   static bool isSchedulable(const Graph &);
 

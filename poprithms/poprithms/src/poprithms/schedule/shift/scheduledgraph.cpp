@@ -19,6 +19,7 @@
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
+
 namespace poprithms {
 namespace schedule {
 namespace shift {
@@ -599,6 +600,10 @@ ScheduledGraph::getBestShiftSimpleAlgo(const ScheduleIndex start0,
 }
 
 bool ScheduledGraph::constrainParallelChains() {
+
+  const auto stopwatch =
+      timeLogger().scopedStopwatch("constrainParallelChains");
+
   std::vector<std::array<OpAddress, 2>> newConstraints;
   for (OpAddress a = 0; a < nOps(); ++a) {
     auto identicalIns = graph.getIdenticalIns(a);
@@ -814,6 +819,10 @@ void ScheduledGraph::applyTransitiveClosureOptimizations(
       wasChange |= linkCloseTightPairs();
     }
 
+    // TODO(T43735) will look something like:
+    // Also, must enableg etAllocPartitionedBins
+    // { wasChange |= simplifyAllocations(); }
+
     ++iteration;
   }
 }
@@ -834,12 +843,6 @@ bool ScheduledGraph::simplifyAllocations() {
         graph, transitiveClosure);
     changed |=
         AllocSimplifier::connectContiguousAllocs(graph, transitiveClosure);
-
-    const auto bins = graph.getAllocPartitionedBins();
-    if (!bins.empty()) {
-      changed = true;
-      graph.insertBinConstraints(bins, "AllocPartitionedBins");
-    }
   }
 
   return changed;
@@ -906,6 +909,9 @@ void ScheduledGraph::processWeightSeparatedIdenticalIns(
 }
 
 bool ScheduledGraph::constrainWeightSeparatedGroups() {
+
+  const auto stopwatch =
+      timeLogger().scopedStopwatch("constrainWeightSeparatedGroups");
 
   std::vector<bool> processed(nOps(), false);
 
@@ -1018,6 +1024,9 @@ void ScheduledGraph::initializeTransitiveClosure() {
 }
 
 bool ScheduledGraph::linkTightDrops() {
+
+  const auto stopwatch = timeLogger().scopedStopwatch("linkTightDrops");
+
   std::vector<std::array<OpAddress, 2>> newLinks;
   for (const auto tightPair : graph.getTightPairs()) {
     OpAddress before = std::get<0>(tightPair);
@@ -1038,6 +1047,9 @@ bool ScheduledGraph::linkTightDrops() {
 }
 
 bool ScheduledGraph::linkCloseTightPairs() {
+
+  const auto stopwatch = timeLogger().scopedStopwatch("linkCloseTightPairs");
+
   std::vector<std::array<OpAddress, 2>> newLinks;
 
   for (const auto tightPair : graph.getTightPairs()) {
@@ -2144,22 +2156,22 @@ ScheduledGraph::ScheduledGraph(Graph &&g,
                  settings.seed(),
                  settings.rotationTermination());
 
-    if (!summaryWriter.empty()) {
-
-      constexpr double thresholdPercentage{0.5};
-      summaryWriter.write(g0,
-                          graph,
-                          timeLogger().sinceConstruction(),
-                          timeLogger().str(thresholdPercentage));
-    }
+    constexpr double thresholdPercentage{0.0};
+    summaryWriter.write(g0,
+                        graph,
+                        timeLogger().sinceConstruction(),
+                        timeLogger().str(thresholdPercentage));
 
     if (writeCache) {
       writeCache->writeSolution(std::move(g0), settings, schToOp);
     }
   }
 
-  log().info("Breakdown of the time spent scheduling this graph:\n" +
-             timeLogger().str(0.0));
+  {
+    constexpr double thresholdPercentage{0.0};
+    log().info("Breakdown of the time spent scheduling this graph:\n" +
+               timeLogger().str(thresholdPercentage));
+  }
 }
 
 ScheduledGraph::ScheduledGraph(Graph &&g,
@@ -2193,6 +2205,8 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
                                   DebugMode debugMode,
                                   uint32_t seed,
                                   RotationTermination rt) {
+
+  const auto stopwatch = timeLogger().scopedStopwatch("greedyRotate");
 
   if (log().shouldLog(logging::Level::Debug)) {
     std::ostringstream oss0;
@@ -2236,6 +2250,9 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
 
   int64_t nChangesInTotal{0};
 
+  int64_t nResetsToOne{0};
+  int64_t nShiftingRounds{0};
+
   std::vector<OpAddress> allOpAddresses(nOps());
 
   std::iota(allOpAddresses.begin(), allOpAddresses.end(), 0UL);
@@ -2252,6 +2269,8 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
   resetSusceptibleTrue();
 
   while (continueShifting) {
+
+    ++nShiftingRounds;
 
     auto susceptibleCurrent = susceptible;
     resetSusceptibleFalse();
@@ -2338,16 +2357,20 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
     auto oldNToShift = nToShift;
 
     std::ostringstream oss;
-    oss << "nChangesInCurrentRound = " << nChangesInCurrentRound << " ";
+    oss << "In round #" << nShiftingRounds << ", " << nChangesInCurrentRound
+        << " changes. ";
 
     if (noChangeSinceStart) {
-      oss << "noChangeSinceStart, so " << nToShift << " --> " << nToShift + 1;
+      oss << "No changes since start, climbing " << nToShift << " --> "
+          << nToShift + 1;
       ++nToShift;
       resetSusceptibleTrue();
     } else if (nChangesInCurrentRound == 0) {
-      oss << "no changes, so " << nToShift << " -->  1, cleanSlate";
+      oss << "No changes in round, descending " << nToShift
+          << " -->  1. Descent #" << nResetsToOne << '.';
       nToShift           = 1;
       noChangeSinceStart = true;
+      ++nResetsToOne;
       resetSusceptibleTrue();
     } else {
       oss << "staying at " << nToShift;

@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_SCHEDULE_SHIFT_SUMMARYWRITER_HPP
 #define POPRITHMS_SCHEDULE_SHIFT_SUMMARYWRITER_HPP
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -21,22 +22,32 @@ public:
                      const Graph &end,
                      double total,
                      const std::string &additional) const = 0;
-
-  /**
-   * return true if no summary should be written.
-   * */
-  virtual bool empty() const = 0;
 };
 
 class SummaryWriter : public ISummaryWriter {
 public:
-  static SummaryWriter None() { return SummaryWriter({}); }
+  // Checks environment variables, otherwise retuns None.
+  static SummaryWriter Default();
+
+  // Never writes, even if environment variables are set.
+  static SummaryWriter None() { return SummaryWriter({}, 0); }
 
   /**
-   * \param baseDirectory the directory to which summary files will be
-   *                      written.
+   * \param baseDirectory the base directory to which summary files will be
+   *                      written. A subdirectory of this base directory will
+   *                      be created for the files. The subdirectory will be
+   *                      based on (1) the number of Ops in the Graph and (2)
+   *                      the total time (nearest second) it took to schedule
+   *                      the Graph.
+   *
+   * \param maxWritesPerBin A bin is defined by (1) and (2), see above. This
+   *                        argument controls the number of new directories
+   *                        which are created.
    * */
-  SummaryWriter(const std::string &baseDirectory);
+  SummaryWriter(const std::string &baseDirectory,
+                uint64_t maxWritesPerBin = defaultMaxWritesPerBin());
+
+  static uint64_t defaultMaxWritesPerBin() { return 2; }
 
   /**
    * \param start This should be the Graph that the user passes to the
@@ -55,18 +66,8 @@ public:
              double total,
              const std::string &additional) const final;
 
-  bool empty() const final { return isWhitespace(dir_); }
-
-  static constexpr const char *const dirEnv =
-      "POPRITHMS_SCHEDULE_SHIFT_WRITE_DIRECTORY";
-
-private:
-  std::string dir_;
-
-  static bool isWhitespace(const std::string &);
-
   /**
-   * The user can export an environment variable to set the base directory for
+   * You can export an environment variable to set the base directory for
    * writing summaries to:
    *
    * >> export POPRITHMS_SCHEDULE_SHIFT_WRITE_DIRECTORY=/path/to/write/dir
@@ -75,9 +76,20 @@ private:
    * the constructor. If a SummaryWriter is constructed with a non-empty
    * string, then the environment variable is ignored.
    *
-   * This bool records if the directory was set by the environment variable.
    * */
-  bool dirFromEnvVariable_{false};
+  static constexpr const char *const dirEnv =
+      "POPRITHMS_SCHEDULE_SHIFT_WRITE_DIRECTORY";
+
+  static constexpr const char *const maxWritesPerBinEnv =
+      "POPRITHMS_SCHEDULE_SHIFT_MAX_WRITES_PER_BIN";
+
+private:
+  std::string dir_;
+  uint32_t maxWritesPerBin;
+
+  static std::mutex mut;
+  uint64_t getUid(uint64_t tSeconds, uint64_t nOps) const;
+  std::string dirName(uint64_t tSeconds, uint64_t nOps, uint64_t uid) const;
 };
 
 } // namespace shift

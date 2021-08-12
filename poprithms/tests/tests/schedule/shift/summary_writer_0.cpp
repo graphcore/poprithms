@@ -48,7 +48,7 @@ void test0() {
 }
 
 // Test: empty-string directory name is valid.
-void test1() { SummaryWriter({}); }
+void test1() { SummaryWriter({}, 0); }
 
 class MockWriter : public ISummaryWriter {
 public:
@@ -58,16 +58,16 @@ public:
              const Graph &g1,
              double,
              const std::string &additional) const final {
-    g0s.push_back(g0);
-    g1s.push_back(g1);
-    additionals.push_back(additional);
+    if (mustWrite) {
+      g0s.push_back(g0);
+      g1s.push_back(g1);
+      additionals.push_back(additional);
+    }
   }
 
   MockWriter(bool mustWrite_) : mustWrite(mustWrite_) {}
 
   bool mustWrite;
-
-  bool empty() const final { return !mustWrite; }
 
   // stacks of the requested Graph-writes.
   mutable std::vector<Graph> g0s;

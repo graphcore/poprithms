@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <cctype>
+#include <mutex>
 #include <schedule/shift/error.hpp>
 
 #include <boost/filesystem.hpp>
@@ -8,43 +9,50 @@
 #include <boost/format/format_fwd.hpp>
 
 #include <poprithms/schedule/shift/summarywriter.hpp>
+#include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
 namespace schedule {
 namespace shift {
 
-bool SummaryWriter::isWhitespace(const std::string &s) {
-  return std::all_of(
-      s.cbegin(), s.cend(), [](auto c) { return std::isspace(c); });
+std::string SummaryWriter::dirName(uint64_t totalSeconds,
+                                   uint64_t nOps,
+                                   uint64_t uid) const {
+  std::ostringstream oss;
+  oss << "time" << totalSeconds << "__"
+      << "nOps" << nOps << "__uid" << uid;
+  auto nxt = boost::filesystem::path(dir_) / oss.str();
+  return nxt.string();
 }
+
+uint64_t SummaryWriter::getUid(uint64_t totalSeconds, uint64_t nOps) const {
+  uint64_t uid{0};
+  bool exists{true};
+  while (exists) {
+    exists = boost::filesystem::exists(dirName(totalSeconds, nOps, uid));
+    if (exists) {
+      ++uid;
+    }
+  }
+  return uid;
+}
+
+std::mutex SummaryWriter::mut;
 
 void SummaryWriter::write(const Graph &start,
                           const Graph &end,
                           double total,
                           const std::string &additional) const {
 
-  using boost::filesystem::path;
+  std::lock_guard<std::mutex> goo(mut);
 
-  // directory names are
-  //
-  // time<number of seconds>__
-  // nOps<number of ops in start graph>__
-  // uid<a number to make the directory name unique>
-  auto subDir = [this, total, &start]() {
-    uint64_t totalSeconds = static_cast<uint64_t>(total);
-    uint64_t uid{0};
-    auto nxt = [this, totalSeconds, &uid, &start]() {
-      std::ostringstream oss;
-      oss << "time" << totalSeconds << "__"
-          << "nOps" << start.nOps() << "__uid" << uid;
-      return path(dir_) / oss.str();
-    };
-    while (boost::filesystem::exists(nxt())) {
-      uid += 1;
-    }
-    return nxt();
-  }();
+  auto uid = getUid(static_cast<uint64_t>(total), start.nOps());
+  if (uid >= maxWritesPerBin) {
+    return;
+  }
 
+  auto dn     = dirName(static_cast<uint64_t>(total), start.nOps(), uid);
+  auto subDir = boost::filesystem::path(dn);
   boost::filesystem::create_directory(subDir);
 
   {
@@ -64,46 +72,70 @@ void SummaryWriter::write(const Graph &start,
     out << additional;
     out.close();
   }
+
+  {
+    std::ofstream out((subDir / "dag1.txt").string());
+    std::ostringstream oss;
+    auto edges = end.getForwardEdges();
+    for (uint64_t i = 0; i < edges.size(); ++i) {
+      oss << i << ":";
+      poprithms::util::append(oss, edges[i]);
+      oss << '\n';
+    }
+    out << oss.str();
+    out.close();
+  }
 }
 
-SummaryWriter::SummaryWriter(const std::string &bd) : dir_(bd) {
+SummaryWriter::SummaryWriter(const std::string &bd, uint64_t maxWritesPerBin_)
+    : dir_(bd), maxWritesPerBin(maxWritesPerBin_) {
 
-  // The user can do
-  // >> export POPRITHMS_SCHEDULE_SHIFT_WRITE_DIRECTORY=/path/to/write/dir
-  //
-  // which will be used if the string passed to the constructor is empty.
+  if (maxWritesPerBin_ > 0 && !boost::filesystem::exists(dir_)) {
+    std::ostringstream oss;
+    oss << "The directory '" + dir_ + "' does not exist. ";
+    oss << "This directory name was ";
+    oss << "provided to the SummaryWriter constructor, along with "
+        << "maxWritesPerBin=" << maxWritesPerBin_ << '.';
 
-  if (isWhitespace(bd)) {
+    throw error(error::Code(12345), oss.str());
+  }
+}
 
-    // I could canonicalize the path with boost::canonicalize, but that might
-    // cause confusion about what the the path is relative to. So i'm leaving
-    // the responsibility up to the user to provide absolute paths.
-    // TLDR; ~/some/path is fine but ../../some/path might not be.
-    const char *const fromEnvVar = std::getenv(dirEnv);
-    if (fromEnvVar) {
-      dir_ = std::string(fromEnvVar);
-      if (!dir_.empty()) {
-        dirFromEnvVariable_ = true;
-      }
-    }
+SummaryWriter SummaryWriter::Default() {
+
+  const char *const fromEnvVar = std::getenv(dirEnv);
+  if (!fromEnvVar) {
+    return None();
+  }
+  auto dir = std::string(fromEnvVar);
+
+  if (!boost::filesystem::exists(dir)) {
+    std::ostringstream oss;
+    oss << "The directory '" + dir + "' does not exist. ";
+    oss << "This directory name was ";
+    oss << "obtained from the environment variable '" << dirEnv << "'. "
+        << "Either set this variable to a valid directory name, or unset "
+           "it. ";
+    throw error(oss.str());
   }
 
-  if (!isWhitespace(dir_)) {
-    if (!boost::filesystem::exists(dir_)) {
-      std::ostringstream oss;
-      oss << "The directory '" + dir_ + "' does not exist. ";
-      oss << "This directory name was ";
-      if (dirFromEnvVariable_) {
-        oss << "obtained from the environment variable '" << dirEnv << "'. "
-            << "Either set this variable to a valid directory name, or unset "
-               "it. ";
-
-      } else {
-        oss << "provided to the SummaryWriter constructor.";
-      }
-      throw error(error::Code(12345), oss.str());
-    }
+  const char *const maxCounts = std::getenv(maxWritesPerBinEnv);
+  if (!maxCounts) {
+    return SummaryWriter(dir, defaultMaxWritesPerBin());
   }
+
+  const auto maxCountsString = std::string(maxCounts);
+
+  // check if it can be cast to an unsigned integer.
+  if (maxCountsString.empty() ||
+      maxCountsString.find_first_not_of("0123456789") != std::string::npos) {
+    std::ostringstream oss;
+    oss << "Invalid environment variable " << maxWritesPerBinEnv << ", '"
+        << maxCounts << "'. It must be non-empty and contain only digits. ";
+    throw error(oss.str());
+  }
+
+  return SummaryWriter(dir, std::stoi(maxCountsString));
 }
 
 } // namespace shift
