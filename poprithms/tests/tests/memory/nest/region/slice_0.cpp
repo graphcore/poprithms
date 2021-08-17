@@ -75,7 +75,42 @@ void test1() {
       Region({2, 2, 4}, {{{{1, 1, 0}}}, {{{1, 1, 1}}}, {{{1, 1, 0}}}}));
 }
 
+void test2() {
+  // xx...xx...
+  auto S   = 10;
+  auto on  = 2;
+  auto off = 3;
+  auto U   = 6;
+  Region r0({S}, {{{{on, off, 0}}}});
+
+  // xx...x
+  auto b = r0.slice({0}, {U});
+
+  std::vector<int64_t> expected{0, 1, 5};
+
+  std::vector<int64_t> observed;
+  for (auto reg : b.get()) {
+    auto ons = reg.getOns()[0];
+    observed.insert(observed.end(), ons.cbegin(), ons.cend());
+  }
+  std::sort(observed.begin(), observed.end());
+  if (observed != expected) {
+    throw poprithms::test::error(
+        "Failure in slice test2, expected \nxx...xx...\nwhen sliced "
+        "by interval [0,6) to be\nxx...x");
+  }
+}
+
+void test3() {
+
+  // reproducer of T44367.
+  Region r0({131328}, {{{{256, 257, 0}}}});
+  auto b = r0.slice({0}, {130816});
+}
+
 int main() {
   test0();
   test1();
+  test2();
+  test3();
 }

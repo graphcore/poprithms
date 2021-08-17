@@ -303,10 +303,13 @@ public:
   DisjointRegions settFillWith(const Region &ink) const;
 
   /**
-   * Slice this Region. The Shape of the returned Region is #upper - #lower
+   * Slice this Region. This method is a convenience function, which calls
+   * settSample.
+   *
+   * \return DisjointRegions of shape #upper - #lower
    * */
-  Region slice(const std::vector<int64_t> &lower,
-               const std::vector<int64_t> &upper) const;
+  DisjointRegions slice(const std::vector<int64_t> &lower,
+                        const std::vector<int64_t> &upper) const;
 
   /**
    * The inverse operation of expand. Example:

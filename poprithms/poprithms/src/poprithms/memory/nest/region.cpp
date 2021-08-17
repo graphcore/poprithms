@@ -17,11 +17,6 @@ namespace nest {
 
 namespace {
 
-std::ostream &operator<<(std::ostream &os, const std::vector<int64_t> &foo) {
-  util::append(os, foo);
-  return os;
-}
-
 // Example, if setts = {{a,b}, {c}, {d,e}};
 //
 // Will return 2 x 1 x 2 DisjointRegions,
@@ -587,22 +582,34 @@ Region Region::fromStripe(const Shape &sh,
   return Region(sh, setts);
 }
 
-Region Region::slice(const std::vector<int64_t> &l,
-                     const std::vector<int64_t> &u) const {
+DisjointRegions Region::slice(const std::vector<int64_t> &l,
+                              const std::vector<int64_t> &u) const {
 
   const auto sampleRegion = fromBounds(shape(), l, u);
-  auto sliced             = settSample(sampleRegion);
-  if (sliced.size() > 1) {
-    std::ostringstream oss;
-    oss << "In Region::slice(" << l << ", " << u
-        << "), expected 0 or 1 output regions, not " << sliced << '.';
-    throw error(oss.str());
-  }
+  const auto sliced       = settSample(sampleRegion);
 
-  if (sliced.size() == 0) {
-    return Region::createEmpty(shape().slice(l, u));
-  }
-  return sliced.at(0);
+  // Note that there is no guarantee that the slice is composed of fewer than
+  // 2 regions. This is because canonicalization passes may simplify 1 complex
+  // Region into 2 simple Regions. For example, if the Region being sliced is
+  //
+  // shape(10), setts=((2,3,0)):
+  //    xx...xx...
+  //
+  // and the slice bounds are l=0 and u=6, resulting in the region:
+  //    xx...x,
+  //
+  // then 2 possible representations are,
+  //
+  // (1) with 1 complex region:
+  //   shape(6), setts=((6,0,0),(2,3,0))
+  //
+  // and (2) with 2 simple regions:
+  //   shape(6), setts=(4,2,0)
+  //   shape(6), setts=(1,0,5).
+  //
+  // There is no guarantee that (2) is not used.
+  //
+  return sliced;
 }
 
 Region Region::reduce(const Shape &outShape) const {
@@ -699,9 +706,11 @@ DisjointRegions::slice(const std::vector<int64_t> &lower,
                        const std::vector<int64_t> &upper) const {
   std::vector<Region> allOutRegions;
   for (const auto &reg : get()) {
-    const auto inReg = reg.slice(lower, upper);
-    if (!inReg.empty()) {
-      allOutRegions.push_back(inReg);
+    const auto inRegs = reg.slice(lower, upper);
+    if (!inRegs.empty()) {
+      for (const auto &inReg : inRegs.get()) {
+        allOutRegions.push_back(inReg);
+      }
     }
   }
   return DisjointRegions(shape().slice(lower, upper), allOutRegions);
