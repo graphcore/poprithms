@@ -17,7 +17,7 @@ namespace poprithms {
 namespace logging {
 
 using Event  = TimePartitionLogger::Event;
-using Events = std::vector<TimePartitionLogger::Event>;
+using Events = TimePartitionLogger::Events;
 
 ScopedStopwatch::ScopedStopwatch(const std::string &s,
                                  TimePartitionLogger &logger)
@@ -50,7 +50,7 @@ std::string TimePartitionLogger::eventsStr() const {
   uint64_t maxStopwatchLength{0ull};
   for (const auto &e : events_) {
     maxStopwatchLength =
-        std::max<uint64_t>(maxStopwatchLength, e.stopwatch.size());
+        std::max<uint64_t>(maxStopwatchLength, stopwatch(e.id).size());
   }
 
   std::ostringstream oss;
@@ -58,9 +58,9 @@ std::string TimePartitionLogger::eventsStr() const {
   for (const auto &event : events()) {
 
     const std::chrono::duration<double> dt = event.time_ - timeOfConstruction;
-    oss << "\n       " << event.type << event.stopwatch
-        << util::spaceString(maxStopwatchLength + 2, event.stopwatch) << " : "
-        << dt.count();
+    oss << "\n       " << event.type << stopwatch(event.id)
+        << util::spaceString(maxStopwatchLength + 2, stopwatch(event.id))
+        << " : " << dt.count();
   }
   oss << '.';
   return oss.str();
@@ -68,27 +68,28 @@ std::string TimePartitionLogger::eventsStr() const {
 
 namespace {
 
-using TimelessEvent  = std::pair<std::string, Event::Type>;
-using TimelessEvents = std::vector<TimelessEvent>;
-void appendTimelessEvent(std::ostream &ost, const TimelessEvents &v) {
+void appendTimelessEvent(std::ostream &ost,
+                         const TimePartitionLogger::TimelessEvents &v) {
   for (auto x : v) {
     ost << "\n        "
-        << (x.second == Event::Type::Start ? "Start " : "Stop  ") << x.first;
+        << (x.second == TimePartitionLogger::EventType::Start ? "Start "
+                                                              : "Stop  ")
+        << x.first;
   }
-}
-
-TimelessEvents getTimelessEvents(const Events &events) {
-  TimelessEvents ts;
-  ts.reserve(events.size());
-  for (const auto &e : events) {
-    ts.push_back({e.stopwatch, e.type});
-  }
-  return ts;
 }
 
 } // namespace
 
 void TimePartitionLogger::verifyEvents(const TimelessEvents &expected) const {
+
+  auto getTimelessEvents = [this](const Events &events) {
+    TimePartitionLogger::TimelessEvents ts;
+    ts.reserve(events.size());
+    for (const auto &e : events) {
+      ts.push_back({stopwatch(e.id), e.type});
+    }
+    return ts;
+  };
 
   auto timelesses = getTimelessEvents(events_);
   auto getString  = [&timelesses, &expected]() {
@@ -122,27 +123,20 @@ namespace {
  * */
 class StopwatchSummary {
 public:
-  // Construct a time-only summary entry
-  explicit StopwatchSummary(const std::string &sw, double t)
-      : stopwatch_(sw), time_(t), hasCount_(false) {}
-
   // Constuct a time+count summary entry
-  explicit StopwatchSummary(const std::string &sw, double t, uint64_t n)
-      : stopwatch_(sw), time_(t), count_(n), hasCount_(true) {}
+  explicit StopwatchSummary(double t, uint64_t n) : time_(t), count_(n) {}
 
   double time() const { return time_; }
 
-  bool hasCount() const { return hasCount_; }
-
   std::string timeStr() const { return std::to_string(time_) + "       "; }
 
-  std::string countStr() const {
-    return hasCount() ? std::to_string(count_) : "n/a";
+  std::string countStr() const { return std::to_string(count_); }
+
+  static std::string percStr(double n, double d) {
+    return std::to_string(static_cast<int>(0.5 + 100. * n / d)) + " %";
   }
 
-  std::string percStr(double d) const {
-    return std::to_string(static_cast<int>(0.5 + 100. * time_ / d)) + " %";
-  }
+  std::string percStr(double d) const { return percStr(time_, d); }
 
   void incrementTime(double d) { time_ += d; }
 
@@ -156,16 +150,10 @@ public:
     return tup() == rhs.tup();
   }
 
-  const std::string &stopwatch() const { return stopwatch_; }
-
 private:
-  std::tuple<bool, double, std::string, uint64_t> tup() const {
-    return {hasCount_, time_, stopwatch_, count_};
-  }
-  std::string stopwatch_;
+  std::tuple<double, uint64_t> tup() const { return {time_, count_}; }
   double time_;
   uint64_t count_;
-  bool hasCount_;
 };
 
 class StopwatchSummaries {
@@ -186,32 +174,23 @@ public:
       if (!events[j].isStart() || events[j + 1].isStart()) {
         throw error("Expected events to be alternating starts and stops. ");
       }
-      if (events[j].stopwatch != events[j + 1].stopwatch) {
+      if (events[j].id != events[j + 1].id) {
         throw error(
             "Expected start-stop pairs to be on a single stopwatch. ");
       }
 
-      auto stopwatch = events[j].stopwatch;
+      auto stopwatch = events[j].id;
 
       // time between start and stop.
       const std::chrono::duration<double> dt =
           events[j + 1].time_ - events[j].time_;
-      auto t0    = dt.count();
-      auto found = summaries.find(stopwatch);
-      if (found == summaries.cend()) {
-        summaries.insert({stopwatch, StopwatchSummary(stopwatch, t0, 1ULL)});
-      } else {
-        found->second.incrementCount(1ULL);
-        found->second.incrementTime(t0);
+      auto t0 = dt.count();
+      if (summaries.size() <= stopwatch.get()) {
+        summaries.resize(stopwatch.get() + 1, StopwatchSummary(0., 0));
       }
+      summaries[stopwatch.get()].incrementCount(1ULL);
+      summaries[stopwatch.get()].incrementTime(t0);
     }
-  }
-
-  /**
-   * Insert a (time-only) stopwatch.
-   * */
-  void insert(const std::string &stopwatch, double t) {
-    summaries.insert({stopwatch, StopwatchSummary(stopwatch, t)});
   }
 
   /**
@@ -222,24 +201,27 @@ public:
         summaries.cbegin(),
         summaries.cend(),
         0.0,
-        [](double v, const auto &x) { return v + x.second.time(); });
+        [](double v, const auto &x) { return v + x.time(); });
   }
 
-  const auto &get() const { return summaries; }
+  uint64_t nStopwatches() const { return summaries.size(); }
+
+  const StopwatchSummary &getSummary(StopwatchId id) const {
+    if (id.get() >= summaries.size()) {
+      throw error("Invalid StopwatchId");
+    }
+    return summaries[id.get()];
+  }
 
 private:
-  std::map<std::string, StopwatchSummary> summaries;
+  std::vector<StopwatchSummary> summaries;
 };
 
 } // namespace
 
 double TimePartitionLogger::get(const std::string &stopwatch) const {
-  const auto m     = StopwatchSummaries(completeAndGet()).get();
-  const auto found = m.find(stopwatch);
-  if (found == m.cend()) {
-    return 0;
-  }
-  return found->second.time();
+  StopwatchId id = stopwatchId(stopwatch);
+  return StopwatchSummaries(completeAndGet()).getSummary(id).time();
 }
 
 std::vector<Event> TimePartitionLogger::completeAndGet() const {
@@ -251,7 +233,7 @@ std::vector<Event> TimePartitionLogger::completeAndGet() const {
   const auto finalTime = std::chrono::high_resolution_clock::now();
   if (!eventsCopy_.empty() && eventsCopy_.back().isStart()) {
     eventsCopy_.push_back(
-        {eventsCopy_.back().stopwatch, Event::Type::Stop, finalTime});
+        {eventsCopy_.back().id, EventType::Stop, finalTime});
   }
 
   return eventsCopy_;
@@ -264,7 +246,7 @@ void TimePartitionLogger::append(std::ostream &ost,
 
   std::unordered_set<std::string> allStopwatches;
   for (const auto &e : eventsCopy_) {
-    allStopwatches.insert(e.stopwatch);
+    allStopwatches.insert(stopwatch(e.id));
   }
 
   auto ensureUnique = [allStopwatches](std::string x) {
@@ -273,16 +255,15 @@ void TimePartitionLogger::append(std::ostream &ost,
     }
     return x;
   };
-  const std::string totalTime       = ensureUnique("Total");
-  const std::string unaccountedTime = ensureUnique("Unaccounted for   ");
-  const std::string accountedTime   = ensureUnique("Accounted for");
 
   auto summaries    = StopwatchSummaries(eventsCopy_);
   auto accountedFor = summaries.totalAccountedFor();
   const auto total  = sinceConstruction();
-  summaries.insert(totalTime, total);
-  summaries.insert(accountedTime, accountedFor);
-  summaries.insert(unaccountedTime, total - accountedFor);
+
+  std::vector<std::pair<std::string, double>> additionals{
+      {ensureUnique("Total"), total},
+      {ensureUnique("Unaccounted for   "), total - accountedFor},
+      {ensureUnique("Accounted for"), accountedFor}};
 
   // elements of the columns of the summary string:
   std::vector<std::string> scopes;
@@ -290,21 +271,30 @@ void TimePartitionLogger::append(std::ostream &ost,
   std::vector<std::string> counts;
   std::vector<std::string> percentages;
 
-  std::vector<StopwatchSummary> v;
-  for (const auto &[stopwatch, summary] : summaries.get()) {
-    (void)stopwatch;
-    v.push_back(summary);
-  }
-  std::sort(v.rbegin(), v.rend());
+  std::vector<std::pair<double, StopwatchId>> ts;
 
-  for (const auto &summary : v) {
-    auto perc = (100.0 * summary.time()) / total;
-    if (perc >= minPercentage || !summary.hasCount()) {
-      scopes.push_back(summary.stopwatch());
+  for (uint64_t i = 0; i < summaries.nStopwatches(); ++i) {
+    ts.push_back({summaries.getSummary(i).time(), i});
+  }
+  std::sort(ts.rbegin(), ts.rend());
+
+  for (auto t : ts) {
+    auto id             = t.second;
+    const auto &summary = summaries.getSummary(id);
+    auto perc           = (100.0 * summary.time()) / total;
+    if (perc >= minPercentage) {
+      scopes.push_back(stopwatch(id));
       times.push_back(summary.timeStr());
       counts.push_back(summary.countStr());
       percentages.push_back(summary.percStr(total));
     }
+  }
+
+  for (auto a : additionals) {
+    scopes.push_back(a.first);
+    times.push_back(std::to_string(a.second));
+    counts.push_back("n/a");
+    percentages.push_back(StopwatchSummary::percStr(a.second, total));
   }
 
   ost << util::alignedColumns(
@@ -321,17 +311,38 @@ std::string TimePartitionLogger::str(double minPercentage) const {
 }
 
 void TimePartitionLogger::registerStartEvent(const std::string &stopwatch) {
-  events_.push_back({stopwatch,
-                     Event::Type::Start,
+
+  events_.push_back({createStopwatchId(stopwatch),
+                     EventType::Start,
                      std::chrono::high_resolution_clock::now()});
 }
 
+StopwatchId TimePartitionLogger::createStopwatchId(const std::string &name) {
+  auto found = stopwatchIds.find(name);
+  if (found != stopwatchIds.cend()) {
+    return found->second;
+  }
+  StopwatchId nxt = stopwatchNames.size();
+  stopwatchIds.insert({name, nxt.get()});
+  stopwatchNames.push_back(name);
+  return nxt;
+}
+
+StopwatchId TimePartitionLogger::stopwatchId(const std::string &name) const {
+  auto found = stopwatchIds.find(name);
+  if (found != stopwatchIds.cend()) {
+    return found->second;
+  }
+  throw error("Invalid stopwatch name " + name);
+}
+
 void TimePartitionLogger::registerStopEvent() {
+
   if (isOff()) {
     throw error("Cannot register stop event when all stopwatches are off");
   }
-  events_.push_back({events_.back().stopwatch,
-                     Event::Type::Stop,
+  events_.push_back({events_.back().id,
+                     EventType::Stop,
                      std::chrono::high_resolution_clock::now()});
 }
 
@@ -342,7 +353,7 @@ std::string TimePartitionLogger::currentStopwatch() const {
         << "there are currently no stopwatches on. ";
     throw error(oss.str());
   }
-  return events_.back().stopwatch;
+  return stopwatch(events_.back().id);
 }
 
 void TimePartitionLogger::start(const std::string &stopwatch) {
@@ -385,18 +396,22 @@ void SwitchingTimePartitionLogger::postHandleStartFromOn() {
 }
 
 std::ostream &operator<<(std::ostream &ost,
-                         const TimePartitionLogger::Event::Type &t) {
+                         const TimePartitionLogger::EventType &t) {
   switch (t) {
-  case (Event::Type::Start): {
+  case (TimePartitionLogger::EventType::Start): {
     ost << "Start";
     return ost;
   }
-  case (Event::Type::Stop): {
+  case (TimePartitionLogger::EventType::Stop): {
     ost << "Stop";
     return ost;
   }
   }
-  throw error("Unhandled Event::Type");
+  throw error("Unhandled EventType");
+}
+
+std::string TimePartitionLogger::stopwatch(StopwatchId id) const {
+  return stopwatchNames.at(id.get());
 }
 
 } // namespace logging

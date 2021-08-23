@@ -11,7 +11,7 @@ namespace {
 using namespace poprithms::logging;
 
 using Event = TimePartitionLogger::Event;
-using Type  = Event::Type;
+using Type  = TimePartitionLogger::EventType;
 
 void summarizerTest0() {
   ManualTimePartitionLogger summarizer("myManualTimePartitionLogger");

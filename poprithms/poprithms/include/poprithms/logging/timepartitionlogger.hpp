@@ -5,12 +5,16 @@
 #include <chrono>
 #include <map>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include <poprithms/logging/logging.hpp>
+#include <poprithms/util/typedinteger.hpp>
 
 namespace poprithms {
 namespace logging {
+
+using StopwatchId = poprithms::util::TypedInteger<'s', uint32_t>;
 
 class TimePartitionLogger;
 
@@ -39,32 +43,26 @@ private:
 };
 
 /**
- * An extension to the Logger class which can summarize the times spent in
- * multiple mutually exclusive timing scopes (stopwatches).
- *
  * A TimePartitionLogger can be thought of as a set of stopwatches, where
  * there is never more than 1 stopwatch running at a time. Each stopwatch is
  * defined by a string.
  *
- * The TimePartitionLogger class might not work as expected with
- * multi-threadding.
+ * The TimePartitionLogger class might not behave as expected if invoked on
+ * multiple threads in parallel.
  * */
 class TimePartitionLogger {
 
-private:
-  std::string id_;
-
 public:
   TimePartitionLogger(const std::string &id)
-      : id_(id),
-        timeOfConstruction(std::chrono::high_resolution_clock::now()) {}
+      : timeOfConstruction(std::chrono::high_resolution_clock::now()),
+        id_(id) {}
 
   std::string id() const { return id_; }
 
   /**
-   * Start the stopwatch \a stopwatch. The behaviour in the case where there
-   * is already a stopwatch on depends on the inheriting class's
-   * implementation of \a preHandleStartFromOn
+   * Start the stopwatch \a stopwatch. The behaviour when there is already a
+   * stopwatch on depends on the inheriting class's implementation of \a
+   * preHandleStartFromOn
    * */
   void start(const std::string &stopwatch);
 
@@ -102,7 +100,7 @@ public:
 
   /**
    * Get the total time that stopwatch #stopwatch has been on for, in seconds.
-   * This method is O(number-of-times any stopwatches swtiched on) and so
+   * This method is O(number-of-times stopwatches were switched on) and so
    * should be used sparingly.
    * */
   double get(const std::string &stopwatch) const;
@@ -146,23 +144,36 @@ public:
    * */
   ScopedStopwatch scopedStopwatch(const std::string &stopwatch);
 
+  /** The type of the events a stopwatch can perform */
+  enum class EventType { Start, Stop } type;
+
   /**
    * An Event: when a stopwatch either starts of stops.
    * */
   struct Event {
-    // the name of the stopwatch
-    std::string stopwatch;
 
-    // the type of the event on the stopwatch
-    enum class Type { Start, Stop } type;
+    StopwatchId id;
+
+    EventType type;
 
     // the (global) time of the event
-    std::chrono::high_resolution_clock::time_point time_;
+    using TP = std::chrono::high_resolution_clock::time_point;
+    TP time_;
 
-    bool isStart() const { return type == Type::Start; }
-    bool isStop() const { return type == Type::Stop; }
+    // the name of the stopwatch
+    // const std::string & stopwatch() const;
+
+    bool isStart() const { return type == EventType::Start; }
+    bool isStop() const { return type == EventType::Stop; }
+
+    Event(StopwatchId id_, EventType t_) : id(id_), type(t_) {}
+    Event(StopwatchId id_, EventType t_, TP tm_)
+        : id(id_), type(t_), time_(tm_) {}
   };
 
+  using Events = std::vector<Event>;
+
+public:
   /** \return true if there is currently a stopwatch which is on. */
   bool isOn() const { return !events_.empty() && events_.back().isStart(); }
 
@@ -179,8 +190,9 @@ public:
    * For testing purposes: verify that all the Events registered match the
    * Events in \a expected, excluding the times of Events.
    */
-  void verifyEvents(
-      const std::vector<std::pair<std::string, Event::Type>> &expected) const;
+  using TimelessEvent  = std::pair<std::string, EventType>;
+  using TimelessEvents = std::vector<TimelessEvent>;
+  void verifyEvents(const TimelessEvents &expected) const;
 
   /**
    * How long has the current stopwatch been on for, if any stopwatches are
@@ -217,6 +229,27 @@ private:
   virtual void postHandleStartFromOn() = 0;
 
   std::vector<Event> events_;
+
+  std::string id_;
+
+  // Mapping between the names of stopwatches, and a StopwatchId.
+  // Each stopwatch (string) will have a unique StopwatchId, and the
+  // StopwatchIds will be contiguous from 0.
+  std::unordered_map<std::string, StopwatchId> stopwatchIds;
+  std::vector<std::string> stopwatchNames;
+
+  // Retrieve the StopwatchId for the string stopwatch. If 'stopwatch' has not
+  // been seen before, and error will be thrown. See also createStopwatchId.
+  StopwatchId stopwatchId(const std::string &stopwatch) const;
+
+  // Retrieve the StopwatchId for the string stopwatch. If 'stopwatch' has not
+  // been seen before, a new StopwatchId is created and returned. See also
+  // createStopwatch.
+  StopwatchId createStopwatchId(const std::string &stopwatch);
+
+  // Retrieve stopwatch (name) of 'id'. If 'id' is not valid, an error is
+  // thrown.
+  std::string stopwatch(StopwatchId id) const;
 };
 
 /**
@@ -263,7 +296,7 @@ private:
 };
 
 std::ostream &operator<<(std::ostream &,
-                         const TimePartitionLogger::Event::Type &);
+                         const TimePartitionLogger::EventType &);
 
 } // namespace logging
 } // namespace poprithms

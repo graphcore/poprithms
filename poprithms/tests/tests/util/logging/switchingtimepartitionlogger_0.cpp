@@ -12,7 +12,7 @@ namespace {
 
 using namespace poprithms::logging;
 using Event = TimePartitionLogger::Event;
-using Type  = Event::Type;
+using Type  = TimePartitionLogger::EventType;
 
 auto &testLogger() {
   static SwitchingTimePartitionLogger logger("TimeInScopeLogger for testing");
@@ -233,6 +233,29 @@ void testOrder0() {
   }
 }
 
+// 23/08/2021: with nScopes = 100 and nSwitches = 1000000 this takes about
+// 0.8 seconds.
+void rapidFireTest0(uint64_t nScopes, uint64_t nSwitches) {
+  SwitchingTimePartitionLogger s;
+
+  auto x = s.scopedStopwatch("Main scope");
+
+  std::vector<std::string> scopes;
+  for (uint64_t i = 0; i < nScopes; ++i) {
+    scopes.push_back("Timing scope number #" + std::to_string(i));
+  }
+
+  uint64_t j = 0;
+  for (uint64_t i = 0; i < nSwitches; ++i) {
+    const auto sw = s.scopedStopwatch(scopes[i % nScopes]);
+    j += (i * i % 3 + i * (i + 1));
+  }
+
+  std::cout << "Getting summary" << std::endl;
+
+  std::cout << s.str(0.0) << std::endl;
+}
+
 } // namespace
 
 int main() {
@@ -242,6 +265,7 @@ int main() {
   moveScopeStopwatch0();
   testPercentage();
   testOrder0();
+  rapidFireTest0(10, 100);
 
   return 0;
 }
