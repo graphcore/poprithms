@@ -41,7 +41,7 @@ void test0() {
   }
 
   const auto pom =
-      TransitiveClosureOptimizations::allOff().withLinkTightDrops();
+      TransitiveClosureOptimizations::allOff().withLinkTightDrops(true);
   ScheduledGraph sg(std::move(g),
                     KahnTieBreaker::RANDOM,
                     pom,
@@ -103,7 +103,7 @@ void test1() {
   }
 
   const auto pom =
-      TransitiveClosureOptimizations::allOff().withLinkTightDrops();
+      TransitiveClosureOptimizations::allOff().withLinkTightDrops(true);
   ScheduledGraph sg(std::move(g),
                     KahnTieBreaker::RANDOM,
                     pom,

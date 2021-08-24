@@ -15,7 +15,7 @@ graph0(const std::array<double, nOps0> &weights, double w06) {
   using namespace poprithms::schedule::shift;
   Graph g;
   auto tco = TransitiveClosureOptimizations::allOff()
-                 .withConstrainParallelChains()
+                 .withConstrainParallelChains(true)
                  .withMaxIterations(1);
 
   //
@@ -131,7 +131,7 @@ void test1() {
   g.insertOpAlloc({op1, op2, op3}, alloc_123);
 
   auto tco = TransitiveClosureOptimizations::allOff()
-                 .withConstrainParallelChains()
+                 .withConstrainParallelChains(true)
                  .withMaxIterations(1);
 
   ScheduledGraph sg(std::move(g),

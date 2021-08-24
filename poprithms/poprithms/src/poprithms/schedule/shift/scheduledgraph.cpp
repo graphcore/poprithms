@@ -6,6 +6,7 @@
 #include <numeric>
 #include <random>
 #include <schedule/shift/error.hpp>
+#include <sstream>
 
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/shift/allocsimplifier.hpp>
@@ -18,7 +19,6 @@
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
-
 
 namespace poprithms {
 namespace schedule {
@@ -601,9 +601,6 @@ ScheduledGraph::getBestShiftSimpleAlgo(const ScheduleIndex start0,
 
 bool ScheduledGraph::constrainParallelChains() {
 
-  const auto stopwatch =
-      timeLogger().scopedStopwatch("constrainParallelChains");
-
   std::vector<std::array<OpAddress, 2>> newConstraints;
   for (OpAddress a = 0; a < nOps(); ++a) {
     auto identicalIns = graph.getIdenticalIns(a);
@@ -757,22 +754,33 @@ void ScheduledGraph::updateTransitiveClosure(
 void ScheduledGraph::applyTransitiveClosureOptimizations(
     const TransitiveClosureOptimizations &tco) {
 
-  const auto stopwatch =
+  const auto sw0 =
       timeLogger().scopedStopwatch("applyTransitiveClosureOptimizations");
 
-  if (tco.allOptimizationsOff()) {
+  {
+    std::ostringstream oss;
+    oss << "Applying TransitiveClosureOptimizations, \n" << tco;
+    log().debug(oss.str());
+  }
+
+  // All of the TransitiveClosureOptims to run.
+  const auto allToRun = tco.enabled();
+  if (allToRun.empty()) {
     return;
   }
 
-  bool wasChange{true};
+  std::vector<TransitiveClosureOptim> roundStack;
+  std::vector<TransitiveClosureOptim> nxtRoundStack = allToRun;
+  bool wasChangeInLastRound{true};
   int iteration{0};
-  const auto iterStr = "iteration = " + std::to_string(iteration);
 
   std::vector<std::vector<OpAddress>> prevGraphEdges;
-  while (wasChange && iteration < tco.maxIterations()) {
+  while (wasChangeInLastRound && iteration < tco.maxIterations()) {
+
+    const auto iterStr = "iteration = " + std::to_string(iteration);
 
     if (iteration == 0) {
-      log().debug("Initializing TransitiveClosure," + iterStr);
+      log().debug("Initializing TransitiveClosure (round 0)," + iterStr);
       initializeTransitiveClosure();
     } else {
       const auto dff = graph.constraintDiff(prevGraphEdges);
@@ -793,59 +801,112 @@ void ScheduledGraph::applyTransitiveClosureOptimizations(
       }
     }
 
+    // The TransitiveClosureOptims to run in this round:
+    roundStack = nxtRoundStack;
+
+    {
+      std::ostringstream oss;
+      oss << "Will run " << roundStack << " in this round. ";
+      log().debug(oss.str());
+    }
+
+    // All of the TransitiveClosureOptims in 'roundStack' which cause a change
+    // will be run again in the next round.
+    nxtRoundStack = {};
+
+    auto apply = [this](TransitiveClosureOptim optim) {
+      const auto name = TransitiveClosureOptimizations::str(optim);
+      log().debug("Applying TCO " + name);
+      const auto tcoStopwatch =
+          timeLogger().scopedStopwatch("Applying TCO " + name);
+
+      switch (optim) {
+
+      case TransitiveClosureOptim::DisconnectAllocsWithZeroWeight: {
+        return AllocSimplifier::disconnectAllocsWithZeroWeight(graph);
+      }
+
+      case TransitiveClosureOptim::ConnectContiguousAllocs: {
+        return AllocSimplifier::connectContiguousAllocs(graph,
+                                                        transitiveClosure);
+      }
+
+      case TransitiveClosureOptim::DisconnectAllocsWithOneOp: {
+        return AllocSimplifier::disconnectAllocsWithOneOp(graph);
+      }
+
+      case TransitiveClosureOptim::DisconnectInbetweenerAllocs: {
+        return AllocSimplifier::disconnectInbetweenerAllocs(
+            graph, transitiveClosure);
+      }
+
+      case TransitiveClosureOptim::DisconnectFixedDurationAllocs: {
+
+        // TODO(T44615) create follow up task to investigate slowdown.
+        /*
+                 return AllocSimplifier::disconnectFixedDurationAllocs(
+                     graph, transitiveClosure);
+         */
+
+        return false;
+      }
+
+      case TransitiveClosureOptim::SlideLinks: {
+        return slideLinks();
+      }
+      case TransitiveClosureOptim::LinkTightDrops: {
+        return linkTightDrops();
+      }
+      case TransitiveClosureOptim::LinkCloseTightPairs: {
+        return linkCloseTightPairs();
+      }
+      case TransitiveClosureOptim::ConstrainWeightSeparatedGroups: {
+        return constrainWeightSeparatedGroups();
+      }
+      case TransitiveClosureOptim::ConstrainParallelChains: {
+        return constrainParallelChains();
+      }
+
+      case TransitiveClosureOptim::CombineAllocsWithCommonOps: {
+        return AllocSimplifier::combineAllocsWithCommonOps(graph);
+      }
+
+      case TransitiveClosureOptim::N: {
+        throw error("N is not an optimizing TransitiveClosureOptim ");
+      }
+      }
+
+      throw error("Unrecognized TransitiveClosureOptim");
+    };
+
     log().debug("Storing Graph edges, to detect changes in next iteration");
     prevGraphEdges = graph.getForwardEdges();
 
-    log().debug("Applying TCO slideLinks");
-    wasChange = slideLinks();
-
-    if (tco.constrainWeightSeparatedGroups()) {
-      log().debug("Applying TCO constrainWeightSeparatedGroups.");
-      wasChange |= constrainWeightSeparatedGroups();
+    for (auto optim : roundStack) {
+      auto wasChange = apply(optim);
+      if (wasChange) {
+        nxtRoundStack.push_back(optim);
+      }
     }
 
-    if (tco.constrainParallelChains()) {
-      log().debug("Applying TCO constrainParallelChains.");
-      wasChange |= constrainParallelChains();
+    // There were no changes in this round. If all of the optimizations were
+    // tried in this round, then we should stop optimizing. If not all there
+    // tried, then we should have a round where all are tried.
+    if (nxtRoundStack.empty()) {
+      if (roundStack.size() == allToRun.size()) {
+        wasChangeInLastRound = false;
+      } else {
+        nxtRoundStack = allToRun;
+      }
     }
-
-    if (tco.linkTightDrops()) {
-      log().debug("Applying TCO linkTightDrops.");
-      wasChange |= linkTightDrops();
+    // If only one optimization pass resulted in a change, we assume running
+    // it again by itself will have no effect and rather run all.
+    if (nxtRoundStack.size() == 1) {
+      nxtRoundStack = allToRun;
     }
-
-    if (tco.linkCloseTightPairs()) {
-      log().debug("Applying TCO linkCloseTightPairs.");
-      wasChange |= linkCloseTightPairs();
-    }
-
-    // TODO(T43735) will look something like:
-    // Also, must enableg etAllocPartitionedBins
-    // { wasChange |= simplifyAllocations(); }
 
     ++iteration;
   }
-}
-
-bool ScheduledGraph::simplifyAllocations() {
-
-  // TODO(T43735) make this pass on by default.
-
-  bool changed{true};
-  while (changed) {
-    changed = false;
-    changed |= AllocSimplifier::combineAllocsWithCommonOps(graph);
-    changed |= AllocSimplifier::disconnectAllocsWithOneOp(graph);
-    changed |= AllocSimplifier::disconnectAllocsWithZeroWeight(graph);
-    changed |= AllocSimplifier::disconnectInbetweenerAllocs(
-        graph, transitiveClosure);
-    changed |= AllocSimplifier::disconnectFixedDurationAllocs(
-        graph, transitiveClosure);
-    changed |=
-        AllocSimplifier::connectContiguousAllocs(graph, transitiveClosure);
-  }
-
-  return changed;
 }
 
 void ScheduledGraph::processWeightSeparatedIdenticalIns(
@@ -909,9 +970,6 @@ void ScheduledGraph::processWeightSeparatedIdenticalIns(
 }
 
 bool ScheduledGraph::constrainWeightSeparatedGroups() {
-
-  const auto stopwatch =
-      timeLogger().scopedStopwatch("constrainWeightSeparatedGroups");
 
   std::vector<bool> processed(nOps(), false);
 
@@ -1025,8 +1083,6 @@ void ScheduledGraph::initializeTransitiveClosure() {
 
 bool ScheduledGraph::linkTightDrops() {
 
-  const auto stopwatch = timeLogger().scopedStopwatch("linkTightDrops");
-
   std::vector<std::array<OpAddress, 2>> newLinks;
   for (const auto tightPair : graph.getTightPairs()) {
     OpAddress before = std::get<0>(tightPair);
@@ -1047,8 +1103,6 @@ bool ScheduledGraph::linkTightDrops() {
 }
 
 bool ScheduledGraph::linkCloseTightPairs() {
-
-  const auto stopwatch = timeLogger().scopedStopwatch("linkCloseTightPairs");
 
   std::vector<std::array<OpAddress, 2>> newLinks;
 

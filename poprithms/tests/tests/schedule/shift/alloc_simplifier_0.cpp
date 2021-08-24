@@ -7,11 +7,12 @@
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/allocsimplifier.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
+#include <poprithms/util/printiter.hpp>
 
 namespace {
 using namespace poprithms::schedule::shift;
 
-void testCombineAllocsWithCommonOps() {
+void testCombineAllocsWithCommonOps0() {
 
   Graph g;
 
@@ -34,12 +35,61 @@ void testCombineAllocsWithCommonOps() {
   AllocSimplifier::combineAllocsWithCommonOps(g);
 
   for (auto op : {a, c}) {
-    auto allocs = g.getOp(op).getAllocs();
+    const auto allocs = g.getOp(op).getAllocs();
     if (allocs.size() != 1 ||
         g.getAlloc(allocs[0]).getWeight() != g.getAlloc(D).getWeight()) {
       throw poprithms::test::error(
           "Failed to combine A and C in combineAllocsWithCommonOps test: " +
           g.getSerializationString());
+    }
+  }
+}
+
+void testCombineAllocsWithCommonOps1() {
+  Graph g;
+  uint64_t nOps = 10;
+  for (uint64_t i = 0; i < nOps; ++i) {
+    g.insertOp("op" + std::to_string(i));
+  }
+  const auto addAllocs = [&g, nOps](uint64_t op0) {
+    {
+      const std::vector<OpAddress> adds{
+          op0, (op0 + 5) % nOps, (op0 + 7) % nOps};
+      const auto alloc = g.insertAlloc(1. + op0);
+      g.insertOpAlloc(adds, alloc);
+    }
+    {
+      const std::vector<OpAddress> adds{op0, (op0 + 7) % nOps};
+      const auto alloc = g.insertAlloc(1. + op0);
+      g.insertOpAlloc(adds, alloc);
+    }
+  };
+
+  for (uint64_t i = 0; i < nOps; ++i) {
+    // Add 2 allocations, one associated to 2 ops and one associated to 3.
+    // All allocs have distinct associations (sufficient use of prime
+    // numbers...)
+    addAllocs(i);
+  }
+
+  // Add some more allocations. These new allocations all have op associations
+  // which have already been inserted above, and so they should be absorbed
+  // into previous allocs.
+  for (uint64_t j : {2, 4, 7}) {
+    for (uint64_t k = 0; k < j; ++k) {
+      addAllocs(j);
+    }
+  }
+
+  AllocSimplifier::combineAllocsWithCommonOps(g);
+
+  for (uint64_t i = 0; i < nOps; ++i) {
+    auto n = g.getOp(i).nAllocs();
+    if (n != 5) {
+      std::ostringstream oss;
+      oss << "Expected all Ops to have exactly 5 Allocs associated to them. "
+          << "This is not the case for op #" << n;
+      throw poprithms::test::error(oss.str());
     }
   }
 }
@@ -237,7 +287,8 @@ void testConnectContiguousAllocs1() {
 
 int main() {
 
-  testCombineAllocsWithCommonOps();
+  testCombineAllocsWithCommonOps0();
+  testCombineAllocsWithCommonOps1();
   testDisconnectAllocsWithOneOp();
   testDisconnectAllocsWithZeroWeight();
   testDisconnectInbetweenerAllocs();

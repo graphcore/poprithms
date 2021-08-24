@@ -69,7 +69,7 @@ void test(
   auto gBefore = g;
 
   auto tco = TransitiveClosureOptimizations::allOff();
-  tco.withConstrainWeightSeparatedGroups().withMaxIterations(1);
+  tco.withConstrainWeightSeparatedGroups(true).withMaxIterations(1);
   ScheduledGraph sg(std::move(g),
                     KahnTieBreaker::RANDOM,
                     tco,

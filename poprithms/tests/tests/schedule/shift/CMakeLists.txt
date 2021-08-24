@@ -73,5 +73,10 @@ add_schedule_test(schedule_shift_alloc_partitioned_bins_0
 add_schedule_test(schedule_shift_summary_writer_0
                                  summary_writer_0.cpp)
 
+configure_file(testgraph0.json.in testgraph0.json COPYONLY)
+add_schedule_test(schedule_shift_serialization_fromfile0 
+                                 serialization_fromfile0.cpp)
+
+
 
 

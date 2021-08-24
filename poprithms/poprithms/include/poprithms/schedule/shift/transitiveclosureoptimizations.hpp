@@ -5,134 +5,345 @@
 #include <algorithm>
 #include <array>
 #include <limits>
+#include <ostream>
+#include <string>
 #include <vector>
 
 namespace poprithms {
 namespace schedule {
 namespace shift {
 
-// Enumaration of all the currently supported optimizations
+// All the currently supported optimizations which can be run to make
+// graph scheduling faster. See the method comments for information on what
+// they each do.
+//
+// These optimizations reduce the search space, while ensuring*  that the
+// globally optimal schedule remains in the search space. That is, they
+// eliminate regions of the search space with "bad" schedules.
+//
+// *We have some proofs of global optimality for some of the optimizations,
+// but others don't yet have rigorous proofs.
 enum class TransitiveClosureOptim {
-  LinkTightDrops = 0,
+  SlideLinks = 0,
+  LinkTightDrops,
   LinkCloseTightPairs,
   ConstrainWeightSeparatedGroups,
   ConstrainParallelChains,
-  N // this is not an optimization, it is the number of optimizations
+  CombineAllocsWithCommonOps,
+  DisconnectAllocsWithOneOp,
+  DisconnectAllocsWithZeroWeight,
+  DisconnectInbetweenerAllocs,
+  DisconnectFixedDurationAllocs,
+  ConnectContiguousAllocs,
+  N
 };
-
-// Brief descriptions
-// ------------------
-//
-// LinkTightDrops: if (a,b) is a tight pair, and b is guaranteed to increase
-// liveness less than a, then upgrade (a,b) to a linked pair.
-//
-// LinkCloseTightPairs: if (a,b) is a tight pair, and there is no Op c in the
-// unconstrained dual of a which can have an increase in liveness equal to
-// or inbetween those of a and b, then upgrade (a,b) to a linked pair.
-//
-// ConstrainWeightSeparatedGroups: If a and b have common inputs, and it is
-// guaranteed that the increases in livenesses in PostUnconstrained(a,b) are
-// all less than or equal to those in PostUnconstrained(b,a), then insert a
-// constraint a->b and some related constraints.
-//
-// ConstrainParallelChains: If a and b have common inputs, and both belong to
-// tight chains with common outputs, and if (1) a's chain is not shorter than
-// b's and (2) the cumulative increase in liveness along a's chain is never
-// greater than along b's, then insert constraints from a's chain to b's
-// chain, to form a ladder of constraints
-//
-// Proofs of global optimality are currently being worked on.
-//
-
-std::ostream &operator<<(std::ostream &, TransitiveClosureOptim);
-constexpr uint64_t NTCOS = static_cast<uint64_t>(TransitiveClosureOptim::N);
 
 class TransitiveClosureOptimizations {
 
 public:
-  TransitiveClosureOptimizations(const std::array<bool, NTCOS> &x, int mits)
-      : vals(x), maxNumberOfIterations(mits) {}
+  /**
+   * Return a string corresponding to the enum value #optim
+   * */
+  static std::string str(TransitiveClosureOptim optim);
 
-  TransitiveClosureOptimizations()
-      : TransitiveClosureOptimizations({0, 0, 0, 0},
-                                       std::numeric_limits<int>::max()) {}
+  /**
+   * Create a TransitiveClosureOptimizations with all optimizations off. To
+   * create a TransitiveClosureOptimization with (say) only optimizations
+   * 'foo' and 'bar' enabled, you can use
+   *
+   * <code>
+   *    auto tcos = allOff().withFoo(true).withBar(false);
+   * </code>
+   * */
+  static TransitiveClosureOptimizations allOff() { return all(false); }
 
-  static TransitiveClosureOptimizations allOff() {
-    return TransitiveClosureOptimizations();
-  }
+  /**
+   * Return true iff all optimizations are off.
+   * */
+  bool allOptimizationsOff() const;
 
-  bool allOptimizationsOff() const {
-    return std::all_of(
-        vals.cbegin(), vals.cend(), [](bool b) { return b == 0; });
-  }
+  /**
+   * Create a TransitiveClosureOptimizations with all optimizations on. To
+   * create a TransitiveClosureOptimization with (say) only optimizations
+   * 'foo' and 'bar' disabled, you can use
+   *
+   * <code>
+   *    auto tcos = allOn().withFoo(false).withBar(false);
+   * </code>
+   * */
+  static TransitiveClosureOptimizations allOn();
 
-  static TransitiveClosureOptimizations allOn() {
-    TransitiveClosureOptimizations tco;
-    std::fill(tco.vals.begin(), tco.vals.end(), 1);
-    return tco;
-  }
+  /**
+   * Return true iff all optimizations are on.
+   * */
+  bool allOptimizationsOn() const;
 
-  TransitiveClosureOptimizations &withConstrainParallelChains(bool b = true) {
-    return update(TransitiveClosureOptim::ConstrainParallelChains, b);
-  }
-  bool constrainParallelChains() const {
-    return at(TransitiveClosureOptim::ConstrainParallelChains);
-  }
+  /**
+   * Recall:
+   * A pair of Ops (a,b) is defined to be a "tight pair" if
+   *   1) b is the only output of a,
+   *   2) a is the only input of b.
+   *
+   * A pair of Ops (a,b) forms a 'linked pair' if there is hard constraint
+   * that b appears directly after a (with no Op inbetween).
+   *
+   * In terms of reducing the search space of possible schedules, ops which
+   * are 'linked' are better than ops which only have an ordinary constraint.
+   *
+   * If it can be determined that there is a local minimum for the switch
+   * scheduler in which 2 unlinked Ops are contiguous, then they can be linked
+   * , so as to reduce the search space of possible schedules.
+   *
+   * LinkTightDrops. If (a,b) is a tight pair, and b is guaranteed to increase
+   * liveness less than a, then upgrade (a,b) to a linked pair.
+   * */
+  TransitiveClosureOptimizations &withLinkTightDrops(bool);
+  bool linkTightDrops() const;
 
-  TransitiveClosureOptimizations &withLinkTightDrops(bool b = true) {
-    return update(TransitiveClosureOptim::LinkTightDrops, b);
-  }
-  bool linkTightDrops() const {
-    return at(TransitiveClosureOptim::LinkTightDrops);
-  }
+  /**
+   * LinkCloseTightPairs. If (a,b) is a tight pair, and there is no Op c in
+   * the unconstrained dual of a which can have an increase in liveness equal
+   * to or inbetween those of a and b, then upgrade (a,b) to a linked pair.
+   * Example
+   *
+   *  +---a--->-b
+   *  |
+   *  c->-d-->--e
+   *
+   * d and e are in the unconstrained dual of a. If the effect on liveness of
+   * neither d nor e is between the effect of a and b, the a and b will always
+   * be scheduled contiguously in an optimal schedule.
+   * */
+  TransitiveClosureOptimizations &withLinkCloseTightPairs(bool);
+  bool linkCloseTightPairs() const;
 
-  TransitiveClosureOptimizations &withLinkCloseTightPairs(bool b = true) {
-    return update(TransitiveClosureOptim::LinkCloseTightPairs, b);
-  }
-  bool linkCloseTightPairs() const {
-    return at(TransitiveClosureOptim::LinkCloseTightPairs);
-  }
+  /**
+   * ConstrainWeightSeparatedGroups. If a and b have common inputs, and it is
+   * guaranteed that the increases in livenesses in PostUnconstrained(a,b) are
+   * all less than or equal to those in PostUnconstrained(b,a), then insert a
+   * constraint a->b, and some additional related constraints.
+   *
+   * Recall that PostUnconstrained(x,y) is all Ops which are after x and
+   * unconstrained w.r.t. y.
+   *
+   * a -> A --+
+   *          +--> C
+   * b -> B --+
+   *
+   * The set A above is PostUnconstrained(a, b), and B is PostUnconstrained(b,
+   * a). So this optimization insert constraints a->b and some others (some of
+   * A to some of B) if (a,A) are "better" than (b,B).
+   * */
+  TransitiveClosureOptimizations &withConstrainWeightSeparatedGroups(bool);
+  bool constrainWeightSeparatedGroups() const;
 
-  TransitiveClosureOptimizations &
-  withConstrainWeightSeparatedGroups(bool b = true) {
-    return update(TransitiveClosureOptim::ConstrainWeightSeparatedGroups, b);
-  }
-  bool constrainWeightSeparatedGroups() const {
-    return at(TransitiveClosureOptim::ConstrainWeightSeparatedGroups);
-  }
+  /**
+   * ConstrainParallelChains. If a and b have common inputs, and both belong
+   * to tight chains with common outputs, and if (1) a's chain is not shorter
+   * than b's and (2) the cumulative increase in liveness along a's chain is
+   * never greater than along b's, then insert constraints from a's chain to
+   * b's chain, to form a ladder of constraints
+   * */
+  TransitiveClosureOptimizations &withConstrainParallelChains(bool);
+  bool constrainParallelChains() const;
 
-  TransitiveClosureOptimizations &withMaxIterations(int mits) {
-    maxNumberOfIterations = mits;
-    return *this;
-  }
+  /**
+   * \sa AllocSimplifier::combineAllocsWithCommonOps
+   * */
+  TransitiveClosureOptimizations &withCombineAllocsWithCommonOps(bool);
+  bool combineAllocsWithCommonOps() const;
+
+  /**
+   * \sa AllocSimplifier::disconnectAllocsWithOneOp
+   * */
+  TransitiveClosureOptimizations &withDisconnectAllocsWithOneOp(bool);
+  bool disconnectAllocsWithOneOp() const;
+
+  /**
+   * \sa AllocSimplifier::disconnectAllocsWithZeroWeight
+   * */
+  TransitiveClosureOptimizations &withDisconnectAllocsWithZeroWeight(bool);
+  bool disconnectAllocsWithZeroWeight() const;
+
+  /**
+   * \sa AllocSimplifier::disconnectInbetweenerAllocs
+   * */
+  TransitiveClosureOptimizations &withDisconnectInbetweenerAllocs(bool);
+  bool disconnectInbetweenerAllocs() const;
+
+  /**
+   * \sa AllocSimplifier::disconnectFixedDurationAllocs
+   * */
+  TransitiveClosureOptimizations &withDisconnectFixedDurationAllocs(bool);
+  bool disconnectFixedDurationAllocs() const;
+
+  /**
+   * \sa AllocSimplifier::connectContiguousAllocs
+   * */
+  TransitiveClosureOptimizations &withConnectContiguousAllocs(bool);
+  bool connectContiguousAllocs() const;
+
+  TransitiveClosureOptimizations &withMaxIterations(int);
   int maxIterations() const { return maxNumberOfIterations; }
 
-  const std::array<bool, NTCOS> &getVals() const { return vals; }
+  /**
+   * SlideLinks is always enabled if any other is enabled. This transformation
+   * generates constraints from links, which are added to a transitive
+   * closure.
+   * */
+  bool slideLinks() const { return !allOptimizationsOff(); }
 
-  bool operator==(const TransitiveClosureOptimizations &rhs) const {
-    return vals == rhs.vals;
-  }
+  bool operator==(const TransitiveClosureOptimizations &rhs) const;
+  bool operator!=(const TransitiveClosureOptimizations &rhs) const;
+  bool operator<(const TransitiveClosureOptimizations &rhs) const;
 
-  bool operator<(const TransitiveClosureOptimizations &rhs) const {
-    return vals < rhs.vals;
-  }
+  std::vector<TransitiveClosureOptim> enabled() const;
+
+  void append(std::ostream &) const;
 
 private:
-  bool at(TransitiveClosureOptim tco) const {
-    return vals[static_cast<uint64_t>(tco)];
-  }
-  TransitiveClosureOptimizations &update(TransitiveClosureOptim tco, bool b) {
-    vals[static_cast<uint64_t>(tco)] = (b == false ? 0 : 1);
-    return *this;
+  // Each of the optional optimizations inherits from this base class:
+  struct Option {
+    Option() = delete;
+    Option(bool on__) : on_(on__) {}
+    bool on() const { return on_; }
+    bool off() const { return !on(); }
+    Option &update(bool on__) {
+      on_ = on__;
+      return *this;
+    }
+    void append(std::ostream &oss) const {
+      oss << name() << " : " << (on() ? "Yes" : "No");
+    }
+
+    virtual TransitiveClosureOptim getEnum() const = 0;
+
+  private:
+    bool on_{false};
+    std::string name() const { return str(getEnum()); }
+  };
+
+  struct LinkTightDrops : public Option {
+    LinkTightDrops(bool on) : Option(on) {}
+    TransitiveClosureOptim getEnum() const final {
+      return TransitiveClosureOptim::LinkTightDrops;
+    }
+  } linkTightDrops_;
+
+  struct LinkCloseTightPairs : public Option {
+    LinkCloseTightPairs(bool on) : Option(on) {}
+
+    TransitiveClosureOptim getEnum() const final {
+      return TransitiveClosureOptim::LinkCloseTightPairs;
+    }
+  } linkCloseTightPairs_;
+
+  struct ConstrainWeightSeparatedGroups : public Option {
+    ConstrainWeightSeparatedGroups(bool on) : Option(on) {}
+
+    TransitiveClosureOptim getEnum() const final {
+      return TransitiveClosureOptim::ConstrainWeightSeparatedGroups;
+    }
+  } constrainWeightSeparatedGroups_;
+
+  struct ConstrainParallelChains : public Option {
+    ConstrainParallelChains(bool on) : Option(on) {}
+
+    TransitiveClosureOptim getEnum() const final {
+      return TransitiveClosureOptim::ConstrainParallelChains;
+    }
+  } constrainParallelChains_;
+
+  struct CombineAllocsWithCommonOps : public Option {
+    CombineAllocsWithCommonOps(bool on) : Option(on) {}
+
+    TransitiveClosureOptim getEnum() const final {
+      return TransitiveClosureOptim::CombineAllocsWithCommonOps;
+    }
+  } combineAllocsWithCommonOps_;
+
+  struct DisconnectAllocsWithOneOp : public Option {
+    DisconnectAllocsWithOneOp(bool on) : Option(on) {}
+
+    TransitiveClosureOptim getEnum() const final {
+      return TransitiveClosureOptim::DisconnectAllocsWithOneOp;
+    }
+  } disconnectAllocsWithOneOp_;
+
+  struct DisconnectAllocsWithZeroWeight : public Option {
+    DisconnectAllocsWithZeroWeight(bool on) : Option(on) {}
+
+    TransitiveClosureOptim getEnum() const final {
+      return TransitiveClosureOptim::DisconnectAllocsWithZeroWeight;
+    }
+  } disconnectAllocsWithZeroWeight_;
+
+  struct DisconnectInbetweenerAllocs : public Option {
+    DisconnectInbetweenerAllocs(bool on) : Option(on) {}
+
+    TransitiveClosureOptim getEnum() const final {
+      return TransitiveClosureOptim::DisconnectInbetweenerAllocs;
+    }
+  } disconnectInbetweenerAllocs_;
+
+  struct DisconnectFixedDurationAllocs : public Option {
+    DisconnectFixedDurationAllocs(bool on) : Option(on) {}
+
+    TransitiveClosureOptim getEnum() const final {
+      return TransitiveClosureOptim::DisconnectFixedDurationAllocs;
+    }
+  } disconnectFixedDurationAllocs_;
+
+  struct ConnectContiguousAllocs : public Option {
+    ConnectContiguousAllocs(bool on) : Option(on) {}
+
+    TransitiveClosureOptim getEnum() const final {
+      return TransitiveClosureOptim::ConnectContiguousAllocs;
+    }
+  } connectContiguousAllocs_;
+
+  int maxNumberOfIterations;
+
+  std::vector<const Option *> getOptions() const {
+    return {&linkTightDrops_,
+            &linkCloseTightPairs_,
+            &constrainWeightSeparatedGroups_,
+            &constrainParallelChains_,
+            &combineAllocsWithCommonOps_,
+            &disconnectAllocsWithOneOp_,
+            &disconnectAllocsWithZeroWeight_,
+            &disconnectInbetweenerAllocs_,
+            &disconnectFixedDurationAllocs_,
+            &connectContiguousAllocs_};
   }
 
-  std::array<bool, NTCOS> vals;
-  int maxNumberOfIterations;
+  explicit TransitiveClosureOptimizations(LinkTightDrops a,
+                                          LinkCloseTightPairs b,
+                                          ConstrainWeightSeparatedGroups c,
+                                          ConstrainParallelChains d,
+                                          CombineAllocsWithCommonOps e,
+                                          DisconnectAllocsWithOneOp f,
+                                          DisconnectAllocsWithZeroWeight g,
+                                          DisconnectInbetweenerAllocs h,
+                                          DisconnectFixedDurationAllocs i,
+                                          ConnectContiguousAllocs j,
+                                          int mits)
+      : linkTightDrops_(a), linkCloseTightPairs_(b),
+        constrainWeightSeparatedGroups_(c), constrainParallelChains_(d),
+        combineAllocsWithCommonOps_(e), disconnectAllocsWithOneOp_(f),
+        disconnectAllocsWithZeroWeight_(g), disconnectInbetweenerAllocs_(h),
+        disconnectFixedDurationAllocs_(i), connectContiguousAllocs_(j),
+        maxNumberOfIterations(mits) {}
+
+  static TransitiveClosureOptimizations all(bool);
 };
 
-const std::array<std::string, NTCOS> &getPmosNames();
 std::ostream &operator<<(std::ostream &os,
                          const TransitiveClosureOptimizations &);
+
+std::ostream &operator<<(std::ostream &os, const TransitiveClosureOptim &);
+std::ostream &operator<<(std::ostream &os,
+                         const std::vector<TransitiveClosureOptim> &);
 
 } // namespace shift
 } // namespace schedule

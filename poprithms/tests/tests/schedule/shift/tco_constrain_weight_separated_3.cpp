@@ -61,7 +61,7 @@ getGraph() {
   }
 
   auto tco = TransitiveClosureOptimizations::allOff()
-                 .withConstrainWeightSeparatedGroups()
+                 .withConstrainWeightSeparatedGroups(true)
                  .withMaxIterations(1);
 
   ScheduledGraph sg(std::move(g),

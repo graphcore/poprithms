@@ -75,7 +75,7 @@ getGraph(bool with_4_7_edge, bool constrainWSGs, bool bigDrop_6 = false) {
 
   auto tco = TransitiveClosureOptimizations::allOff().withMaxIterations(1);
   if (constrainWSGs) {
-    tco.withConstrainWeightSeparatedGroups();
+    tco.withConstrainWeightSeparatedGroups(true);
   }
 
   return ScheduledGraph(std::move(g),

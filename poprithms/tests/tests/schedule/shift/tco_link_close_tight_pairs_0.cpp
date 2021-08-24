@@ -79,7 +79,7 @@ getGraph(const std::vector<std::vector<uint64_t>> &tiers) {
   ScheduledGraph sg(
       std::move(g),
       KahnTieBreaker::RANDOM,
-      TransitiveClosureOptimizations::allOff().withLinkCloseTightPairs(),
+      TransitiveClosureOptimizations::allOff().withLinkCloseTightPairs(true),
       RotationTermination::preStart());
 
   return sg;

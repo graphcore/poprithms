@@ -1,9 +1,11 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
-#include <map>
-#include <set>
+#include <algorithm>
+#include <numeric>
 
+#include <poprithms/schedule/connectedcomponents/connectedcomponents.hpp>
 #include <poprithms/schedule/shift/allocsimplifier.hpp>
+#include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
 namespace schedule {
@@ -11,49 +13,47 @@ namespace shift {
 
 bool AllocSimplifier::combineAllocsWithCommonOps(Graph &graph) {
 
-  // A map from a set of Ops, to all the Allocations which have exactly that
-  // set of Ops associated to them.
-  std::map<OpAddresses, AllocAddresses> byOps;
+  // toMerge[x] will contain all allocations with the same op pattern as x,
+  // where x is the lowest in the partition.
+  std::vector<std::vector<AllocAddress>> toMerge(graph.nAllocs());
 
-  // All keys in 'byOps' which have more than 1 value.
-  std::set<OpAddresses> toCombine;
-
-  for (const auto &alloc : graph.getAllocs()) {
-
-    const auto &ops_ = alloc.getOps();
-    if (!ops_.empty()) {
-
-      // An Alloc stores its Ops sorted, so we don't need to worry about
-      // different orderings here.
-      auto found = byOps.find(ops_);
-      if (found != byOps.cend()) {
-        found->second.push_back(alloc.getAddress());
-        if (found->second.size() == 2) {
-          toCombine.insert(ops_);
+  auto group = [&graph](AllocAddress a) {
+    const auto &ops = graph.getAlloc(a).getOps();
+    if (ops.size() == 0) {
+      return a;
+    }
+    const auto &op = ops[0];
+    for (const auto &alloc1 : graph.getOp(op).getAllocs()) {
+      if (alloc1 < a) {
+        if (ops == graph.getAlloc(alloc1).getOps()) {
+          return alloc1;
         }
-      } else {
-        byOps.insert({ops_, {alloc.getAddress()}});
       }
     }
+    return a;
+  };
+
+  for (uint64_t a = 0; a < graph.nAllocs(); ++a) {
+    toMerge[group(a)].push_back(a);
   }
-  if (!toCombine.empty()) {
-    for (const auto &opsWithCommon : toCombine) {
-      const auto &allocsToCombine = byOps[opsWithCommon];
+
+  bool changed{false};
+  for (const auto &g : toMerge) {
+    if (g.size() > 1 && graph.getAlloc(g[0]).nOps() > 0) {
+      changed = true;
 
       // The combined weight of all the allocs which share #opsWithCommon.
-      AllocWeight combined = graph.getAlloc(allocsToCombine[0]).getWeight();
-      for (uint64_t i = 1; i < allocsToCombine.size(); ++i) {
-        const auto &toRemove = graph.getAlloc(allocsToCombine[i]);
+      AllocWeight combined = graph.getAlloc(g[0]).getWeight();
+      for (uint64_t i = 1; i < g.size(); ++i) {
+        const auto &toRemove = graph.getAlloc(g[i]);
         combined += toRemove.getWeight();
         graph.disconnectAlloc(toRemove.getAddress());
       }
 
-      graph.updateWeight(allocsToCombine[0], combined);
+      graph.updateWeight(g[0], combined);
     }
   }
-
-  // If toCombine is not empty, the graph changed.
-  return !toCombine.empty();
+  return changed;
 }
 
 bool AllocSimplifier::disconnectAllocsWithOneOp(Graph &graph) {
