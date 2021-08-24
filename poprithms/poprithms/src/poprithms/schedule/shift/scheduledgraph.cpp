@@ -2172,54 +2172,87 @@ void ScheduledGraph::confirmShiftAndCost(const ScheduleIndex start0,
   }
 }
 
+ScheduledGraph ScheduledGraph::fromCache(Graph &&graph,
+                                         const Settings &settings,
+                                         const ISummaryWriter &summaryWriter,
+                                         const ISolutionCache *readCache,
+                                         ISolutionCache *writeCache) {
+
+  if (readCache) {
+    auto found = readCache->find(graph, settings);
+    if (found) {
+      const auto &soln = *found;
+      for (uint64_t i = 1; i < soln.size(); ++i) {
+        graph.insertConstraint(soln[i - 1], soln[i]);
+      }
+      return ScheduledGraph(std::move(graph),
+                            KahnTieBreaker::FIFO,
+                            TransitiveClosureOptimizations::allOff(),
+                            RotationTermination::preStart());
+    }
+  }
+
+  // we need a copy of the user's graph, as this will be the key in the
+  // cache. When we call initialize, the graph will change to make it easier
+  // to schedule. However, the key we want to cache is the original user's
+  // graph.
+  auto g0 = graph;
+
+  auto soln = ScheduledGraph(std::move(graph), settings);
+
+  constexpr double thresholdPercentage{0.0};
+  summaryWriter.write(g0,
+                      soln.getGraph(),
+                      soln.timeLogger().sinceConstruction(),
+                      soln.timeLogger().str(thresholdPercentage));
+
+  if (writeCache) {
+    std::vector<OpAddress> inputGraphAdds(g0.nOps());
+    std::iota(inputGraphAdds.begin(), inputGraphAdds.end(), 0);
+    auto subSchedule = soln.getSubSchedule(inputGraphAdds);
+    writeCache->writeSolution(std::move(g0), settings, subSchedule);
+  }
+
+  return soln;
+}
+
+// This is a deprecated constructor.
 ScheduledGraph::ScheduledGraph(Graph &&g,
-                               const Settings &settings,
-                               const SolutionCache *readCache,
-                               SolutionCache *writeCache,
-                               const ISummaryWriter &summaryWriter)
+                               const Settings &s,
+                               const ISolutionCache *a,
+                               ISolutionCache *b) {
+
+  auto sg       = fromCache(std::move(g), s, SummaryWriter::Default(), a, b);
+  rippleScratch = std::move(sg.rippleScratch);
+  graph         = std::move(sg.graph);
+  schToOp       = std::move(sg.schToOp);
+  opToSch       = std::move(sg.opToSch);
+  allocToSch    = std::move(sg.allocToSch);
+  schToAllocs   = std::move(sg.schToAllocs);
+  opToInSch     = std::move(sg.opToInSch);
+  opToOutSch    = std::move(sg.opToOutSch);
+  nCanFwd       = std::move(sg.nCanFwd);
+  nCanBwd       = std::move(sg.nCanBwd);
+  susceptible   = std::move(sg.susceptible);
+  transitiveClosure = std::move(sg.transitiveClosure);
+  lowerBoundChange  = std::move(sg.lowerBoundChange);
+  upperBoundChange  = std::move(sg.upperBoundChange);
+  swatch_           = std::move(sg.swatch_);
+}
+
+ScheduledGraph::ScheduledGraph(Graph &&g0, const Settings &settings)
     : swatch_(std::string("ScheduledGraphTimeLogger")) {
 
   const auto stopwatch =
       timeLogger().scopedStopwatch("ScheduledGraph::ScheduledGraph");
 
-  if (readCache) {
-    auto found = readCache->find(g, settings);
-    if (found) {
-      fromCache        = true;
-      graph            = std::move(g);
-      const auto &soln = *found;
-      for (uint64_t i = 1; i < soln.size(); ++i) {
-        graph.insertConstraint(soln[i - 1], soln[i]);
-      }
-      initialize(KahnTieBreaker::FIFO,
-                 1011,
-                 TransitiveClosureOptimizations::allOff());
-    }
-  }
+  graph = std::move(g0);
 
-  if (!fromCache) {
-    graph = std::move(g);
-    // we need a copy of the user's graph, as this will be the key in the
-    // cache. When we call initialize, the graph will change to make it easier
-    // to schedule. However, the key we want to cache is the original user's
-    // graph.
-    auto g0 = graph;
-    initialize(settings.kahnTieBreaker(), settings.seed(), settings.tcos());
-    greedyRotate(settings.rotationAlgo(),
-                 settings.debugMode(),
-                 settings.seed(),
-                 settings.rotationTermination());
-
-    constexpr double thresholdPercentage{0.0};
-    summaryWriter.write(g0,
-                        graph,
-                        timeLogger().sinceConstruction(),
-                        timeLogger().str(thresholdPercentage));
-
-    if (writeCache) {
-      writeCache->writeSolution(std::move(g0), settings, schToOp);
-    }
-  }
+  initialize(settings.kahnTieBreaker(), settings.seed(), settings.tcos());
+  greedyRotate(settings.rotationAlgo(),
+               settings.debugMode(),
+               settings.seed(),
+               settings.rotationTermination());
 
   {
     constexpr double thresholdPercentage{0.0};
@@ -2229,15 +2262,8 @@ ScheduledGraph::ScheduledGraph(Graph &&g,
 }
 
 ScheduledGraph::ScheduledGraph(Graph &&g,
-                               const std::map<std::string, std::string> &m,
-                               const SolutionCache *readCache,
-                               SolutionCache *writeCache,
-                               const ISummaryWriter &summaryWriter)
-    : ScheduledGraph(std::move(g),
-                     Settings(m),
-                     readCache,
-                     writeCache,
-                     summaryWriter) {}
+                               const std::map<std::string, std::string> &m)
+    : ScheduledGraph(std::move(g), Settings(m)) {}
 
 ScheduledGraph::ScheduledGraph(Graph &&g,
                                const KahnTieBreaker ktb,
@@ -2245,15 +2271,9 @@ ScheduledGraph::ScheduledGraph(Graph &&g,
                                const RotationTermination rt,
                                const RotationAlgo algo,
                                const uint32_t seed,
-                               const DebugMode debugMode,
-                               const SolutionCache *readCache,
-                               SolutionCache *writeCache,
-                               const ISummaryWriter &summaryWriter)
+                               const DebugMode debugMode)
     : ScheduledGraph(std::move(g),
-                     Settings(ktb, tco, rt, algo, seed, debugMode),
-                     readCache,
-                     writeCache,
-                     summaryWriter) {}
+                     Settings(ktb, tco, rt, algo, seed, debugMode)) {}
 
 void ScheduledGraph::greedyRotate(RotationAlgo algo,
                                   DebugMode debugMode,

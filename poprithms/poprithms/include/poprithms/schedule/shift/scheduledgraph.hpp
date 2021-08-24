@@ -86,22 +86,27 @@ public:
       RotationTermination rt         = Settings::defaultRotationTermination(),
       RotationAlgo algo              = Settings::defaultRotationAlgo(),
       uint32_t seed                  = Settings::defaultSeed(),
-      DebugMode dm                   = Settings::defaultDebugMode(),
-      const SolutionCache *readCache = nullptr,
-      SolutionCache *writeCache      = nullptr,
-      const ISummaryWriter &writer   = SummaryWriter::Default());
+      DebugMode dm                   = Settings::defaultDebugMode());
 
+  ScheduledGraph(Graph &&, const Settings &);
+
+  /**
+   * \deprecated {This constructor has been replaced with the factory method,
+   *              fromCache. }
+   * */
   ScheduledGraph(Graph &&,
                  const Settings &,
-                 const SolutionCache *  = nullptr,
-                 SolutionCache *        = nullptr,
-                 const ISummaryWriter & = SummaryWriter::Default());
+                 const ISolutionCache *,
+                 ISolutionCache *);
 
-  ScheduledGraph(Graph &&,
-                 const std::map<std::string, std::string> &,
-                 const SolutionCache *  = nullptr,
-                 SolutionCache *        = nullptr,
-                 const ISummaryWriter & = SummaryWriter::Default());
+  ScheduledGraph(Graph &&, const std::map<std::string, std::string> &);
+
+  static ScheduledGraph
+  fromCache(Graph &&,
+            const Settings &,
+            const ISummaryWriter & = SummaryWriter::Default(),
+            const ISolutionCache * = nullptr,
+            ISolutionCache *       = nullptr);
 
   static bool isSchedulable(const Graph &);
 
@@ -170,7 +175,7 @@ public:
    * \param oas The OpAddresses to include in the schedule.
    *
    * \return Vector such that position i is the OpAddress of the i^th op in
-   * the schedule.
+   *         the schedule.
    */
   std::vector<OpAddress>
   getSubSchedule(const std::vector<OpAddress> &oas) const;
@@ -185,8 +190,6 @@ public:
   std::vector<std::vector<OpAddress>> getForwardEdges() const {
     return graph.getForwardEdges();
   }
-
-  bool isFromCache() const { return fromCache; }
 
 private:
   void
@@ -350,8 +353,6 @@ private:
   // The highest change in liveness across all schedules, for each Op
   std::vector<AllocWeight> upperBoundChange;
 
-  bool fromCache{false};
-
   using OpAddresses    = std::vector<OpAddress>;
   using AllocAddresses = std::vector<AllocAddress>;
 
@@ -362,6 +363,9 @@ private:
   using TimeLogger = poprithms::logging::SwitchingTimePartitionLogger;
   TimeLogger &timeLogger() { return swatch_; }
   TimeLogger swatch_;
+
+public:
+  const TimeLogger &timeLogger() const { return swatch_; }
 };
 
 } // namespace shift

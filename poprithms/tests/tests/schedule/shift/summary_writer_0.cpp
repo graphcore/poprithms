@@ -19,16 +19,17 @@ using namespace poprithms::schedule::shift;
  * */
 ScheduledGraph get(Graph g0, const ISummaryWriter &iSum) {
 
-  return ScheduledGraph(std::move(g0),
-                        KahnTieBreaker::FIFO,
-                        TransitiveClosureOptimizations::allOn(),
-                        Settings::defaultRotationTermination(),
-                        RotationAlgo::RIPPLE,
-                        1011,
-                        DebugMode::Off,
-                        nullptr,
-                        nullptr,
-                        iSum);
+  return ScheduledGraph::fromCache(
+      std::move(g0),
+      Settings(KahnTieBreaker::FIFO,
+               TransitiveClosureOptimizations::allOn(),
+               Settings::defaultRotationTermination(),
+               RotationAlgo::RIPPLE,
+               1011),
+      // DebugMode::Off,
+      iSum,
+      nullptr,
+      nullptr);
 }
 
 // Test: Catch an error when the path is not a valid one.

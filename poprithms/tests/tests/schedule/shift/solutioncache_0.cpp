@@ -5,11 +5,34 @@
 
 namespace {
 
+using namespace poprithms::schedule::shift;
+
+// A sort of mock class which has the class being mocked as a member variable.
+class TestSolutionCache : public ISolutionCache {
+
+public:
+  const std::vector<OpAddress> *find(const Graph &g,
+                                     const Settings &s) const final {
+    auto x  = sc.find(g, s);
+    wasFind = (x != nullptr);
+    return x;
+  }
+
+  void writeSolution(Graph &&g,
+                     const Settings &settings,
+                     const std::vector<OpAddress> &soln) final {
+    sc.writeSolution(std::move(g), settings, soln);
+  }
+
+  mutable bool wasFind{false};
+
+private:
+  SolutionCache sc;
+};
+
 void test0() {
 
-  using namespace poprithms::schedule::shift;
-
-  SolutionCache cache;
+  TestSolutionCache cache;
 
   Graph g;
   g.insertOp("foo");
@@ -19,8 +42,9 @@ void test0() {
 
   // First Graph. Cache miss.
   {
-    ScheduledGraph sg(std::move(g), Settings(), &cache, &cache);
-    if (sg.isFromCache()) {
+    auto sg = ScheduledGraph::fromCache(
+        std::move(g), Settings(), SummaryWriter::Default(), &cache, &cache);
+    if (cache.wasFind) {
       throw poprithms::test::error(
           "Cache should be empty here, impossible to have a cache hit");
     }
@@ -28,8 +52,9 @@ void test0() {
 
   // Graph which is identical to first Graph. Cache hit.
   {
-    ScheduledGraph sg2(std::move(g2), Settings(), &cache, &cache);
-    if (!sg2.isFromCache()) {
+    auto sg2 = ScheduledGraph::fromCache(
+        std::move(g2), Settings(), SummaryWriter::Default(), &cache, &cache);
+    if (!cache.wasFind) {
       throw poprithms::test::error(
           "Identical Graph to one already in cache, should be cache hit");
     }
@@ -40,8 +65,9 @@ void test0() {
     Graph g3;
     g3.insertOp("goo");
     g3.insertOp("mar");
-    ScheduledGraph sg3(std::move(g3), Settings(), &cache, &cache);
-    if (!sg3.isFromCache()) {
+    auto sg3 = ScheduledGraph::fromCache(
+        std::move(g3), Settings(), SummaryWriter::Default(), &cache, &cache);
+    if (!cache.wasFind) {
       throw poprithms::test::error(
           "This Graph is identical (except for Op names) to one in "
           "the cache, should be a cache hit.");
@@ -54,8 +80,9 @@ void test0() {
     const auto a = g4.insertOp("goo");
     const auto b = g4.insertOp("mar");
     g4.insertConstraint(a, b);
-    ScheduledGraph sg4(std::move(g4), Settings(), &cache, &cache);
-    if (sg4.isFromCache()) {
+    auto sg00 = ScheduledGraph::fromCache(
+        std::move(g4), Settings(), SummaryWriter::Default(), &cache, &cache);
+    if (cache.wasFind) {
       throw poprithms::test::error(
           "This Graph is different to previous Graphs, it has a "
           "constraint. ");
@@ -68,8 +95,9 @@ void test0() {
     g4.insertOp("goo");
     g4.insertOp("mar");
     g4.insertOp("zee");
-    ScheduledGraph sg4(std::move(g4), Settings(), &cache, &cache);
-    if (sg4.isFromCache()) {
+    auto sg00 = ScheduledGraph::fromCache(
+        std::move(g4), Settings(), SummaryWriter::Default(), &cache, &cache);
+    if (cache.wasFind) {
       throw poprithms::test::error(
           "This Graph is different to previous Graphs, it has a "
           "new Op. ");
@@ -81,8 +109,12 @@ void test0() {
     Graph g3;
     g3.insertOp("goo");
     g3.insertOp("mar");
-    ScheduledGraph sg3(std::move(g3), Settings(), nullptr, nullptr);
-    if (sg3.isFromCache()) {
+    auto sg00 = ScheduledGraph::fromCache(std::move(g3),
+                                          Settings(),
+                                          SummaryWriter::Default(),
+                                          nullptr,
+                                          nullptr);
+    if (cache.wasFind) {
       throw poprithms::test::error(
           "Impossible to have a cache hit when no cache provided!");
     }
