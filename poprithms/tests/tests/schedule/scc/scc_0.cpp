@@ -1,5 +1,8 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <iostream>
+#include <random>
+#include <vector>
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/scc/scc.hpp>
@@ -72,6 +75,107 @@ void test2Loops() {
   if (sccs.size() != 2) {
     throw poprithms::test::error("expected 2 SCCs : {0,1}, {2,3,4}");
   }
+}
+
+int count(const std::string &s, const std::string &sub) {
+  int n{0};
+  auto found = s.find(sub);
+  while (found != std::string::npos) {
+    ++n;
+    found = s.find(sub, found + 1);
+  }
+  return n;
+}
+
+void testSummary0() {
+
+  /**
+   *
+   * 2 triangle cycles
+   *
+   *  a-->b
+   *  ^   |
+   *  |   v
+   *  +---c
+   *
+   *  d-->e
+   *  ^   |
+   *  |   v
+   *  +---fragilistic
+   *
+   * */
+
+  FwdEdges edges({{1}, {2}, {0}, {4}, {5}, {3}});
+
+  const auto summary = getSummary(edges,
+                                  {"a", "b", "c", "d", "e", "fragilistic"},
+                                  IncludeSingletons::Yes);
+
+  if (count(summary, "in this Strongly Connected Component:  (0->1->2->0)") !=
+      2) {
+    throw poprithms::test::error(
+        "With local co-ordinates, both of the cycles should be 0->1->2->0. "
+        "Error message was \n" +
+        summary);
+  }
+}
+
+void assertCycles(const FwdEdges &edges,
+                  const std::vector<std::vector<uint64_t>> &expected) {
+  const auto cycles = getCycles(getStronglyConnectedComponents(edges), edges);
+
+  // With the current algorithm, this is the expected set of cycles.
+  if (cycles != expected) {
+    std::ostringstream oss;
+    oss << "Cycles not as expected with current algorithm. Expected "
+        << expected << " but observed " << cycles
+        << ". The current algorithm returns a shortest cycle starting from "
+           "the first node in each component. ";
+    throw poprithms::test::error(oss.str());
+  }
+
+  const auto x = getSummary(
+      edges, std::vector<std::string>(edges.size()), IncludeSingletons::Yes);
+
+  if (count(x, "One cycle (out of potentially many)") !=
+      std::count_if(expected.cbegin(), expected.cend(), [](const auto &x) {
+        return !x.empty();
+      })) {
+    throw poprithms::test::error(
+        "Summary does not report the expected number of cycles");
+  };
+}
+
+void testCycles0() {
+
+  /**
+   *   0->1->3--->2--->4---+
+   *   |     |         |   |
+   *   +--<--+         +-<-+
+   *   |     |
+   *   +<-5<-+
+   *
+   * */
+
+  FwdEdges edges({{1}, {3}, {4}, {0, 2, 5}, {4}, {0}});
+  std::vector<std::vector<uint64_t>> expected{{0, 1, 3, 0}, {}, {4, 4}};
+  assertCycles(edges, expected);
+}
+
+void testCycles1() {
+  // The shortest cycle is not found:
+  FwdEdges edges({{1}, {2}, {3, 2}, {4, 2}, {5, 3}, {0}});
+  assertCycles(edges, {{0, 1, 2, 3, 4, 5, 0}});
+}
+
+void testCycles2() {
+  FwdEdges edges({{1}, {2, 4}, {0}, {4}, {5}, {3}, {7}, {8, 1}, {6}});
+  assertCycles(edges, {{6, 7, 8, 6}, {0, 1, 2, 0}, {3, 4, 5, 3}});
+}
+
+void testCycles3() {
+  FwdEdges edges({{1}, {2}, {3}, {4}, {5, 2}, {}});
+  assertCycles(edges, {{}, {}, {2, 3, 4, 2}, {}});
 }
 
 void testDiamond0() {
@@ -151,6 +255,25 @@ void testDiamond0() {
   }
 }
 
+void testPerformance0() {
+
+  uint64_t nOps{100};
+  uint64_t maxEdgesPerOp{12};
+
+  std::mt19937 gen(1011);
+
+  FwdEdges edges(nOps);
+  for (uint64_t i = 0; i < nOps; ++i) {
+    for (uint64_t j = 0; j < i % maxEdgesPerOp; ++j) {
+      edges[i].push_back(gen() % nOps);
+    }
+  }
+
+  auto components = getStronglyConnectedComponents(edges);
+  auto summary    = getSummary(
+      edges, std::vector<std::string>(nOps, "x"), IncludeSingletons::Yes);
+}
+
 } // namespace
 
 int main() {
@@ -159,5 +282,11 @@ int main() {
   test2SelfLoops();
   testJustADag();
   test2Loops();
+  testCycles0();
+  testCycles1();
+  testCycles2();
+  testCycles3();
+  testSummary0();
+  testPerformance0();
   return 0;
 }

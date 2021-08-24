@@ -54,6 +54,43 @@ std::string getSummary_i64(const FwdEdges_i64 &,
                            const std::vector<std::string> &debugStrings,
                            IncludeSingletons);
 
+/**
+ * Return one cycle from every strongly connected component.
+ *
+ * \param SCCs The strongly connected components of the graph with forward
+ *             edges #edges. SCCs must be in topological order.
+ *
+ * \param edges The edges of the directed graph with strongly connected
+ *              components #SCCs.
+ *
+ * The only case where a strongly connected component does not have a cycle,
+ * is when it is a singleton with no self-edge. For these, the empty cycle is
+ * returned.
+ *
+ * Example:
+ *
+ *   a->b->c--->e--->f---+
+ *   |     |         |   |
+ *   +--<--+         +-<-+
+ *   |     |
+ *   +<-d<-+
+ *
+ * has connected components in topological order ((a,b,c,d), (e), (f)).
+ * The cycles returned might be:
+ *   (a,b,c), (), (f)
+ *
+ * The complexity of this algorithm is O(E), where E is the number of edges in
+ * #edges.
+ *
+ * Note that there is no guarantee as to which cycle in the component
+ * (a,b,c,d) will be returned. It might not be shortest, and it might not
+ * traverse all nodes in the component. The current implementation will return
+ * the shortest cycle which includes the first node (a), but this might change
+ * in the future.
+ * */
+std::vector<std::vector<uint64_t>> getCycles(const SCCs &sccs,
+                                             const FwdEdges &);
+
 } // namespace scc
 } // namespace schedule
 } // namespace poprithms

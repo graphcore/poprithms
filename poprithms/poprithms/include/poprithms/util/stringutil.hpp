@@ -2,8 +2,12 @@
 #ifndef POPRITHMS_UTIL_STRINGUTIL_HPP
 #define POPRITHMS_UTIL_STRINGUTIL_HPP
 
+#include <ostream>
+#include <sstream>
 #include <string>
 #include <vector>
+
+#include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
 namespace util {
@@ -31,6 +35,29 @@ std::string spaceString(uint64_t target, const std::string &ts);
  *
  * */
 struct StringColumn {
+
+  template <typename T>
+  static std::vector<std::string> entriesFromInts(const std::vector<T> &ts) {
+    std::vector<std::string> es;
+    es.reserve(ts.size());
+    for (const auto &x : ts) {
+      es.push_back(std::to_string(x));
+    }
+    return es;
+  }
+
+  template <typename T>
+  static std::vector<std::string>
+  entriesFromVectors(const std::vector<std::vector<T>> &ts) {
+    std::vector<std::string> es;
+    es.reserve(ts.size());
+    for (const auto &x : ts) {
+      std::ostringstream oss;
+      append(oss, x);
+      es.push_back(oss.str());
+    }
+    return es;
+  }
 
   enum class Align { Left = 0, Right };
   StringColumn(const std::string &title,
