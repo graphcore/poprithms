@@ -270,11 +270,25 @@ std::string getSummary(const FwdEdges &edges,
       const auto componentFrom = getLocal(components[ci]);
       const auto sp            = getLocal(cycles.at(ci));
 
+      // The maximum column width in the summary string.
+      constexpr uint64_t maxColWidth{120};
+
       oss << util::alignedColumns(
-          {{"Op (debug name)", componentDbs},
-           {"Op (local id)", StringColumn::entriesFromInts(componentFrom)},
+          {{"Op (debug name)",
+            componentDbs,
+            '-',
+            StringColumn::Align::Left,
+            maxColWidth},
+           {"Op (local id)",
+            StringColumn::entriesFromInts(componentFrom),
+            '-',
+            StringColumn::Align::Left,
+            maxColWidth},
            {"Edge ends (local ids)",
-            StringColumn::entriesFromVectors(componentTo)}});
+            StringColumn::entriesFromVectors(componentTo),
+            '-',
+            StringColumn::Align::Left,
+            maxColWidth}});
 
       if (!sp.empty()) {
         oss << "\nOne cycle (out of potentially many) in this Strongly "

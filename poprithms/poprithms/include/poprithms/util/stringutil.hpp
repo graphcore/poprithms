@@ -36,6 +36,43 @@ std::string spaceString(uint64_t target, const std::string &ts);
  * */
 struct StringColumn {
 
+  enum class Align { Left = 0, Right };
+
+  /**
+   * A column in an aligned table.
+   *
+   * \param title The title of the column
+   *
+   * \param entries All of the rows (excluding the title) of the column
+   *
+   * \param delimiter The character which is used to fill the line between the
+   *                  title and the entries
+   *
+   * \param a How the column should be aligned
+   *
+   * \param abridgeThresholdWidth The maximum width that an entry in the
+   *                              column can have. Entries which exceed this
+   *                              length will be abridged (the center
+   *                              charactres will be removed)
+   *
+   * */
+  StringColumn(const std::string &title,
+               const std::vector<std::string> &entries,
+               char delimiter                 = '-',
+               Align a                        = Align::Left,
+               uint64_t abridgeThresholdWidth = 160);
+
+  const std::string &title() const { return title_; }
+  std::string entry(uint64_t i) const { return entries_[i]; }
+  const std::vector<std::string> &entries() const { return entries_; }
+  char delimiter() const { return delimiter_; }
+
+  /** The maximum width, over title and all entries. This will never exceed
+   * abrideThresholdWidth . */
+  uint64_t width() const { return width_; }
+  uint64_t nEntries() const { return entries_.size(); }
+  Align align() const { return align_; }
+
   template <typename T>
   static std::vector<std::string> entriesFromInts(const std::vector<T> &ts) {
     std::vector<std::string> es;
@@ -58,22 +95,6 @@ struct StringColumn {
     }
     return es;
   }
-
-  enum class Align { Left = 0, Right };
-  StringColumn(const std::string &title,
-               const std::vector<std::string> &entries,
-               char delimiter = '-',
-               Align          = Align::Left);
-
-  const std::string &title() const { return title_; }
-  std::string entry(uint64_t i) const { return entries_[i]; }
-  const std::vector<std::string> &entries() const { return entries_; }
-  char delimiter() const { return delimiter_; }
-
-  /** The maximum width, over title and all entries*/
-  uint64_t width() const { return width_; }
-  uint64_t nEntries() const { return entries_.size(); }
-  Align align() const { return align_; }
 
 private:
   std::string title_;

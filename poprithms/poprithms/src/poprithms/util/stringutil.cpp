@@ -14,10 +14,51 @@ namespace util {
 StringColumn::StringColumn(const std::string &t,
                            const std::vector<std::string> &es,
                            char d,
-                           Align align)
-    : title_(t), entries_(es), delimiter_(d), align_(align) {
+                           Align align,
+                           uint64_t abridgeThresholdWidth)
+    : title_(t), delimiter_(d), align_(align) {
 
-  // Set the maximum width:
+  entries_.reserve(es.size());
+  for (const auto &e : es) {
+
+    // Entries which are at or below the column width threshold get added
+    // as-is:
+    if (e.size() <= abridgeThresholdWidth) {
+      entries_.push_back(e);
+    }
+
+    // Entries which have too many characters get abridged to have exactly
+    // #abridgeThresholdWidth characters. The abridge string is of the form
+    //
+    // "first few characters" "..." "last few characters".
+    else {
+
+      // l0 + l1 = abrideThresholdWidth.
+      const auto l0 = abridgeThresholdWidth / 2;
+      const auto l1 = abridgeThresholdWidth - l0;
+
+      // Take the first l0 characters, and set the final one to '.'
+      std::string x0{e.cbegin(), e.cbegin() + l0};
+      for (uint64_t i = 0; i < 1; ++i) {
+        if (i < x0.size()) {
+          x0[x0.size() - i - 1] = '.';
+        }
+      }
+
+      // Take the final l1 characters, and set the first 2 to '.'
+      std::string x1{e.cend() - l1, e.cend()};
+      for (uint64_t i = 0; i < 2; ++i) {
+        if (i < x1.size()) {
+          x1[i] = '.';
+        }
+      }
+
+      // Add the abridged string to the list of column entries.
+      entries_.push_back(x0 + x1);
+    }
+  }
+
+  // Set the maximum width of all columns:
   uint64_t w = title_.size();
   for (const auto &s : entries_) {
     w = std::max<size_t>(w, s.size());
@@ -59,6 +100,38 @@ padded(const std::string &x, uint64_t wd, StringColumn::Align align) {
   throw error("Unhandled alignment case in.");
 }
 
+// Remove all whitespace appearing directly before a new line character.
+std::string withSpaceBeforeNewlineRemoved(const std::string &toSqueeze) {
+
+  // The indices of 'toSqueeze' to retain.
+  std::vector<bool> retainMask(toSqueeze.size(), true);
+
+  // 1) find all '\n' in the string toSqueeze.
+  std::vector<uint64_t> newLineCharIndices;
+  for (uint64_t i = 0; i < toSqueeze.size(); ++i) {
+    if (toSqueeze[i] == '\n') {
+      newLineCharIndices.push_back(i);
+    }
+  }
+
+  for (uint64_t s : newLineCharIndices) {
+    while (s > 0 && std::isspace(toSqueeze[s - 1]) &&
+           toSqueeze[s - 1] != '\n') {
+      retainMask[s - 1] = false;
+      --s;
+    }
+  }
+
+  std::vector<char> retained;
+  for (uint64_t i = 0; i < toSqueeze.size(); ++i) {
+    if (retainMask[i]) {
+      retained.push_back(toSqueeze[i]);
+    }
+  }
+
+  return {retained.cbegin(), retained.cend()};
+}
+
 } // namespace
 
 std::string alignedColumns(const std::vector<StringColumn> &scs) {
@@ -91,8 +164,7 @@ std::string alignedColumns(const std::vector<StringColumn> &scs) {
     }
   }
 
-  auto x = oss.str();
-  return x;
+  return withSpaceBeforeNewlineRemoved(oss.str());
 }
 
 } // namespace util
