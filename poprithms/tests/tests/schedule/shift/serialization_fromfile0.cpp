@@ -1,6 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <fstream>
-#include <iostream>
 #include <streambuf>
 #include <string>
 
@@ -10,9 +9,10 @@
 
 int main() {
 
+  // testgraph0.json.in in the test source directory is copied to
+  // testgraph0.json in the build directory, so when this test is executed,
+  // the .json file is in the same directory as the binary executable.
   std::ifstream t("testgraph0.json");
-  // std::ifstream
-  // t("/Users/jamesn/T44427_logs/time2__nOps27904__uid0/graph0.json");
 
   std::stringstream buffer;
   buffer << t.rdbuf();

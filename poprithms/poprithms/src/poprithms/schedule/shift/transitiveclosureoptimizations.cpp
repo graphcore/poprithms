@@ -171,15 +171,7 @@ bool TransitiveClosureOptimizations::operator<(
 }
 
 TransitiveClosureOptimizations TransitiveClosureOptimizations::allOn() {
-
-  // TODO(T43725) make this simply all(true).
-  return all(true)
-      .withCombineAllocsWithCommonOps(false)
-      .withDisconnectInbetweenerAllocs(false)
-      .withDisconnectFixedDurationAllocs(false)
-      .withDisconnectAllocsWithOneOp(false)
-      .withDisconnectAllocsWithZeroWeight(false)
-      .withConnectContiguousAllocs(false);
+  return all(true);
 }
 
 bool TransitiveClosureOptimizations::operator==(
