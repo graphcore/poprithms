@@ -16,31 +16,32 @@ message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
 
 find_package(Threads REQUIRED)
 
+set(src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms)
+
 set(logging_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/timepartitionlogger.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/logging.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/logging/error.cpp
+  ${src_dir}/logging/timepartitionlogger.cpp
+  ${src_dir}/logging/logging.cpp
+  ${src_dir}/logging/error.cpp
 )
 
 set(error_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/error/error.cpp
+  ${src_dir}/error/error.cpp
 )
 
 set(util_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/permutation.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/printiter.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/stringutil.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/interval.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/util/error.cpp
+  ${src_dir}/util/permutation.cpp
+  ${src_dir}/util/printiter.cpp
+  ${src_dir}/util/stringutil.cpp
+  ${src_dir}/util/interval.cpp
+  ${src_dir}/util/error.cpp
 )
 
 set(ndarray_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/shape.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/accessors.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/dtype.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/ndarray/error.cpp
+  ${src_dir}/ndarray/shape.cpp
+  ${src_dir}/ndarray/accessors.cpp
+  ${src_dir}/ndarray/dtype.cpp
+  ${src_dir}/ndarray/error.cpp
 )
-
 
 add_library(poprithms-util-objlib OBJECT 
   ${util_sources}
@@ -48,21 +49,22 @@ add_library(poprithms-util-objlib OBJECT
   ${logging_sources}
   ${error_sources}
 )
-# For each sub-project "foo" of poprithms a shared library called
-# poprithms-foo is created and used to improve test link times.
+
+# For each sub-project "foo" of poprithms an abjiect library and (most often) 
+# a shared library called poprithms-foo are created. Linking only the necessary 
+# components to tests improves test link times.
 add_library(poprithms-util SHARED  $<TARGET_OBJECTS:poprithms-util-objlib>)
 
-set(common_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/common)
 set(common_multiout_sources
-  ${common_src_dir}/multiout/consumptionid.cpp
-  ${common_src_dir}/multiout/error.cpp
-  ${common_src_dir}/multiout/graph.cpp
-  ${common_src_dir}/multiout/logging.cpp
-  ${common_src_dir}/multiout/op.cpp
-  ${common_src_dir}/multiout/opid.cpp
-  ${common_src_dir}/multiout/tensorid.cpp
-  ${common_src_dir}/multiout/removalevent.cpp
-  ${common_src_dir}/multiout/optionaltensorid.cpp
+  ${src_dir}/common/multiout/consumptionid.cpp
+  ${src_dir}/common/multiout/error.cpp
+  ${src_dir}/common/multiout/graph.cpp
+  ${src_dir}/common/multiout/logging.cpp
+  ${src_dir}/common/multiout/op.cpp
+  ${src_dir}/common/multiout/opid.cpp
+  ${src_dir}/common/multiout/tensorid.cpp
+  ${src_dir}/common/multiout/removalevent.cpp
+  ${src_dir}/common/multiout/optionaltensorid.cpp
 )
 add_library(poprithms-common-multiout-objlib OBJECT ${common_multiout_sources})
 add_library(poprithms-common-multiout SHARED
@@ -72,25 +74,25 @@ add_library(poprithms-common-multiout SHARED
 
 
 set(common_schedulable_sources
-  ${common_src_dir}/schedulable/op.cpp
-  ${common_src_dir}/schedulable/error.cpp
-  ${common_src_dir}/schedulable/graph.cpp
-  ${common_src_dir}/schedulable/subgraphid.cpp
+  ${src_dir}/common/schedulable/op.cpp
+  ${src_dir}/common/schedulable/error.cpp
+  ${src_dir}/common/schedulable/graph.cpp
+  ${src_dir}/common/schedulable/subgraphid.cpp
 )
 add_library(poprithms-common-schedulable-objlib OBJECT ${common_schedulable_sources})
 add_library(poprithms-common-schedulable SHARED
-  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-shift-objlib>
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
 
+set(schedule_src_dir ${src_dir}/schedule)
 
-set(schedule_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/schedule)
 
-
-set(shift_source_dir ${schedule_src_dir}/shift)
+set(shift_source_dir ${src_dir}/schedule/shift)
 set(schedule_shift_sources
  ${shift_source_dir}/alloc.cpp
  ${shift_source_dir}/allocweight.cpp
@@ -141,8 +143,16 @@ set(schedule_transitive_closure_sources
   ${transitiveclosure_source_dir}/transitiveclosure.cpp
   ${transitiveclosure_source_dir}/partitionedtransitiveclosure.cpp
 )
-add_library(poprithms-schedule-objlib OBJECT
+
+# we divide all of the scheduling projects into "shift" and "other". This is 
+# because, currently, "shift" is much larger than the others. Should this 
+# balance change in the future, we can further divide "other" into smaller 
+# components. 
+add_library(poprithms-schedule-shift-objlib OBJECT
   ${schedule_shift_sources}
+)
+
+add_library(poprithms-schedule-other-objlib OBJECT
   ${schedule_dfs_sources}
   ${schedule_scc_sources}
   ${schedule_connectedcomponents_sources}
@@ -150,29 +160,37 @@ add_library(poprithms-schedule-objlib OBJECT
   ${schedule_supercon_sources}
   ${schedule_transitive_closure_sources}
 )
-add_library(poprithms-schedule SHARED
-  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+
+add_library(poprithms-schedule-shift SHARED
+  $<TARGET_OBJECTS:poprithms-schedule-shift-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
+add_library(poprithms-schedule-other SHARED
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
 
+
 set(outline_linear_sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/error.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/graph.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/linearusings.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/logging.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/op.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/outline/linear/tensor.cpp
+  ${src_dir}/outline/linear/error.cpp
+  ${src_dir}/outline/linear/graph.cpp
+  ${src_dir}/outline/linear/linearusings.cpp
+  ${src_dir}/outline/linear/logging.cpp
+  ${src_dir}/outline/linear/op.cpp
+  ${src_dir}/outline/linear/tensor.cpp
 )
 add_library(poprithms-outline-objlib OBJECT ${outline_linear_sources})
 add_library(poprithms-outline SHARED
   $<TARGET_OBJECTS:poprithms-outline-objlib>
-  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
 
-set(compute_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/compute)
+set(compute_src_dir ${src_dir}/compute)
 set(compute_host_sources
   ${compute_src_dir}/host/error.cpp
   ${compute_src_dir}/host/tensor.cpp
@@ -200,7 +218,7 @@ add_library(poprithms-compute-host SHARED
 
 
 
-set(memory_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/memory)
+set(memory_src_dir ${src_dir}/memory)
 set(memory_nest_sources
   ${memory_src_dir}/nest/error.cpp
   ${memory_src_dir}/nest/logging.cpp
@@ -282,7 +300,7 @@ add_library(poprithms-memory-inplace SHARED
   $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
-  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -300,7 +318,8 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
-  $<TARGET_OBJECTS:poprithms-schedule-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-shift-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
@@ -326,8 +345,10 @@ foreach(tgt IN ITEMS
   poprithms-common-schedulable
   poprithms-compute-host-objlib
   poprithms-compute-host
-  poprithms-schedule-objlib
-  poprithms-schedule
+  poprithms-schedule-shift-objlib
+  poprithms-schedule-shift
+  poprithms-schedule-other-objlib
+  poprithms-schedule-other
   poprithms-outline-objlib
   poprithms-outline
   poprithms-memory-nest-objlib

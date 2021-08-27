@@ -1,6 +1,6 @@
 function(add_schedule_test_executable name source)
   add_executable(${name} ${source})
-  target_link_libraries(${name} poprithms-schedule schedule-test-util)
+  target_link_libraries(${name} poprithms-schedule-other schedule-test-util)
 endfunction()
 
 function(add_schedule_test name source)
@@ -18,10 +18,11 @@ function(add_schedule_test_from_params name exe)
 endfunction()
 
 
-add_subdirectory(shift)
 add_subdirectory(transitiveclosure)
 add_subdirectory(supercon)
 add_subdirectory(dfs)
 add_subdirectory(scc)
 add_subdirectory(connectedcomponents)
 add_subdirectory(vanilla)
+
+add_subdirectory(shift)
