@@ -735,6 +735,10 @@ bool ScheduledGraph::slideLinks() {
 
 void ScheduledGraph::updateTransitiveClosure(
     const std::vector<std::vector<OpAddress>> &edges) {
+
+  const auto stopwatch =
+      timeLogger().scopedStopwatch("updateTransitiveClosure");
+
   if (log().shouldLog(logging::Level::Debug)) {
     std::ostringstream oss;
     oss << "Updating TransitiveClosure with "
@@ -797,7 +801,7 @@ void ScheduledGraph::applyTransitiveClosureOptimizations(
         updateTransitiveClosure(dff);
       } else {
         log().debug("Re-initializing TransitiveClosure,  " + iterStr);
-        initializeTransitiveClosure();
+        reinitializeTransitiveClosure();
       }
     }
 
@@ -919,10 +923,9 @@ void ScheduledGraph::processWeightSeparatedIdenticalIns(
       if (upperBoundChange[a] <= lowerBoundChange[b] && a != b) {
 
         // Here we do a depth first search, starting at b, stopping when we
-        // reach an Op with is unconstrained with respect
-        // to t a.
+        // reach an Op which is unconstrained with respect to a.
         //
-        // The Ops found end up in this vector:
+        // The Ops found will be put in this vector:
         std::vector<OpAddress> postBs;
         std::vector<OpAddress> toProcess{b};
         std::vector<OpAddress> seen{b};
@@ -1003,10 +1006,9 @@ bool ScheduledGraph::constrainWeightSeparatedGroups() {
   return !newConstraints.empty();
 }
 
-void ScheduledGraph::finalizeTransitiveClosure() {
+void ScheduledGraph::removeRedundantEdges() {
 
-  const auto stopwatch =
-      timeLogger().scopedStopwatch("finalizeTransitiveClosure");
+  const auto sw = timeLogger().scopedStopwatch("removeRedundantEdges");
 
   const auto fwdEdges = graph.getForwardEdges();
 
@@ -1016,6 +1018,14 @@ void ScheduledGraph::finalizeTransitiveClosure() {
   for (const auto x : redundants) {
     graph.removeConstraint(std::get<0>(x), std::get<1>(x));
   }
+}
+
+void ScheduledGraph::finalizeTransitiveClosure() {
+
+  const auto stopwatch =
+      timeLogger().scopedStopwatch("finalizeTransitiveClosure");
+
+  removeRedundantEdges();
 
   auto zero        = AllocWeight::zero();
   lowerBoundChange = std::vector<AllocWeight>(nOps(), zero);
@@ -1078,6 +1088,13 @@ void ScheduledGraph::initializeTransitiveClosure() {
 
   transitiveClosure =
       transitiveclosure::TransitiveClosure(graph.getForwardEdges());
+  finalizeTransitiveClosure();
+}
+
+void ScheduledGraph::reinitializeTransitiveClosure() {
+  const auto stopwatch =
+      timeLogger().scopedStopwatch("reinitializeTransitiveClosure");
+  transitiveClosure.bidirectionalPropagate(graph.getForwardEdges());
   finalizeTransitiveClosure();
 }
 

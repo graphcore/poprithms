@@ -78,21 +78,32 @@ void verifyOpAddresses(const Edges &edges, uint64_t nOps) {
 
 void propagate(const Edges &fwd, const Edges &bwd, BitSets &edgeSet) {
 
-  auto nOps          = fwd.size();
-  auto nBitSetsPerOp = TransitiveClosure::getNBitSetsPerOp(nOps);
+  const auto nOps          = fwd.size();
+  const auto nBitSetsPerOp = TransitiveClosure::getNBitSetsPerOp(nOps);
 
+  /**
+   * Return true if the transitive closure has a 'true' bit denoting that
+   * there's a path from #from to #to.
+   * */
   auto isRecordered = [&edgeSet, nBitSetsPerOp](OpId from, OpId to) {
-    auto index = to * nBitSetsPerOp + from / BitSetSize;
-    auto shift = from % BitSetSize;
+    const auto index = to * nBitSetsPerOp + from / BitSetSize;
+    const auto shift = from % BitSetSize;
     return edgeSet[index][shift];
   };
 
+  /**
+   * Set a 'true' bit in the transitiveclosure to denote that there's a path
+   * from #from to #to.
+   * */
   auto record = [&edgeSet, nBitSetsPerOp](OpId from, OpId to) {
-    auto index            = to * nBitSetsPerOp + from / BitSetSize;
-    auto shift            = from % BitSetSize;
+    const auto index      = to * nBitSetsPerOp + from / BitSetSize;
+    const auto shift      = from % BitSetSize;
     edgeSet[index][shift] = true;
   };
 
+  /**
+   * We process the Ops in forward topological order.
+   * */
   uint64_t nScheduled{0};
   OpIds outstanding;
   outstanding.reserve(nOps);
@@ -106,18 +117,26 @@ void propagate(const Edges &fwd, const Edges &bwd, BitSets &edgeSet) {
 
   while (!ready.empty()) {
 
-    //       c
-    //      /
-    // a - b - c`
-    //   /
-    // a`
     //
-    // b signals to the c's that it is scheduled,
-    // and then b sets its edge-set from the a's edge-sets.
+    // a ---+          +----> c
+    //      |          |
+    //      +--- b ----+
+    //      |          |
+    // a` --+          +----> c'
     //
-    // 1) signal to cs.
+    // b is popped off the back of ready, as it has all of its input edges
+    // satisfied:
+
     OpId b = ready.back();
     ready.pop_back();
+
+    // Then,
+    //
+    // (1) b signals to its outputs, the c's above, that it is scheduled, and
+    // then
+    // (2) b sets its edge-set from the a's edge-sets.
+
+    // (1) signalling to c's.
     for (auto c : fwd[b]) {
       --outstanding[c];
       if (outstanding[c] == 0) {
@@ -128,6 +147,26 @@ void propagate(const Edges &fwd, const Edges &bwd, BitSets &edgeSet) {
     // 2) set edge-set from a's, and record which a's are redundant
     // performance note: int is better than bool for the task at hand.
     std::vector<int32_t> isRedundant(bwd[b].size(), false);
+
+    //
+    //
+    // a0  ---+
+    //  ^     |
+    //  |     v
+    // a1  ---+---> b
+    //  |     |
+    //  ^     ^
+    //  |     |
+    // a2  ---+
+    //
+    // The edge a2 -> b is redundant in the above diagram.
+    // The edge a1 -> b is also redundant.
+
+    // For all i which have a direct edge to b, if there is a j with a direct
+    // edge to b, and there is a path from i to j, the path from i to j is
+    // redundant.
+    //
+    // Note that the order in which the edges are processed does not matter.
     for (uint64_t i = 0; i < bwd[b].size(); ++i) {
       uint64_t j = 0;
       while (j < bwd[b].size() && !isRedundant[i]) {
@@ -240,6 +279,11 @@ TransitiveClosure::getFlattenedRedundants(const Edges &edges) const {
 TransitiveClosure::TransitiveClosure(const Edges &fwd)
     : nOps(fwd.size()), nBitSetsPerOp(getNBitSetsPerOp(nOps)),
       fwdEdgeSet(nBitSetsPerOp * nOps), bwdEdgeSet(nBitSetsPerOp * nOps) {
+
+  bidirectionalPropagate(fwd);
+}
+
+void TransitiveClosure::bidirectionalPropagate(const Edges &fwd) {
 
   for (const auto &evs : fwd) {
     for (auto e : evs) {

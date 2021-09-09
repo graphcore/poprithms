@@ -96,7 +96,7 @@ public:
    * Reset \p rowMajorOriginDatas to be \p nxt, and update \p
    * rowMajorOriginDataPtrs and \p rowMajorOriginDataIndices accordingly.
    *
-   * \p nxt must be a supserset \p rowMajorOriginDatas, otherwise an error is
+   * \p nxt must be a superset \p rowMajorOriginDatas, otherwise an error is
    * thrown.
    *
    * This transformation only alters the internal representation of this

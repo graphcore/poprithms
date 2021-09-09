@@ -51,9 +51,14 @@ public:
   explicit TransitiveClosure(const Edges &forwardEdges);
 
   /**
+   * Update the transitive closure by propagating all the edges in #fwd.
+   * */
+  void bidirectionalPropagate(const Edges &fwd);
+
+  /**
    * Insert additional DAG edges. Note that it is much faster to call the
-   * constructor with the full set of edges, than to sequentially call update
-   * on each of the edges individually.
+   * constructor and/or bidirectionalPropagate with the full set of edges,
+   * than to sequentially call update on each of the edges individually.
    */
   void update(const Edges &newEdges);
 

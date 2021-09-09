@@ -310,7 +310,15 @@ private:
   void
   applyTransitiveClosureOptimizations(const TransitiveClosureOptimizations &);
 
+  // create the transitive closure from scratch.
   void initializeTransitiveClosure();
+
+  // update the transitive closure with all of the graph edges. The edges must
+  // be a superset of the edges used to update/create the transitive closure
+  // previously.
+  void reinitializeTransitiveClosure();
+
+  void removeRedundantEdges();
 
   // Incrementally update the TransitiveClosure of this Graph. Note that the
   // TransitiveClosure can be initialized with

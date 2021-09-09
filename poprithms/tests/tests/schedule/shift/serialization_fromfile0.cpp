@@ -19,7 +19,9 @@ int main() {
   auto s = buffer.str();
 
   using namespace poprithms::schedule::shift;
-  ScheduledGraph sgoo(Graph::fromSerializationString(s),
+  auto g = Graph::fromSerializationString(s);
+
+  ScheduledGraph sgoo(Graph(g),
                       KahnTieBreaker::FIFO,
                       TransitiveClosureOptimizations::allOn(),
                       RotationTermination::nHours(1),
