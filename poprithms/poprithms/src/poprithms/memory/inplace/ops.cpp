@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include <memory/inplace/error.hpp>
+
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/inplace/color.hpp>
 #include <poprithms/util/printiter.hpp>

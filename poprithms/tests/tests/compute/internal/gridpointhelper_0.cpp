@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include <compute/host/include/gridpointhelper.hpp>
+
 #include <poprithms/error/error.hpp>
 
 namespace {

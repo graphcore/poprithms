@@ -3,11 +3,12 @@
 #include <iostream>
 #include <random>
 
+#include <testutil/memory/nest/randomregion.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/printiter.hpp>
-#include <testutil/memory/nest/randomregion.hpp>
 
 namespace poprithms {
 namespace memory {

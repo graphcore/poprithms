@@ -1,12 +1,13 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
-#include <schedule/shift/error.hpp>
-#include <schedule/shift/graphserialization.hpp>
 #include <sstream>
 #include <string>
 
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
+
+#include <schedule/shift/error.hpp>
+#include <schedule/shift/graphserialization.hpp>
 
 #include <poprithms/schedule/shift/logging.hpp>
 

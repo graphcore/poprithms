@@ -2,8 +2,9 @@
 #include <iostream>
 #include <random>
 
-#include <poprithms/error/error.hpp>
 #include <testutil/memory/nest/randomsett.hpp>
+
+#include <poprithms/error/error.hpp>
 
 int main() {
   // In this test, we assert that getOns(start, end) agrees with find(x)

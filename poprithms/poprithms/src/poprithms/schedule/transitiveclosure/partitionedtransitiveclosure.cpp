@@ -1,8 +1,9 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <numeric>
-#include <schedule/transitiveclosure/error.hpp>
 #include <sstream>
+
+#include <schedule/transitiveclosure/error.hpp>
 
 #include <poprithms/schedule/transitiveclosure/partitionedtransitiveclosure.hpp>
 

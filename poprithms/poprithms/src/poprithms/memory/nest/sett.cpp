@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include <memory/nest/error.hpp>
+
 #include <poprithms/memory/nest/logging.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 

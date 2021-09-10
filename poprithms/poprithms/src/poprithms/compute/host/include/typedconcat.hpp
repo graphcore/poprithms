@@ -12,6 +12,7 @@
 #include <compute/host/include/baseoperators.hpp>
 #include <compute/host/include/ieeehalf.hpp>
 #include <compute/host/include/viewdata.hpp>
+
 #include <poprithms/compute/host/viewchange.hpp>
 #include <poprithms/util/printiter.hpp>
 

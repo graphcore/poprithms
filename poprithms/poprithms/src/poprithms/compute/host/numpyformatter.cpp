@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include <compute/host/error.hpp>
+
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {

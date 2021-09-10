@@ -2,10 +2,11 @@
 #include <iostream>
 #include <vector>
 
+#include <testutil/schedule/shift/randomgraph.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
-#include <testutil/schedule/shift/randomgraph.hpp>
 
 namespace {
 using namespace poprithms::schedule::shift;

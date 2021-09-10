@@ -4,10 +4,11 @@
 #include <iostream>
 #include <random>
 
-#include <poprithms/error/error.hpp>
-#include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 #include <testutil/schedule/transitiveclosure/randomedges.hpp>
 #include <testutil/schedule/transitiveclosure/transitiveclosurecommandlineoptions.hpp>
+
+#include <poprithms/error/error.hpp>
+#include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 
 using namespace poprithms::schedule::transitiveclosure;
 

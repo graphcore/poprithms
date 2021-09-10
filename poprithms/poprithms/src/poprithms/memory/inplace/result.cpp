@@ -10,6 +10,7 @@
 #include <utility>
 
 #include <memory/inplace/error.hpp>
+
 #include <poprithms/memory/inplace/result.hpp>
 #include <poprithms/util/printiter.hpp>
 

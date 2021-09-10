@@ -8,11 +8,12 @@
 #include <tuple>
 #include <vector>
 
+#include <testutil/schedule/shift/randomgraph.hpp>
+#include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
-#include <testutil/schedule/shift/randomgraph.hpp>
-#include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
 
 // N Ops,
 // [1....E] producers for each Op randomly from D most previous

@@ -3,12 +3,13 @@
 #include <iostream>
 #include <sstream>
 
+#include <testutil/schedule/transitiveclosure/randomedges.hpp>
+#include <testutil/schedule/transitiveclosure/transitiveclosurecommandlineoptions.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 #include <poprithms/util/printiter.hpp>
-#include <testutil/schedule/transitiveclosure/randomedges.hpp>
-#include <testutil/schedule/transitiveclosure/transitiveclosurecommandlineoptions.hpp>
 
 namespace {
 

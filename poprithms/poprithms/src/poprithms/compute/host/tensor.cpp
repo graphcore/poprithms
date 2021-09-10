@@ -15,6 +15,7 @@
 #include <compute/host/include/pointerdata.hpp>
 #include <compute/host/include/typeswitch.hpp>
 #include <compute/host/include/viewdata.hpp>
+
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/util/printiter.hpp>

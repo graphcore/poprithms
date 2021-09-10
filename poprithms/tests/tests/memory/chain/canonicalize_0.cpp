@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include <memory/chain/op.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
 

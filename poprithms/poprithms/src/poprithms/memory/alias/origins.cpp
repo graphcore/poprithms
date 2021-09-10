@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <memory/alias/error.hpp>
+
 #include <poprithms/memory/alias/origins.hpp>
 
 namespace poprithms {

@@ -2,8 +2,9 @@
 
 #include <algorithm>
 #include <ostream>
-#include <schedule/connectedcomponents/error.hpp>
 #include <sstream>
+
+#include <schedule/connectedcomponents/error.hpp>
 
 #include <poprithms/schedule/connectedcomponents/connectedcomponents.hpp>
 #include <poprithms/util/printiter.hpp>

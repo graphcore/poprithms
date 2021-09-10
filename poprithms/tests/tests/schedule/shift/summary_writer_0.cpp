@@ -4,10 +4,11 @@
 #include <cstring>
 #include <thread>
 
+#include <testutil/schedule/shift/randomgraph.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
-#include <testutil/schedule/shift/randomgraph.hpp>
 
 namespace {
 

@@ -1,8 +1,9 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <poprithms/error/error.hpp>
-#include <poprithms/schedule/shift/graph.hpp>
 #include <testutil/schedule/shift/branch_doubling_generator.hpp>
 #include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
+
+#include <poprithms/error/error.hpp>
+#include <poprithms/schedule/shift/graph.hpp>
 
 int main(int argc, char **argv) {
 

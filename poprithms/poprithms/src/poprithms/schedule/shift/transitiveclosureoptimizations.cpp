@@ -2,6 +2,7 @@
 #include <array>
 #include <limits>
 #include <ostream>
+
 #include <schedule/shift/error.hpp>
 
 #include <poprithms/schedule/shift/transitiveclosureoptimizations.hpp>

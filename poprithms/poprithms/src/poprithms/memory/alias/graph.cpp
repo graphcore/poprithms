@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include <memory/alias/error.hpp>
+
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/alias/nodes.hpp>
 #include <poprithms/memory/alias/origins.hpp>

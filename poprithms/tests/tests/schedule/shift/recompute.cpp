@@ -3,11 +3,12 @@
 #include <numeric>
 #include <string>
 
+#include <testutil/schedule/shift/recompute_generator.hpp>
+#include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
-#include <testutil/schedule/shift/recompute_generator.hpp>
-#include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
 
 int main(int argc, char **argv) {
 

@@ -1,10 +1,11 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
+#include <testutil/memory/nest/randomregion.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
 #include <poprithms/memory/chain/settutil.hpp>
-#include <testutil/memory/nest/randomregion.hpp>
 
 namespace {
 

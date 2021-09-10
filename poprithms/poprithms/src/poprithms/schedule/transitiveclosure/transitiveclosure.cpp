@@ -2,8 +2,9 @@
 #include <algorithm>
 #include <limits>
 #include <random>
-#include <schedule/transitiveclosure/error.hpp>
 #include <sstream>
+
+#include <schedule/transitiveclosure/error.hpp>
 
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 #include <poprithms/util/printiter.hpp>

@@ -3,9 +3,10 @@
 #include <numeric>
 #include <string>
 
+#include <testutil/schedule/shift/branch_doubling_generator.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/shiftusings.hpp>
-#include <testutil/schedule/shift/branch_doubling_generator.hpp>
 
 namespace poprithms {
 namespace schedule {

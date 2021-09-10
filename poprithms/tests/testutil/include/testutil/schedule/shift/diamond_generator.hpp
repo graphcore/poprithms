@@ -2,7 +2,7 @@
 #ifndef TESTUTIL_SCHEDULE_ANNEAL_DIAMOND_HPP
 #define TESTUTIL_SCHEDULE_ANNEAL_DIAMOND_HPP
 
-#include <poprithms/schedule/shift/graph.hpp>
+#include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 namespace poprithms {
 namespace schedule {

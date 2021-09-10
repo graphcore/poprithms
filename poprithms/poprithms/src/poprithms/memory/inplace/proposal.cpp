@@ -1,5 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <memory/inplace/error.hpp>
+
 #include <poprithms/memory/inplace/proposal.hpp>
 #include <poprithms/memory/inplace/tensor.hpp>
 

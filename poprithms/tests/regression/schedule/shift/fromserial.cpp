@@ -3,11 +3,12 @@
 #include <sstream>
 #include <streambuf>
 
+#include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/logging/logging.hpp>
 #include <poprithms/schedule/shift/logging.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
-#include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
 
 // Example use case:
 //

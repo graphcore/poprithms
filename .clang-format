@@ -63,18 +63,19 @@ ForEachMacros:
 # IncludeBlocks was previously "Preserve", which meant no spaces were inserted between Categories
 IncludeBlocks:   Regroup 
 IncludeCategories: 
-  #All poprithms files at the bottom of the include block:
+#All poprithms files at the bottom of the include block:
   - Regex:           '<testutil*'
+    Priority:        190
+  - Regex:           '<poprithms*'
     Priority:        200
-  - Regex:           '<poprith*'
-    Priority:        200
-  - Regex:           '<compute/host'
-    Priority:        200
+  - Regex:           '<compute/'
+    Priority:        190
   - Regex:           '<memory/'
-    Priority:        200
+    Priority:        190
+  - Regex:           '<schedule/'
+    Priority:        190
   - Regex:           '<util/copybyclone'
-    Priority:        200
-
+    Priority:        190
   - Regex:           '<boost*'
     Priority:        140
   - Regex:           '^(<|"(gtest|gmock|isl|json|llvm|llvm-c|clang|clang-c)/)'

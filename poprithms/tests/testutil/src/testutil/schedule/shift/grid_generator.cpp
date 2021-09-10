@@ -1,9 +1,10 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <testutil/schedule/shift/grid_generator.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/shift/shiftusings.hpp>
-#include <testutil/schedule/shift/grid_generator.hpp>
 
 namespace poprithms {
 namespace schedule {

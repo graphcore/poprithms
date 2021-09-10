@@ -3,6 +3,7 @@
 #define POPRITHMS_MEMORY_INPLACE_OPS_HPP
 
 #include <memory/inplace/op.hpp>
+
 #include <poprithms/memory/inplace/crosslink.hpp>
 #include <poprithms/util/permutation.hpp>
 

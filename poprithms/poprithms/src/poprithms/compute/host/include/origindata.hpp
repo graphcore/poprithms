@@ -8,6 +8,7 @@
 #include <compute/host/include/baseoperators.hpp>
 #include <compute/host/include/ieeehalf.hpp>
 #include <compute/host/include/typeddata.hpp>
+
 #include <poprithms/compute/host/viewchange.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 

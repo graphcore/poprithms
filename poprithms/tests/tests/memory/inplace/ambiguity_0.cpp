@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include <memory/inplace/ops.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 

@@ -4,11 +4,12 @@
 #include <numeric>
 #include <vector>
 
+#include <testutil/schedule/shift/bifurcate_generator.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/shift/shiftusings.hpp>
-#include <testutil/schedule/shift/bifurcate_generator.hpp>
 
 namespace poprithms {
 namespace schedule {

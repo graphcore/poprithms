@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <mutex>
+
 #include <schedule/shift/error.hpp>
 
 #include <poprithms/schedule/shift/solutioncache.hpp>

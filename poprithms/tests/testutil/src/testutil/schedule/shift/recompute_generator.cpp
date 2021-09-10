@@ -5,10 +5,11 @@
 #include <numeric>
 #include <string>
 
+#include <testutil/schedule/shift/recompute_generator.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <poprithms/schedule/shift/shiftusings.hpp>
-#include <testutil/schedule/shift/recompute_generator.hpp>
 
 namespace poprithms {
 namespace schedule {

@@ -4,6 +4,7 @@
 #include <random>
 
 #include <compute/host/include/numpyformatter.hpp>
+
 #include <poprithms/ndarray/dtype.hpp>
 
 namespace {

@@ -13,6 +13,7 @@
 #include <compute/host/include/typedconcat.hpp>
 #include <compute/host/include/typeddata.hpp>
 #include <compute/host/include/viewdata.hpp>
+
 #include <poprithms/compute/host/viewchange.hpp>
 
 namespace poprithms {

@@ -7,14 +7,15 @@
 #include <iostream>
 #include <tuple>
 
-#include <poprithms/error/error.hpp>
-#include <poprithms/logging/logging.hpp>
 #include <testutil/schedule/shift/bifurcate_generator.hpp>
 #include <testutil/schedule/shift/branch_doubling_generator.hpp>
 #include <testutil/schedule/shift/diamond_generator.hpp>
 #include <testutil/schedule/shift/grid_generator.hpp>
 #include <testutil/schedule/shift/randomgraph.hpp>
 #include <testutil/schedule/shift/recompute_generator.hpp>
+
+#include <poprithms/error/error.hpp>
+#include <poprithms/logging/logging.hpp>
 
 namespace {
 

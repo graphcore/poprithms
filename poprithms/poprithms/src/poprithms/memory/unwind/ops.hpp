@@ -3,6 +3,7 @@
 #define POPRITHMS_MEMORY_INPLACE_OPS_HPP
 
 #include <memory/unwind/op.hpp>
+
 #include <poprithms/memory/unwind/path.hpp>
 #include <poprithms/util/permutation.hpp>
 

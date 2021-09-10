@@ -2,6 +2,7 @@
 #include <sstream>
 
 #include <memory/nest/error.hpp>
+
 #include <poprithms/memory/nest/stripe.hpp>
 
 namespace poprithms {

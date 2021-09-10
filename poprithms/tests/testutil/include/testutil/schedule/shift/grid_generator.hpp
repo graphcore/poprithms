@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include <poprithms/schedule/shift/graph.hpp>
+#include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 namespace poprithms {
 namespace schedule {

@@ -1,5 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <compute/host/error.hpp>
+
 #include <poprithms/compute/host/viewchange.hpp>
 
 namespace poprithms {

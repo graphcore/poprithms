@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <memory/chain/error.hpp>
+
 #include <poprithms/memory/chain/settutil.hpp>
 namespace poprithms {
 namespace memory {

@@ -2,6 +2,7 @@
 #include <sstream>
 
 #include <memory/alias/error.hpp>
+
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/alias/node.hpp>
 #include <poprithms/memory/alias/tensor.hpp>

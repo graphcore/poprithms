@@ -13,6 +13,7 @@
 #include <type_traits>
 
 #include <compute/host/error.hpp>
+
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/shape.hpp>
 

@@ -11,6 +11,7 @@
 #include <compute/host/include/basedata.hpp>
 #include <compute/host/include/baseoperators.hpp>
 #include <compute/host/include/ieeehalf.hpp>
+
 #include <poprithms/compute/host/viewchange.hpp>
 #include <poprithms/util/printiter.hpp>
 

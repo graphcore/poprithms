@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include <memory/inplace/error.hpp>
+
 #include <poprithms/common/multiout/util.hpp>
 #include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/inplace/graph.hpp>

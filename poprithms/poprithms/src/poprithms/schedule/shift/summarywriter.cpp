@@ -2,11 +2,12 @@
 #include <algorithm>
 #include <cctype>
 #include <mutex>
-#include <schedule/shift/error.hpp>
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/format/format_fwd.hpp>
+
+#include <schedule/shift/error.hpp>
 
 #include <poprithms/schedule/shift/summarywriter.hpp>
 #include <poprithms/util/printiter.hpp>

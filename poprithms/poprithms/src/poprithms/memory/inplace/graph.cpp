@@ -12,6 +12,7 @@
 #include <utility>
 
 #include <memory/inplace/error.hpp>
+
 #include <poprithms/memory/inplace/color.hpp>
 #include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/schedule/scc/scc.hpp>

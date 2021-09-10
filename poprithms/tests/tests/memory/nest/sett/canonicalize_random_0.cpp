@@ -2,9 +2,10 @@
 #include <algorithm>
 #include <sstream>
 
+#include <testutil/memory/nest/randomsett.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
-#include <testutil/memory/nest/randomsett.hpp>
 
 // Random tests that Sett canonicalization is valid.
 int main() {

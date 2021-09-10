@@ -6,10 +6,11 @@
 #include <sstream>
 #include <vector>
 
+#include <testutil/memory/nest/randomsett.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/printiter.hpp>
-#include <testutil/memory/nest/randomsett.hpp>
 
 int main() {
 

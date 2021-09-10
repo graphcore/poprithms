@@ -1,9 +1,10 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
+#include <testutil/schedule/shift/randomgraph.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
-#include <testutil/schedule/shift/randomgraph.hpp>
 
 // In this test, we check that allowing more swaps results in lower schedule
 // livenesses. We only test this swapLimitCount, a test for timeLimitSeconds

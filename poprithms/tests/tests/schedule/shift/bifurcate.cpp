@@ -1,11 +1,12 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
 
+#include <testutil/schedule/shift/bifurcate_generator.hpp>
+#include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
-#include <testutil/schedule/shift/bifurcate_generator.hpp>
-#include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
 
 int main(int argc, char **argv) {
 

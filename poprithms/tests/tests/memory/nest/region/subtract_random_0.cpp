@@ -3,10 +3,11 @@
 #include <random>
 #include <sstream>
 
+#include <testutil/memory/nest/randomregion.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/unisort.hpp>
-#include <testutil/memory/nest/randomregion.hpp>
 
 namespace {
 

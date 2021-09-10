@@ -2,10 +2,11 @@
 #include <algorithm>
 #include <iomanip>
 #include <numeric>
-#include <schedule/shift/error.hpp>
 #include <string>
 
 #include <boost/functional/hash.hpp>
+
+#include <schedule/shift/error.hpp>
 
 #include <poprithms/schedule/shift/allocweight.hpp>
 #include <poprithms/util/printiter.hpp>

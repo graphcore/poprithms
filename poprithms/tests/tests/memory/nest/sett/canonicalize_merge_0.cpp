@@ -3,10 +3,11 @@
 #include <iostream>
 #include <sstream>
 
+#include <testutil/memory/nest/randomsett.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/optionalset.hpp>
 #include <poprithms/memory/nest/sett.hpp>
-#include <testutil/memory/nest/randomsett.hpp>
 
 namespace {
 
