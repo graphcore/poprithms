@@ -3,8 +3,9 @@
 #include <algorithm>
 #include <numeric>
 
+#include <schedule/shift/allocsimplifier.hpp>
+
 #include <poprithms/schedule/connectedcomponents/connectedcomponents.hpp>
-#include <poprithms/schedule/shift/allocsimplifier.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {

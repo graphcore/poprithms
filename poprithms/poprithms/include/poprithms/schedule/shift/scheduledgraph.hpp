@@ -302,42 +302,6 @@ private:
   // TODO(T14827) for multithreading, need one of these scratchpads per thread
   mutable std::vector<TrackEntry> rippleScratch;
 
-  // bool isInitialized{false};
-
-  // Insert constraints and links which can be proven to satisfy at least one
-  // globally minimizing schedule. These constraints accelerate the shifting
-  // algorithm by reducing its search space.
-  void
-  applyTransitiveClosureOptimizations(const TransitiveClosureOptimizations &);
-
-  // create the transitive closure from scratch.
-  void initializeTransitiveClosure();
-
-  // update the transitive closure with all of the graph edges. The edges must
-  // be a superset of the edges used to update/create the transitive closure
-  // previously.
-  void reinitializeTransitiveClosure();
-
-  void removeRedundantEdges();
-
-  // Incrementally update the TransitiveClosure of this Graph. Note that the
-  // TransitiveClosure can be initialized with
-  // updateTransitiveClosure(getForwardEdges()), but it is less efficient than
-  // calling initializeTransitiveClosure().
-  void
-  updateTransitiveClosure(const std::vector<std::vector<OpAddress>> &nEdges);
-
-  void finalizeTransitiveClosure();
-  bool linkTightDrops();
-  bool linkCloseTightPairs();
-
-  bool constrainWeightSeparatedGroups();
-  void processWeightSeparatedIdenticalIns(
-      const std::vector<OpAddress> &opsWithIdenticalIns,
-      std::vector<std::array<OpAddress, 2>> &cons) const;
-  bool constrainParallelChains();
-  bool slideLinks();
-
   // Implements the isSchedulable algorithm assuming the graph has no links.
   static bool linklessIsSchedulable(const Graph &);
 
@@ -354,12 +318,6 @@ private:
   std::vector<int> nCanFwd;
   std::vector<int> nCanBwd;
   std::vector<bool> susceptible;
-
-  transitiveclosure::TransitiveClosure transitiveClosure{{}};
-  // The lowest change in liveness across all schedules, for each Op
-  std::vector<AllocWeight> lowerBoundChange;
-  // The highest change in liveness across all schedules, for each Op
-  std::vector<AllocWeight> upperBoundChange;
 
   using OpAddresses    = std::vector<OpAddress>;
   using AllocAddresses = std::vector<AllocAddress>;

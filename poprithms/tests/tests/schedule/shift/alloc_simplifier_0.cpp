@@ -1,12 +1,12 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include "poprithms/schedule/transitiveclosure/transitiveclosure.hpp"
-
 #include <iostream>
 #include <string>
 
+#include <schedule/shift/allocsimplifier.hpp>
+
 #include <poprithms/error/error.hpp>
-#include <poprithms/schedule/shift/allocsimplifier.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
+#include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace {

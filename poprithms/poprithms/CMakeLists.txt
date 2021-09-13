@@ -103,11 +103,14 @@ set(schedule_shift_sources
  ${shift_source_dir}/kahntiebreaker.cpp
  ${shift_source_dir}/logging.cpp
  ${shift_source_dir}/op.cpp
+ ${shift_source_dir}/updatefromfirstfinal.cpp
  ${shift_source_dir}/scheduledgraph.cpp
  ${shift_source_dir}/settings.cpp
  ${shift_source_dir}/shiftandcost.cpp
  ${shift_source_dir}/solutioncache.cpp
  ${shift_source_dir}/summarywriter.cpp
+ ${shift_source_dir}/transitiveclosureconstrainer.cpp
+ ${shift_source_dir}/transitiveclosureoptimizer.cpp
  ${shift_source_dir}/transitiveclosureoptimizations.cpp
 )
 set(dfs_source_dir ${schedule_src_dir}/dfs)
