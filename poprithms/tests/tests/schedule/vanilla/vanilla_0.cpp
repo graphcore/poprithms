@@ -63,15 +63,16 @@ void test2() {
 }
 
 void testUnique0() {
-  auto uni = hasUniqueSchedule_i64({{1}, {3}, {}, {2}}, VerifyEdges::Yes);
+  auto uni = Query<int64_t>::hasUniqueSchedule({{1}, {3}, {}, {2}},
+                                               VerifyEdges::Yes);
   if (uni == false) {
     throw poprithms::test::error("There is a unique schedule, 0,1,3,2");
   }
 }
 
 void testUnique1() {
-  auto uni =
-      hasUniqueSchedule_i64({{1}, {2, 3}, {4}, {4}, {}}, VerifyEdges::Yes);
+  auto uni = Query<int64_t>::hasUniqueSchedule({{1}, {2, 3}, {4}, {4}, {}},
+                                               VerifyEdges::Yes);
   if (uni == true) {
     throw poprithms::test::error(
         "There is not a unique schedule, either 2 or 3 may appear third");
@@ -79,7 +80,8 @@ void testUnique1() {
 }
 
 void testUnique2() {
-  auto uni = hasUniqueSchedule_u64({{1}, {3}, {1}, {2}}, VerifyEdges::Yes);
+  auto uni = Query<uint64_t>::hasUniqueSchedule({{1}, {3}, {1}, {2}},
+                                                VerifyEdges::Yes);
   if (uni == true) {
     throw poprithms::test::error(
         "There is not a unique schedule, as there is a cycle");

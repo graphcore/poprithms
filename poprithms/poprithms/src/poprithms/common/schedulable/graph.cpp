@@ -79,7 +79,7 @@ OpIds Graph::vanillaSubSchedule(const std::set<OpId> &opIds) const {
 
 bool Graph::hasUniqueSchedule(SubGraphId sgId) const {
   using namespace schedule;
-  return vanilla::hasUniqueSchedule_u64(
+  return vanilla::Query<uint64_t>::hasUniqueSchedule(
       getForwardEdgeMap_u64(sgId).fwdEdgesCompact, vanilla::VerifyEdges::No);
   return true;
 }

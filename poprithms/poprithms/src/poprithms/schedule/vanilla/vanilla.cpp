@@ -1,7 +1,18 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <algorithm>
+#include <array>
+#include <map>
+#include <random>
 #include <sstream>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 #include <schedule/vanilla/error.hpp>
+#include <schedule/vanilla/fifostack.hpp>
+#include <schedule/vanilla/filostack.hpp>
+#include <schedule/vanilla/kahn.hpp>
+#include <schedule/vanilla/randomstack.hpp>
 
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 
@@ -9,151 +20,126 @@ namespace poprithms {
 namespace schedule {
 namespace vanilla {
 
-namespace {
-
-template <typename T> bool valid(T x, uint64_t end) {
-  return x < static_cast<T>(end);
-}
-
-template <> bool valid(int64_t x, uint64_t end) {
-  return x >= 0 && static_cast<uint64_t>(x) < end;
-}
-
-template <typename T>
-void verifyEdges(const std::vector<std::vector<T>> &fwdEdges) {
-  const auto N = fwdEdges.size();
-  for (uint64_t start = 0; start < N; ++start) {
-    for (auto end : fwdEdges[start]) {
-      if (!valid<T>(end, N)) {
-        std::ostringstream oss;
-        oss << "Invalid edge (" << start << "->" << end << ") in graph with "
-            << N << " nodes. ";
-        throw error(oss.str());
-      }
-    }
-  }
-}
-
-template <typename T>
-std::vector<uint64_t>
-getOutstandingCount(const std::vector<std::vector<T>> &fwdEdges) {
-
-  const auto N = fwdEdges.size();
-
-  // Count the number of dependencies each Op has
-  std::vector<uint64_t> nOutstandingDeps(N, 0);
-  for (uint64_t from = 0; from < N; ++from) {
-    for (const auto to : fwdEdges[from]) {
-      ++nOutstandingDeps[to];
-    }
-  }
-  return nOutstandingDeps;
-}
-
-// Kahn's algorithm
-// https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
-template <typename T>
-std::vector<T> kahn(const std::vector<std::vector<T>> &fwdEdges,
-                    ErrorIfCycle eic,
-                    VerifyEdges ve) {
-
+template <typename TNode, typename Stack>
+bool isComplete(const Edges<TNode> &es, VerifyEdges ve) {
   if (ve == VerifyEdges::Yes) {
-    verifyEdges(fwdEdges);
+    verifyEdges(es);
   }
-
-  const auto N          = fwdEdges.size();
-  auto nOutstandingDeps = getOutstandingCount(fwdEdges);
-
-  // Get the Ops which have no dependencies: they're ready to go into the
-  // schedule.
-  std::vector<T> readyToSchedule;
-  for (uint64_t i = 0; i < N; ++i) {
-    if (nOutstandingDeps[i] == 0) {
-      readyToSchedule.push_back(i);
-    }
-  }
-
-  std::vector<T> schedule;
-  schedule.reserve(N);
-  while (!readyToSchedule.empty()) {
-    const auto nxt = readyToSchedule.back();
-    readyToSchedule.pop_back();
-    for (const auto to : fwdEdges[nxt]) {
-      --nOutstandingDeps[to];
-      if (nOutstandingDeps[to] == 0) {
-        readyToSchedule.push_back(to);
-      }
-    }
-    schedule.push_back(nxt);
-  }
-
-  if (eic == ErrorIfCycle::Yes && schedule.size() != N) {
-    std::ostringstream oss;
-    oss << "Only " << schedule.size() << " nodes of " << N
-        << " scheduled, there is a cycle in the Graph. ";
-    throw error(oss.str());
-  }
-  return schedule;
-}
-
-template <typename T>
-bool getHasUniqueSchedule(const Edges<T> &fwdEdges, VerifyEdges ve) {
-  if (ve == VerifyEdges::Yes) {
-    verifyEdges(fwdEdges);
-  }
-
-  const auto N          = fwdEdges.size();
-  auto nOutstandingDeps = getOutstandingCount(fwdEdges);
-
+  auto outstandingCount = getOutstandingCount(es);
   uint64_t nScheduled{0};
-
-  std::vector<T> schedulable;
-  for (uint64_t i = 0; i < N; ++i) {
-    if (nOutstandingDeps[i] == 0) {
-      schedulable.push_back(i);
+  Stack ready;
+  for (uint64_t i = 0; i < es.size(); ++i) {
+    if (outstandingCount[i] == 0) {
+      ready.push(i);
     }
   }
 
-  while (schedulable.size() == 1) {
-    const auto nxt = schedulable.back();
-    schedulable.pop_back();
+  // we keep scheduling while the stack is 'valid'. The definition of 'valid'
+  // depends on the task at hand.
+  while (ready.valid()) {
+    auto address = ready.pop();
     ++nScheduled;
-    for (const auto to : fwdEdges[nxt]) {
-      --nOutstandingDeps[to];
-      if (nOutstandingDeps[to] == 0) {
-        schedulable.push_back(to);
+    for (auto cAddress : es[address]) {
+      --outstandingCount[cAddress];
+      if (outstandingCount[cAddress] == 0) {
+        ready.push(cAddress);
       }
     }
   }
 
-  if (nScheduled == N) {
-    return true;
-  }
-  return false;
+  return es.size() == nScheduled;
 }
 
-} // namespace
+template <class TNode> struct BaseQueryStack {
+public:
+  void push(TNode t) { ready.push_back(t); }
+  TNode pop() {
+    auto x = ready.back();
+    ready.pop_back();
+    return x;
+  }
 
-std::vector<uint64_t>
-getSchedule_u64(const std::vector<std::vector<uint64_t>> &fwdEdges,
-                ErrorIfCycle eic,
-                VerifyEdges ve) {
-  return kahn<uint64_t>(fwdEdges, eic, ve);
+  std::vector<TNode> ready;
+};
+
+// For checking if a graph is schedulable, we don't stop scheduling til the
+// stack is empty.
+template <class TNode>
+struct IsSchedulableStack : public BaseQueryStack<TNode> {
+  bool valid() const { return !this->ready.empty(); }
+};
+
+template <typename TNode>
+bool Query<TNode>::isSchedulable(const Edges<TNode> &es, VerifyEdges ve) {
+  return isComplete<TNode, IsSchedulableStack<TNode>>(es, ve);
+}
+
+// For checking if a graph is uniquely schedulable, we stop scheduling as soon
+// as either the stack is empty, or it has more than one node in it. More than
+// one node implies more than more possible schedule.
+template <class TNode>
+struct HasUniqueSchedule : public BaseQueryStack<TNode> {
+public:
+  bool valid() const { return this->ready.size() == 1; }
+};
+
+template <typename TNode>
+bool Query<TNode>::hasUniqueSchedule(const Edges<TNode> &fwdEdges,
+                                     VerifyEdges ve) {
+  return isComplete<TNode, HasUniqueSchedule<TNode>>(fwdEdges, ve);
+}
+
+template <typename TNode, typename TPriority>
+std::vector<TNode> Scheduler<TNode, TPriority>::filo(
+    const Edges<TNode> &fwdEdges,
+    const Priorities<TNode, TPriority> &priorities,
+    const Links<TNode> &links,
+    ErrorIfCycle eic,
+    VerifyEdges ve) {
+  return filo::kahn<TNode, TPriority>(fwdEdges, priorities, links, eic, ve);
+}
+
+template <typename TNode, typename TPriority>
+std::vector<TNode> Scheduler<TNode, TPriority>::fifo(
+    const Edges<TNode> &fwdEdges,
+    const Priorities<TNode, TPriority> &priorities,
+    const Links<TNode> &links,
+    ErrorIfCycle eic,
+    VerifyEdges ve) {
+  return fifo::kahn<TNode, TPriority>(fwdEdges, priorities, links, eic, ve);
+}
+
+template <typename TNode, typename TPriority>
+std::vector<TNode> Scheduler<TNode, TPriority>::random(
+    const Edges<TNode> &fwdEdges,
+    const Priorities<TNode, TPriority> &priorities,
+    const Links<TNode> &links,
+    uint32_t seed,
+    ErrorIfCycle eic,
+    VerifyEdges ve) {
+  return random::kahn<TNode, TPriority>(
+      fwdEdges, priorities, links, seed, eic, ve);
 }
 
 std::vector<int64_t>
 getSchedule_i64(const std::vector<std::vector<int64_t>> &fwdEdges,
                 ErrorIfCycle eic,
                 VerifyEdges ve) {
-  return kahn<int64_t>(fwdEdges, eic, ve);
+  return Scheduler<int64_t, double>::filo(fwdEdges, {}, {}, eic, ve);
 }
 
-bool hasUniqueSchedule_u64(const Edges<uint64_t> &fwdEdges, VerifyEdges ve) {
-  return getHasUniqueSchedule<uint64_t>(fwdEdges, ve);
+std::vector<uint64_t>
+getSchedule_u64(const std::vector<std::vector<uint64_t>> &fwdEdges,
+                ErrorIfCycle eic,
+                VerifyEdges ve) {
+  return Scheduler<uint64_t, double>::filo(fwdEdges, {}, {}, eic, ve);
 }
-bool hasUniqueSchedule_i64(const Edges<int64_t> &fwdEdges, VerifyEdges ve) {
-  return getHasUniqueSchedule<int64_t>(fwdEdges, ve);
-}
+
+template class Query<int64_t>;
+template class Query<uint64_t>;
+
+template class Scheduler<int64_t, double>;
+template class Scheduler<uint64_t, double>;
 
 } // namespace vanilla
 } // namespace schedule
