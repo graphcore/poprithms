@@ -10,6 +10,7 @@
 #include <schedule/shift/allocsimplifier.hpp>
 #include <schedule/shift/error.hpp>
 #include <schedule/shift/transitiveclosureoptimizer.hpp>
+#include <schedule/vanilla/greedystack.hpp>
 
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/shift/filteredschedule.hpp>
@@ -19,6 +20,7 @@
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/shift/solutioncache.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
+#include <poprithms/schedule/vanilla/vanilla.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
@@ -48,7 +50,105 @@ namespace shift {
 
 class Settings;
 
+bool ScheduledGraph::linklessIsSchedulable(const Graph &g) {
+  return vanilla::Query<uint64_t>::isSchedulable(g.getFwdEdges_u64(),
+                                                 vanilla::VerifyEdges::No);
+}
 namespace {
+
+std::vector<OpAddress>
+kahn(const Graph &graph, const KahnTieBreaker ktb, const uint32_t seed) {
+
+  auto getSchedule = [&graph, &ktb, &seed](vanilla::ErrorIfCycle eic) {
+    // Priorities will be brought in a later diff (coming soon).
+    std::vector<std::tuple<uint64_t, double>> priorities{};
+
+    const auto opsWithFwdLinks = graph.getOpsWithFwdLinks();
+
+    std::vector<std::array<OpAddress, 2>> links;
+    links.reserve(opsWithFwdLinks.size());
+
+    for (const auto &op : opsWithFwdLinks) {
+      links.push_back({op, graph.getOp(op).getForwardLink()});
+    }
+
+    switch (ktb) {
+    case KahnTieBreaker::FIFO: {
+      return vanilla::Scheduler<uint64_t, double>::filo(
+          graph.getForwardEdges(),
+          priorities,
+          links,
+          eic,
+          vanilla::VerifyEdges::No);
+    }
+    case KahnTieBreaker::GREEDY: {
+
+      std::vector<AllocWeight> allocSizes;
+      std::vector<std::vector<uint64_t>> allocsToOps;
+      for (auto x : graph.getAllocs()) {
+        allocSizes.push_back(x.getWeight());
+        allocsToOps.push_back(x.getOps());
+      }
+
+      return vanilla::greedy::kahn<uint64_t, double, AllocWeight>(
+          graph.getFwdEdges_u64(),
+          priorities,
+          links,
+          allocSizes,
+          allocsToOps,
+          eic,
+          vanilla::VerifyEdges::No);
+    }
+    case KahnTieBreaker::RANDOM: {
+      return vanilla::Scheduler<uint64_t, double>::random(
+          graph.getForwardEdges(),
+          priorities,
+          links,
+          seed,
+          eic,
+          vanilla::VerifyEdges::No);
+    }
+    default: {
+      throw error("Unrecognised KahnTieBreaker.");
+    }
+    }
+  };
+
+  auto sch = getSchedule(vanilla::ErrorIfCycle::No);
+
+  // id not all ops are scheduled, there is a cycle in the graph.
+  if (sch.size() != graph.nOps()) {
+
+    log().info("Failed to schedule all Ops, obtaining summary.");
+
+    // if the graph has links in it, we throw an error directly from the
+    // vanilla scheduler (which provides better diagnostics in this case).
+    if (graph.getOpsWithFwdLinks().size() != 0) {
+      auto sch2 = getSchedule(vanilla::ErrorIfCycle::Yes);
+      // this point should not be reached.
+      throw error(
+          "Failed to schedule graph with links in it, cycle detected.");
+    }
+
+    std::vector<std::string> dbs;
+    dbs.reserve(graph.nOps());
+    for (uint64_t i = 0; i < graph.nOps(); ++i) {
+      dbs.push_back(graph.getOp(i).getDebugString());
+    }
+
+    std::ostringstream oss;
+    oss << "Only " << sch.size() << " of " << graph.nOps()
+        << " were scheduled, there is a cycle in the Graph."
+        << " The non-singleton strongly connected components, "
+        << "in topological order, are:"
+        << scc::getSummary(
+               graph.getFwdEdges_u64(), dbs, scc::IncludeSingletons::No);
+
+    throw error(oss.str());
+  }
+
+  return sch;
+}
 
 template <typename T>
 void rotate(T &t, ScheduleIndex x0, ScheduleIndex o0, ScheduleIndex o1) {
@@ -547,141 +647,6 @@ ScheduledGraph::getBestShiftSimpleAlgo(const ScheduleIndex start0,
   return {bestShift, bestTotal - currentTotal};
 }
 
-std::vector<OpAddress>
-ScheduledGraph::linklessKahn(const Graph &g,
-                             const KahnTieBreaker kahnTie,
-                             const uint32_t seed) {
-
-  std::vector<OpAddress> sch;
-
-  sch.reserve(g.nOps());
-  sch.clear();
-
-  std::vector<OpAddress> outstanding;
-  outstanding.reserve(g.nOps());
-  std::vector<OpAddress> ready;
-  for (OpAddress i = 0; i < g.nOps(); ++i) {
-    outstanding.push_back(g.getOp(i).nIns());
-    if (outstanding[i] == 0) {
-      ready.push_back(i);
-    }
-  }
-
-  std::mt19937 gen(seed);
-
-  if (kahnTie == KahnTieBreaker::RANDOM) {
-    while (!ready.empty()) {
-      std::shuffle(ready.begin(), ready.end(), gen);
-      OpAddress address = ready.back();
-      sch.push_back(address);
-      ready.pop_back();
-      for (auto cAddress : g.getOp(address).getOuts()) {
-        --outstanding[cAddress];
-        if (outstanding[cAddress] == 0) {
-          ready.push_back(cAddress);
-        }
-      }
-    }
-  }
-
-  else if (kahnTie == KahnTieBreaker::FIFO) {
-    while (!ready.empty()) {
-      OpAddress address = ready.back();
-      sch.push_back(address);
-      ready.pop_back();
-      for (auto cAddress : g.getOp(address).getOuts()) {
-        --outstanding[cAddress];
-        if (outstanding[cAddress] == 0) {
-          ready.push_back(cAddress);
-        }
-      }
-    }
-  }
-
-  // GREEDY
-  else if (kahnTie == KahnTieBreaker::GREEDY) {
-
-    std::vector<int> nOutstandingForAlloc(g.nAllocs());
-    std::vector<bool> allocLive(g.nAllocs(), false);
-    for (const auto &alloc : g.getAllocs()) {
-      nOutstandingForAlloc[alloc.getAddress()] = alloc.nOps_i32();
-    }
-
-    auto deltaLive = [&g, &nOutstandingForAlloc, &allocLive](OpAddress a) {
-      AllocWeight delta{0};
-      for (auto allocAddress : g.getOp(a).getAllocs()) {
-        const auto allocWeight = g.getAlloc(allocAddress).getWeight();
-        if (nOutstandingForAlloc[allocAddress] == 1) {
-          delta -= allocWeight;
-        }
-        if (!allocLive[allocAddress]) {
-          delta += allocWeight;
-        }
-      }
-      return delta;
-    };
-
-    while (!ready.empty()) {
-      std::shuffle(ready.begin(), ready.end(), gen);
-
-      auto bestIter         = ready.cbegin();
-      AllocWeight bestDelta = deltaLive(*bestIter);
-
-      for (auto i = std::next(ready.cbegin(), 1); i != ready.cend(); ++i) {
-        auto candidateDelta = deltaLive(*i);
-        if (candidateDelta < bestDelta) {
-          bestIter  = i;
-          bestDelta = candidateDelta;
-        }
-      }
-      auto address = *bestIter;
-      sch.push_back(address);
-      ready.erase(bestIter);
-      for (auto allocAddress : g.getOp(address).getAllocs()) {
-        --nOutstandingForAlloc[allocAddress];
-        if (nOutstandingForAlloc[allocAddress] == 0) {
-          allocLive[allocAddress] = false;
-        } else {
-          allocLive[allocAddress] = true;
-        }
-      }
-
-      for (auto cAddress : g.getOp(address).getOuts()) {
-        --outstanding[cAddress];
-        if (outstanding[cAddress] == 0) {
-          ready.push_back(cAddress);
-        }
-      }
-    }
-  }
-
-  else {
-    throw error("unrecognised KahnTieBreaker");
-  }
-
-  if (sch.size() != g.nOps()) {
-    log().info("Failed to schedule all Ops, obtaining summary.");
-
-    std::vector<std::string> dbs;
-    dbs.reserve(g.nOps());
-    for (uint64_t i = 0; i < g.nOps(); ++i) {
-      dbs.push_back(g.getOp(i).getDebugString());
-    }
-
-    std::ostringstream oss;
-    oss << "Only " << sch.size() << " of " << g.nOps()
-        << " were scheduled, there is a cycle in the Graph."
-        << " The non-singleton strongly connected components, "
-        << "in topological order, are:"
-        << scc::getSummary(
-               g.getFwdEdges_u64(), dbs, scc::IncludeSingletons::No);
-
-    throw error(oss.str());
-  }
-
-  return sch;
-}
-
 //
 // Sets `schToOp` from the merged child graph of `merged`.
 //
@@ -704,51 +669,6 @@ std::vector<OpAddress> ScheduledGraph::getScheduleFromMergedChild(
   }
 
   return sch;
-}
-
-std::vector<OpAddress> ScheduledGraph::kahn(const Graph &graph,
-                                            const KahnTieBreaker kahnTie,
-                                            const uint32_t seed) {
-  auto opsWithFwdLinks = graph.getOpsWithFwdLinks();
-  if (!opsWithFwdLinks.empty()) {
-    auto merged      = graph.getLinkMerged();
-    auto &childGraph = std::get<0>(merged);
-
-    auto childSchedule = linklessKahn(childGraph, kahnTie, seed);
-    return getScheduleFromMergedChild(merged, childSchedule);
-
-  } else {
-    return linklessKahn(graph, kahnTie, seed);
-  }
-}
-
-bool ScheduledGraph::linklessIsSchedulable(const Graph &g) {
-
-  std::vector<OpAddress> outstanding;
-  outstanding.reserve(g.nOps());
-  std::vector<OpAddress> ready;
-  for (OpAddress i = 0; i < g.nOps(); ++i) {
-    outstanding.push_back(g.getOp(i).nIns());
-    if (outstanding[i] == 0) {
-      ready.push_back(i);
-    }
-  }
-
-  int nScheduled{0};
-
-  while (!ready.empty()) {
-    OpAddress address = ready.back();
-    ++nScheduled;
-    ready.pop_back();
-    for (auto cAddress : g.getOp(address).getOuts()) {
-      --outstanding[cAddress];
-      if (outstanding[cAddress] == 0) {
-        ready.push_back(cAddress);
-      }
-    }
-  }
-
-  return nScheduled == g.nOps_i32();
 }
 
 AllocWeight ScheduledGraph::getMaxLiveness() const {

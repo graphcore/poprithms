@@ -207,13 +207,6 @@ private:
   template <typename T>
   ScheduleIndex getExtremaIndexWithNonUniqueSolution() const;
 
-  // kahn will merge any links then call linkless khan.
-  static std::vector<OpAddress>
-  kahn(const Graph &, KahnTieBreaker, uint32_t seed);
-
-  static std::vector<OpAddress>
-  linklessKahn(const Graph &, KahnTieBreaker, uint32_t kahnSeen);
-
   static std::vector<OpAddress>
   getScheduleFromMergedChild(const Graph::OpMerged &merged,
                              const std::vector<OpAddress> &childSchedule);
