@@ -7,6 +7,8 @@
 #include <set>
 #include <sstream>
 
+#include <schedule/vanilla/greedystack.hpp>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -427,6 +429,28 @@ void randomSoak() {
         edges, pris, links, 1011, ErrorIfCycle::Yes, VerifyEdges::Yes));
     assertValid(Scheduler<int64_t, double>::fifo(
         edges, pris, links, ErrorIfCycle::Yes, VerifyEdges::Yes));
+
+    // greedy allocation minimizing scheduler.
+    uint64_t nAllocs        = 1ull + (nOps % 2 == 1);
+    uint64_t maxOpsPerAlloc = 5;
+    std::vector<int> allocSizes{};
+    std::vector<std::vector<int64_t>> allocsToNodes{};
+    if (run % 2 != 0) {
+      for (uint64_t i = 0; i < nAllocs; ++i) {
+        allocSizes.push_back(rng() % 100);
+        allocsToNodes.push_back({});
+        for (uint64_t j = 0; j < 1 + j % maxOpsPerAlloc; ++j) {
+          allocsToNodes.back().push_back(rng() % nOps);
+        }
+      }
+    }
+    assertValid(greedy::kahn<int64_t, double, int>(edges,
+                                                   pris,
+                                                   links,
+                                                   allocSizes,
+                                                   allocsToNodes,
+                                                   ErrorIfCycle::Yes,
+                                                   VerifyEdges::Yes));
   }
 }
 
