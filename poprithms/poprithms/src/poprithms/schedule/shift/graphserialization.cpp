@@ -94,6 +94,7 @@ Graph fromSerializationString(const std::string &serialization) {
   // Map index in data from boost data-structure to OpAddresses,
   // AllocAddresses
   constexpr auto UnsetIndex = std::numeric_limits<uint64_t>::max();
+
   std::vector<uint64_t> opToInd(opAddresses.size(), UnsetIndex);
   for (uint64_t i = 0; i < opAddresses.size(); ++i) {
     if (opAddresses[i] >= opAddresses.size() ||

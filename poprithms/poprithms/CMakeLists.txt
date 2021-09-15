@@ -8,13 +8,7 @@ if (${POPRITHMS_WERROR})
 endif ()
 
 
-# The header only components don't need to be listed after COMPONENTS. 
-find_package(Boost REQUIRED COMPONENTS filesystem system)
-# Moreover, these lines are not needed while all boost deps are header only;
-# set(Boost_USE_STATIC_LIBS ON); set(Boost_USE_STATIC_RUNTIME ON)
-message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
 
-find_package(Threads REQUIRED)
 
 set(src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms)
 
@@ -332,14 +326,6 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
-list(APPEND POPRITHMS_COMMON_INCLUDES ${Boost_INCLUDE_DIR})
-
-set(POPRITHMS_COMMON_LIBRARIES ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-
-if (${POPRITHMS_USE_STACKTRACE})
-  # Boost stacktrace requires linking with libdl
-  list(APPEND POPRITHMS_COMMON_LIBRARIES ${CMAKE_DL_LIBS})
-endif()
 
 foreach(tgt IN ITEMS
   poprithms-common-multiout-objlib

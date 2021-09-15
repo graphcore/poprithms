@@ -1,7 +1,7 @@
 # Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 # This test checks through all the header files it can find
 # in the argument path and checks the files "#include"
-# statments for boost headers.
+# statments for boost and llvm headers.
 # Usage:
 #   python3 boost_free_interface_test.py path_to_include_folder
 import sys
@@ -9,18 +9,11 @@ from pathlib import Path
 from itertools import chain
 
 
-def parse_include(line):
-    fname = line.split()[1]
-    fname = fname.strip()
-    fname = fname[1:-1]
-    return fname
-
-
 def get_includes(path):
     with path.open() as f:
         for line in f:
             if line.startswith('#include '):
-                yield parse_include(line)
+                yield line.strip()
 
 
 def get_headers(include_path):
@@ -52,9 +45,18 @@ def main():
         for include in get_includes(header):
             includes.add(include)
 
+    nPoprithms = 0
+
     for include in includes:
-        print(f'Checking included file "{include}"')
-        assert 'boost' not in include
+        print(f'Checking include line "{include}"')
+        assert 'boost/' not in include
+        assert 'llvm/' not in include
+        assert 'mlir/' not in include
+        nPoprithms += ('<poprithms/' in include)
+
+    print('Found', nPoprithms, 'includes with "<poprithms/" in the line')
+    # If no headers starting <popriths/ were found, there is an error.
+    assert nPoprithms > 0
 
 
 if __name__ == '__main__':

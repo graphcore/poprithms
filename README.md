@@ -5,6 +5,7 @@ Poprithms is a graph algorithms library used by ML frameworks. Algorithm specifi
 ### Prerequisites for building
 
 * Boost, any version. 
+* LLVM, any version. 
 
 ### Configure with cmake 
 
