@@ -86,9 +86,18 @@ public:
       RotationTermination rt         = Settings::defaultRotationTermination(),
       RotationAlgo algo              = Settings::defaultRotationAlgo(),
       uint32_t seed                  = Settings::defaultSeed(),
-      DebugMode dm                   = Settings::defaultDebugMode());
+      const ISummaryWriter &summaryWriter = FileWriter::None(),
+      DebugMode dm                        = Settings::defaultDebugMode());
 
-  ScheduledGraph(Graph &&, const Settings &);
+  ScheduledGraph(const ScheduledGraph &) = default;
+  ScheduledGraph(ScheduledGraph &&)      = default;
+
+  ScheduledGraph &operator=(const ScheduledGraph &) = default;
+  ScheduledGraph &operator=(ScheduledGraph &&) = default;
+
+  ScheduledGraph(Graph &&,
+                 const Settings &,
+                 const ISummaryWriter &summaryWriter = FileWriter::None());
 
   /**
    * \deprecated {This constructor has been replaced with the factory method,
@@ -104,7 +113,7 @@ public:
   static ScheduledGraph
   fromCache(Graph &&,
             const Settings &,
-            const ISummaryWriter & = SummaryWriter::Default(),
+            const ISummaryWriter & = FileWriter::Default(),
             const ISolutionCache * = nullptr,
             ISolutionCache *       = nullptr);
 
@@ -195,8 +204,11 @@ private:
   void
   initialize(KahnTieBreaker, uint32_t seed, TransitiveClosureOptimizations);
 
-  void
-  greedyRotate(RotationAlgo, DebugMode, uint32_t seed, RotationTermination);
+  void greedyRotate(RotationAlgo,
+                    DebugMode,
+                    uint32_t seed,
+                    RotationTermination,
+                    const ISummaryWriter &);
 
   // Return true if there are no linked Ops which would be disconnected by a
   // shift of Ops
@@ -206,10 +218,6 @@ private:
 
   template <typename T>
   ScheduleIndex getExtremaIndexWithNonUniqueSolution() const;
-
-  static std::vector<OpAddress>
-  getScheduleFromMergedChild(const Graph::OpMerged &merged,
-                             const std::vector<OpAddress> &childSchedule);
 
   void confirmShiftAndCost(ScheduleIndex start0,
                            int nToShift,
@@ -268,6 +276,11 @@ private:
 
   void setSchToLiveness();
 
+public:
+  // For every schedule position, the liveness.
+  std::vector<AllocWeight> getSchToLiveness() const;
+
+private:
   void setOpToInSch(OpAddress);
 
   void setOpToOutSch(OpAddress);
@@ -323,8 +336,7 @@ private:
   TimeLogger &timeLogger() { return swatch_; }
   TimeLogger swatch_;
 
-public:
-  const TimeLogger &timeLogger() const { return swatch_; }
+  const TimeLogger &getTimeLogger() const { return swatch_; }
 };
 
 } // namespace shift

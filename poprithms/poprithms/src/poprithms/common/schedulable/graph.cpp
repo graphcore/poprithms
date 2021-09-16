@@ -325,6 +325,7 @@ getRandomSchedule(const std::vector<std::vector<uint64_t>> &fwd,
       RotationTermination::preStart(),
       RotationAlgo::RIPPLE,
       seed,
+      FileWriter::None(),
       DebugMode::Off);
 
   std::vector<uint64_t> schedule(fwd.size());

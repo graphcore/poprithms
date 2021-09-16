@@ -34,6 +34,7 @@ int main() {
                       {timeLimitSeconds, swapLimitCount},
                       RotationAlgo::RIPPLE,
                       seed,
+                      FileWriter::None(),
                       DebugMode::On);
 
     livenesses.push_back(sg.getSumLiveness());

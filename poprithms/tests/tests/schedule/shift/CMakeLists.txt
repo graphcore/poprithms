@@ -1,7 +1,8 @@
 function(add_shift_test_executable name source)
   add_executable(${name} ${source})
-  target_link_libraries(${name} poprithms-schedule-shift schedule-test-util)
+  target_link_libraries(${name} poprithms-schedule-shift schedule-test-util ${POPRITHMS_COMMON_LIBRARIES})
   target_include_directories (${name} PRIVATE ${poprithms_src_dir}/poprithms)
+  target_include_directories (${name} SYSTEM PRIVATE ${POPRITHMS_COMMON_INCLUDES})
 
 endfunction()
 
@@ -93,6 +94,9 @@ add_shift_test(schedule_shift_alloc_partitioned_bins_0
 
 add_shift_test(schedule_shift_summary_writer_0
                                  summary_writer_0.cpp)
+
+add_shift_test(schedule_shift_summary_writer_1
+                              summary_writer_1.cpp)
 
 configure_file(testgraph0.json.in testgraph0.json COPYONLY)
 add_shift_test(schedule_shift_serialization_fromfile0 

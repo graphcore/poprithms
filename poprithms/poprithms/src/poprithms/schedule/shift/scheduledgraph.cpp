@@ -647,30 +647,6 @@ ScheduledGraph::getBestShiftSimpleAlgo(const ScheduleIndex start0,
   return {bestShift, bestTotal - currentTotal};
 }
 
-//
-// Sets `schToOp` from the merged child graph of `merged`.
-//
-// For each op in the child schedule, looks up the ops it was merged from in
-// the parent graph, using `childToParents` from `merged`, and adds them to
-// the parent schedule.
-std::vector<OpAddress> ScheduledGraph::getScheduleFromMergedChild(
-    const Graph::OpMerged &merged,
-    const std::vector<OpAddress> &childSchedule) {
-
-  std::vector<OpAddress> sch;
-  const auto &childGraph     = std::get<0>(merged);
-  const auto &childToParents = std::get<1>(merged);
-
-  for (ScheduleIndex i = 0; i < childGraph.nOps_i32(); ++i) {
-    const auto childAddress = childSchedule.at(i);
-    sch.insert(sch.end(),
-               childToParents[childAddress].cbegin(),
-               childToParents[childAddress].cend());
-  }
-
-  return sch;
-}
-
 AllocWeight ScheduledGraph::getMaxLiveness() const {
   if (schToLiveness.empty()) {
     throw error(
@@ -1208,14 +1184,20 @@ void ScheduledGraph::updateNCanBwds(
   }
 }
 
-void ScheduledGraph::setSchToLiveness() {
-  schToLiveness.reserve(nOps());
-  schToLiveness.clear();
+std::vector<AllocWeight> ScheduledGraph::getSchToLiveness() const {
+  std::vector<AllocWeight> s2l;
+  s2l.reserve(nOps());
+  s2l.clear();
   auto deltaLiveness = getDeltaLiveness();
-  schToLiveness.push_back(deltaLiveness[0]);
+  s2l.push_back(deltaLiveness[0]);
   for (uint64_t i = 0; i < nOps(); ++i) {
-    schToLiveness.push_back(schToLiveness.back() + deltaLiveness[i + 1]);
+    s2l.push_back(s2l.back() + deltaLiveness[i + 1]);
   }
+  return s2l;
+}
+
+void ScheduledGraph::setSchToLiveness() {
+  schToLiveness = getSchToLiveness();
 }
 
 bool ScheduledGraph::isSchedulable(const Graph &g) {
@@ -1474,7 +1456,7 @@ void ScheduledGraph::confirmShiftAndCost(const ScheduleIndex start0,
 
 ScheduledGraph ScheduledGraph::fromCache(Graph &&graph,
                                          const Settings &settings,
-                                         const ISummaryWriter &summaryWriter,
+                                         const ISummaryWriter &summaryWriter_,
                                          const ISolutionCache *readCache,
                                          ISolutionCache *writeCache) {
 
@@ -1498,13 +1480,7 @@ ScheduledGraph ScheduledGraph::fromCache(Graph &&graph,
   // graph.
   auto g0 = graph;
 
-  auto soln = ScheduledGraph(std::move(graph), settings);
-
-  constexpr double thresholdPercentage{0.0};
-  summaryWriter.write(g0,
-                      soln.getGraph(),
-                      soln.timeLogger().sinceConstruction(),
-                      soln.timeLogger().str(thresholdPercentage));
+  auto soln = ScheduledGraph(std::move(graph), settings, summaryWriter_);
 
   if (writeCache) {
     std::vector<OpAddress> inputGraphAdds(g0.nOps());
@@ -1516,13 +1492,18 @@ ScheduledGraph ScheduledGraph::fromCache(Graph &&graph,
   return soln;
 }
 
+// This will be deprecated
+const ISummaryWriter &getDefaultSummaryWriter() {
+  static FileWriter rp = FileWriter::None();
+  return rp;
+}
+
 // This is a deprecated constructor.
 ScheduledGraph::ScheduledGraph(Graph &&g,
                                const Settings &s,
                                const ISolutionCache *a,
                                ISolutionCache *b) {
-
-  auto sg       = fromCache(std::move(g), s, SummaryWriter::Default(), a, b);
+  auto sg       = fromCache(std::move(g), s, FileWriter::Default(), a, b);
   rippleScratch = std::move(sg.rippleScratch);
   graph         = std::move(sg.graph);
   schToOp       = std::move(sg.schToOp);
@@ -1537,30 +1518,52 @@ ScheduledGraph::ScheduledGraph(Graph &&g,
   swatch_       = std::move(sg.swatch_);
 }
 
-ScheduledGraph::ScheduledGraph(Graph &&g0, const Settings &settings)
+ScheduledGraph::ScheduledGraph(Graph &&gInitial,
+                               const Settings &settings,
+                               const ISummaryWriter &summaryWriter)
     : swatch_(std::string("ScheduledGraphTimeLogger")) {
 
   const auto stopwatch =
       timeLogger().scopedStopwatch("ScheduledGraph::ScheduledGraph");
 
-  graph = std::move(g0);
+  const auto mightRequireInitialGraph = summaryWriter.mightWrite(gInitial);
+  if (mightRequireInitialGraph) {
+    graph = gInitial;
+  } else {
+    graph = std::move(gInitial);
+  }
 
   initialize(settings.kahnTieBreaker(), settings.seed(), settings.tcos());
   greedyRotate(settings.rotationAlgo(),
                settings.debugMode(),
                settings.seed(),
-               settings.rotationTermination());
+               settings.rotationTermination(),
+               summaryWriter);
 
-  {
-    constexpr double thresholdPercentage{0.0};
-    log().info("Breakdown of the time spent scheduling this graph:\n" +
-               timeLogger().str(thresholdPercentage));
+  constexpr double thresholdPercentage{0.0};
+
+  std::ostringstream oss;
+  oss << "Breakdown of the time spent scheduling the provided graph:\n"
+      << timeLogger().str(thresholdPercentage);
+
+  const auto summaryString = oss.str();
+  log().info(summaryString);
+
+  if (mightRequireInitialGraph &&
+      summaryWriter.willWrite(gInitial,
+                              getTimeLogger().sinceConstruction())) {
+    summaryWriter.write(gInitial,
+                        getGraph(),
+                        getTimeLogger().sinceConstruction(),
+                        summaryString);
   }
+
+  summaryWriter.writeFinalSchedule(schToOp);
 }
 
 ScheduledGraph::ScheduledGraph(Graph &&g,
                                const std::map<std::string, std::string> &m)
-    : ScheduledGraph(std::move(g), Settings(m)) {}
+    : ScheduledGraph(std::move(g), Settings(m), FileWriter::None()) {}
 
 ScheduledGraph::ScheduledGraph(Graph &&g,
                                const KahnTieBreaker ktb,
@@ -1568,16 +1571,21 @@ ScheduledGraph::ScheduledGraph(Graph &&g,
                                const RotationTermination rt,
                                const RotationAlgo algo,
                                const uint32_t seed,
+                               const ISummaryWriter &summaryWriter_,
                                const DebugMode debugMode)
     : ScheduledGraph(std::move(g),
-                     Settings(ktb, tco, rt, algo, seed, debugMode)) {}
+                     Settings(ktb, tco, rt, algo, seed, debugMode),
+                     summaryWriter_) {}
 
 void ScheduledGraph::greedyRotate(RotationAlgo algo,
                                   DebugMode debugMode,
                                   uint32_t seed,
-                                  RotationTermination rt) {
+                                  RotationTermination rt,
+                                  const ISummaryWriter &summaryWriter) {
 
   const auto stopwatch = timeLogger().scopedStopwatch("greedyRotate");
+
+  summaryWriter.appendLivenessProfile(*this);
 
   if (log().shouldLog(logging::Level::Debug)) {
     std::ostringstream oss0;
@@ -1612,17 +1620,16 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
   int nChangesInCurrentRound{0};
   AllocWeight deltaWeightCurrentRound{0};
 
-  // there have been no-recorded improvements since last at nToShift = 1
-  bool noChangeSinceStart{true};
+  int64_t nChangesInTotal{0};
+  int64_t nResetsToOne{0};
+  int64_t nShiftingRounds{0};
 
   // one "shift" phase can consist of multple "rounds"
   double timeSpentInCurrentRound{0.0};
   double timeSpentInTotal{0.0};
 
-  int64_t nChangesInTotal{0};
-
-  int64_t nResetsToOne{0};
-  int64_t nShiftingRounds{0};
+  // there have been no-recorded improvements since last at nToShift = 1
+  bool noChangeSinceStart{true};
 
   std::vector<OpAddress> allOpAddresses(nOps());
 

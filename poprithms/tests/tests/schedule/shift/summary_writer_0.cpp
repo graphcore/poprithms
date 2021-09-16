@@ -27,7 +27,6 @@ ScheduledGraph get(Graph g0, const ISummaryWriter &iSum) {
                Settings::defaultRotationTermination(),
                RotationAlgo::RIPPLE,
                1011),
-      // DebugMode::Off,
       iSum,
       nullptr,
       nullptr);
@@ -37,7 +36,7 @@ ScheduledGraph get(Graph g0, const ISummaryWriter &iSum) {
 void test0() {
   bool caught{false};
   try {
-    SummaryWriter("non-existent-directory");
+    FileWriter("non-existent-directory");
   } catch (const poprithms::error::error &e) {
     if (e.code() != poprithms::error::Code(12345)) {
       throw poprithms::test::error("Caught the wrong poprithms error");
@@ -50,7 +49,7 @@ void test0() {
 }
 
 // Test: empty-string directory name is valid.
-void test1() { SummaryWriter({}, 0); }
+void test1() { FileWriter({}, 0); }
 
 class MockWriter : public ISummaryWriter {
 public:
@@ -58,8 +57,9 @@ public:
   // just records the requests to write Graphs.
   void write(const Graph &g0,
              const Graph &g1,
-             double,
+             double totalTime,
              const std::string &additional) const final {
+    (void)totalTime;
     if (mustWrite) {
       g0s.push_back(g0);
       g1s.push_back(g1);
@@ -67,7 +67,24 @@ public:
     }
   }
 
+  bool mightWrite(const Graph & /* fromUser */) const final {
+    return mustWrite;
+  }
+
+  bool willWrite(const Graph &, /* fromUser */
+                 double /* totalTime */) const final {
+    return mustWrite;
+  }
+
   MockWriter(bool mustWrite_) : mustWrite(mustWrite_) {}
+
+  void appendLivenessProfile(const ScheduledGraph &) const final {}
+
+  void appendScheduleChange(const ScheduleChange &) const final {}
+
+  void writeInitialSchedule(const std::vector<OpAddress> &) const final {}
+
+  void writeFinalSchedule(const std::vector<OpAddress> &) const final {}
 
   bool mustWrite;
 

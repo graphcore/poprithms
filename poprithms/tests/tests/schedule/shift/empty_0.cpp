@@ -18,6 +18,7 @@ int main() {
                       RotationTermination::nHours(10),
                       RotationAlgo::RIPPLE,
                       1011,
+                      FileWriter::None(),
                       DebugMode::On);
   }
   return 0;
