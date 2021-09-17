@@ -1287,29 +1287,13 @@ ScheduledGraph::getBestShiftRippleAlgo(const ScheduleIndex start,
 
 std::string ScheduledGraph::getLivenessString() const {
 
-  std::vector<std::string> sIndex{"Index", "====="};
-  std::vector<std::string> sIns{"Ins", "==="};
-  std::vector<std::string> sLinkTo{"LinkTo", "======"};
-  std::vector<std::string> sOuts{"Outs", "===="};
-  std::vector<std::string> sAllocs{"Allocs", "======="};
-  std::vector<std::string> sLiveness{"Liveness", "========"};
-  std::vector<std::string> sName{"Name", "===="};
-
-  auto spcStr = [](uint64_t provision, const std::string &x) {
-    uint64_t l = provision > x.size() ? provision - x.size() : 1;
-    return std::string(l, ' ');
-  };
-
-  auto getProvision = [](const std::vector<std::string> &x) {
-    return 1 + std::min<uint64_t>(
-                   30, // never provision more space than this
-                   std::accumulate(x.cbegin(),
-                                   x.cend(),
-                                   0UL,
-                                   [](uint64_t a, const std::string &b) {
-                                     return std::max<uint64_t>(a, b.size());
-                                   }));
-  };
+  std::vector<std::string> sIndex;
+  std::vector<std::string> sIns;
+  std::vector<std::string> sLinkTo;
+  std::vector<std::string> sOuts;
+  std::vector<std::string> sAllocs;
+  std::vector<std::string> sLiveness;
+  std::vector<std::string> sName;
 
   for (uint64_t i = 0; i < nOps(); ++i) {
 
@@ -1336,31 +1320,15 @@ std::string ScheduledGraph::getLivenessString() const {
     sName.push_back(ossName.str());
   }
 
-  uint64_t provIndex    = getProvision(sIndex);
-  uint64_t provLiveness = getProvision(sLiveness);
-  uint64_t provIns      = getProvision(sIns);
-  uint64_t provLinkTo   = getProvision(sLinkTo);
-  uint64_t provOuts     = getProvision(sOuts);
-  uint64_t provAllocs   = getProvision(sAllocs);
-  uint64_t provName     = getProvision(sName);
+  std::vector<util::StringColumn> stringCols{{"Index", sIndex},
+                                             {"Name", sName},
+                                             {"Ins", sIns},
+                                             {"LinkTo", sLinkTo},
+                                             {"Outs", sOuts},
+                                             {"Allocs", sAllocs},
+                                             {"Liveness", sLiveness}};
 
-  std::ostringstream oss;
-  for (uint64_t i = 0; i < sIndex.size(); ++i) {
-    oss << sIndex[i] << spcStr(provIndex, sIndex[i])          //
-        << sName[i] << spcStr(provName, sName[i])             //
-        << sIns[i] << spcStr(provIns, sIns[i])                //
-        << sLinkTo[i] << spcStr(provLinkTo, sLinkTo[i])       //
-        << sOuts[i] << spcStr(provOuts, sOuts[i])             //
-        << sAllocs[i] << spcStr(provAllocs, sAllocs[i])       //
-        << sLiveness[i] << spcStr(provLiveness, sLiveness[i]) //
-        << '\n';
-  }
-
-  AllocWeight total = std::accumulate(
-      schToLiveness.cbegin(), schToLiveness.cend(), AllocWeight(0));
-  oss << "Total : " << total << '\n';
-
-  return oss.str();
+  return alignedColumns(stringCols);
 }
 
 ScheduleIndex ScheduledGraph::getLastProducer(const ScheduleIndex start,
