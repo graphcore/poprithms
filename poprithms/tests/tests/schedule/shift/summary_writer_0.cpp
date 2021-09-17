@@ -22,7 +22,7 @@ ScheduledGraph get(Graph g0, const ISummaryWriter &iSum) {
 
   return ScheduledGraph::fromCache(
       std::move(g0),
-      Settings(KahnTieBreaker::FIFO,
+      Settings({KahnTieBreaker::FIFO, {}},
                TransitiveClosureOptimizations::allOn(),
                Settings::defaultRotationTermination(),
                RotationAlgo::RIPPLE,

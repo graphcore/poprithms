@@ -78,7 +78,7 @@ int main() {
         TransitiveClosureOptimizations::allOff()}) {
     for (KahnTieBreaker tb : {KahnTieBreaker::FIFO, KahnTieBreaker::GREEDY}) {
 
-      ScheduledGraph sg(Graph(g), tb, tco);
+      ScheduledGraph sg(Graph(g), {tb, {}}, tco);
 
       if (sg.viewInternalScheduleToOp() != expected) {
 

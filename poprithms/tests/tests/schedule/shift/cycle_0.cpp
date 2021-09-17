@@ -33,7 +33,7 @@ void test0() {
   bool caught{false};
   try {
     ScheduledGraph sg(std::move(g),
-                      KahnTieBreaker::RANDOM,
+                      {KahnTieBreaker::RANDOM, {}},
                       TransitiveClosureOptimizations::allOff(),
                       RotationTermination::preStart());
   } catch (const poprithms::error::error &e) {

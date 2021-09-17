@@ -27,7 +27,7 @@ void testNoWrites() {
 
     auto sg = ScheduledGraph::fromCache(
         std::move(g0),
-        Settings(KahnTieBreaker::FIFO,
+        Settings({KahnTieBreaker::FIFO, {}},
                  TransitiveClosureOptimizations::allOff(),
                  Settings::defaultRotationTermination(),
                  RotationAlgo::RIPPLE,

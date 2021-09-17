@@ -320,7 +320,7 @@ getRandomSchedule(const std::vector<std::vector<uint64_t>> &fwd,
   auto g    = schedule::shift::Graph(fwd);
   auto soln = schedule::shift::ScheduledGraph(
       std::move(g),
-      KahnTieBreaker::RANDOM,
+      {KahnTieBreaker::RANDOM, {}},
       TransitiveClosureOptimizations::allOff(),
       RotationTermination::preStart(),
       RotationAlgo::RIPPLE,

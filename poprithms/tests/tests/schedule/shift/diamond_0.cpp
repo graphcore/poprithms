@@ -14,6 +14,8 @@ int main(int argc, char **argv) {
       argc, argv, {"N"}, {"The number of intermediate Ops in the diamond"});
   auto N      = std::stoull(opts.at("N"));
   Graph graph = getDiamondGraph0(N);
-  ScheduledGraph sg(std::move(graph), KahnTieBreaker::RANDOM);
+  ScheduledGraph sg(std::move(graph),
+                    {KahnTieBreaker::RANDOM, {}},
+                    TransitiveClosureOptimizations::allOn());
   assertGlobalMinimumDiamondGraph0(sg, N);
 }

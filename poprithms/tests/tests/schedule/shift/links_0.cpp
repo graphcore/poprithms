@@ -78,7 +78,7 @@ void test1() {
   }
 
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::GREEDY,
+                    {KahnTieBreaker::GREEDY, {}},
                     TransitiveClosureOptimizations::allOff(),
                     RotationTermination::preStart());
   if (sg.getSubSchedule(ops) != std::vector<OpAddress>{2, 3, 4, 0, 1}) {

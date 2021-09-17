@@ -22,7 +22,7 @@ int main() {
   auto g = Graph::fromSerializationString(s);
 
   ScheduledGraph sgoo(Graph(g),
-                      KahnTieBreaker::FIFO,
+                      {KahnTieBreaker::FIFO, {}},
                       TransitiveClosureOptimizations::allOn(),
                       RotationTermination::nHours(1),
                       RotationAlgo::RIPPLE,

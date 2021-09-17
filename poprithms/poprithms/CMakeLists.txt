@@ -94,7 +94,7 @@ set(schedule_shift_sources
  ${shift_source_dir}/error.cpp
  ${shift_source_dir}/graph.cpp
  ${shift_source_dir}/graphserialization.cpp
- ${shift_source_dir}/kahntiebreaker.cpp
+ ${shift_source_dir}/kahndecider.cpp
  ${shift_source_dir}/logging.cpp
  ${shift_source_dir}/op.cpp
  ${shift_source_dir}/updatefromfirstfinal.cpp

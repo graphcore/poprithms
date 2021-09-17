@@ -31,7 +31,7 @@ void test0() {
   auto gCopy = g;
 
   ScheduledGraph sgCopy(std::move(gCopy),
-                        KahnTieBreaker::RANDOM,
+                        {KahnTieBreaker::RANDOM, {}},
                         TransitiveClosureOptimizations::allOff(),
                         RotationTermination::preStart());
   if (!sgCopy.getGraph().getLinkChains().empty()) {
@@ -43,7 +43,7 @@ void test0() {
   const auto pom =
       TransitiveClosureOptimizations::allOff().withLinkTightDrops(true);
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     pom,
                     RotationTermination::preStart());
 
@@ -105,7 +105,7 @@ void test1() {
   const auto pom =
       TransitiveClosureOptimizations::allOff().withLinkTightDrops(true);
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     pom,
                     RotationTermination::preStart());
   auto chainLinks = sg.getGraph().getLinkChains();

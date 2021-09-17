@@ -36,7 +36,7 @@ void test0() {
   g.insertOpAlloc({ops[0], ops[2]}, alloc0);
   g.insertOpAlloc({ops[1], ops[3]}, alloc0);
 
-  ScheduledGraph sg(std::move(g), KahnTieBreaker::RANDOM);
+  ScheduledGraph sg(std::move(g), KahnDecider(KahnTieBreaker::RANDOM));
 
   if (sg.scheduleToOp(0) != 0 || sg.scheduleToOp(1) != 1 ||
       sg.scheduleToOp(2) != 2 || sg.scheduleToOp(3) != 3) {
@@ -57,7 +57,7 @@ void test1() {
 
   auto initializeGraph = [](Graph &g) {
     ScheduledGraph sg(Graph(g),
-                      KahnTieBreaker::RANDOM,
+                      {KahnTieBreaker::RANDOM, {}},
                       TransitiveClosureOptimizations::allOff(),
                       RotationTermination::nHours(1),
                       RotationAlgo::RIPPLE,
@@ -68,7 +68,7 @@ void test1() {
   };
 
   ScheduledGraph sgHalfBaked(Graph(g0),
-                             KahnTieBreaker::RANDOM,
+                             {KahnTieBreaker::RANDOM, {}},
                              TransitiveClosureOptimizations::allOff(),
                              RotationTermination::preStart());
 

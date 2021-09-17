@@ -23,7 +23,7 @@ void test0() {
   g.insertConstraint(ops[1], ops[2]);
   g.insertOpAlloc(ops, alloc0);
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     TransitiveClosureOptimizations::allOn(),
                     RotationTermination::preStart());
 
@@ -56,7 +56,7 @@ void test1() {
     g.insertConstraint(ops[i], ops[6]);
   }
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     TransitiveClosureOptimizations::allOff(),
                     RotationTermination::preStart());
   if (sg.scheduleToOp(0) != 0 || sg.scheduleToOp(1) != 4 ||
@@ -114,7 +114,7 @@ void test4() {
   auto g1 = g0;
 
   ScheduledGraph sg0(std::move(g0),
-                     KahnTieBreaker::RANDOM,
+                     {KahnTieBreaker::RANDOM, {}},
                      TransitiveClosureOptimizations::allOff(),
                      RotationTermination::preStart());
 
@@ -125,7 +125,7 @@ void test4() {
     g1.insertLink(sched0[i - 1], sched0[i]);
   }
   ScheduledGraph sg1(std::move(g1),
-                     KahnTieBreaker::RANDOM,
+                     {KahnTieBreaker::RANDOM, {}},
                      TransitiveClosureOptimizations::allOff(),
                      RotationTermination::preStart());
 

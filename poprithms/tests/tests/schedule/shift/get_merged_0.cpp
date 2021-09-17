@@ -31,7 +31,7 @@ void test0() {
   auto g0      = std::get<0>(merged0);
 
   ScheduledGraph sg0(std::move(g0),
-                     KahnTieBreaker::RANDOM,
+                     {KahnTieBreaker::RANDOM, {}},
                      TransitiveClosureOptimizations::allOff(),
                      RotationTermination::preStart());
   if (sg0.nOps() != 4) {

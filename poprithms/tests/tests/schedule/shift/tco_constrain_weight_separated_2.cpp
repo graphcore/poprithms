@@ -71,7 +71,7 @@ void test(
   auto tco = TransitiveClosureOptimizations::allOff();
   tco.withConstrainWeightSeparatedGroups(true).withMaxIterations(1);
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     tco,
                     RotationTermination::preStart());
 

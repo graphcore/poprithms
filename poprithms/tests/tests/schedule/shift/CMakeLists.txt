@@ -24,6 +24,8 @@ add_shift_test(schedule_shift_bifurcate bifurcate.cpp D 5)
 add_shift_test(schedule_shift_grid grid.cpp N 5)
 add_shift_test(schedule_shift_test_random test_random.cpp)
 
+add_shift_test(schedule_shift_kahn_decider_0 kahn_decider_0.cpp)
+
 add_shift_test_executable(recompute recompute.cpp)
 add_shift_test_from_params(schedule_shift_recompute_sqrt 
                                     recompute N 50 type sqrt)

@@ -70,7 +70,7 @@ void test(double alloc0, double alloc1, double alloc2) {
 
   ScheduledGraph sg(
       std::move(g),
-      KahnTieBreaker::RANDOM,
+      {KahnTieBreaker::RANDOM, {}},
       TransitiveClosureOptimizations::allOff().withLinkTightDrops(true),
       RotationTermination::preStart());
   auto chainLinks = sg.getGraph().getLinkChains();

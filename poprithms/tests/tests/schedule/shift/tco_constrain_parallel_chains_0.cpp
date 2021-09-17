@@ -56,7 +56,7 @@ graph0(const std::array<double, nOps0> &weights, double w06) {
   g.insertOpAlloc({2, 5}, alloc25);
 
   return ScheduledGraph(std::move(g),
-                        KahnTieBreaker::RANDOM,
+                        {KahnTieBreaker::RANDOM, {}},
                         tco,
                         RotationTermination::preStart());
 }
@@ -135,7 +135,7 @@ void test1() {
                  .withMaxIterations(1);
 
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     tco,
                     RotationTermination::preStart());
 

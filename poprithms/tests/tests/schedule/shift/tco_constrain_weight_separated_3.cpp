@@ -65,7 +65,7 @@ getGraph() {
                  .withMaxIterations(1);
 
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     tco,
                     RotationTermination::preStart());
 

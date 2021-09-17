@@ -57,12 +57,9 @@ bool ScheduledGraph::linklessIsSchedulable(const Graph &g) {
 namespace {
 
 std::vector<OpAddress>
-kahn(const Graph &graph, const KahnTieBreaker ktb, const uint32_t seed) {
+kahn(const Graph &graph, const KahnDecider &kd, const uint32_t seed) {
 
-  auto getSchedule = [&graph, &ktb, &seed](vanilla::ErrorIfCycle eic) {
-    // Priorities will be brought in a later diff (coming soon).
-    std::vector<std::tuple<uint64_t, double>> priorities{};
-
+  auto getSchedule = [&graph, &kd, &seed](vanilla::ErrorIfCycle eic) {
     const auto opsWithFwdLinks = graph.getOpsWithFwdLinks();
 
     std::vector<std::array<OpAddress, 2>> links;
@@ -72,11 +69,11 @@ kahn(const Graph &graph, const KahnTieBreaker ktb, const uint32_t seed) {
       links.push_back({op, graph.getOp(op).getForwardLink()});
     }
 
-    switch (ktb) {
+    switch (kd.kahnTieBreaker()) {
     case KahnTieBreaker::FIFO: {
       return vanilla::Scheduler<uint64_t, double>::filo(
           graph.getForwardEdges(),
-          priorities,
+          kd.priorities(),
           links,
           eic,
           vanilla::VerifyEdges::No);
@@ -92,7 +89,7 @@ kahn(const Graph &graph, const KahnTieBreaker ktb, const uint32_t seed) {
 
       return vanilla::greedy::kahn<uint64_t, double, AllocWeight>(
           graph.getFwdEdges_u64(),
-          priorities,
+          kd.priorities(),
           links,
           allocSizes,
           allocsToOps,
@@ -102,7 +99,7 @@ kahn(const Graph &graph, const KahnTieBreaker ktb, const uint32_t seed) {
     case KahnTieBreaker::RANDOM: {
       return vanilla::Scheduler<uint64_t, double>::random(
           graph.getForwardEdges(),
-          priorities,
+          kd.priorities(),
           links,
           seed,
           eic,
@@ -324,9 +321,10 @@ std::ostream &operator<<(std::ostream &ost, const ScheduleChange &x) {
   return ost;
 }
 
-void ScheduledGraph::initialize(const KahnTieBreaker kahnTie,
+void ScheduledGraph::initialize(const KahnDecider &kd,
                                 const uint32_t seed,
-                                const TransitiveClosureOptimizations tco) {
+                                const TransitiveClosureOptimizations tco,
+                                const ISummaryWriter &summaryWriter) {
 
   const auto stopwatch = timeLogger().scopedStopwatch("initialize");
 
@@ -340,7 +338,8 @@ void ScheduledGraph::initialize(const KahnTieBreaker kahnTie,
 
   //
   // schToOp. Vanilla run of Kahn's O(E) algorithm, random tie-breaks
-  schToOp = kahn(graph, kahnTie, seed);
+  schToOp = kahn(graph, kd, seed);
+  summaryWriter.writeInitialSchedule(schToOp);
 
   //
   // opToSch
@@ -1050,7 +1049,8 @@ ScheduledGraph::getSubSchedule(const std::vector<OpAddress> &oas) const {
   return subSchedule;
 }
 
-void ScheduledGraph::applyChange(const ScheduleChange &scheduleChange) {
+void ScheduledGraph::applyChange(const ScheduleChange &scheduleChange,
+                                 const ISummaryWriter &summaryWriter) {
 
   const auto nToShift = scheduleChange.getNToShift();
 
@@ -1112,6 +1112,9 @@ void ScheduledGraph::applyChange(const ScheduleChange &scheduleChange) {
   // 6 nCanFwd and nCanBwd
   updateNCanFwds(nToShift, x0, o1, producersTouched);
   updateNCanBwds(nToShift, x0, o1, consumersTouched);
+
+  summaryWriter.appendScheduleChange(scheduleChange);
+  summaryWriter.appendLivenessProfile(*this);
 }
 
 void ScheduledGraph::updateSusceptible(const ScheduleIndex a,
@@ -1468,7 +1471,7 @@ ScheduledGraph ScheduledGraph::fromCache(Graph &&graph,
         graph.insertConstraint(soln[i - 1], soln[i]);
       }
       return ScheduledGraph(std::move(graph),
-                            KahnTieBreaker::FIFO,
+                            {KahnTieBreaker::FIFO, {}},
                             TransitiveClosureOptimizations::allOff(),
                             RotationTermination::preStart());
     }
@@ -1533,7 +1536,10 @@ ScheduledGraph::ScheduledGraph(Graph &&gInitial,
     graph = std::move(gInitial);
   }
 
-  initialize(settings.kahnTieBreaker(), settings.seed(), settings.tcos());
+  initialize(settings.kahnDecider(),
+             settings.seed(),
+             settings.tcos(),
+             summaryWriter);
   greedyRotate(settings.rotationAlgo(),
                settings.debugMode(),
                settings.seed(),
@@ -1566,7 +1572,7 @@ ScheduledGraph::ScheduledGraph(Graph &&g,
     : ScheduledGraph(std::move(g), Settings(m), FileWriter::None()) {}
 
 ScheduledGraph::ScheduledGraph(Graph &&g,
-                               const KahnTieBreaker ktb,
+                               const KahnDecider &kd,
                                const TransitiveClosureOptimizations tco,
                                const RotationTermination rt,
                                const RotationAlgo algo,
@@ -1574,7 +1580,7 @@ ScheduledGraph::ScheduledGraph(Graph &&g,
                                const ISummaryWriter &summaryWriter_,
                                const DebugMode debugMode)
     : ScheduledGraph(std::move(g),
-                     Settings(ktb, tco, rt, algo, seed, debugMode),
+                     Settings(kd, tco, rt, algo, seed, debugMode),
                      summaryWriter_) {}
 
 void ScheduledGraph::greedyRotate(RotationAlgo algo,
@@ -1704,7 +1710,7 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
         auto start1 = start0 + shiftAndCost.getShift();
         ScheduleChange scheduleChange{start0, start1, nToShift};
 
-        applyChange(scheduleChange);
+        applyChange(scheduleChange, summaryWriter);
 
         if (debugMode == DebugMode::On) {
           assertCorrectness();

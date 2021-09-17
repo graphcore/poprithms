@@ -20,15 +20,28 @@ class Settings {
 
 public:
   Settings(const std::map<std::string, std::string> &);
-  Settings(KahnTieBreaker ktb                 = defaultKahnTieBreaker(),
+  Settings(const KahnDecider &kd              = {defaultKahnTieBreaker(), {}},
            TransitiveClosureOptimizations tco = defaultTCOs(),
            RotationTermination rt             = defaultRotationTermination(),
            RotationAlgo algo                  = defaultRotationAlgo(),
            uint32_t seed                      = defaultSeed(),
            DebugMode dm                       = defaultDebugMode())
-      : ktb_(ktb), tcos_(tco), rt_(rt), ra_(algo), seed_(seed), dm_(dm) {}
+      : kd_(kd), tcos_(tco), rt_(rt), ra_(algo), seed_(seed), dm_(dm) {}
 
-  KahnTieBreaker kahnTieBreaker() const { return ktb_; }
+  /**
+   * \deprecated {This constructor is deprecated. Please use the KahnDecider
+   *              version above.}
+   * */
+  Settings(const KahnTieBreaker ktb,
+           TransitiveClosureOptimizations tco = defaultTCOs(),
+           RotationTermination rt             = defaultRotationTermination(),
+           RotationAlgo algo                  = defaultRotationAlgo(),
+           uint32_t seed                      = defaultSeed(),
+           DebugMode dm                       = defaultDebugMode())
+      : Settings(KahnDecider(ktb), tco, rt, algo, seed, dm) {}
+
+  KahnTieBreaker kahnTieBreaker() const { return kd_.kahnTieBreaker(); }
+  const KahnDecider &kahnDecider() const { return kd_; }
   TransitiveClosureOptimizations tcos() const { return tcos_; }
   RotationTermination rotationTermination() const { return rt_; }
   RotationAlgo rotationAlgo() const { return ra_; }
@@ -51,16 +64,6 @@ public:
 
   static TransitiveClosureOptimizations defaultTCOs();
 
-  std::tuple<KahnTieBreaker,
-             TransitiveClosureOptimizations,
-             RotationTermination,
-             RotationAlgo,
-             uint32_t,
-             DebugMode>
-  getTuple() const {
-    return {ktb_, tcos_, rt_, ra_, seed_, dm_};
-  }
-
   bool operator==(const Settings &rhs) const {
     return getTuple() == rhs.getTuple();
   }
@@ -69,7 +72,18 @@ public:
   }
 
 private:
-  KahnTieBreaker ktb_;
+  std::tuple<const KahnDecider &,
+             TransitiveClosureOptimizations,
+             RotationTermination,
+             RotationAlgo,
+             uint32_t,
+             DebugMode>
+  getTuple() const {
+    return {kd_, tcos_, rt_, ra_, seed_, dm_};
+  }
+
+private:
+  KahnDecider kd_;
   TransitiveClosureOptimizations tcos_;
   RotationTermination rt_;
   RotationAlgo ra_;

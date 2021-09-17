@@ -4,7 +4,7 @@
 
 #include <poprithms/logging/timepartitionlogger.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
-#include <poprithms/schedule/shift/kahntiebreaker.hpp>
+#include <poprithms/schedule/shift/kahndecider.hpp>
 #include <poprithms/schedule/shift/rotationalgo.hpp>
 #include <poprithms/schedule/shift/rotationtermination.hpp>
 #include <poprithms/schedule/shift/settings.hpp>
@@ -81,7 +81,7 @@ public:
 
   ScheduledGraph(
       Graph &&,
-      KahnTieBreaker                 = Settings::defaultKahnTieBreaker(),
+      const KahnDecider & = KahnDecider(Settings::defaultKahnTieBreaker()),
       TransitiveClosureOptimizations = Settings::defaultTCOs(),
       RotationTermination rt         = Settings::defaultRotationTermination(),
       RotationAlgo algo              = Settings::defaultRotationAlgo(),
@@ -201,8 +201,10 @@ public:
   }
 
 private:
-  void
-  initialize(KahnTieBreaker, uint32_t seed, TransitiveClosureOptimizations);
+  void initialize(const KahnDecider &,
+                  uint32_t seed,
+                  TransitiveClosureOptimizations,
+                  const ISummaryWriter &);
 
   void greedyRotate(RotationAlgo,
                     DebugMode,
@@ -230,7 +232,8 @@ private:
   // The last external producer of an Op in the range [start, nToShift)
   ScheduleIndex getLastProducer(ScheduleIndex start, int nToShift) const;
 
-  void applyChange(const ScheduleChange &);
+  void applyChange(const ScheduleChange &,
+                   const ISummaryWriter &summaryWriter);
 
   // not updated every time the schedule changes
   std::vector<AllocWeight> schToLiveness;

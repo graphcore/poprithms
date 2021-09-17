@@ -79,7 +79,7 @@ getGraph(bool with_4_7_edge, bool constrainWSGs, bool bigDrop_6 = false) {
   }
 
   return ScheduledGraph(std::move(g),
-                        KahnTieBreaker::RANDOM,
+                        {KahnTieBreaker::RANDOM, {}},
                         tco,
                         RotationTermination::preStart());
 }

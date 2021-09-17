@@ -29,7 +29,7 @@ int main() {
     double timeLimitSeconds = 1000.0;
 
     ScheduledGraph sg(std::move(g),
-                      KahnTieBreaker::RANDOM,
+                      {KahnTieBreaker::RANDOM, {}},
                       Settings::defaultTCOs(),
                       {timeLimitSeconds, swapLimitCount},
                       RotationAlgo::RIPPLE,

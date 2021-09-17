@@ -53,7 +53,7 @@ Settings::Settings(const std::map<std::string, std::string> &m) : Settings() {
     }
 
     else if (k == "tieBreaker" || k == "kahnTieBreaker") {
-      ktb_ = shift::kahnTieBreaker(v);
+      kd_ = {shift::kahnTieBreaker(v), {}};
     }
 
     else if (k == "debug") {

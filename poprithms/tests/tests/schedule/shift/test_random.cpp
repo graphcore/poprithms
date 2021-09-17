@@ -119,7 +119,7 @@ int main() {
     auto g0 = g;
 
     ScheduledGraph sg0(std::move(g0),
-                       KahnTieBreaker::RANDOM,
+                       {KahnTieBreaker::RANDOM, {}},
                        TransitiveClosureOptimizations::allOn(),
                        RotationTermination::preStart());
 
@@ -133,7 +133,7 @@ int main() {
     }
 
     ScheduledGraph sg(std::move(g),
-                      KahnTieBreaker::RANDOM,
+                      {KahnTieBreaker::RANDOM, {}},
                       TransitiveClosureOptimizations::allOn(),
                       RotationTermination::nHours(10),
                       RotationAlgo::RIPPLE,

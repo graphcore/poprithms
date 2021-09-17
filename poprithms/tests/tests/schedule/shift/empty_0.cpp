@@ -13,7 +13,7 @@ int main() {
       graph.insertOp("op" + std::to_string(10 * i + j));
     }
     ScheduledGraph sg(std::move(graph),
-                      KahnTieBreaker::RANDOM,
+                      {KahnTieBreaker::RANDOM, {}},
                       TransitiveClosureOptimizations::allOn(),
                       RotationTermination::nHours(10),
                       RotationAlgo::RIPPLE,

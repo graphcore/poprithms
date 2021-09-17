@@ -53,7 +53,7 @@ ThrowingTestResult testGetSubScheduleOnInvalidOpAddress() {
   const auto op2 = g.insertOp("Op2");
   const auto op3 = g.insertOp("Op3");
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     TransitiveClosureOptimizations::allOff(),
                     RotationTermination::preStart());
 
@@ -70,7 +70,7 @@ ThrowingTestResult testGetSubScheduleOnDuplicateOpAddresses() {
   Graph g;
   const auto op0 = g.insertOp("Op0");
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     TransitiveClosureOptimizations::allOff(),
                     RotationTermination::preStart());
 
@@ -89,7 +89,7 @@ void testGetSubScheduleCanHandleUnsortedSubset() {
   const std::vector<OpAddress> ops = g.insertOps({"Op1", "Op2", "Op3"});
   g.insertConstraints({{ops[0], ops[1]}, {ops[1], ops[2]}});
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     TransitiveClosureOptimizations::allOff(),
                     RotationTermination::preStart());
 
@@ -151,7 +151,7 @@ void testGetSubScheduleSameAsViewInternalWhenNoInternalOps() {
   g.insertConstraint(op1, op2);
 
   ScheduledGraph sg(std::move(g),
-                    KahnTieBreaker::RANDOM,
+                    {KahnTieBreaker::RANDOM, {}},
                     TransitiveClosureOptimizations::allOff(),
                     RotationTermination::preStart());
 
