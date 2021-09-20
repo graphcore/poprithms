@@ -1,7 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <chrono>
-#include <iostream>
 #include <random>
 
 #include <poprithms/error/error.hpp>

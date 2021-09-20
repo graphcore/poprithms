@@ -1,6 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
-#include <iostream>
 #include <random>
 
 #include <testutil/memory/nest/randomregion.hpp>

@@ -17,6 +17,7 @@ namespace baseutil {
  * 2) while not every node has a path (direct or indirect) to node N-1:
  *    add an edge i->j where i and j (0<=i<j<N) are chosen at random, and i
  *    has no path to N-1.
+ * 3) redundant edges are removed.
  *
  * How do we know this is a DAG?
  * Because 0...N-1 is one valid topological ordering, by construction.
@@ -38,6 +39,7 @@ std::vector<std::vector<uint64_t>> randomDagConnectedToFinal(uint64_t N,
  *    that i != j.
  * 3) make the graph directed by replacing the birectional edges with directed
  *    edges, from the lower node index to the higher.
+ * 4) redundant edges are removed.
  *
  * How do we know this is a DAG?
  * Because 0...N-1 is one valid topological ordering, by construction step 3.

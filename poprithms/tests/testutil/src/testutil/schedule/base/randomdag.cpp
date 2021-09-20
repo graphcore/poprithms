@@ -7,9 +7,32 @@
 
 #include <testutil/schedule/base/randomdag.hpp>
 
+#include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
+
 namespace poprithms {
 namespace schedule {
 namespace baseutil {
+
+namespace {
+
+std::vector<std::vector<uint64_t>>
+withRedundantsRemoved(const std::vector<std::vector<uint64_t>> &fwdsIn) {
+  auto fwds = fwdsIn;
+  poprithms::schedule::transitiveclosure::TransitiveClosure too(fwds);
+  auto reds = too.getRedundants(fwds);
+
+  for (uint64_t i = 0; i < reds.size(); ++i) {
+    auto olds = fwds[i];
+    fwds[i].clear();
+    for (auto x : olds) {
+      if (std::find(reds[i].cbegin(), reds[i].cend(), x) == reds[i].cend()) {
+        fwds[i].push_back(x);
+      }
+    }
+  }
+  return fwds;
+}
+} // namespace
 
 std::vector<std::vector<uint64_t>> randomConnectedDagToFinal(uint64_t N,
                                                              uint32_t seed) {
@@ -75,7 +98,7 @@ std::vector<std::vector<uint64_t>> randomConnectedDagToFinal(uint64_t N,
     }
   }
 
-  return fwd;
+  return withRedundantsRemoved(fwd);
 }
 
 std::vector<std::vector<uint64_t>> randomConnectedDag(uint64_t N,
@@ -143,7 +166,8 @@ std::vector<std::vector<uint64_t>> randomConnectedDag(uint64_t N,
       }
     }
   }
-  return fwds;
+
+  return withRedundantsRemoved(fwds);
 }
 
 } // namespace baseutil

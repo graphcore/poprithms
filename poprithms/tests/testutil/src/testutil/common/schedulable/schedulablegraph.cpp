@@ -1,7 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
-#include <iostream>
-
 #include <testutil/common/schedulable/schedulablegraph.hpp>
 
 namespace poprithms {

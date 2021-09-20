@@ -51,10 +51,16 @@ std::vector<int> getLogNSeries(uint64_t N);
 
 std::vector<int> getSqrtSeries(uint64_t N);
 
-// Note: Returned graph has no internal ops.
-Graph getRecomputeGraph(const std::vector<int> &nTimes);
+// Note: Returned graph has allocations in the range [allocLower, allocUpper)
+// : each op creates a random allocation, which is required by all of its
+// consumers.
+Graph getRecomputeGraph(const std::vector<int> &nTimes,
+                        uint64_t allocLower = 1,
+                        uint64_t allocUpper = 2,
+                        uint32_t seed       = 1011);
 
-// Note: Given graph must have no internal ops.
+// Note: Given graph must have no internal ops. This method assumes allocs are
+// all of size 1.
 void assertGlobalMinimumRecomputeGraph0(const ScheduledGraph &);
 
 } // namespace shift

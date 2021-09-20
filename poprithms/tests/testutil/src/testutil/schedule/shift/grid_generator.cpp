@@ -1,5 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <testutil/schedule/shift/grid_generator.hpp>
+#include <testutil/schedule/shift/randomgraph.hpp>
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/opalloc.hpp>
@@ -10,11 +11,14 @@ namespace poprithms {
 namespace schedule {
 namespace shift {
 
-poprithms::schedule::shift::Graph getGridGraph0(uint64_t N) {
+poprithms::schedule::shift::Graph getGridGraph0(uint64_t N,
+                                                uint64_t allocLower,
+                                                uint64_t allocUpper,
+                                                uint32_t seed) {
   using namespace poprithms::schedule::shift;
   Graph g;
 
-  std::vector<std::vector<OpAlloc>> grid;
+  std::vector<std::vector<OpAddress>> grid;
 
   auto getName = [](int row, int col) {
     return std::to_string(row) + '_' + std::to_string(col);
@@ -25,25 +29,23 @@ poprithms::schedule::shift::Graph getGridGraph0(uint64_t N) {
     // the left column of "o"s in the figure above
     auto mm = g.insertAlloc(2 * N);
     std::vector<OpAddress> prods{};
-    std::vector<AllocAddress> allocs{mm};
     if (row != 0) {
-      prods.push_back(grid.back().back().op);
-      allocs.push_back(grid.back().back().alloc);
+      prods.push_back(grid.back().back());
     }
-    auto op = g.insertOp(prods, allocs, getName(row, 0));
+    auto op = g.insertOp(prods, std::vector<AllocAddress>{}, getName(row, 0));
     grid.push_back({{op, mm}});
   }
 
   for (int row = 0; row < N; ++row) {
 
-    // the internal columns of the figure above
+    // the internal columns of the figure in the header file.
     for (int col = 1; col < N - 1; ++col) {
       auto mmSize = col == N / 2 ? 1 : 2 * N;
       auto mm     = g.insertAlloc(mmSize);
-      auto op     = g.insertOp({grid[row].back().op},
-                           {grid[row].back().alloc, mm},
+      auto op     = g.insertOp(std::vector<OpAddress>{grid[row].back()},
+                           std::vector<AllocAddress>{},
                            getName(row, col));
-      grid[row].push_back({op, mm});
+      grid[row].push_back(op);
     }
   }
 
@@ -51,15 +53,16 @@ poprithms::schedule::shift::Graph getGridGraph0(uint64_t N) {
   for (int row = N - 1; row >= 0; --row) {
 
     auto mm = g.insertAlloc(2 * N);
-    std::vector<OpAddress> prods{grid[row].back().op};
-    std::vector<AllocAddress> allocs{mm, grid[row].back().alloc};
+    std::vector<OpAddress> prods{grid[row].back()};
+    std::vector<AllocAddress> allocs{};
     if (row != N - 1) {
-      prods.push_back(grid[row + 1].back().op);
-      allocs.push_back(grid[row + 1].back().alloc);
+      prods.push_back(grid[row + 1].back());
     }
     auto op = g.insertOp(prods, allocs, getName(row, N - 1));
-    grid[row].push_back({op, mm});
+    grid[row].push_back(op);
   }
+
+  addConnectedAllocs(g, allocLower, allocUpper, seed);
 
   return g;
 }

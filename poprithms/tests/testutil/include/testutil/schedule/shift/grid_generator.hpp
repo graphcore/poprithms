@@ -34,7 +34,10 @@ namespace shift {
 //
 //  max should be in [3*2*N + (N-2)*1, O(N^2)]
 
-Graph getGridGraph0(uint64_t rowSize);
+Graph getGridGraph0(uint64_t rowSize,
+                    uint64_t allocLower = 1,
+                    uint64_t allocUpper = 2,
+                    uint32_t seed       = 1011);
 
 void assertGlobalMinimumGridGraph0(const ScheduledGraph &, uint64_t rowSize);
 

@@ -9,12 +9,6 @@ namespace poprithms {
 namespace schedule {
 namespace shift {
 
-//      ---<--x-->---
-//      |    / \    |
-//      x x x x x x x (the N intermediate Ops)
-//      |    \ /    |
-//      -->---x--<---
-
 poprithms::schedule::shift::Graph getDiamondGraph0(uint64_t N) {
 
   using namespace poprithms::schedule::shift;

@@ -8,6 +8,12 @@ namespace poprithms {
 namespace schedule {
 namespace shift {
 
+//      ---<--x-->---
+//      |    / \    |
+//      x x x x x x x (the N intermediate Ops)
+//      |    \ /    |
+//      -->---x--<---
+
 Graph getDiamondGraph0(uint64_t N);
 
 void assertGlobalMinimumDiamondGraph0(const ScheduledGraph &, uint64_t N);

@@ -1,10 +1,11 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <cassert>
-#include <iostream>
 #include <iterator>
 #include <numeric>
 #include <string>
 
+#include <testutil/schedule/base/randomdag.hpp>
+#include <testutil/schedule/shift/randomgraph.hpp>
 #include <testutil/schedule/shift/recompute_generator.hpp>
 
 #include <poprithms/error/error.hpp>
@@ -16,7 +17,10 @@ namespace schedule {
 namespace shift {
 
 poprithms::schedule::shift::Graph
-getRecomputeGraph(const std::vector<int> &nTimes) {
+getRecomputeGraph(const std::vector<int> &nTimes,
+                  uint64_t allocLower,
+                  uint64_t allocUpper,
+                  uint32_t seed) {
   using namespace poprithms::schedule::shift;
   uint64_t N = nTimes.size();
 
@@ -43,47 +47,45 @@ getRecomputeGraph(const std::vector<int> &nTimes) {
 
   Graph g;
 
-  std::vector<std::vector<OpAlloc>> opAllocs;
-  opAllocs.reserve(N);
+  std::vector<std::vector<OpAddress>> ops_;
+  ops_.reserve(N);
 
   // forwards, forwards:
   for (uint64_t layerIndex = 0; layerIndex < nTimes.size(); ++layerIndex) {
     auto timesToRecomp = nTimes[layerIndex];
-    opAllocs.push_back({});
-    auto &layer = opAllocs.back();
+    ops_.push_back({});
+    auto &layer = ops_.back();
     // will have 1 for each of the recomputations, and 1 for the backwards
     layer.reserve(timesToRecomp + 1);
 
     for (uint64_t n = 0; n < static_cast<uint64_t>(timesToRecomp); ++n) {
-      auto mm = g.insertAlloc(1);
       std::vector<OpAddress> prods{};
-      std::vector<AllocAddress> allocs{mm};
       if (layerIndex > 0) {
-        const auto &prevLayer = opAllocs[layerIndex - 1];
+        const auto &prevLayer = ops_[layerIndex - 1];
         uint64_t prevLayerIndex =
             std::min<uint64_t>(prevLayer.size() - 1UL, n);
-        prods.push_back(prevLayer[prevLayerIndex].op);
-        allocs.push_back(prevLayer[prevLayerIndex].alloc);
+        prods.push_back(prevLayer[prevLayerIndex]);
       }
-      auto op = g.insertOp(prods, allocs, getFwdName(layerIndex, n));
-      layer.push_back({op, mm});
+      auto op = g.insertOp(
+          prods, std::vector<AllocAddress>{}, getFwdName(layerIndex, n));
+      layer.push_back(op);
     }
   }
 
   // backwards, backwards:
-  for (auto layer = opAllocs.rbegin(); layer != opAllocs.rend(); ++layer) {
-    auto mm = g.insertAlloc(1);
-    std::vector<OpAddress> prods{layer->back().op};
-    std::vector<AllocAddress> allocs{mm, layer->back().alloc};
-    if (layer != opAllocs.rbegin()) {
+  for (auto layer = ops_.rbegin(); layer != ops_.rend(); ++layer) {
+    std::vector<OpAddress> prods{layer->back()};
+    if (layer != ops_.rbegin()) {
       const auto &prevLayer = *std::prev(layer, 1);
-      prods.push_back(prevLayer.back().op);
-      allocs.push_back(prevLayer.back().alloc);
+      prods.push_back(prevLayer.back());
     }
-    auto op = g.insertOp(
-        prods, allocs, getBwdName(std::distance(layer, opAllocs.rend()) - 1));
-    layer->push_back({op, mm});
+    auto op = g.insertOp(prods,
+                         std::vector<AllocAddress>{},
+                         getBwdName(std::distance(layer, ops_.rend()) - 1));
+    layer->push_back(op);
   }
+
+  addConnectedAllocs(g, allocLower, allocUpper, seed);
 
   return g;
 }

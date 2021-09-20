@@ -23,13 +23,14 @@ namespace shift {
 // .
 // d = 2D-1 : 1 Op with 2 producers and 0 consumers
 //
-// For D = 4;
+// For D = 4:
 
 /*
-
-              o
-
+               o
+               +-->-+
+                     \
       o0              o1
+                    /    \
   o00     o01    o10      o11
                           / \
 o   o   o   o   o   o    o   o
@@ -46,7 +47,8 @@ o   o   o   o   o   o    o   o
 */
 
 //
-// All Ops are non-inplace and produce 1 allocation of weight 1.
+// All Ops are non-inplace and produce 1 allocation of weight in range
+// [allocLower, allocUpper), seleceted randomly based on a random seed.
 //
 // It is easy to see that the maximum liveness of any schedule is an
 // integer in the range [D+2, 2^D+1].
@@ -54,9 +56,13 @@ o   o   o   o   o   o    o   o
 // We test that these extrema are obtained with the shifting algorithm.
 //
 
-Graph getBifurcatingGraph0(uint64_t D);
+Graph getBifurcatingGraph0(uint64_t D,
+                           uint64_t allocLower = 1,
+                           uint64_t allocUpper = 2,
+                           uint32_t seed       = 1011);
 
-// Final max liveness should be D+2
+// Final max liveness should be D+2. For this, the graph should have all
+// allocations of size 1.
 void assertGlobalMinimumBifurcatingGraph0(const ScheduledGraph &g,
                                           uint64_t D);
 
