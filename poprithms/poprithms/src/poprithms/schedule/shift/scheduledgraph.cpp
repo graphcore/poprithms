@@ -9,8 +9,8 @@
 
 #include <schedule/shift/allocsimplifier.hpp>
 #include <schedule/shift/error.hpp>
+#include <schedule/shift/greedykahn.hpp>
 #include <schedule/shift/transitiveclosureoptimizer.hpp>
-#include <schedule/vanilla/greedystack.hpp>
 
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/shift/filteredschedule.hpp>
@@ -50,10 +50,15 @@ namespace shift {
 
 class Settings;
 
-bool ScheduledGraph::linklessIsSchedulable(const Graph &g) {
-  return vanilla::Query<uint64_t>::isSchedulable(g.getFwdEdges_u64(),
-                                                 vanilla::VerifyEdges::No);
+bool ScheduledGraph::isSchedulable(const Graph &graph) {
+  std::vector<std::array<OpAddress, 2>> links;
+  for (const auto &op : graph.getOpsWithFwdLinks()) {
+    links.push_back({op, graph.getOp(op).getForwardLink()});
+  }
+  return vanilla::Query<uint64_t>::isSchedulable(
+      graph.getFwdEdges_u64(), links, vanilla::VerifyEdges::Yes);
 }
+
 namespace {
 
 std::vector<OpAddress>
@@ -87,14 +92,13 @@ kahn(const Graph &graph, const KahnDecider &kd, const uint32_t seed) {
         allocsToOps.push_back(x.getOps());
       }
 
-      return vanilla::greedy::kahn<uint64_t, double, AllocWeight>(
-          graph.getFwdEdges_u64(),
-          kd.priorities(),
-          links,
-          allocSizes,
-          allocsToOps,
-          eic,
-          vanilla::VerifyEdges::No);
+      return greedyKahn(graph.getFwdEdges_u64(),
+                        kd.priorities(),
+                        links,
+                        allocSizes,
+                        allocsToOps,
+                        eic,
+                        vanilla::VerifyEdges::No);
     }
     case KahnTieBreaker::RANDOM: {
       return vanilla::Scheduler<uint64_t, double>::random(
@@ -1201,18 +1205,6 @@ std::vector<AllocWeight> ScheduledGraph::getSchToLiveness() const {
 
 void ScheduledGraph::setSchToLiveness() {
   schToLiveness = getSchToLiveness();
-}
-
-bool ScheduledGraph::isSchedulable(const Graph &g) {
-
-  const auto opsWithFwdLinks = g.getOpsWithFwdLinks();
-  if (!opsWithFwdLinks.empty()) {
-    const auto merged      = g.getLinkMerged();
-    const auto &childGraph = std::get<0>(merged);
-    return linklessIsSchedulable(childGraph);
-  } else {
-    return linklessIsSchedulable(g);
-  }
 }
 
 ScheduleIndex ScheduledGraph::getFirstConsumer(ScheduleIndex start,

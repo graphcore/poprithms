@@ -1,13 +1,10 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
-#include <iostream>
 #include <iterator>
 #include <numeric>
 #include <random>
 #include <set>
 #include <sstream>
-
-#include <schedule/vanilla/greedystack.hpp>
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
@@ -21,7 +18,6 @@ std::ostream &operator<<(std::ostream &ost, const std::vector<T> &ts) {
   return ost;
 }
 
-using namespace poprithms::schedule::vanilla::greedy;
 using namespace poprithms::schedule::vanilla;
 
 using Node      = uint64_t;
@@ -35,13 +31,14 @@ void assertSchedule(const Edges<Node> &edges,
                     const std::vector<Node> &expected) {
 
   Links<Node> links{};
-  auto observed = kahn<Node, Priority, AllocSize>(edges,
-                                                  priorities,
-                                                  links,
-                                                  allocSizes,
-                                                  allocsToNodes,
-                                                  ErrorIfCycle::Yes,
-                                                  VerifyEdges::Yes);
+  auto observed =
+      GreedyScheduler<Node, Priority, AllocSize>::kahn(edges,
+                                                       priorities,
+                                                       links,
+                                                       allocSizes,
+                                                       allocsToNodes,
+                                                       ErrorIfCycle::Yes,
+                                                       VerifyEdges::Yes);
 
   if (observed != expected) {
     std::ostringstream oss;

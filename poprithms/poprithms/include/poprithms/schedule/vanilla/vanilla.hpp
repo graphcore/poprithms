@@ -132,6 +132,26 @@ public:
 extern template class Scheduler<int64_t, double>;
 extern template class Scheduler<uint64_t, double>;
 
+/**
+ * A kahn tie-breaker which chooses the Op which results in the largest
+ * immediate liveness reduction at every step.
+ * */
+template <typename TNode, typename TPriority, typename TAllocSize>
+class GreedyScheduler {
+public:
+  static std::vector<TNode>
+  kahn(const Edges<TNode> &fwdEdges,
+       const Priorities<TNode, TPriority> &priorities,
+       const Links<TNode> &links,
+       const std::vector<TAllocSize> &sizes,
+       const Edges<TNode> &allocsToNodes,
+       ErrorIfCycle eic,
+       VerifyEdges ve);
+};
+
+extern template class GreedyScheduler<int64_t, double, int>;
+extern template class GreedyScheduler<uint64_t, double, int>;
+
 template <typename TNode> class Query {
 
 public:
@@ -139,6 +159,12 @@ public:
    * Return true if the graph defined by the edges contains no cycles.
    * */
   static bool isSchedulable(const Edges<TNode> &edges, VerifyEdges);
+
+  /**
+   * Return true if the graph defined by the edges and links is schedulable.
+   * */
+  static bool
+  isSchedulable(const Edges<TNode> &edges, const Links<TNode> &, VerifyEdges);
 
   /**
    * Return true if there is exactly 1 way to schedule the graph with forward

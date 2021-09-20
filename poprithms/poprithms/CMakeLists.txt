@@ -93,6 +93,7 @@ set(schedule_shift_sources
  ${shift_source_dir}/allocsimplifier.cpp
  ${shift_source_dir}/error.cpp
  ${shift_source_dir}/graph.cpp
+ ${shift_source_dir}/greedykahn.cpp
  ${shift_source_dir}/graphserialization.cpp
  ${shift_source_dir}/kahndecider.cpp
  ${shift_source_dir}/logging.cpp

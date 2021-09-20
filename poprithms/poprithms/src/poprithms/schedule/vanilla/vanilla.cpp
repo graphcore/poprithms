@@ -11,6 +11,7 @@
 #include <schedule/vanilla/error.hpp>
 #include <schedule/vanilla/fifostack.hpp>
 #include <schedule/vanilla/filostack.hpp>
+#include <schedule/vanilla/greedystack.hpp>
 #include <schedule/vanilla/kahn.hpp>
 #include <schedule/vanilla/randomstack.hpp>
 
@@ -74,6 +75,18 @@ bool Query<TNode>::isSchedulable(const Edges<TNode> &es, VerifyEdges ve) {
   return isComplete<TNode, IsSchedulableStack<TNode>>(es, ve);
 }
 
+template <typename TNode>
+bool Query<TNode>::isSchedulable(const Edges<TNode> &es,
+                                 const Links<TNode> &links,
+                                 VerifyEdges ve) {
+  if (links.empty()) {
+    return isSchedulable(es, ve);
+  }
+  const auto sch =
+      Scheduler<TNode, double>::fifo(es, {}, links, ErrorIfCycle::No, ve);
+  return sch.size() == es.size();
+}
+
 // For checking if a graph is uniquely schedulable, we stop scheduling as soon
 // as either the stack is empty, or it has more than one node in it. More than
 // one node implies more than more possible schedule.
@@ -135,11 +148,27 @@ getSchedule_u64(const std::vector<std::vector<uint64_t>> &fwdEdges,
   return Scheduler<uint64_t, double>::filo(fwdEdges, {}, {}, eic, ve);
 }
 
+template <typename TNode, typename TPriority, typename TAllocSize>
+std::vector<TNode> GreedyScheduler<TNode, TPriority, TAllocSize>::kahn(
+    const Edges<TNode> &fwdEdges,
+    const Priorities<TNode, TPriority> &priorities,
+    const Links<TNode> &links,
+    const std::vector<TAllocSize> &sizes,
+    const Edges<TNode> &allocsToNodes,
+    ErrorIfCycle eic,
+    VerifyEdges ve) {
+  return greedy::kahn<TNode, TPriority>(
+      fwdEdges, priorities, links, sizes, allocsToNodes, eic, ve);
+}
+
 template class Query<int64_t>;
 template class Query<uint64_t>;
 
 template class Scheduler<int64_t, double>;
 template class Scheduler<uint64_t, double>;
+
+template class GreedyScheduler<int64_t, double, int>;
+template class GreedyScheduler<uint64_t, double, int>;
 
 } // namespace vanilla
 } // namespace schedule

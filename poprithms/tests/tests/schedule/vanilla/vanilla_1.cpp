@@ -1,11 +1,12 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
-#include <iostream>
-#include <iterator>
+#include <array>
 #include <numeric>
+#include <ostream>
 #include <random>
-#include <set>
 #include <sstream>
+#include <tuple>
+#include <vector>
 
 #include <schedule/vanilla/greedystack.hpp>
 
@@ -42,6 +43,27 @@ template <class T>
 std::ostream &operator<<(std::ostream &ost, const std::vector<T> &ts) {
   poprithms::util::append(ost, ts);
   return ost;
+}
+
+template <typename T>
+std::ostream &operator<<(std::ostream &os, const Edges<T> &x) {
+  int cnt = 0;
+  for (const auto &e : x) {
+    os << "\n     " << cnt << ":";
+    poprithms::util::append(os, e);
+    ++cnt;
+  }
+  return os;
+}
+
+template <class T>
+std::vector<std::string> sts(const std::vector<std::array<T, 2>> &l) {
+  std::vector<std::string> ss;
+  for (auto x : l) {
+    ss.push_back(std::to_string(std::get<0>(x)) + "=>" +
+                 std::to_string(std::get<1>(x)));
+  }
+  return ss;
 }
 
 template <class T>
@@ -444,13 +466,57 @@ void randomSoak() {
         }
       }
     }
-    assertValid(greedy::kahn<int64_t, double, int>(edges,
-                                                   pris,
-                                                   links,
-                                                   allocSizes,
-                                                   allocsToNodes,
-                                                   ErrorIfCycle::Yes,
-                                                   VerifyEdges::Yes));
+
+    assertValid(
+        GreedyScheduler<int64_t, double, int>::kahn(edges,
+                                                    pris,
+                                                    links,
+                                                    allocSizes,
+                                                    allocsToNodes,
+                                                    ErrorIfCycle::Yes,
+                                                    VerifyEdges::Yes));
+  }
+}
+
+void assertSchedulable(const Edges<int64_t> &edges,
+                       const Links<int64_t> &links,
+                       bool isSchedulable) {
+  if (Query<int64_t>::isSchedulable(edges, links, VerifyEdges::Yes) !=
+      isSchedulable) {
+    std::ostringstream oss;
+    oss << "With edges" << edges << "\nand links\n"
+        << sts(links) << "\nexpected the graph to ";
+    if (!isSchedulable) {
+      oss << "NOT ";
+    }
+    oss << "be schedulable. ";
+    throw poprithms::test::error(oss.str());
+  }
+}
+
+void testIsSchedulable() {
+  {
+    Edges<int64_t> edges({{1, 2}, {3}, {3}, {}});
+    {
+      Links<int64_t> links{{0, 1}, {2, 3}};
+      assertSchedulable(edges, links, true);
+    }
+
+    {
+      Links<int64_t> links{{0, 1}, {1, 3}};
+      assertSchedulable(edges, links, false);
+    }
+
+    {
+      Links<int64_t> links{};
+      assertSchedulable(edges, links, true);
+    }
+  }
+
+  {
+    Edges<int64_t> edges({{1, 2}, {3}, {3}, {0}});
+    Links<int64_t> links{};
+    assertSchedulable(edges, links, false);
   }
 }
 
@@ -458,9 +524,9 @@ void randomSoak() {
 
 int main() {
   testTest();
-  test0<int64_t>();
   test0<uint64_t>();
   testErrors();
   randomSoak();
+  testIsSchedulable();
   return 0;
 }
