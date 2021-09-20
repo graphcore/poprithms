@@ -1,6 +1,6 @@
 **Project problem summary:** Choose the layouts of a graph's input Tensors, to make all operations as efficient as possible. 
 
-This page complements the documentation in [memory/unwinding/graph.hpp](../../../poprithms/include/memory/unwind/graph.hpp)
+This page complements the documentation in [memory/unwinding/graph.hpp](../../../poprithms/include/poprithms/memory/unwind/graph.hpp)
 
 The setting for this problem is a Directed Acyclic Graph (DAG), where graph nodes are operations (Ops) which consume and produce Tensors. 
 A Tensor is an n-dimensional block of data, where each **element** in the Tensor has a **mapping** which describes its location in memory. 
