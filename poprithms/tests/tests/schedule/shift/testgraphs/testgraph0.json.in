@@ -1,0 +1,7 @@
+{"ops":[
+     {"address":0,"outs":[1,2],"allocs":[],"debugString":"op0","fwdLink":1},
+     {"address":1,"outs":[3],"allocs":[],"debugString":"op1","fwdLink":-1},
+     {"address":2,"outs":[3],"allocs":[],"debugString":"op2","fwdLink":3},
+     {"address":3,"outs":[],"allocs":[],"debugString":"op3","fwdLink":-1}],
+"allocs":[]}
+

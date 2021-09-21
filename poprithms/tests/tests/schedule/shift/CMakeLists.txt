@@ -20,11 +20,11 @@ function(add_shift_test_from_params name exe)
            WORKING_DIRECTORY ${CMAKE_CURRENT_BUILD_DIR})
 endfunction()
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 add_shift_test(schedule_shift_bifurcate bifurcate.cpp D 5)
 add_shift_test(schedule_shift_grid grid.cpp N 5)
 add_shift_test(schedule_shift_test_random test_random.cpp)
-
-add_shift_test(schedule_shift_kahn_decider_0 kahn_decider_0.cpp)
 
 add_shift_test_executable(recompute recompute.cpp)
 add_shift_test_from_params(schedule_shift_recompute_sqrt 
@@ -60,6 +60,7 @@ add_shift_test(schedule_shift_is_search_limits searchlimits.cpp)
 add_shift_test(schedule_shift_diamond_0 diamond_0.cpp N 19)
 add_shift_test(schedule_shift_bin_constraints bin_constraints.cpp)
 add_shift_test(schedule_shift_bin_cycle cycle_0.cpp)
+add_shift_test(schedule_shift_kahn_decider_0 kahn_decider_0.cpp)
 
 add_shift_test(schedule_shift_tco_link_close_tight_pairs_0
                                         tco_link_close_tight_pairs_0.cpp)
@@ -86,9 +87,6 @@ add_shift_test(schedule_shift_logging_0 logging_0.cpp)
 add_shift_test(schedule_shift_filtered_schedule_0 filtered_schedule_0.cpp)
 add_shift_test(schedule_shift_constraint_diff_0 constraint_diff_0.cpp)
 
-
-add_shift_test(schedule_shift_solutioncache_0 solutioncache_0.cpp)
-
 add_shift_test(schedule_shift_alloc_simplifier_0 alloc_simplifier_0.cpp)
 
 add_shift_test(schedule_shift_alloc_partitioned_bins_0 
@@ -100,7 +98,19 @@ add_shift_test(schedule_shift_summary_writer_0
 add_shift_test(schedule_shift_summary_writer_1
                               summary_writer_1.cpp)
 
-configure_file(testgraph0.json.in testgraph0.json COPYONLY)
+configure_file(testgraphs/testgraph0.json.in testgraph0.json COPYONLY)
+add_shift_test(schedule_shift_change_writer_0
+                                 change_writer_0.cpp)
+
+add_test(NAME "schedule_shift_change_reader_0"
+         COMMAND ${Python3_EXECUTABLE} 
+         ${CMAKE_CURRENT_SOURCE_DIR}/change_reader_0.py)
+
+set_property(TEST schedule_shift_change_reader_0 
+            PROPERTY DEPENDS schedule_shift_change_writer_0)
+
+
+configure_file(testgraphs/testgraph0.json.in testgraph0.json COPYONLY)
 add_shift_test(schedule_shift_serialization_fromfile0 
                                  serialization_fromfile0.cpp)
 
