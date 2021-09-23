@@ -1,6 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
-#include <common/schedulable/error.hpp>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -11,10 +10,10 @@
 #include <unordered_map>
 #include <utility>
 
+#include <common/schedulable/error.hpp>
+
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/op.hpp>
-#include <poprithms/schedule/shift/graph.hpp>
-#include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 #include <poprithms/util/copybyclone_impl.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -316,23 +315,9 @@ getVanillaSchedule(const std::vector<std::vector<uint64_t>> &fwd) {
 std::vector<uint64_t>
 getRandomSchedule(const std::vector<std::vector<uint64_t>> &fwd,
                   uint32_t seed) {
-  using namespace schedule::shift;
-  auto g    = schedule::shift::Graph(fwd);
-  auto soln = schedule::shift::ScheduledGraph(
-      std::move(g),
-      {KahnTieBreaker::RANDOM, {}},
-      TransitiveClosureOptimizations::allOff(),
-      RotationTermination::preStart(),
-      RotationAlgo::RIPPLE,
-      seed,
-      FileWriter::None(),
-      DebugMode::Off);
-
-  std::vector<uint64_t> schedule(fwd.size());
-  for (uint64_t i = 0; i < fwd.size(); ++i) {
-    schedule[i] = soln.scheduleToOp(static_cast<int64_t>(i));
-  }
-  return schedule;
+  using namespace schedule::vanilla;
+  return Scheduler<uint64_t, double>::random(
+      fwd, {}, {}, seed, ErrorIfCycle::Yes, VerifyEdges::Yes);
 }
 
 } // namespace

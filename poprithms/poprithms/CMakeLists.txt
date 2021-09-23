@@ -76,7 +76,6 @@ set(common_schedulable_sources
 add_library(poprithms-common-schedulable-objlib OBJECT ${common_schedulable_sources})
 add_library(poprithms-common-schedulable SHARED
   $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
-  $<TARGET_OBJECTS:poprithms-schedule-shift-objlib>
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>

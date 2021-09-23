@@ -70,6 +70,8 @@ IncludeCategories:
     Priority:        200
   - Regex:           '<compute/'
     Priority:        190
+  - Regex:           '<common/'
+    Priority:        190
   - Regex:           '<memory/'
     Priority:        190
   - Regex:           '<schedule/'
