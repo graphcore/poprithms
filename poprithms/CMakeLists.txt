@@ -31,11 +31,22 @@ set(INSTALL_TESTS ${CMAKE_INSTALL_PREFIX}/tests)
 
 set(poprithms_src_dir ${PROJECT_SOURCE_DIR}/poprithms/poprithms/src)
 
+# Provide defaults for Boost_USE_STATIC* based on BUILD_SHARED_LIBS, to make
+# views that are fully static (poplarview) or fully dynamic
+# (colossus_tools_view) work out of the box. Views using a mix of static and
+# dynamic linking (host_runtime_view) must explicitly pass Boost_USE_STATIC* to
+# match how boost was built.
+if(NOT BUILD_SHARED_LIBS)
+  if(NOT DEFINED Boost_USE_STATIC_LIBS)
+    set(Boost_USE_STATIC_LIBS ON)
+  endif()
+  if(NOT DEFINED Boost_USE_STATIC_RUNTIME)
+    set(Boost_USE_STATIC_RUNTIME ON)
+  endif()
+endif()
 
 # The header only components don't need to be listed after COMPONENTS. 
 find_package(Boost REQUIRED COMPONENTS filesystem system)
-# Moreover, these lines are not needed while all boost deps are header only;
-# set(Boost_USE_STATIC_LIBS ON); set(Boost_USE_STATIC_RUNTIME ON)
 message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
 message(STATUS "Boost_LIBRARIES is " ${Boost_LIBRARIES})
 
