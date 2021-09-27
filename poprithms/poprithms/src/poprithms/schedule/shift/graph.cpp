@@ -25,6 +25,16 @@ namespace poprithms {
 namespace schedule {
 namespace shift {
 
+std::vector<std::array<OpAddress, 2>> Graph::getFwdLinks() const {
+  std::vector<std::array<OpAddress, 2>> links;
+  auto opsWithFwdLinks = getOpsWithFwdLinks();
+  links.reserve(opsWithFwdLinks.size());
+  for (const auto &op : opsWithFwdLinks) {
+    links.push_back({op, getOp(op).getForwardLink()});
+  }
+  return links;
+}
+
 void Graph::updateWeight(AllocAddress aa, const AllocWeight &w) {
   allAllocs[aa].setWeight(w);
 }

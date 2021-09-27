@@ -44,8 +44,8 @@ add_library(poprithms-util-objlib OBJECT
   ${error_sources}
 )
 
-# For each sub-project "foo" of poprithms an abjiect library and (most often) 
-# a shared library called poprithms-foo are created. Linking only the necessary 
+# For each sub-project "foo" of poprithms an object library and (most often)
+# a shared library called poprithms-foo are created. Linking only the necessary
 # components to tests improves test link times.
 add_library(poprithms-util SHARED  $<TARGET_OBJECTS:poprithms-util-objlib>)
 
@@ -84,28 +84,28 @@ add_library(poprithms-common-schedulable SHARED
 
 set(schedule_src_dir ${src_dir}/schedule)
 
-
 set(shift_source_dir ${src_dir}/schedule/shift)
 set(schedule_shift_sources
  ${shift_source_dir}/alloc.cpp
  ${shift_source_dir}/allocweight.cpp
  ${shift_source_dir}/allocsimplifier.cpp
  ${shift_source_dir}/error.cpp
+ ${shift_source_dir}/fromcache.cpp
  ${shift_source_dir}/graph.cpp
  ${shift_source_dir}/greedykahn.cpp
  ${shift_source_dir}/graphserialization.cpp
  ${shift_source_dir}/kahndecider.cpp
  ${shift_source_dir}/logging.cpp
  ${shift_source_dir}/op.cpp
- ${shift_source_dir}/updatefromfirstfinal.cpp
+ ${shift_source_dir}/schedulecache.cpp
  ${shift_source_dir}/scheduledgraph.cpp
  ${shift_source_dir}/settings.cpp
  ${shift_source_dir}/shiftandcost.cpp
- ${shift_source_dir}/solutioncache.cpp
  ${shift_source_dir}/summarywriter.cpp
  ${shift_source_dir}/transitiveclosureconstrainer.cpp
  ${shift_source_dir}/transitiveclosureoptimizer.cpp
  ${shift_source_dir}/transitiveclosureoptimizations.cpp
+ ${shift_source_dir}/updatefromfirstfinal.cpp
 )
 set(dfs_source_dir ${schedule_src_dir}/dfs)
 set(schedule_dfs_sources

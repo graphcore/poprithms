@@ -1,8 +1,13 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+
 #include <algorithm>
+#include <array>
 #include <chrono>
+#include <functional>
 #include <iterator>
 #include <limits>
+#include <locale>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <sstream>
@@ -11,18 +16,22 @@
 #include <schedule/shift/error.hpp>
 #include <schedule/shift/greedykahn.hpp>
 #include <schedule/shift/transitiveclosureoptimizer.hpp>
+#include <schedule/shift/updatefromfirstfinal.hpp>
 
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/shift/filteredschedule.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 #include <poprithms/schedule/shift/logging.hpp>
+#include <poprithms/schedule/shift/schedulecache.hpp>
 #include <poprithms/schedule/shift/schedulechange.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
-#include <poprithms/schedule/shift/solutioncache.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
+
+// deprecated
+#include <poprithms/schedule/shift/fromcache.hpp>
 
 namespace poprithms {
 namespace schedule {
@@ -51,12 +60,9 @@ namespace shift {
 class Settings;
 
 bool ScheduledGraph::isSchedulable(const Graph &graph) {
-  std::vector<std::array<OpAddress, 2>> links;
-  for (const auto &op : graph.getOpsWithFwdLinks()) {
-    links.push_back({op, graph.getOp(op).getForwardLink()});
-  }
-  return vanilla::Query<uint64_t>::isSchedulable(
-      graph.getFwdEdges_u64(), links, vanilla::VerifyEdges::Yes);
+  return vanilla::Query<uint64_t>::isSchedulable(graph.getFwdEdges_u64(),
+                                                 graph.getFwdLinks(),
+                                                 vanilla::VerifyEdges::Yes);
 }
 
 namespace {
@@ -65,14 +71,7 @@ std::vector<OpAddress>
 kahn(const Graph &graph, const KahnDecider &kd, const uint32_t seed) {
 
   auto getSchedule = [&graph, &kd, &seed](vanilla::ErrorIfCycle eic) {
-    const auto opsWithFwdLinks = graph.getOpsWithFwdLinks();
-
-    std::vector<std::array<OpAddress, 2>> links;
-    links.reserve(opsWithFwdLinks.size());
-
-    for (const auto &op : opsWithFwdLinks) {
-      links.push_back({op, graph.getOp(op).getForwardLink()});
-    }
+    const auto links = graph.getFwdLinks();
 
     switch (kd.kahnTieBreaker()) {
     case KahnTieBreaker::FIFO: {
@@ -117,7 +116,6 @@ kahn(const Graph &graph, const KahnDecider &kd, const uint32_t seed) {
 
   auto sch = getSchedule(vanilla::ErrorIfCycle::No);
 
-  // id not all ops are scheduled, there is a cycle in the graph.
   if (sch.size() != graph.nOps()) {
 
     log().info("Failed to schedule all Ops, obtaining summary.");
@@ -1417,44 +1415,6 @@ void ScheduledGraph::confirmShiftAndCost(const ScheduleIndex start0,
   }
 }
 
-ScheduledGraph ScheduledGraph::fromCache(Graph &&graph,
-                                         const Settings &settings,
-                                         const ISummaryWriter &summaryWriter_,
-                                         const ISolutionCache *readCache,
-                                         ISolutionCache *writeCache) {
-
-  if (readCache) {
-    auto found = readCache->find(graph, settings);
-    if (found) {
-      const auto &soln = *found;
-      for (uint64_t i = 1; i < soln.size(); ++i) {
-        graph.insertConstraint(soln[i - 1], soln[i]);
-      }
-      return ScheduledGraph(std::move(graph),
-                            {KahnTieBreaker::FIFO, {}},
-                            TransitiveClosureOptimizations::allOff(),
-                            RotationTermination::preStart());
-    }
-  }
-
-  // we need a copy of the user's graph, as this will be the key in the
-  // cache. When we call initialize, the graph will change to make it easier
-  // to schedule. However, the key we want to cache is the original user's
-  // graph.
-  auto g0 = graph;
-
-  auto soln = ScheduledGraph(std::move(graph), settings, summaryWriter_);
-
-  if (writeCache) {
-    std::vector<OpAddress> inputGraphAdds(g0.nOps());
-    std::iota(inputGraphAdds.begin(), inputGraphAdds.end(), 0);
-    auto subSchedule = soln.getSubSchedule(inputGraphAdds);
-    writeCache->writeSolution(std::move(g0), settings, subSchedule);
-  }
-
-  return soln;
-}
-
 // This will be deprecated
 const ISummaryWriter &getDefaultSummaryWriter() {
   static FileWriter rp = FileWriter::None();
@@ -1464,8 +1424,8 @@ const ISummaryWriter &getDefaultSummaryWriter() {
 // This is a deprecated constructor.
 ScheduledGraph::ScheduledGraph(Graph &&g,
                                const Settings &s,
-                               const ISolutionCache *a,
-                               ISolutionCache *b) {
+                               const IScheduleCache *a,
+                               IScheduleCache *b) {
   auto sg       = fromCache(std::move(g), s, FileWriter::Default(), a, b);
   rippleScratch = std::move(sg.rippleScratch);
   graph         = std::move(sg.graph);

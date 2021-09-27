@@ -313,6 +313,10 @@ public:
   // Combine all tight Op pairs to form sets of isolated chains
   std::vector<std::vector<OpAddress>> getTightChains() const;
 
+  // Return all pairs of linked Ops
+  std::vector<std::array<OpAddress, 2>> getFwdLinks() const;
+
+  // Return all Ops which are linked to, and before, another Op.
   std::vector<OpAddress> getOpsWithFwdLinks() const;
 
   /**

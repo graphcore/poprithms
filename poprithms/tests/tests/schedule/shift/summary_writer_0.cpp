@@ -7,6 +7,7 @@
 #include <testutil/schedule/shift/randomgraph.hpp>
 
 #include <poprithms/error/error.hpp>
+#include <poprithms/schedule/shift/fromcache.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
@@ -20,16 +21,15 @@ using namespace poprithms::schedule::shift;
  * */
 ScheduledGraph get(Graph g0, const ISummaryWriter &iSum) {
 
-  return ScheduledGraph::fromCache(
-      std::move(g0),
-      Settings({KahnTieBreaker::FIFO, {}},
-               TransitiveClosureOptimizations::allOn(),
-               Settings::defaultRotationTermination(),
-               RotationAlgo::RIPPLE,
-               1011),
-      iSum,
-      nullptr,
-      nullptr);
+  return fromCache(std::move(g0),
+                   Settings({KahnTieBreaker::FIFO, {}},
+                            TransitiveClosureOptimizations::allOn(),
+                            Settings::defaultRotationTermination(),
+                            RotationAlgo::RIPPLE,
+                            1011),
+                   iSum,
+                   nullptr,
+                   nullptr);
 }
 
 // Test: Catch an error when the path is not a valid one.

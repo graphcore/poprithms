@@ -87,6 +87,9 @@ add_shift_test(schedule_shift_logging_0 logging_0.cpp)
 add_shift_test(schedule_shift_filtered_schedule_0 filtered_schedule_0.cpp)
 add_shift_test(schedule_shift_constraint_diff_0 constraint_diff_0.cpp)
 
+
+add_shift_test(schedule_shift_schedulecache_0 schedulecache_0.cpp)
+
 add_shift_test(schedule_shift_alloc_simplifier_0 alloc_simplifier_0.cpp)
 
 add_shift_test(schedule_shift_alloc_partitioned_bins_0 

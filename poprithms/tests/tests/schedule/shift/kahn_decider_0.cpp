@@ -8,6 +8,7 @@
 #include <testutil/schedule/shift/randomgraph.hpp>
 
 #include <poprithms/error/error.hpp>
+#include <poprithms/schedule/shift/fromcache.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -101,7 +102,6 @@ void test0() {
                             {rando2.cbegin(), rando2.cbegin() + 5},
                             "Random with warm start");
 }
-//
 
 void test1() {
 
@@ -141,16 +141,15 @@ void test1() {
 
     SwitchSummaryWriter ig;
 
-    auto foo2 = ScheduledGraph::fromCache(
-        Graph(g),
-        Settings(KahnDecider(KahnTieBreaker::RANDOM, pris),
-                 TransitiveClosureOptimizations::allOn(),
-                 RotationTermination::nHours(1)),
-        ig);
+    auto foo2 = fromCache(Graph(g),
+                          Settings(KahnDecider(KahnTieBreaker::RANDOM, pris),
+                                   TransitiveClosureOptimizations::allOn(),
+                                   RotationTermination::nHours(1)),
+                          ig);
+
     nRotations.push_back(ig.allChanges().size());
   }
 
-  std::cout << "fraction_fixed:number_of_rotations" << std::endl;
   for (uint64_t i = 0; i < fracsFixed.size(); ++i) {
     std::cout << fracsFixed[i] << " : " << nRotations[i] << std::endl;
   }

@@ -1,12 +1,12 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_SCHEDULE_SHIFT_SCHEDULEDGRAPH
-#define POPRITHMS_SCHEDULE_SHIFT_SCHEDULEDGRAPH
+#ifndef POPRITHMS_SCHEDULE_SHIFT_SCHEDULEDGRAPH_HPP
+#define POPRITHMS_SCHEDULE_SHIFT_SCHEDULEDGRAPH_HPP
 
 #include <poprithms/logging/timepartitionlogger.hpp>
 #include <poprithms/schedule/shift/graph.hpp>
-#include <poprithms/schedule/shift/kahndecider.hpp>
 #include <poprithms/schedule/shift/rotationalgo.hpp>
 #include <poprithms/schedule/shift/rotationtermination.hpp>
+#include <poprithms/schedule/shift/schedulechange.hpp>
 #include <poprithms/schedule/shift/settings.hpp>
 #include <poprithms/schedule/shift/shiftandcost.hpp>
 #include <poprithms/schedule/shift/solutioncache.hpp>
@@ -71,12 +71,9 @@ public:
    *
    * \param writer (optional) A summary of the algorithm's execution and the
    *               graph that it schedules can optionally be written by
-   *               #writer. The default is to try and set from it from
+   *               #writer. The default is to attempt to set it from
    *               environment variables if they exist, or else never write.
    *
-   *               The default behaviour is to not record any
-   *               information. See ISummaryWriter and SummaryWriter classes
-   *               for more information.
    *   */
 
   ScheduledGraph(
@@ -86,8 +83,8 @@ public:
       RotationTermination rt         = Settings::defaultRotationTermination(),
       RotationAlgo algo              = Settings::defaultRotationAlgo(),
       uint32_t seed                  = Settings::defaultSeed(),
-      const ISummaryWriter &summaryWriter = FileWriter::None(),
-      DebugMode dm                        = Settings::defaultDebugMode());
+      const ISummaryWriter &writer   = FileWriter::None(),
+      DebugMode dm                   = Settings::defaultDebugMode());
 
   ScheduledGraph(const ScheduledGraph &) = default;
   ScheduledGraph(ScheduledGraph &&)      = default;
@@ -105,19 +102,15 @@ public:
    * */
   ScheduledGraph(Graph &&,
                  const Settings &,
-                 const ISolutionCache *,
-                 ISolutionCache *);
+                 const IScheduleCache *,
+                 IScheduleCache *);
 
   ScheduledGraph(Graph &&, const std::map<std::string, std::string> &);
 
-  static ScheduledGraph
-  fromCache(Graph &&,
-            const Settings &,
-            const ISummaryWriter & = FileWriter::Default(),
-            const ISolutionCache * = nullptr,
-            ISolutionCache *       = nullptr);
-
-  static bool isSchedulable(const Graph &);
+  /**
+   * \deprecated {This API is deprecated, use vanilla::Query instead. }.
+   * */
+  static bool isSchedulable(const Graph &g);
 
   /** verify that all graph connections are valid, if not throw error */
   void assertCorrectness() const;
@@ -311,9 +304,6 @@ private:
   // TODO(T14827) for multithreading, need one of these scratchpads per thread
   mutable std::vector<TrackEntry> rippleScratch;
 
-  // Implements the isSchedulable algorithm assuming the graph has no links.
-  static bool linklessIsSchedulable(const Graph &);
-
   // not const: might change!
   Graph graph;
 
@@ -339,6 +329,7 @@ private:
   TimeLogger &timeLogger() { return swatch_; }
   TimeLogger swatch_;
 
+public:
   const TimeLogger &getTimeLogger() const { return swatch_; }
 };
 

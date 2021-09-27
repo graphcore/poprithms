@@ -8,6 +8,7 @@
 #include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/shift/logging.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
+#include <poprithms/schedule/vanilla/vanilla.hpp>
 
 namespace poprithms {
 namespace schedule {
@@ -29,7 +30,7 @@ void TransitiveClosureOptimizer::initializeTransitiveClosure() {
   // context strings for the Ops in the Graph, confirm that the Graph is
   // schedulable (contains no cycles) and provide a clear error message if it
   // is not.
-  if (!ScheduledGraph::isSchedulable(getGraph().getFwdEdges_u64())) {
+  if (!ScheduledGraph::isSchedulable(getGraph())) {
     const auto &g = getGraph();
     std::vector<std::string> dbs;
     dbs.reserve(g.nOps());
@@ -44,6 +45,11 @@ void TransitiveClosureOptimizer::initializeTransitiveClosure() {
         << "in topological order, are:"
         << scc::getSummary(
                g.getFwdEdges_u64(), dbs, scc::IncludeSingletons::No);
+
+    const auto fwdLinks = g.getFwdLinks();
+    if (fwdLinks.size() == 0) {
+      oss << "\nThe graph has " << fwdLinks.size() << " links.";
+    }
 
     throw error(oss.str());
   }

@@ -134,10 +134,10 @@ void assertCycles(const FwdEdges &edges,
     throw poprithms::test::error(oss.str());
   }
 
-  const auto x = getSummary(
+  const auto summary = getSummary(
       edges, std::vector<std::string>(edges.size()), IncludeSingletons::Yes);
 
-  if (count(x, "One cycle (out of potentially many)") !=
+  if (count(summary, "One cycle (out of potentially many)") !=
       std::count_if(expected.cbegin(), expected.cend(), [](const auto &x) {
         return !x.empty();
       })) {
