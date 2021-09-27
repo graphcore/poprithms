@@ -30,7 +30,12 @@ void TransitiveClosureOptimizer::initializeTransitiveClosure() {
   // context strings for the Ops in the Graph, confirm that the Graph is
   // schedulable (contains no cycles) and provide a clear error message if it
   // is not.
-  if (!ScheduledGraph::isSchedulable(getGraph())) {
+
+  const auto isSched =
+      vanilla::Query<uint64_t>::isSchedulable(graph.getFwdEdges_u64(),
+                                              graph.getFwdLinks(),
+                                              vanilla::VerifyEdges::Yes);
+  if (!isSched) {
     const auto &g = getGraph();
     std::vector<std::string> dbs;
     dbs.reserve(g.nOps());

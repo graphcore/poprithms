@@ -80,7 +80,11 @@ void test2() {
   g.insertLink(ops[1], ops[3]);
   g.insertConstraint(ops[0], ops[2]);
   g.insertConstraint(ops[2], ops[3]);
-  if (ScheduledGraph::isSchedulable(g)) {
+
+  using namespace poprithms::schedule::vanilla;
+  auto isSched = Query<uint64_t>::isSchedulable(
+      g.getFwdEdges_u64(), g.getFwdLinks(), VerifyEdges::Yes);
+  if (isSched) {
     throw poprithms::test::error(
         "Diamond with tight edge is not schedulable");
   }
@@ -101,7 +105,11 @@ void test3() {
   g.insertLink(ops[2], ops[3]);
   g.insertConstraint(ops[0], ops[2]);
   g.insertConstraint(ops[1], ops[3]);
-  if (!ScheduledGraph::isSchedulable(g)) {
+
+  using namespace poprithms::schedule::vanilla;
+  auto isSched = Query<uint64_t>::isSchedulable(
+      g.getFwdEdges_u64(), g.getFwdLinks(), VerifyEdges::Yes);
+  if (!isSched) {
     throw poprithms::test::error(
         "Diamond with separated tight edges is schedulable");
   }

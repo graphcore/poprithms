@@ -9,7 +9,6 @@
 #include <poprithms/schedule/shift/schedulechange.hpp>
 #include <poprithms/schedule/shift/settings.hpp>
 #include <poprithms/schedule/shift/shiftandcost.hpp>
-#include <poprithms/schedule/shift/solutioncache.hpp>
 #include <poprithms/schedule/shift/summarywriter.hpp>
 #include <poprithms/schedule/shift/trackentry.hpp>
 #include <poprithms/schedule/shift/transitiveclosureoptimizations.hpp>
@@ -96,21 +95,8 @@ public:
                  const Settings &,
                  const ISummaryWriter &summaryWriter = FileWriter::None());
 
-  /**
-   * \deprecated {This constructor has been replaced with the factory method,
-   *              fromCache. }
-   * */
-  ScheduledGraph(Graph &&,
-                 const Settings &,
-                 const IScheduleCache *,
-                 IScheduleCache *);
 
   ScheduledGraph(Graph &&, const std::map<std::string, std::string> &);
-
-  /**
-   * \deprecated {This API is deprecated, use vanilla::Query instead. }.
-   * */
-  static bool isSchedulable(const Graph &g);
 
   /** verify that all graph connections are valid, if not throw error */
   void assertCorrectness() const;

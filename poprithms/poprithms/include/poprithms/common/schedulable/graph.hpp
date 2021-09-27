@@ -13,7 +13,6 @@
 #include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
-#include <poprithms/schedule/shift/kahntiebreaker.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 
 namespace poprithms {

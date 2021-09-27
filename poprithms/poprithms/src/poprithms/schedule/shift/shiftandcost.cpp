@@ -4,7 +4,6 @@
 
 #include <schedule/shift/error.hpp>
 
-#include <poprithms/schedule/shift/kahntiebreaker.hpp>
 #include <poprithms/schedule/shift/shiftandcost.hpp>
 #include <poprithms/util/stringutil.hpp>
 

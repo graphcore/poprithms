@@ -278,13 +278,6 @@ public:
   explicit SwitchingTimePartitionLogger(const std::string &id)
       : TimePartitionLogger(id) {}
 
-  /**
-   * \deprecated { Previously, SwitchingTimePartitionLogger could optionally
-   * be forced to have unique names. This option is no longer required. }
-   * */
-  SwitchingTimePartitionLogger(const std::string &s, bool /*deprecated*/)
-      : SwitchingTimePartitionLogger(s) {}
-
   SwitchingTimePartitionLogger()
       : SwitchingTimePartitionLogger(std::string{}) {}
 

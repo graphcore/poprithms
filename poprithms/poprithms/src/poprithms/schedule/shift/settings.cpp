@@ -2,7 +2,6 @@
 
 #include <schedule/shift/error.hpp>
 
-#include <poprithms/schedule/shift/kahntiebreaker.hpp>
 #include <poprithms/schedule/shift/settings.hpp>
 
 namespace poprithms {

@@ -3,7 +3,7 @@
 #define POPRITHMS_SCHEDULE_SHIFT_SETTINGS
 
 #include <poprithms/schedule/shift/graph.hpp>
-#include <poprithms/schedule/shift/kahntiebreaker.hpp>
+#include <poprithms/schedule/shift/kahndecider.hpp>
 #include <poprithms/schedule/shift/rotationalgo.hpp>
 #include <poprithms/schedule/shift/rotationtermination.hpp>
 #include <poprithms/schedule/shift/transitiveclosureoptimizations.hpp>
@@ -27,18 +27,6 @@ public:
            uint32_t seed                      = defaultSeed(),
            DebugMode dm                       = defaultDebugMode())
       : kd_(kd), tcos_(tco), rt_(rt), ra_(algo), seed_(seed), dm_(dm) {}
-
-  /**
-   * \deprecated {This constructor is deprecated. Please use the KahnDecider
-   *              version above.}
-   * */
-  Settings(const KahnTieBreaker ktb,
-           TransitiveClosureOptimizations tco = defaultTCOs(),
-           RotationTermination rt             = defaultRotationTermination(),
-           RotationAlgo algo                  = defaultRotationAlgo(),
-           uint32_t seed                      = defaultSeed(),
-           DebugMode dm                       = defaultDebugMode())
-      : Settings(KahnDecider(ktb), tco, rt, algo, seed, dm) {}
 
   KahnTieBreaker kahnTieBreaker() const { return kd_.kahnTieBreaker(); }
   const KahnDecider &kahnDecider() const { return kd_; }

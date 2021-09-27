@@ -6,6 +6,7 @@
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/shift/fromcache.hpp>
+#include <poprithms/schedule/shift/schedulecache.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 #include <poprithms/util/printiter.hpp>
 

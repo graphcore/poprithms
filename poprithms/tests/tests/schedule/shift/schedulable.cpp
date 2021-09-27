@@ -7,6 +7,7 @@
 int main() {
 
   using namespace poprithms::schedule::shift;
+  using namespace poprithms::schedule::vanilla;
 
   Graph g;
   auto op0 = g.insertOp("op0");
@@ -15,7 +16,9 @@ int main() {
   g.insertConstraint(op0, op1);
   g.insertConstraint(op1, op2);
   g.insertConstraint(op2, op0);
-  if (ScheduledGraph::isSchedulable(g)) {
+
+  if (Query<uint64_t>::isSchedulable(
+          g.getFwdEdges_u64(), g.getFwdLinks(), VerifyEdges::Yes)) {
     throw poprithms::test::error(
         "Triangle of dependencies is NOT schedulable");
   }
@@ -29,7 +32,8 @@ int main() {
   g.insertConstraint(op0, op2);
   g.insertConstraint(op1, op3);
   g.insertConstraint(op2, op3);
-  if (!ScheduledGraph::isSchedulable(g)) {
+  if (!Query<uint64_t>::isSchedulable(
+          g.getFwdEdges_u64(), g.getFwdLinks(), VerifyEdges::Yes)) {
     throw poprithms::test::error("This diamond DAG IS schedulable");
   }
 

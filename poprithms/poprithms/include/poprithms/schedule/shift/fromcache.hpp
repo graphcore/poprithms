@@ -4,6 +4,7 @@
 
 #include <ostream>
 
+#include <poprithms/schedule/shift/ischedulecache.hpp>
 #include <poprithms/schedule/shift/kahndecider.hpp>
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 

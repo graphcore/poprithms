@@ -30,8 +30,6 @@
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
-// deprecated
-#include <poprithms/schedule/shift/fromcache.hpp>
 
 namespace poprithms {
 namespace schedule {
@@ -59,11 +57,6 @@ namespace shift {
 
 class Settings;
 
-bool ScheduledGraph::isSchedulable(const Graph &graph) {
-  return vanilla::Query<uint64_t>::isSchedulable(graph.getFwdEdges_u64(),
-                                                 graph.getFwdLinks(),
-                                                 vanilla::VerifyEdges::Yes);
-}
 
 namespace {
 
@@ -1413,32 +1406,6 @@ void ScheduledGraph::confirmShiftAndCost(const ScheduleIndex start0,
         << " and nToShift = " << nToShift;
     throw error(oss.str());
   }
-}
-
-// This will be deprecated
-const ISummaryWriter &getDefaultSummaryWriter() {
-  static FileWriter rp = FileWriter::None();
-  return rp;
-}
-
-// This is a deprecated constructor.
-ScheduledGraph::ScheduledGraph(Graph &&g,
-                               const Settings &s,
-                               const IScheduleCache *a,
-                               IScheduleCache *b) {
-  auto sg       = fromCache(std::move(g), s, FileWriter::Default(), a, b);
-  rippleScratch = std::move(sg.rippleScratch);
-  graph         = std::move(sg.graph);
-  schToOp       = std::move(sg.schToOp);
-  opToSch       = std::move(sg.opToSch);
-  allocToSch    = std::move(sg.allocToSch);
-  schToAllocs   = std::move(sg.schToAllocs);
-  opToInSch     = std::move(sg.opToInSch);
-  opToOutSch    = std::move(sg.opToOutSch);
-  nCanFwd       = std::move(sg.nCanFwd);
-  nCanBwd       = std::move(sg.nCanBwd);
-  susceptible   = std::move(sg.susceptible);
-  swatch_       = std::move(sg.swatch_);
 }
 
 ScheduledGraph::ScheduledGraph(Graph &&gInitial,
