@@ -1,0 +1,48 @@
+Release notes (October 2021)
+
+Scheduler changes:
+
+- Explanations and visualisations for the 'shift' scheduler. These are best 
+  viewed by navigating to the 'notes' directory on github. (T46247)
+
+- Factorizing and simplififying the code design of the shift scheduler. This 
+  resulted in a few API deprecations which will be implemented in the next release. 
+  There are no breaking changes in this release. (T46284, T44068, T44687, T46589, T45914, T45850, T45775)
+
+- Make it simple to dump 'shift' json graphs for loading directly into poprithms 
+  (without going via pytorch, popart, etc.) (T43621)
+
+
+- Addition of the concepts of 'links' and 'chains' to the 'vanilla' and 'priorities' 
+  to the 'shift' and 'vanilla' schedulers. These additions give more fine-grained 
+  control in both of these scheduling projects. (T46224, T46221, T46151, T45893, T45749, T43200)
+
+- 'shift' scheduler accelerations. Overall about 25% speed-up in total 
+   time-to-schedule for some of the workloads provided by popart since the last release. 
+   (T44998, T43735, T43735, T44625, T16489, T43564, T43352)
+
+
+General and miscellaneous:
+
+- Add mlir and llvm dependencies. Currently the use of these libraries is experimental, 
+  and can be disabled with a cmake option if it is difficult to build with them. The 
+  longer term plan is to expose some of the algorithms in poprithms through mlir 
+  interfaces. (T46063)
+
+- Benchmarked and accelerated the 'stopwatch' utility. It can now switch scopes 
+  about 1e6 times per second. (T44672)
+
+- Improved cycle error message tools (a->b->c->a) for PopART (T29889)
+
+- General code factorizations and improvements (T46588, T43516, T46209, T45746, T44753, T44957, T43771)
+
+- [memory::nest] [bug fix] Don't expect the slice of a Region to be 0/1 Regions. (T44367)
+
+- Option to add an error code to an error message and throw site, which can simplify 
+  testing and improve debuggability. (T43162, T42719)
+
+- Add methods to host::Tensor and ndarray::Shape classes such as 
+  random sampling (T42914), partialReshape (T43154)
+
+
+
