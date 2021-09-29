@@ -53,20 +53,28 @@ message(STATUS "Boost_LIBRARIES is " ${Boost_LIBRARIES})
 find_package(LLVM REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
 
-# Find the libraries that correspond to the LLVM components that we wish to use
-llvm_map_components_to_libnames(llvm_libs support core)
+option(POPRITHMS_BUILD_WITH_LLVM "Experimental extension using MLIR/LLVM" TRUE)
 
-message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-message(STATUS "LLVM_INCLUDE_DIRS is " ${LLVM_INCLUDE_DIRS})
-message(STATUS "MLIR_INCLUDE_DIRS is " ${MLIR_INCLUDE_DIRS})
-message(STATUS "LLVM_LIBRARY_DIR is " ${LLVM_LIBRARY_DIR})
+if (${POPRITHMS_BUILD_WITH_LLVM})
+
+  message(STATUS "POPRITHMS_BUILD_WITH_LLVM is TRUE.")
+
+  # Find the libraries that correspond to the LLVM components that we wish to use
+  llvm_map_components_to_libnames(poprithms_llvm_libs support core)
+  message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+  message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+  message(STATUS "LLVM_INCLUDE_DIRS is " ${LLVM_INCLUDE_DIRS})
+  message(STATUS "MLIR_INCLUDE_DIRS is " ${MLIR_INCLUDE_DIRS})
+  message(STATUS "LLVM_LIBRARY_DIR is " ${LLVM_LIBRARY_DIR})
+else()
+  message(STATUS "POPRITHMS_BUILD_WITH_LLVM is FALSE.")
+endif()
+
+list(APPEND POPRITHMS_COMMON_INCLUDES ${Boost_INCLUDE_DIR})
+set(POPRITHMS_COMMON_LIBRARIES ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 find_package(Threads REQUIRED)
 
-list(APPEND POPRITHMS_COMMON_INCLUDES ${Boost_INCLUDE_DIR} ${LLVM_INCLUDE_DIRS})
-
-set(POPRITHMS_COMMON_LIBRARIES ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${llvm_libs})
 
 if (${POPRITHMS_USE_STACKTRACE})
   # Boost stacktrace requires linking with libdl

@@ -40,5 +40,11 @@ add_subdirectory(util)
 
 add_subdirectory(verify_cxx_11_interface)
 
-add_subdirectory(boost_llvm)
+add_subdirectory(dependency_free_interface)
+
+add_subdirectory(boost)
+
+if (${POPRITHMS_BUILD_WITH_LLVM})
+  add_subdirectory(llvm_mlir)
+endif()
 

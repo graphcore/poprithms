@@ -5,7 +5,7 @@ Poprithms is a graph algorithms library used by ML frameworks. Algorithm specifi
 ### Prerequisites for building
 
 * Boost, any version. 
-* LLVM, any version. 
+* LLVM (optional), any version. The use of LLVM and MLIR is experimental, and not required. To disable the experimental code which uses LLVM/MLIR, set the cmake option `POPRITHMS_BUILD_WITH_LLVM` to `0`. 
 
 ### Configure with cmake 
 
@@ -32,6 +32,11 @@ cmake /path/to/poprithms/root/dir  -DPOPRITHMS_WERROR=OFF
 By default, Boost Stacktrace is used to improve error messages. To disable it,
 ```
 cmake /path/to/poprithms/root/dir  -DPOPRITHMS_USE_STACKTRACE=OFF
+```
+
+To build with LLVM/MLIR disabled, 
+```
+cmake /path/to/poprithms/root/dir  -DPOPRITHMS_BUILD_WITH_LLVM=OFF
 ```
 
 The usual CMake flags can be used to set the install directory `CMAKE_INSTALL_PREFIX` 

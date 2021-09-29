@@ -9,7 +9,6 @@ endif ()
 
 
 
-
 set(src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms)
 
 set(logging_sources
