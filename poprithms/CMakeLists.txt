@@ -50,12 +50,11 @@ find_package(Boost REQUIRED COMPONENTS filesystem system)
 message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
 message(STATUS "Boost_LIBRARIES is " ${Boost_LIBRARIES})
 
-find_package(LLVM REQUIRED CONFIG)
-find_package(MLIR REQUIRED CONFIG)
-
 option(POPRITHMS_BUILD_WITH_LLVM "Experimental extension using MLIR/LLVM" TRUE)
 
 if (${POPRITHMS_BUILD_WITH_LLVM})
+  find_package(LLVM REQUIRED CONFIG)
+  find_package(MLIR REQUIRED CONFIG)
 
   message(STATUS "POPRITHMS_BUILD_WITH_LLVM is TRUE.")
 
