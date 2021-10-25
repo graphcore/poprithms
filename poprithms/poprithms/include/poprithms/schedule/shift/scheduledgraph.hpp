@@ -95,7 +95,6 @@ public:
                  const Settings &,
                  const ISummaryWriter &summaryWriter = FileWriter::None());
 
-
   ScheduledGraph(Graph &&, const std::map<std::string, std::string> &);
 
   /** verify that all graph connections are valid, if not throw error */

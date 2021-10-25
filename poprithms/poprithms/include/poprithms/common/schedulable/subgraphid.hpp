@@ -71,9 +71,8 @@ std::ostream &operator<<(std::ostream &, const SubGraphId &);
 
 namespace std {
 template <> struct hash<poprithms::common::schedulable::SubGraphId> {
-  std::size_t
-  operator()(const poprithms::common::schedulable::SubGraphId &s) const
-      noexcept {
+  std::size_t operator()(
+      const poprithms::common::schedulable::SubGraphId &s) const noexcept {
     return std::hash<uint32_t>{}(s.get_u32());
   }
 };

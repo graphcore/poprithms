@@ -21,9 +21,9 @@ exit
 fi
 
 cf_version=$(python3 get_clang_format_version.py)
-if [[ "${cf_version}" -lt 8 ]];
+if [[ "${cf_version}" -lt 13 ]];
 then 
-echo "Clang-format version should be 8.0.0 or greater."
+echo "Clang-format version should be 13.0.0 or greater."
 exit
 fi
 

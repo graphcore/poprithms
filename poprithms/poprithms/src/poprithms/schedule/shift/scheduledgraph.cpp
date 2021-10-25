@@ -30,7 +30,6 @@
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
-
 namespace poprithms {
 namespace schedule {
 namespace shift {
@@ -56,7 +55,6 @@ namespace shift {
 // updateIndex
 
 class Settings;
-
 
 namespace {
 

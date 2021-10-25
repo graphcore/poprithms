@@ -191,7 +191,7 @@ Couple::Couple(const std::array<NodeId, 4> &rhs) : value{} {
 }
 
 const NodeId &
-    Couple::operator[](std::array<NodeId, 4>::size_type index) const {
+Couple::operator[](std::array<NodeId, 4>::size_type index) const {
   return value[index];
 }
 

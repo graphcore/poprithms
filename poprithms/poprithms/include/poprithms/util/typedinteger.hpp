@@ -92,8 +92,8 @@ std::string operator+(const std::string &s, TypedInteger<T, INT> id) {
 namespace std {
 template <char T, typename INT>
 struct hash<poprithms::util::TypedInteger<T, INT>> {
-  std::size_t operator()(poprithms::util::TypedInteger<T, INT> const &s) const
-      noexcept {
+  std::size_t
+  operator()(poprithms::util::TypedInteger<T, INT> const &s) const noexcept {
     return std::hash<INT>{}(s.get());
   }
 };

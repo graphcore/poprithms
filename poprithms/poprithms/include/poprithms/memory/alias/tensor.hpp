@@ -223,8 +223,8 @@ std::ostream &operator<<(std::ostream &, const Tensor &);
 
 namespace std {
 template <> struct hash<poprithms::memory::alias::Tensor> {
-  std::size_t operator()(poprithms::memory::alias::Tensor const &tensor) const
-      noexcept {
+  std::size_t
+  operator()(poprithms::memory::alias::Tensor const &tensor) const noexcept {
     return std::hash<decltype(tensor.id())>{}(tensor.id());
   }
 };

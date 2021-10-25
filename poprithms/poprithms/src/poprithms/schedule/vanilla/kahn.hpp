@@ -245,7 +245,7 @@ template <typename TNode,
 std::vector<TNode>
 linklessDelegate(const Edges<TNode> &fwdEdges,
                  const Priorities<TNode, TPriority> &priorities,
-                 const Args &... args) {
+                 const Args &...args) {
 
   return priorities.empty()
              ? SchedulerWithoutPriorities::kahn(fwdEdges, args...)
@@ -274,7 +274,7 @@ std::vector<TNode> delegate(const Edges<TNode> &fwdEdges,
                             const Priorities<TNode, TPriority> &priorities,
                             const Links<TNode> &links,
                             const GetLinkedArgs &getCompressedArgs,
-                            const Args &... args) {
+                            const Args &...args) {
 
   if (ve == VerifyEdges::Yes) {
     verifyEdges<TNode>(fwdEdges);
@@ -296,8 +296,8 @@ std::vector<TNode> delegate(const Edges<TNode> &fwdEdges,
     auto compressedPriorities = getCompressedPriorities(lm, priorities);
     auto linkedArgsTuple      = getCompressedArgs(lm.toCompressed);
 
-    auto delegateLinked = [&compressedEdges, &compressedPriorities](
-                              const Args &... linkedArgs) {
+    auto delegateLinked = [&compressedEdges,
+                           &compressedPriorities](const Args &...linkedArgs) {
       return linklessDelegate<TNode,
                               TPriority,
                               SchedulerWithoutPriorities,

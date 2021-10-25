@@ -471,7 +471,7 @@ Graph::getSchedulableColumns(const OpIds &opIds) const {
     const auto subGraphId = op(i).subGraphId();
     const auto gName      = subGraphName(subGraphId);
     sg__[ti]              = gName.empty() ? subGraphId.str()
-                             : gName + "(id=" + subGraphId.str() + ")";
+                                          : gName + "(id=" + subGraphId.str() + ")";
     for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
       ++ti;
     }

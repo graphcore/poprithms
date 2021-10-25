@@ -44,7 +44,7 @@ Settings::Settings(const std::map<std::string, std::string> &m) : Settings() {
     if (k == "allTCO") {
       const auto allTCOs = static_cast<bool>(std::stoi(v));
       tcos_              = allTCOs ? TransitiveClosureOptimizations::allOn()
-                      : TransitiveClosureOptimizations::allOff();
+                                   : TransitiveClosureOptimizations::allOff();
     }
 
     else if (k == "seed") {

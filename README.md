@@ -79,6 +79,10 @@ find_package(poprithms-static CONFIG REQUIRED)
 target_link_libraries(my_library PRIVATE poprithms-static)
 ```
 
+
+### Formatting the C++ code
+The project uses clang-format version 13.
+
 ### Troubleshooting
 
 #### CMake can't find poprithms

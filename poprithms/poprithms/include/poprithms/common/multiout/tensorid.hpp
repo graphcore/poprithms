@@ -59,9 +59,8 @@ std::ostream &operator<<(std::ostream &, const TensorIds &);
 // https://en.cppreference.com/w/cpp/utility/hash
 namespace std {
 template <> struct hash<poprithms::common::multiout::TensorId> {
-  std::size_t
-  operator()(poprithms::common::multiout::TensorId const &tId) const
-      noexcept {
+  std::size_t operator()(
+      poprithms::common::multiout::TensorId const &tId) const noexcept {
 
     using namespace poprithms::common::multiout;
     using namespace poprithms::util;
