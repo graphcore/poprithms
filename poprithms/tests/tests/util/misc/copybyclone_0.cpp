@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -39,6 +39,8 @@ struct Graph {
 
   void insert(int id) { nodes.push_back(UpNode(std::make_unique<Node>(id))); }
 
+  void insertNull() { nodes.push_back(UpNode(nullptr)); }
+
   // We can implicitly up-cast from DerivedNode to Node. Note that making the
   // CopyByClone constructor explicit would prevent this.
   void insertDerivedNode() {
@@ -48,7 +50,7 @@ struct Graph {
 
 } // namespace test
 
-int main() {
+void test0() {
   using namespace test;
   auto a1 = UpNode(std::make_unique<Node>(1));
   auto a2 = UpNode(std::make_unique<Node>(2));
@@ -95,6 +97,51 @@ int main() {
         "user wants different behaviour, where a resource is shared across "
         "Graphs, they should use std::shared_ptr. ");
   }
+}
 
+void testNullPtr0() {
+  // nullptr:
+  auto a = test::UpNode();
+
+  // copy constructor
+  auto b = a;
+  auto c = a;
+
+  // move constructor
+  auto d = std::move(b);
+  auto e = std::move(c);
+
+  // assignment operator
+  d = e;
+
+  // move operator
+  d = std::move(a);
+
+  if (d.uptr) {
+    throw poprithms::test::error("Expected nullptr to be retained");
+  }
+}
+
+void testNullPtr1() {
+  test::Graph g;
+  g.insert(1);
+  g.insertDerivedNode();
+  g.insertNull();
+
+  auto g2 = g;
+  auto g3 = g;
+  g3      = g2;
+  auto g4 = std::move(g3);
+
+  if (!(g4 == g)) {
+    throw poprithms::test::error(
+        "g4 is a copy of g, and should compare equal");
+  }
+}
+
+int main() {
+  test0();
+  testNullPtr0();
+  testNullPtr1();
   return 0;
 }

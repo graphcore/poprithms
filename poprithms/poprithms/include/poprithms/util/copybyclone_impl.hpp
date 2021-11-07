@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_ALIAS_COPYBYCLONE_IMPL_HPP
 #define POPRITHMS_MEMORY_ALIAS_COPYBYCLONE_IMPL_HPP
 
@@ -16,7 +16,11 @@ CopyByClone<T> &CopyByClone<T>::operator=(const CopyByClone<T> &rhs) {
   if (this == &rhs) {
     return *this;
   }
-  this->uptr = rhs.uptr->clone();
+  if (rhs.uptr) {
+    this->uptr = rhs.uptr->clone();
+  } else {
+    this->uptr = nullptr;
+  }
   return *this;
 }
 
@@ -25,6 +29,7 @@ CopyByClone<T> &CopyByClone<T>::operator=(CopyByClone<T> &&rhs) noexcept {
   if (this == &rhs) {
     return *this;
   }
+  // if rhs.uptr == nullptr, this is still valid code:
   this->uptr = std::move(rhs.uptr);
   return *this;
 }
@@ -37,7 +42,7 @@ CopyByClone<T>::CopyByClone(CopyByClone<T> &&rhs) noexcept
 
 template <typename T>
 CopyByClone<T>::CopyByClone(const CopyByClone<T> &rhs)
-    : uptr(rhs.uptr->clone()) {}
+    : uptr(rhs.uptr ? rhs.uptr->clone() : nullptr) {}
 
 } // namespace util
 } // namespace poprithms

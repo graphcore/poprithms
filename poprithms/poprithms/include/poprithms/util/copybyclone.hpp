@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #ifndef POPRITHMS_MEMORY_COPYBYCLONE_HPP
 #define POPRITHMS_MEMORY_COPYBYCLONE_HPP
 
@@ -34,7 +34,7 @@ namespace util {
  * Container(const Container & rhs): id(rhs.id), foo(rhs.foo.clone()) {}
  * </code>
  *
- * but this custom-code approach gets challenging ig Container has many more
+ * but this custom-code approach gets challenging if Container has many more
  * member variables. The CopyByClone class makes it simpler. Redefining
  * Container as
  *
@@ -78,7 +78,8 @@ public:
   CopyByClone<T> &operator=(CopyByClone<T> &&) noexcept;
 
   bool operator==(const CopyByClone<T> &rhs) const {
-    return *uptr == *rhs.uptr;
+    return (uptr == nullptr && rhs.uptr == nullptr) ||
+           (uptr != nullptr && rhs.uptr != nullptr && *uptr == *rhs.uptr);
   }
   bool operator!=(const CopyByClone<T> &rhs) const {
     return !operator==(rhs);
