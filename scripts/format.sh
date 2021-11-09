@@ -20,17 +20,30 @@ echo "${header_guard_spacing_return}"
 exit
 fi
 
+# number of threads to run clang-format with
+PROC_COUNT=9
+
+# if there is no program gc-clang-format, check for a clang-format version 13 or
+# greater. Otherwise, use gc-clang-format. gc-clang-format is generally available as
+# as soon as you have sourced the poplar view build activation script. gc-clang-format
+# is the pinned version of clang-format which poplar and poplibs use.
+if ! command -v gc-clang-format &> /dev/null
+then
 cf_version=$(python3 get_clang_format_version.py)
 if [[ "${cf_version}" -lt 13 ]];
 then 
-echo "Clang-format version should be 13.0.0 or greater."
+echo "gc-clang-format, or a clang-format version greater than 13.0.0, must be used to format poprithms C++ code."
 exit
 fi
-
-PROC_COUNT=9
 printf "  -->  Inplace clang-formatting all .cpp and .hpp files\n"
 find ../poprithms -iname *.[ch]pp | xargs -n 1 -P ${PROC_COUNT} clang-format -i -verbose
 
+# if there is a gc-clang-format available, use it. 
+else
+printf "  -->  Inplace clang-formatting all .cpp and .hpp files\n"
+find ../poprithms -iname *.[ch]pp | xargs -n 1 -P ${PROC_COUNT} gc-clang-format -i -verbose
+fi
 
 printf "\nFormatting complete.\n"
+
 
