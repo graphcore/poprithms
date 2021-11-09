@@ -1,5 +1,4 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <iostream>
 #include <sstream>
 #include <vector>
 
@@ -97,7 +96,6 @@ void binConstraints0(uint64_t nBins, uint64_t nOps) {
     opToBin[i] = binId;
   }
   g.binConstraint(bins);
-  std::cout << g << std::endl;
   auto schedule = g.vanillaSchedule();
 
   std::vector<uint64_t> scheduleToBin;
@@ -230,8 +228,8 @@ void mayBeFinals0() {
   auto mays = g.mayBeFinals(gId);
   std::sort(mays.begin(), mays.end());
   if (mays != OpIds{c, d}) {
-    throw poprithms::test::error(
-        "c and d are the 2 Ops which have to potential to be scheduled last");
+    throw poprithms::test::error("c and d are the 2 Ops which have to "
+                                 "potentially to be scheduled last");
   }
 }
 
@@ -260,14 +258,22 @@ void tensorIds0() {
 } // namespace
 
 int main() {
+
   basic0();
+
   basic1();
+
   binConstraints0(4, 16);
   // Sparse bins, definitely some empty ones:
+
   binConstraints0(30, 10);
+
   toggleEager0();
+
   ensureLastOf0();
+
   mayBeFinals0();
+
   tensorIds0();
 
   return 0;

@@ -69,12 +69,12 @@ bool Concat::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   return axis() == rhs_.axis();
 }
 std::vector<alias::TensorId>
-Concat::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
+Concat::typeSpecificGrow(alias::Graph &g_, const TensorMap &m) const {
   for (auto x : inTensorIds()) {
     m.toAliasGraphId(x);
   }
 
-  return {g.concat(m.toAliasGraphIds(inTensorIds()), axis())};
+  return {g_.concat(m.toAliasGraphIds(inTensorIds()), axis())};
 }
 UpMultioutOp Concat::cloneMultioutOp() const { return mu<Concat>(this); }
 
@@ -93,10 +93,10 @@ bool Alloc::inplaceTypeSpecificEqualTo(const Op &rhs) const {
 UpMultioutOp Alloc::cloneMultioutOp() const { return mu<Alloc>(this); }
 
 std::vector<alias::TensorId>
-Alloc::typeSpecificGrow(alias::Graph &g, const TensorMap &) const {
+Alloc::typeSpecificGrow(alias::Graph &g_, const TensorMap &) const {
   AliasTensorIds ids;
   for (uint64_t o = 0; o < nOutTensors(); ++o) {
-    ids.push_back(g.allocate(outShape(o), color()));
+    ids.push_back(g_.allocate(outShape(o), color()));
   }
   return ids;
 }
@@ -105,8 +105,8 @@ Alloc::typeSpecificGrow(alias::Graph &g, const TensorMap &) const {
 //  UnaryModifier  //
 // --------------- //
 std::vector<alias::TensorId>
-UnaryModifier::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
-  return {g.identity(m.toAliasGraphId(inTensorId(0)))};
+UnaryModifier::typeSpecificGrow(alias::Graph &g_, const TensorMap &m) const {
+  return {g_.identity(m.toAliasGraphId(inTensorId(0)))};
 }
 UpMultioutOp UnaryModifier::cloneMultioutOp() const {
   return mu<UnaryModifier>(this);
@@ -125,8 +125,8 @@ bool SettSample::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   return region().equivalent(rhs_.region());
 }
 std::vector<alias::TensorId>
-SettSample::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
-  return {g.settSample(m.toAliasGraphId(inTensorId(0)), region())};
+SettSample::typeSpecificGrow(alias::Graph &g_, const TensorMap &m) const {
+  return {g_.settSample(m.toAliasGraphId(inTensorId(0)), region())};
 }
 UpMultioutOp SettSample::cloneMultioutOp() const {
   return mu<SettSample>(this);
@@ -143,8 +143,8 @@ bool DimShuffle::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   return permutation() == rhs_.permutation();
 }
 std::vector<alias::TensorId>
-DimShuffle::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
-  return {g.dimShuffle(m.toAliasGraphId(inTensorId(0)), permutation())};
+DimShuffle::typeSpecificGrow(alias::Graph &g_, const TensorMap &m) const {
+  return {g_.dimShuffle(m.toAliasGraphId(inTensorId(0)), permutation())};
 }
 UpMultioutOp DimShuffle::cloneMultioutOp() const {
   return mu<DimShuffle>(this);
@@ -161,8 +161,8 @@ bool Reverse::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   return dimensions().get() == rhs_.dimensions().get();
 }
 std::vector<alias::TensorId>
-Reverse::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
-  return {g.reverse(m.toAliasGraphId(inTensorId(0)), dimensions().get())};
+Reverse::typeSpecificGrow(alias::Graph &g_, const TensorMap &m) const {
+  return {g_.reverse(m.toAliasGraphId(inTensorId(0)), dimensions().get())};
 }
 UpMultioutOp Reverse::cloneMultioutOp() const { return mu<Reverse>(this); }
 
@@ -170,22 +170,21 @@ UpMultioutOp Reverse::cloneMultioutOp() const { return mu<Reverse>(this); }
 //  Reshape  //
 // --------- //
 std::vector<alias::TensorId>
-Reshape::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
-  return {g.reshape(m.toAliasGraphId(inTensorId(0)), outShape(0))};
+Reshape::typeSpecificGrow(alias::Graph &g_, const TensorMap &m) const {
+  return {g_.reshape(m.toAliasGraphId(inTensorId(0)), outShape(0))};
 }
 UpMultioutOp Reshape::cloneMultioutOp() const { return mu<Reshape>(this); }
 
 Reshape::Reshape(const State &st) : ViewChange1to1(st) {
-  if (st.baseState.inShapes.size() != 1 ||
-      st.baseState.outShapes.size() != 1) {
+  if (st.baseState.inIds.size() != 1 || st.baseState.outShapes.size() != 1) {
     throw error("Invalid reshape, expected 1 input and 1 output");
   }
 
   if (st.baseState.outShapes[0].nelms_u64() !=
-      st.baseState.inShapes[0].nelms_u64()) {
+      st.baseState.inShape(0).nelms_u64()) {
     std::ostringstream oss;
     oss << "Invalid reshape, number of elements changes. "
-        << "Cannot reshape from " << st.baseState.inShapes[0] << " to "
+        << "Cannot reshape from " << st.baseState.inShape(0) << " to "
         << st.baseState.outShapes[0] << ". ";
     throw error(oss.str());
   }
@@ -195,8 +194,8 @@ Reshape::Reshape(const State &st) : ViewChange1to1(st) {
 //  Expand   //
 // --------- //
 std::vector<alias::TensorId>
-Expand::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
-  return {g.expand(m.toAliasGraphId(inTensorId(0)), outShape(0))};
+Expand::typeSpecificGrow(alias::Graph &g_, const TensorMap &m) const {
+  return {g_.expand(m.toAliasGraphId(inTensorId(0)), outShape(0))};
 }
 UpMultioutOp Expand::cloneMultioutOp() const { return mu<Expand>(this); }
 
@@ -254,7 +253,7 @@ Multi::Multi(const State &st, const CrossLinks &m) : Op(st), mapping_(m) {
   // 4) Shape agreement.
   for (const auto &crossAlias : m) {
     if (crossAlias.isModifying() || crossAlias.isAliasing()) {
-      const auto inShape  = st.baseState.inShapes[crossAlias.in().get()];
+      const auto inShape  = st.baseState.inShape(crossAlias.in().get());
       const auto outShape = st.baseState.outShapes[crossAlias.out().get()];
       if (inShape != outShape) {
         std::ostringstream oss;
@@ -292,7 +291,7 @@ bool Multi::inplaceTypeSpecificEqualTo(const Op &rhs) const {
 }
 
 std::vector<alias::TensorId>
-Multi::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
+Multi::typeSpecificGrow(alias::Graph &g_, const TensorMap &m) const {
 
   std::vector<bool> processed(nOutTensors(), false);
   AliasTensorIds tensorIds(nOutTensors());
@@ -306,13 +305,13 @@ Multi::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
   for (const auto &crossAlias : mapping()) {
     if (crossAlias.isAliasing()) {
       registerOut(crossAlias.out(),
-                  g.identity(m.toAliasGraphId(inTensorId(crossAlias.in()))));
+                  g_.identity(m.toAliasGraphId(inTensorId(crossAlias.in()))));
     }
   }
 
   for (uint64_t outIndex = 0; outIndex < nOutTensors(); ++outIndex) {
     if (!processed[outIndex]) {
-      registerOut(outIndex, g.allocate(outShape(outIndex), VariableColor));
+      registerOut(outIndex, g_.allocate(outShape(outIndex), VariableColor));
     }
   }
   return tensorIds;
@@ -325,18 +324,18 @@ Multi::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
 // AliasGate //
 /////////
 std::vector<alias::TensorId>
-AliasGate::typeSpecificGrow(alias::Graph &g, const TensorMap &m) const {
+AliasGate::typeSpecificGrow(alias::Graph &g_, const TensorMap &m) const {
   if (closed()) {
-    return {g.allocate(outShape(0), VariableColor)};
+    return {g_.allocate(outShape(0), VariableColor)};
   }
-  return {g.identity(m.toAliasGraphId(inTensorId(inIndex())))};
+  return {g_.identity(m.toAliasGraphId(inTensorId(inIndex())))};
 }
-void AliasGate::close(alias::Graph &g, TensorMap &m) {
+void AliasGate::close(alias::Graph &g_, TensorMap &m) {
   inIndex_ = -1;
-  g.toAllocation(m.toAliasGraphId(outTensorId(0)), VariableColor);
+  g_.toAllocation(m.toAliasGraphId(outTensorId(0)), VariableColor);
 }
 
-void AliasGate::openAt(alias::Graph &g, TensorMap &m, InIndex index) {
+void AliasGate::openAt(alias::Graph &g_, TensorMap &m, InIndex index) {
   if (index.get() >= nInTensors()) {
     std::ostringstream oss;
     oss << "Invalid InIndex (" << index
@@ -345,8 +344,8 @@ void AliasGate::openAt(alias::Graph &g, TensorMap &m, InIndex index) {
     throw error(oss.str());
   }
   inIndex_ = index.get();
-  g.toIdentity(m.toAliasGraphId(inTensorId(inIndex_)),
-               m.toAliasGraphId(outTensorId(0)));
+  g_.toIdentity(m.toAliasGraphId(inTensorId(inIndex_)),
+                m.toAliasGraphId(outTensorId(0)));
 }
 
 AliasGate::AliasGate(const State &st) : Op(st), inIndex_(-1) {}

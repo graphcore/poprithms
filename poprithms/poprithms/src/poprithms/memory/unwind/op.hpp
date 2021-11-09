@@ -19,6 +19,8 @@ namespace poprithms {
 namespace memory {
 namespace unwind {
 
+class Graph;
+
 using chain::Chain;
 using common::multiout::ConsumptionIds;
 using common::multiout::TensorIds;
@@ -38,17 +40,10 @@ public:
     State(const OpId id_,
           const TensorIds &inIds_,
           const std::vector<ConsumptionIds> &consumptionIds_,
-          const Shapes &inShapes_,
           const Shapes &outShapes_,
           const std::string &name_,
-          const std::vector<ValuedTensorIds> &valuedPartners_)
-        : State(common::multiout::Op::State(id_,
-                                            inIds_,
-                                            consumptionIds_,
-                                            inShapes_,
-                                            outShapes_,
-                                            name_),
-                valuedPartners_) {}
+          const std::vector<ValuedTensorIds> &valuedPartners_,
+          const Graph &g_);
 
     const common::multiout::Op::State baseState;
 
@@ -79,8 +74,8 @@ public:
 
   static State getStartingState(OpId,
                                 const TensorIds &tensorIns,
-                                const Shapes &inShapes,
-                                const Shapes &outShapes);
+                                const Shapes &outShapes,
+                                const Graph &);
 
   DisjointRegions
   outRegions(const DisjointRegions &, InIndex, OutIndex) const;

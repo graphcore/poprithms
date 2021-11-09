@@ -27,12 +27,18 @@ using Shapes = ndarray::Shapes;
  * Abstract base class of nodes in a multiout::Graph.
  *
  * A node in a multiout::Graph, which has multiple input and output Tensors,
- * each of which has a Shape. In addition to the input and output Shapes, each
- * Op keeps track of which Ops consume its output Tensors.
+ * each of which has a Shape. In addition to Shapes of the output Tensors,
+ * each Op keeps track of which Ops consume its output Tensors.
  *
  * All inputs have an InIndex and all outputs have an OutIndex. These must be
  * contiguous, so if there is an input (output) at index i != 0, then there is
  * necessarily also an input (output) at index i-1.
+ *
+ * Ops store all attributes of their output Tensors. In this base class, the
+ * data is just the 'Shape', but in derived classes it will be other things,
+ * like type, device, etc. To be able to obtain the attributes of an Op's
+ * inputs, Ops store a constant pointer to their containing Graph. See for
+ * example how the method 'inShape' is implemented.
  *  */
 class Op {
 
@@ -44,34 +50,38 @@ public:
     State(const OpId id_,
           const TensorIds &inIds_,
           const std::vector<ConsumptionIds> &consumptionIds_,
-          const Shapes &inShapes_,
           const Shapes &outShapes_,
-          const std::string &name_);
+          const std::string &name_,
+          const Graph &mulitoutGraph_);
 
-    // This Op's unique identifier
+    // This Op's unique identifier.
     const OpId id;
 
-    // The input Tensors of this Op, in order if InputIndex
+    // The input Tensors of this Op, in order if InputIndex.
     const TensorIds inIds;
 
     // The Ops which consume the output Tensors of this Op, ordered by
-    // OutIndex/
+    // OutIndex.
     const std::vector<ConsumptionIds> consumptionIds;
 
-    // The Shapes of the input Tensors of this Op
-    const Shapes inShapes;
-
-    // The Shapes of the output Tensors which this Op creates
+    // The Shapes of the output Tensors which this Op creates.
     const Shapes outShapes;
 
-    // (optional) name to be associated to this Op, can be useful for logging
+    // (optional) name to be associated to this Op, can be useful for logging.
     const std::string name;
+
+    // The Graph which this Op belongs to.
+    const Graph &multioutGraph;
+
+    // The input Shapes are obtained from #inIds, by going via multioutGraph.
+    Shapes inShapes() const;
+    Shape inShape(InIndex) const;
 
     // Will be  "=default" in C++20, but for now must be done manually.
     bool operator==(const State &rhs) const;
     bool operator!=(const State &rhs) const { return !operator==(rhs); }
 
-    uint64_t nIns() const { return inShapes.size(); }
+    uint64_t nIns() const { return inIds.size(); }
     uint64_t nOuts() const { return outShapes.size(); }
   };
 
@@ -89,13 +99,13 @@ public:
   OpId id() const { return id_; }
 
   /** The Shape if the #i'th input to this Op. */
-  const Shape &inShape(InIndex i) const { return inShapes_.at(i.get()); }
+  Shape inShape(InIndex i) const;
 
   /** The rank of the #i'th input to this Op. */
-  uint64_t inRank(InIndex i) const { return inShape(i).rank_u64(); }
+  uint64_t inRank(InIndex i) const;
 
   /** The number of elements in the #i'th input to this Op. */
-  uint64_t nInElms(InIndex i) const { return inShape(i).nelms_u64(); }
+  uint64_t nInElms(InIndex i) const;
 
   /** The Shape if the #i'th output of this Op. */
   const Shape &outShape(OutIndex o) const { return outShapes_.at(o.get()); }
@@ -119,7 +129,8 @@ public:
   /** return true if #c is a consumer of the output of this op at @o */
   bool isConsumptionId(OutIndex o, const ConsumptionId &c) const;
 
-  const Shapes &inShapes() const { return inShapes_; }
+  /** The Shapes of the inputs of this Op, for each InIndex.  */
+  Shapes inShapes() const;
 
   const Shapes &outShapes() const { return outShapes_; }
 
@@ -128,7 +139,8 @@ public:
   void setName(const std::string &n) { name_ = n; }
 
   State getState() const {
-    return State{id_, inIds_, consumptionIds_, inShapes_, outShapes_, name_};
+    return State{
+        id_, inIds_, consumptionIds_, outShapes_, name_, *multioutGraph_};
   }
 
   /** The Tensors which this Op consumes. */
@@ -140,12 +152,23 @@ public:
   uint64_t nInTensors() const { return inIds_.size(); }
 
   /**
+   * The concatenation of the TensorIds of all input and output Tensors.
+   * */
+  TensorIds inAndOutTensorIds() const;
+
+  /**
    * Ops must have outputs at contiguous indices, which means optional outputs
    * are not supported in this Graph/Op.
    * */
   TensorIds outTensorIds() const;
   TensorId outTensorId(OutIndex o) const { return {id(), o}; }
   uint64_t nOutTensors() const { return outShapes().size(); }
+
+  /**
+   * The output indices of all the output Tensors which have at least one
+   * consuming Op.
+   * */
+  std::vector<OutIndex> outIndicesConsumed() const;
 
   /**
    * \sa multiOutTypeSpecificEqualTo. */
@@ -172,9 +195,13 @@ private:
   OpId id_;
   TensorIds inIds_;
   std::vector<ConsumptionIds> consumptionIds_;
-  Shapes inShapes_;
   Shapes outShapes_;
   std::string name_;
+  const Graph *multioutGraph_;
+  void setGraph(const Graph &);
+
+protected:
+  const Graph &multioutGraph() const { return *multioutGraph_; }
 
 private:
   /**

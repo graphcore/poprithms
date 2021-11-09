@@ -179,7 +179,7 @@ OpId Graph::createOp(const TensorIds &inIds,
                      Args... args) {
   return insertOp(std::make_unique<T>(
       Op::getStartingState(
-          nOps_i64(), inIds, shapes(inIds), outShapes), // opIds(inIds)),
+          nOps_i64(), inIds, outShapes, *this), // opIds(inIds)),
       args...));
 }
 
@@ -908,6 +908,29 @@ bool Graph::containsAmbiguity(
     }
   }
   return false;
+}
+
+void Graph::multiOutTypeSpecificRemoveOp(
+    OpId opToRemove,
+    const OptionalTensorIds &outputSubstitutes) {
+  // TODO(T49501)
+  std::ostringstream oss;
+  oss << "Must implement multiOutTypeSpecificRemoveOp. Called with "
+         "opToRemove = "
+      << opToRemove << " and outputSubstitutes = " << outputSubstitutes
+      << ".";
+  throw error(oss.str());
+}
+
+void Graph::multiOutTypeSpecificVerifyValidOutputSubstitute(
+    const TensorId &before,
+    const TensorId &after) const {
+  // TODO(T49501)
+  std::ostringstream oss;
+  oss << "Must implement multiOutTypeSpecificVerifyValidOutputSubstitute. "
+      << "Called with before = " << before << " and after = " << after
+      << ". ";
+  throw error(oss.str());
 }
 
 } // namespace inplace

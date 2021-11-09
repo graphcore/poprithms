@@ -1,4 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+
 #include <memory>
 #include <numeric>
 #include <sstream>
@@ -6,6 +7,7 @@
 
 #include <common/multiout/error.hpp>
 
+#include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/op.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -13,26 +15,61 @@ namespace poprithms {
 namespace common {
 namespace multiout {
 
+Shapes Op::inShapes() const {
+  Shapes shapes;
+  shapes.reserve(nInTensors());
+  for (const auto &inTensorId : inTensorIds()) {
+    shapes.push_back(multioutGraph().shape(inTensorId));
+  }
+  return shapes;
+}
+
+Shapes Op::State::inShapes() const {
+  Shapes shapes;
+  shapes.reserve(inIds.size());
+  for (const auto &inTensorId : inIds) {
+    shapes.push_back(multioutGraph.shape(inTensorId));
+  }
+  return shapes;
+}
+
+Shape Op::inShape(InIndex i) const {
+  const auto s = multioutGraph().shape(inTensorId(i));
+  return s;
+}
+
+uint64_t Op::inRank(InIndex i) const {
+  return multioutGraph().rank_u64(inTensorId(i));
+}
+
+uint64_t Op::nInElms(InIndex i) const {
+  return multioutGraph().nelms(inTensorId(i));
+}
+
+Shape Op::State::inShape(InIndex i) const {
+  return multioutGraph.shape(inIds[i.get()]);
+}
+
+void Op::setGraph(const Graph &g_) { multioutGraph_ = &g_; }
+
+std::vector<OutIndex> Op::outIndicesConsumed() const {
+  std::vector<OutIndex> os;
+  for (uint64_t o = 0; o < nOutTensors(); ++o) {
+    if (!consumptionIds(o).empty()) {
+      os.push_back(o);
+    }
+  }
+  return os;
+}
+
 Op::State::State(const OpId id_,
                  const TensorIds &inIds_,
                  const std::vector<ConsumptionIds> &consumptionIds_,
-                 const Shapes &inShapes_,
                  const Shapes &outShapes_,
-                 const std::string &name_)
+                 const std::string &name_,
+                 const Graph &multioutGraph_)
     : id(id_), inIds(inIds_), consumptionIds(consumptionIds_),
-      inShapes(inShapes_), outShapes(outShapes_), name(name_) {
-
-  if (inIds.size() != inShapes.size()) {
-    std::ostringstream oss;
-    oss << "The number of input Shapes should be the same as "
-        << "the number of input Ids, "
-        << "in the multiout::Op::State constructor. "
-        << "This for State with id=" << id_ << " and name=\"" << name_
-        << "\", "
-        << ", where the number of input Shapes is " << inShapes.size()
-        << " but the number of input ids is " << inIds.size() << ".";
-    throw error(oss.str());
-  }
+      outShapes(outShapes_), name(name_), multioutGraph(multioutGraph_) {
 
   if (consumptionIds.size() != outShapes.size()) {
     std::ostringstream oss;
@@ -49,7 +86,8 @@ Op::~Op() = default;
 
 Op::Op(const State &ob)
     : id_(ob.id), inIds_(ob.inIds), consumptionIds_(ob.consumptionIds),
-      inShapes_(ob.inShapes), outShapes_(ob.outShapes), name_(ob.name) {}
+      outShapes_(ob.outShapes), name_(ob.name),
+      multioutGraph_(&ob.multioutGraph) {}
 
 // C++20 we will be able to just use (= default).
 bool Op::State::operator==(const State &rhs) const {
@@ -57,9 +95,9 @@ bool Op::State::operator==(const State &rhs) const {
       id == rhs.id &&                         //
       inIds == rhs.inIds &&                   //
       consumptionIds == rhs.consumptionIds && //
-      inShapes == rhs.inShapes &&             //
       outShapes == rhs.outShapes &&           //
       name == rhs.name;
+  // we do not compare graphs.
 }
 
 TensorIds Op::outTensorIds() const {
@@ -129,6 +167,13 @@ void Op::removeConsumptionId(OutIndex o, const ConsumptionId &toRemove) {
     throw error(oss.str());
   }
   ids.erase(found);
+}
+
+TensorIds Op::inAndOutTensorIds() const {
+  TensorIds outs       = outTensorIds();
+  TensorIds insAndOuts = inTensorIds();
+  insAndOuts.insert(insAndOuts.end(), outs.cbegin(), outs.cend());
+  return insAndOuts;
 }
 
 } // namespace multiout

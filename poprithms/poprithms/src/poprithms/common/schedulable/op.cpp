@@ -6,37 +6,35 @@ namespace poprithms {
 namespace common {
 namespace schedulable {
 
-void Op::insertOut(OpId ido) {
-  if (std::find(outOps_.cbegin(), outOps_.cend(), ido) == outOps_.cend()) {
-    outOps_.push_back(ido);
+void Op::insertControlDependencyOut(OpId ido) {
+  if (std::find(controlDependencyOutOps_.cbegin(),
+                controlDependencyOutOps_.cend(),
+                ido) == controlDependencyOutOps_.cend()) {
+    controlDependencyOutOps_.push_back(ido);
   }
 }
 
-bool Op::isIn(OpId op) const {
-  return std::find(inOps_.cbegin(), inOps_.cend(), op) != inOps_.cend();
-}
-
-bool Op::isOut(OpId op) const {
-  return std::find(outOps_.cbegin(), outOps_.cend(), op) != outOps_.cend();
-}
-
-void Op::removeOut(OpId id) {
-  auto found = std::find(outOps_.cbegin(), outOps_.cend(), id);
-  if (found != outOps_.cend()) {
-    outOps_.erase(found);
+void Op::removeControlDependencyOut(OpId id) {
+  auto found = std::find(
+      controlDependencyOutOps_.cbegin(), controlDependencyOutOps_.cend(), id);
+  if (found != controlDependencyOutOps_.cend()) {
+    controlDependencyOutOps_.erase(found);
   }
 }
 
-void Op::insertIn(OpId ido) {
-  if (std::find(inOps_.cbegin(), inOps_.cend(), ido) == inOps_.cend()) {
-    inOps_.push_back(ido);
+void Op::insertControlDependencyIn(OpId ido) {
+  if (std::find(controlDependencyInOps_.cbegin(),
+                controlDependencyInOps_.cend(),
+                ido) == controlDependencyInOps_.cend()) {
+    controlDependencyInOps_.push_back(ido);
   }
 }
 
-void Op::removeIn(OpId id) {
-  auto found = std::find(inOps_.cbegin(), inOps_.cend(), id);
-  if (found != inOps_.cend()) {
-    inOps_.erase(found);
+void Op::removeControlDependencyIn(OpId id) {
+  auto found = std::find(
+      controlDependencyInOps_.cbegin(), controlDependencyInOps_.cend(), id);
+  if (found != controlDependencyInOps_.cend()) {
+    controlDependencyInOps_.erase(found);
   }
 }
 
@@ -57,35 +55,16 @@ bool Op::multiOutTypeSpecificEqualTo(
       schedulableTypeSpecificEqualTo(rhs);
 }
 
-namespace {
-OpIds setDifference(const OpIds &a, const OpIds &b) {
-  // c = a\b.
-  OpIds c;
-  const auto nToReserve = a.size() > b.size() ? a.size() - b.size() : 0;
-  c.reserve(nToReserve);
-  for (auto id : a) {
-    if (std::find(b.cbegin(), b.cend(), id) == b.cend()) {
-      c.push_back(id);
-    }
-  }
-  return c;
-}
-} // namespace
-
-OpIds Op::nonDataInOps() const {
-  auto inDataDeps_ = poprithms::common::multiout::Graph::opIds(inTensorIds());
-  return setDifference(inOps(), inDataDeps_);
-}
-
 Op::Op(const State &ob)
     : common::multiout::Op(ob.baseState), subGraphId_(ob.subGraphId),
-      inOps_(ob.inOps), outOps_(ob.outOps) {}
+      controlDependencyInOps_(ob.controlDependencyInOps),
+      controlDependencyOutOps_(ob.controlDependencyOutOps) {}
 
 bool Op::State::operator==(const State &rhs) const {
-  return baseState == rhs.baseState &&   //
-         subGraphId == rhs.subGraphId && //
-         inOps == rhs.inOps &&           //
-         outOps == rhs.outOps;           //
+  return baseState == rhs.baseState &&                           //
+         subGraphId == rhs.subGraphId &&                         //
+         controlDependencyInOps == rhs.controlDependencyInOps && //
+         controlDependencyOutOps == rhs.controlDependencyOutOps; //
 }
 } // namespace schedulable
 } // namespace common

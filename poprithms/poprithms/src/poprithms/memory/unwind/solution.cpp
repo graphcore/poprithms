@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <iostream>
 #include <iterator>
 #include <memory>
 #include <numeric>
@@ -37,7 +38,8 @@ DisjointRegions Solution::coveredByPaths(const TensorId &tId) const {
     const auto &rs = p.dstRegions().get();
     regions.insert(regions.end(), rs.cbegin(), rs.cend());
   }
-  return DisjointRegions(graph().shape(tId), regions);
+  auto cbp = DisjointRegions(graph().shape(tId), regions);
+  return cbp;
 }
 
 //
@@ -186,6 +188,7 @@ void Solution::setPathStackToSources() {
 Solution::Solution(const Graph &g, Algo a) : Solution(Graph(g), a) {}
 
 Solution::Solution(Graph &&g, Algo a) : graph_(std::move(g)) {
+
   initPaths();
 
   switch (a) {
@@ -242,6 +245,7 @@ void Solution::setPathsGreedy0() {
   bool madeProgress{true};
 
   while (madeProgress) {
+
     madeProgress = false;
     if (!pathStack.empty()) {
       madeProgress        = true;
@@ -269,8 +273,7 @@ void Solution::setPathsGreedy0() {
     while (keepLookingForUnwind && !valueQueue.empty()) {
 
       // [t0]    The Source or Barrier Tensor. This is where the unwinding
-      // Path
-      //  |      begins. Note that the direction of the unwinding Path is
+      //  |      Path begins. Note that the direction of the unwinding Path is
       //  |       arbitrary, it can go forwards and backwards in the compute
       //  |        DAG.
       //  |
@@ -325,6 +328,7 @@ void Solution::setPathsGreedy0() {
             auto chain03_ = chain02;
             chain03_.append(path23.chain());
             const auto filters = coveredByPaths(t3).getComplement().get();
+
             for (const auto &filter3 : filters) {
               auto chain03 = chain03_;
               chain03.mask(filter3);
@@ -357,6 +361,7 @@ TensorIds Solution::processPathStack() {
   // While there is a Path whose destination might be unwindable forward,
   // process it
   while (!pathStack.empty()) {
+
     const auto currPath = pathStack.back();
     extended.push_back(currPath.dst());
     pathStack.pop_back();
@@ -388,8 +393,10 @@ TensorIds Solution::processPathStack() {
 
         // not a barrier, so unwindable.
         else if (graph().isUnwindable(opId, inInd, outInd)) {
+
           const auto outRegs =
               graph().outRegions(currPath.dstRegions(), inInd, opId, outInd);
+
           if (!outRegs.empty()) {
             add(graph().extendedPath(currPath, inInd, opId, outInd));
           }

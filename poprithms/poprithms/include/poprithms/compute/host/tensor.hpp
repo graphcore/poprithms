@@ -1305,7 +1305,7 @@ private:
   void assertContainsAliases(bool) const;
 
 public:
-  /** 
+  /**
    * Certain backends require this cast to void *. We don't advise doing this
    * unless it is strictly required.
    *

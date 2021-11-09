@@ -16,6 +16,7 @@ using Shape  = poprithms::ndarray::Shape;
 using Shapes = poprithms::ndarray::Shapes;
 using multiout::OpId;
 using multiout::OpIds;
+using multiout::OptionalTensorIds;
 using multiout::TensorId;
 using multiout::TensorIds;
 using schedulable::SubGraphId;
@@ -32,7 +33,7 @@ private:
 
 class Graph : public schedulable::Graph {
 public:
-  using schedulable::Graph::removeSchedulableOp;
+  using schedulable::Graph::removeOp;
 
   OpId insert(const TensorIds &ins,
               uint64_t nOut,
@@ -46,6 +47,13 @@ public:
 
 private:
   bool multiOutTypeSpecificEqualTo(const multiout::Graph &) const final;
+
+  void schedulableTypeSpecificRemoveOp(OpId,
+                                       const OptionalTensorIds &) final {}
+
+  void schedulableTypeSpecificVerifyValidOutputSubstitute(
+      const TensorId &,
+      const TensorId &) const final {}
 };
 
 std::ostream &operator<<(std::ostream &, const Graph &);

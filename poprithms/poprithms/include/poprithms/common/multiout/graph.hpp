@@ -38,12 +38,19 @@ using ndarray::Shapes;
 class Graph {
 
 public:
-  Graph()              = default;
-  virtual ~Graph()     = default;
-  Graph(Graph &&)      = default;
-  Graph(const Graph &) = default;
-  Graph &operator=(Graph &&) = default;
-  Graph &operator=(const Graph &) = default;
+  Graph()          = default;
+  virtual ~Graph() = default;
+
+  /**
+   * Graph constructors and assignment operators. The reason these are not
+   * 'default' is that Ops contain (const) pointers to their containing
+   * Graphs. When a Graph #a is copied to Graph #b, all of the Ops of #a are
+   * cloned into #b, and then the clones have their pointers updated to #b.
+   * */
+  Graph(Graph &&);
+  Graph(const Graph &);
+  Graph &operator=(Graph &&);
+  Graph &operator=(const Graph &);
 
   /** Set the name of the Op #id in this Graph. */
   void setName(OpId id, const std::string &);
@@ -81,20 +88,26 @@ public:
   uint64_t nConsumptionIds(const TensorId &id) const;
 
   /** Set the name of this Graph. */
-  void setName(const std::string &n) { name_ = n; }
+  void setName(const std::string &n) { atts.name_ = n; }
 
   /** The total number of Tensors in this Graph. */
   uint64_t nTensors() const { return nOutTensors(opIds()); }
   uint64_t nOutTensors(const OpIds &) const;
 
   /** The total number of Ops in this Graph. */
-  uint64_t nOps() const { return live_.size(); }
+  uint64_t nOps() const { return atts.live_.size(); }
+
+  /**
+   * If an Op #opId was created and not yet removed, return true. Otherwise,
+   * return false.
+   * */
+  bool isLive(OpId opId) const { return atts.live_.count(opId) != 0; }
 
   /** The total number of Ops in this Graph which have 0 outputs. */
   uint64_t nOpsWithZeroOutputs() const;
   uint64_t nWithZeroOutputs(const OpIds &) const;
 
-  int64_t nOps_i64() const { return static_cast<int64_t>(live_.size()); }
+  int64_t nOps_i64() const { return static_cast<int64_t>(atts.live_.size()); }
 
   /** \return The number of inputs of the Op #id.*/
   uint64_t nInTensors(OpId id) const;
@@ -122,7 +135,10 @@ public:
   TensorId inTensorId(OpId, InIndex) const;
 
   /**
-   * The concatenation of the TensorIds of all input and output Tensors.
+   * The vector-concatenation of the TensorIds of all input and output
+   * Tensors. For example. if the input TensorIds of the Op with opId=3 are
+   * ((opId=0,outIndex=0), (0,0), (2,1)), and the outputs are ((3,0), (3,1)),
+   * then the returned vector is simply ((0,0), (0,0), (2,1), (3,0), (3,1)).
    * */
   TensorIds inAndOutTensorIds(OpId) const;
 
@@ -136,7 +152,7 @@ public:
   void verifyTensorId(const TensorId &tId) const;
 
   /** The name of this Graph. */
-  const std::string &getName() const { return name_; }
+  const std::string &getName() const { return atts.name_; }
 
   /**
    * We implement operator== once in this base class, and use the non-virtual
@@ -161,11 +177,13 @@ public:
   /** In set notation: a \ b */
   static TensorIds setDifference(const TensorIds &a, const TensorIds &b);
 
-  /** The TensorIds of all Tensors in this Graph */
+  /** The TensorIds of all (live) Tensors in this Graph */
   TensorIds tensorIds() const;
 
-  /** The OpIds of all Ops in this Graph */
-  OpIds opIds() const;
+  /** The OpIds of all (live) Ops in this Graph */
+  OpIds opIds() const {
+    return OpIds(atts.live_.cbegin(), atts.live_.cend());
+  }
 
   /**
    * Consider a table summarising the Graph, where for each Tensor, and for
@@ -242,7 +260,27 @@ public:
    * method provides a summary of all such removal events, and is used for
    * improved logging and debugging.
    * */
-  std::string removalEventsStr() const { return removals.str(); }
+  std::string removalEventsStr() const { return atts.removals_.str(); }
+
+  /**
+   * \return The first (lowest) OpId which has not been used for an Op.
+   **/
+  OpId nxtOpId() const { return atts.ops_.size(); }
+
+  /**
+   * The output indices of all Tensors created by #opId, which are consumed by
+   * an Op.
+   * */
+  std::vector<OutIndex> outIndicesConsumed(OpId opId) const;
+
+  /** The sequence of Op removal events. */
+  const RemovalEvents &removalEvents() const { return atts.removals_; }
+
+  /**
+   * Ops in this Graph contain a pointer to Graph. They should all point to
+   * this Graph. Verify that this is the case.
+   * */
+  void verifyOpsConnectedToThisGraph() const;
 
 protected:
   /**
@@ -266,20 +304,43 @@ protected:
    *
    * The optional string #removalContext is used for logging and debugging
    * purposes. After #opToRemove has been removed from the set of 'live' ops,
-   * a lightweight record of it and its removal event are retained. This
+   * a lightweight record of it and its removal events is retained. This
    * record is particularly useful if there is an attempted access of
    * #opToRemove after it has been removed. Such an attempt will result in a
    * descriptive error, including the #removalContext string.
    * */
-  void removeMultioutOp(OpId opToRemove,
-                        const OptionalTensorIds &outputSubstitutes,
-                        const std::string &removalContext);
+  void removeOp(OpId opToRemove,
+                const OptionalTensorIds &outputSubstitutes,
+                const std::string &removalContext);
+
+  // Classes which inherit from multiout::Graph might have some additional
+  // steps when removing an op. These are performed in this method.
+  virtual void multiOutTypeSpecificRemoveOp(
+      OpId opToRemove,
+      const OptionalTensorIds &outputSubstitutes) = 0;
+
+  /**
+   * Verify that 'after' is a valid replacement for 'before'. For example,
+   * 'before' and 'after' must have the same Shape. Derived classes might have
+   * Tensors with additional attributes, and for these the method
+   * 'multiOutTypeSpecificVerifyValidOutputSubstitute' must define what is a
+   * valid replacement.
+   * */
+  void verifyValidOutputSubstitute(const TensorId &before,
+                                   const TensorId &after) const;
+
+  void verifyValidOutputSubstitutes(
+      OpId toRemove,
+      const OptionalTensorIds &outputSubstitutes) const;
+
+  /** \sa verifyValidOutputSubstitute */
+  virtual void multiOutTypeSpecificVerifyValidOutputSubstitute(
+      const TensorId &before,
+      const TensorId &after) const = 0;
 
   /** Methods to access Ops in this Graph as multiout::Ops. */
   Op &multioutOp(OpId id) { return op(id); }
   const Op &multioutOp(OpId id) const { return op(id); }
-
-  OpId nxtOpId() const { return ops_.size(); }
 
   /**
    * Verify that this Graph is in a valid state, by checking the correctness
@@ -301,31 +362,44 @@ private:
   Op &op(OpId id);
   const Op &op(OpId) const;
 
-  /** All of the Ops in this Graph. The Ops are stored as unique_ptrs wrapped
-   * in the CopyByClone class, which makes them, and thus the class, copyable.
-   * When this Graph is copied, the resulting copy has a clone of all of the
-   * Ops in this Graph.
-   */
-  std::vector<poprithms::util::CopyByClone<Op>> ops_;
+  /** All of the class data is stored in this default copyable class. */
+  class Attributes {
 
-  /**
-   * The Ops which have not been deleted.
-   * */
-  std::set<OpId> live_;
+  public:
+    bool operator==(const Attributes &) const;
 
-public:
-  const RemovalEvents &removalEvents() const { return removals; }
+    /** All of the Ops in this Graph. The Ops are stored as unique_ptrs
+     * wrapped in the CopyByClone class, which makes them, and thus the class,
+     * copyable. When this Graph is copied, the resulting copy has a clone of
+     * all of the Ops in this Graph.
+     */
+    std::vector<poprithms::util::CopyByClone<Op>> ops_;
 
-private:
-  /**
-   * Every OpId in [0, ops_.size()) corresponds to either a 'live' Op, or to
-   * an op which once was live, but has been removed. If it was removed, a
-   * record of it and it's removal is kept. This object stores these records.
-   * */
-  RemovalEvents removals;
+    /**
+     * The Ops which have not been deleted.
+     * */
+    std::set<OpId> live_;
 
-  // The name of this Graph.
-  std::string name_;
+    /**
+     * Every OpId in [0, ops_.size()) corresponds to either a 'live' Op, or to
+     * an op which once was live, but has been removed. If it was removed, a
+     * record of it and it's removal is kept. This object stores these
+     * records.
+     * */
+    RemovalEvents removals_;
+
+    // The name of this Graph.
+    std::string name_;
+  } atts;
+
+  const std::vector<poprithms::util::CopyByClone<Op>> &ops() const {
+    return atts.ops_;
+  }
+
+  std::vector<poprithms::util::CopyByClone<Op>> &ops() { return atts.ops_; }
+
+  /** Set the Graph pointed to by all Ops in this Graph, to this Graph. */
+  void resetGraphOfOps();
 };
 
 } // namespace multiout

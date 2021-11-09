@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <ostream>
 #include <random>
@@ -9,6 +10,7 @@
 
 #include <poprithms/common/multiout/consumptionid.hpp>
 #include <poprithms/common/multiout/graph.hpp>
+#include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/optraversal.hpp>
 #include <poprithms/common/multiout/traversal.hpp>
 #include <poprithms/error/error.hpp>
@@ -18,7 +20,10 @@
 namespace {
 using namespace poprithms::common;
 using Shape = poprithms::ndarray::Shape;
+using poprithms::common::multiout::OpId;
 using poprithms::common::multiout::OpIds;
+using poprithms::common::multiout::OptionalTensorId;
+using poprithms::common::multiout::OptionalTensorIds;
 using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
 using Shapes = poprithms::ndarray::Shapes;
@@ -44,8 +49,7 @@ public:
   multiout::OpId insert(const TensorIds &inIds, uint64_t nOuts) {
     const Shapes outShapes(nOuts, Shape({1}));
     std::vector<multiout::ConsumptionIds> consOut(nOuts);
-    const multiout::Op::State s(
-        nOps(), inIds, consOut, shapes(inIds), outShapes, "");
+    const multiout::Op::State s(nOps(), inIds, consOut, outShapes, "", *this);
     return insertMultioutOp(std::make_unique<test::Op>(s));
   }
   virtual ~Graph() override = default;
@@ -55,9 +59,35 @@ private:
   bool multiOutTypeSpecificEqualTo(const multiout::Graph &) const final {
     return true;
   }
+
+  void multiOutTypeSpecificRemoveOp(OpId, const OptionalTensorIds &) final {}
+
+  void multiOutTypeSpecificVerifyValidOutputSubstitute(
+      const TensorId &,
+      const TensorId &) const final {}
 };
 
 } // namespace test
+
+void testOutConsumers0() {
+  test::Graph g;
+  auto a = g.insert({}, 5);
+  auto b = g.insert({{a, 0}}, 2);
+  auto c = g.insert({{a, 0}}, 2);
+  auto d = g.insert({{a, 2}, {b, 0}, {c, 1}}, 1);
+  (void)d;
+
+  // a is consumed at indices 0 and 2.
+
+  auto observed = g.outIndicesConsumed(a);
+  std::sort(observed.begin(), observed.end());
+
+  if (observed.size() != 2 || observed[0] != 0 || observed[1] != 2) {
+    std::ostringstream oss;
+    oss << "Expected {0,2} as the consumed output tensors";
+    throw poprithms::test::error(oss.str());
+  }
+}
 
 void test0() {
   test::Graph g;
@@ -307,6 +337,68 @@ void testTraversal2() {
   }
 }
 
+void testMovesAndCopies() {
+  {
+    // copy constructor
+    std::unique_ptr<test::Graph> g = std::make_unique<test::Graph>();
+    auto b                         = g->insert({}, 1);
+    auto c                         = g->insert({{b, 0}}, 1);
+    auto g1                        = *g;
+    g1.verifyOpsConnectedToThisGraph();
+    g.reset(nullptr);
+    auto ins1 = g1.inTensorIds(c);
+  }
+  {
+    // move constructor
+    test::Graph g;
+    g.verifyOpsConnectedToThisGraph();
+    for (uint64_t i = 0; i < 5; ++i) {
+      g.insert({}, 1);
+    }
+    auto g1 = std::move(g);
+    g1.verifyOpsConnectedToThisGraph();
+  }
+
+  // copy assignment operator
+  {
+    test::Graph g;
+    for (uint64_t i = 0; i < 7; ++i) {
+      g.insert({}, 1);
+    }
+    test::Graph g2;
+    g2 = g;
+    g2.verifyOpsConnectedToThisGraph();
+  }
+
+  // move assignment operator
+  {
+    test::Graph g;
+    for (uint64_t i = 0; i < 11; ++i) {
+      g.insert({}, 1);
+    }
+    test::Graph g2;
+    g2 = std::move(g);
+    g2.verifyOpsConnectedToThisGraph();
+  }
+}
+
+void testOptionalTensorIds0() {
+
+  auto a = OptionalTensorId(TensorId(0, 0));
+  auto b = OptionalTensorId(TensorId(0, 1));
+  auto c = OptionalTensorId();
+  auto d = c;
+  auto e = OptionalTensorId(TensorId(0, 0));
+
+  if (a == b || a == c || a != e) {
+    throw poprithms::test::error("Failure comparing optional tensor a");
+  }
+
+  if (c == a || c != d) {
+    throw poprithms::test::error("Failure comparing optional tensor c");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -317,5 +409,8 @@ int main() {
   testTraversal0();
   testTraversal1();
   testTraversal2();
+  testMovesAndCopies();
+  testOutConsumers0();
+  testOptionalTensorIds0();
   return 0;
 }

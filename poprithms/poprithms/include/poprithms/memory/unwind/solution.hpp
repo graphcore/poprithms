@@ -69,7 +69,7 @@ public:
    *
    * The order of the Paths is important. If the Paths are used for unwinding
    * in the provided order to set the layouts of the target application's Sink
-   * Tensors (for example input poplar::Tensors), it is guarantees that all
+   * Tensors (for example input poplar::Tensors), it is guaranteed that all
    * required Barrier layouts will be availale when needed.
    */
   const Paths &barriersToSinks() const;
@@ -84,7 +84,7 @@ public:
 
   /**
    * The Graph which this Solution was constructed for. A Solution stores its
-   * own copy of this Graph, and this method returns a method to that copy.
+   * own copy of this Graph, and this method returns a reference to that copy.
    * */
   const Graph &graph() const { return graph_; }
 

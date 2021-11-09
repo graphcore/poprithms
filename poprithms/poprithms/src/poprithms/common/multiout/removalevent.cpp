@@ -91,7 +91,7 @@ std::string RemovalEvents::str() const {
 
   if (std::any_of(
           ctxt.cbegin(), ctxt.cend(), [](auto &&x) { return !x.empty(); })) {
-    cols.push_back({"context", name});
+    cols.push_back({"context", ctxt});
   }
 
   return util::alignedColumns(cols);

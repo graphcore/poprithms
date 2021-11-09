@@ -29,7 +29,7 @@ void removal0() {
   Graph g;
   const auto gid = g.createSubGraphId("g0");
   const auto in0 = g.insert({}, 1, gid, "in0");
-  g.removeSchedulableOp(in0, {{}}, "test0");
+  g.removeOp(in0, {{}}, "test0");
   if (g.nOps() != 0) {
     throw error("1 op added, 1 op removed. 1 - 1 = 0 ops should remain");
   }
@@ -38,6 +38,37 @@ void removal0() {
   if (events.size() != 1) {
     throw error(
         "1 event was removed, I expect exactly 1 element RemovalEvents. ");
+  }
+}
+
+void checkPostRemovalCopies() {
+
+  Graph g;
+  const auto gid = g.createSubGraphId("g0");
+  const auto in0 = g.insert({}, 1, gid, "in0");
+  g.removeOp(in0, {{}}, "test");
+
+  if (g.isLive(in0)) {
+    throw error("in0 should not be live, it was deleted");
+  }
+
+  // copy constructor
+  auto g0 = g;
+
+  // copy constructor
+  Graph goo(g0);
+
+  // assignment operator
+  goo = g0;
+
+  // move constructor
+  auto foo = std::move(g0);
+
+  // move constructor
+  Graph shrew(std::move(goo));
+
+  if (foo != g || shrew != g) {
+    throw error("Comparisons post removal failed");
   }
 }
 
@@ -50,8 +81,8 @@ void removal1() {
   for (uint64_t i = 0; i < 2; ++i) {
     const auto in0 = g.insert({}, 1, gid, {});
     const auto in1 = g.insert({}, 1, gid, {});
-    g.removeSchedulableOp(in1, {{}}, {});
-    g.removeSchedulableOp(in0, {{}}, {});
+    g.removeOp(in1, {{}}, {});
+    g.removeOp(in0, {{}}, {});
   }
   if (g.nOps() != 0) {
     throw error("Added 2, removed 2, added 2, removed 2. Should be 0 left");
@@ -83,7 +114,7 @@ void removal2() {
   const auto add = g.insert({{in0, 0}, {in0, 0}}, 1, gid, {});
   const auto mul = g.insert({{in0, 0}, {in1, 0}}, 1, gid, {});
   const auto g0  = g;
-  g.removeSchedulableOp(in0, {TensorId(in1, 0)}, {});
+  g.removeOp(in0, {TensorId(in1, 0)}, {});
   if (g.nOps() != 3 ||
       g.inTensorIds(add) != TensorIds({{in1, 0}, {in1, 0}}) ||
       g.inTensorIds(mul) != TensorIds({{in1, 0}, {in1, 0}})) {
@@ -107,34 +138,56 @@ void removal3() {
   }
 }
 
-//   'a' --> toRemove -----> 'b'
 //
-//   'subst'
+//       data            data
+//   'a' ---> 'toRemove' ---> 'b'    'subst'
 //
+//   The output of 'subst' replaces the output of 'toRemove':
 //
-//   replacing toRemove with subst results in a new constraint 'a' -> 'b',
-//   which might not always be desirable.
+//                   data
+//   'a'     'subst' ---> 'b'
+//
+//   In this test, we consider 2 cases:
+//   1) there is a contol dep 'a'->'toRemove'->'b', which is transferred to
+//      'subst'
+//   2) There is no such contol dependency, and so 'a' can go a wondering once
+//     'toRemove' is gone.
+//
+//   This is the logic we've implemented, but it not obvious what the best set
+//   of rules for transferring control dependencies is.
+//
 void removal4() {
-  Graph g;
-  const auto gid      = g.createSubGraphId("g0");
-  const auto a        = g.insert({}, 1, gid, {});
-  const auto toRemove = g.insert({{a, 0}}, 1, gid, {});
-  const auto b        = g.insert({{toRemove, 0}}, 1, gid, {});
-  const auto subst    = g.insert({}, 1, gid, {});
-  g.removeSchedulableOp(toRemove, {TensorId(subst, 0)}, {});
 
-  // 'subst' replaces 'toRemove'. Is 'a' --> 'b' present? We assert not but
-  // inserting 'b' -> 'a' and detecting a cylce.
+  for (bool withInitialControlDeps : {true, false}) {
 
-  bool caught{false};
-  try {
-    g.constraint(b, a);
-    auto foo = g.randomSchedule(1011);
-  } catch (const poprithms::error::error &e) {
-    caught = true;
-  }
-  if (!caught) {
-    throw error("The insertion of b->a should create a cycle");
+    Graph g;
+    const auto gid      = g.createSubGraphId("g0");
+    const auto a        = g.insert({}, 1, gid, {});
+    const auto toRemove = g.insert({{a, 0}}, 1, gid, {});
+    const auto b        = g.insert({{toRemove, 0}}, 1, gid, {});
+    const auto subst    = g.insert({}, 1, gid, {});
+
+    if (withInitialControlDeps) {
+      g.constraint(a, toRemove);
+      g.constraint(toRemove, b);
+    }
+    g.propagateControlDependencies(
+        toRemove, Graph::ControlDependencyPropagationType::ConserveLocally);
+    g.removeOp(toRemove, {TensorId(subst, 0)}, "removal4");
+
+    bool caught{false};
+    try {
+      g.constraint(b, a);
+      auto foo = g.randomSchedule(1011);
+    } catch (const poprithms::error::error &e) {
+      caught = true;
+    }
+    if (caught && !withInitialControlDeps) {
+      throw error("The insertion of b->a should NOT create a cycle");
+    }
+    if (!caught && withInitialControlDeps) {
+      throw error("The insertion of b->a should create a cycle");
+    }
   }
 }
 
@@ -152,7 +205,7 @@ void compare0() {
     throw error("at this point the graphs are not the same, not even same "
                 "number of ops. failed test");
   }
-  g.removeSchedulableOp(b, {}, {});
+  g.removeOp(b, {}, {});
   if (gc == g) {
     throw error("at this point the graphs are still not the same, even "
                 "though they are the same DAG. removed ops leave a trace");
@@ -168,5 +221,7 @@ int main() {
   removal3();
   removal4();
   compare0();
+
+  checkPostRemovalCopies();
   return 0;
 }

@@ -24,6 +24,7 @@ namespace memory {
 namespace unwind {
 
 using common::multiout::OpIds;
+using common::multiout::OptionalTensorIds;
 using common::multiout::TensorIds;
 using memory::nest::Region;
 using ndarray::Dimension;
@@ -556,7 +557,7 @@ public:
   std::array<Shape, 2> matmulBarrierShapes(const TensorId &) const;
 
   /**
-   * Insert a ValuedPair. A ValuedPair signfiies that having the same layouts
+   * Insert a ValuedPair. A ValuedPair signifies that having the same layouts
    * for Tensors \a  a and \a b is beneficial, and each element which has the
    * same layout will contribute \a value to the final score of a Solution.
    * For example, if Tensors a and b are of shape (3,) and have layouts given
@@ -1001,6 +1002,14 @@ private:
   multiOutTypeSpecificEqualTo(const common::multiout::Graph &) const final {
     return true;
   }
+
+  void multiOutTypeSpecificRemoveOp(
+      OpId opToRemove,
+      const OptionalTensorIds &outputSubstitutes) final;
+
+  void multiOutTypeSpecificVerifyValidOutputSubstitute(
+      const TensorId &before,
+      const TensorId &after) const final;
 
   Op &op(OpId);
   const Op &op(OpId) const;

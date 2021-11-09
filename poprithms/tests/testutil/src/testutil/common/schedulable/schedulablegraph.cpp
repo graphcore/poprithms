@@ -26,7 +26,7 @@ OpId Graph::insert(const TensorIds &ins,
   std::vector<multiout::ConsumptionIds> outCons(nOut);
 
   const multiout::Op::State baseState(
-      OpId(nxtOpId()), ins, outCons, inShapes, outShapes, name);
+      OpId(nxtOpId()), ins, outCons, outShapes, name, *this);
 
   OpIds inNonDataDeps{};
   OpIds outNonDataDeps{};

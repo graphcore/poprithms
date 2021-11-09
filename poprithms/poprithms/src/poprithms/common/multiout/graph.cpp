@@ -20,19 +20,106 @@ namespace poprithms {
 namespace common {
 namespace multiout {
 
-void Graph::removeMultioutOp(OpId opId,
-                             const OptionalTensorIds &substitutes,
-                             const std::string &context) {
+void Graph::resetGraphOfOps() {
+  for (auto &op_ : ops()) {
+    if (op_.uptr) {
+      op_.uptr->setGraph(*this);
+    }
+  }
+}
 
-  const auto getBaseErr = [this, opId, &substitutes, &context]() {
+Graph::Graph(Graph &&g) {
+  atts = std::move(g.atts);
+  resetGraphOfOps();
+}
+
+Graph &Graph::operator=(Graph &&g) {
+  if (this != &g) {
+    atts = std::move(g.atts);
+    resetGraphOfOps();
+  }
+  return *this;
+}
+
+Graph::Graph(const Graph &g) {
+  atts = g.atts;
+  resetGraphOfOps();
+}
+
+Graph &Graph::operator=(const Graph &g) {
+  if (this != &g) {
+    atts = g.atts;
+    resetGraphOfOps();
+  }
+  return *this;
+}
+
+void Graph::verifyOpsConnectedToThisGraph() const {
+  for (const auto &op_ : ops()) {
+    if (op_.uptr) {
+      if (&op_.uptr->multioutGraph() != this) {
+        std::ostringstream oss;
+        oss << "Failed to verify that ops of this graph (" << getName()
+            << ") are connected to it. "
+            << "The op " << *op_.uptr << " (one of the " << ops().size()
+            << " ops created in this graph) "
+            << "has graph pointer " << &op_.uptr->multioutGraph()
+            << ", but this graph has address " << this << '.';
+        throw error(oss.str());
+      }
+    }
+  }
+}
+
+std::vector<OutIndex> Graph::outIndicesConsumed(OpId id) const {
+  return op(id).outIndicesConsumed();
+}
+
+void Graph::verifyValidOutputSubstitute(const TensorId &before,
+                                        const TensorId &after) const {
+
+  multiOutTypeSpecificVerifyValidOutputSubstitute(before, after);
+  if (shape(before) != shape(after)) {
     std::ostringstream oss;
-    oss << "Failed to remove the op " << typeString(opId)
-        << " in Graph::removeMultioutOp(opId = " << opId
-        << ", substitutes = " << substitutes << ", context = " << context
-        << "). ";
-    return oss.str();
-  };
+    oss << "Failure in multiout::Graph::verifyValidOutputSubstitute, where "
+        << "Shape before substitution is " << shape(before)
+        << " and Shape after substitution is " << shape(after) << ". "
+        << "Replacement (substitute) tensors must have the same Shape "
+        << "as the tensors being replaced. "
+        << "The creator of " << before << " is " << op(before.opId())
+        << " and the creator of " << after << " is " << op(after.opId())
+        << '.';
+    throw error(oss.str());
+  }
+}
 
+void Graph::verifyValidOutputSubstitutes(
+    const OpId opId,
+    const OptionalTensorIds &substitutes) const {
+
+  for (auto outIndex : outIndicesConsumed(opId)) {
+    const auto optionalSubstitute = substitutes.at(outIndex.get());
+    if (!optionalSubstitute.has_value()) {
+      std::ostringstream oss;
+      oss << "There is no replacement for output at index " << outIndex
+          << " of the op to remove, " << op(opId) << ". But "
+          << "this output has consumers (" << consumptionIds({opId, outIndex})
+          << "), and so a replacment must be provided. ";
+      throw error(oss.str());
+    }
+    verifyValidOutputSubstitute({opId, outIndex}, optionalSubstitute.value());
+  }
+}
+
+void Graph::removeOp(OpId opId,
+                     const OptionalTensorIds &substitutes,
+                     const std::string &context) {
+
+  verifyValidOutputSubstitutes(opId, substitutes);
+
+  multiOutTypeSpecificRemoveOp(opId, substitutes);
+
+  // rewire, in preparation for removing opId from the Graph.
   //
   //   >-------+           +------> t0 / substitute0 -+--- consumer
   //           |           |                          |
@@ -44,54 +131,36 @@ void Graph::removeMultioutOp(OpId opId,
   //
   //
 
-  // reset the consumers of the op's output tensors with substitutes
-  // (replace t0 with substitute0, etc.).
-  for (uint64_t o = 0; o < nOutTensors(opId); ++o) {
-    if (nConsumptionIds({opId, o}) != 0) {
+  // 1) when opId is removed, it no longer consumes its inputs. Register this
+  //    fact with the producers of opId's inputs.
+  for (uint64_t inIndex = 0; inIndex < nInTensors(opId); ++inIndex) {
+    const auto inTensor = inTensorId(opId, inIndex);
+    const auto inOp     = inTensor.opId();
+    const auto outIndex = inTensor.outIndex();
+    op(inOp).removeConsumptionId(outIndex, ConsumptionId(opId, inIndex));
+  }
 
-      if (!substitutes.at(o).has_value()) {
-        std::ostringstream oss;
-        oss << getBaseErr() << ". Expected a replacement for output at index "
-            << o << ", as there are consumer(s) ("
-            << consumptionIds({opId, o}) << ") of this tensor.";
-        throw error(oss.str());
-      }
-      const auto substitute = substitutes.at(o).value();
-
-      if (shape(substitute) != shape({opId, o})) {
-        std::ostringstream oss;
-        oss << getBaseErr() << ". The shape of substitute at output index "
-            << o << ", " << shape(substitute)
-            << " is not the same as the shape of the substitutee "
-            << shape({opId, o}) << '.';
-        throw error(oss.str());
-      }
-
-      for (auto c : consumptionIds({opId, o})) {
-        op(c.opId()).resetInTensor(c.inIndex(), substitute);
-        op(substitute.opId()).insertConsumptionId(substitute.outIndex(), c);
-      }
+  // 2) wire up the substitutes. That is, all consumers of outputs of opId
+  //    must change to consume the corresponding substitue.
+  for (auto outIndex : outIndicesConsumed(opId)) {
+    const TensorId substitute = substitutes.at(outIndex.get()).value();
+    for (auto c : consumptionIds({opId, outIndex})) {
+      op(c.opId()).resetInTensor(c.inIndex(), substitute);
+      op(substitute.opId()).insertConsumptionId(substitute.outIndex(), c);
     }
   }
 
-  // reset the producers of the inputs, as this is no longer a consumer.
-  for (uint64_t i = 0; i < nInTensors(opId); ++i) {
-    const auto inTensor = inTensorId(opId, InIndex());
-    auto inOp           = inTensor.opId();
-    op(inOp).removeConsumptionId(inTensor.outIndex(), ConsumptionId(opId, i));
-  }
-
-  // register removal event, and perform removal.
-  removals.insert({opId, op(opId).getName(), ops_.size(), context});
-  ops_[opId.get()].uptr.reset();
-  live_.erase(opId);
+  // finally, register removal event, and perform removal.
+  atts.removals_.insert({opId, op(opId).getName(), ops().size(), context});
+  ops()[opId.get()].uptr.reset();
+  atts.live_.erase(opId);
 }
 
 void Graph::assertMultioutGraphCorrectness() const {
   {
-    auto L = live_.size();
-    auto R = removals.size();
-    auto T = ops_.size();
+    auto L = atts.live_.size();
+    auto R = atts.removals_.size();
+    auto T = ops().size();
     if (L + R != T) {
       std::ostringstream oss;
       oss << "#live = " << L << " #removed = " << R
@@ -142,15 +211,15 @@ Shapes Graph::outShapes(OpId id) const { return op(id).outShapes(); }
 
 void Graph::confirmValidTensorId(const TensorId &tId) const {
 
-  if (tId.opId().get() >= static_cast<int64_t>(ops_.size())) {
+  if (tId.opId().get() >= static_cast<int64_t>(ops().size())) {
     std::ostringstream oss;
     oss << "Failure in confirmValidTensorId(TensorId=" << tId << "). "
-        << "In total only " << ops_.size()
+        << "In total only " << ops().size()
         << " Ops have ever been created in this Graph. ";
     throw error(oss.str());
   }
 
-  if (!ops_[tId.opId().get()].uptr) {
+  if (!ops()[tId.opId().get()].uptr) {
     std::ostringstream oss;
     oss << "Failure in confirmValidTensorId(TensorId=" << tId << "). "
         << "The Op " << tId.opId() << " no longer exists.";
@@ -189,11 +258,11 @@ OpId Graph::insertMultioutOp(std::unique_ptr<Op> createdOp) {
                                {createdOp->id(), InIndex(inIndex)});
   }
 
-  ops_.emplace_back(std::move(createdOp));
+  ops().emplace_back(std::move(createdOp));
 
-  const auto newId = ops_.back().uptr->id();
+  const auto newId = ops().back().uptr->id();
 
-  live_.insert(/* hint = */ live_.end(), newId);
+  atts.live_.insert(/* hint = */ atts.live_.end(), newId);
 
   return newId;
 }
@@ -215,21 +284,24 @@ const std::string &Graph::getName(OpId opId) const {
 }
 
 bool Graph::operator==(const Graph &rhs) const {
-  return getName() == rhs.getName() && ops_ == rhs.ops_ &&
-         live_ == rhs.live_ && typeid(*this) == typeid(rhs) &&
-         multiOutTypeSpecificEqualTo(rhs) && removals == rhs.removals;
+  return typeid(*this) == typeid(rhs) && atts == rhs.atts &&
+         multiOutTypeSpecificEqualTo(rhs);
 }
 
+bool Graph::Attributes::operator==(const Graph::Attributes &rhs) const {
+  return name_ == rhs.name_ && removals_ == rhs.removals_ &&
+         live_ == rhs.live_ && ops_ == rhs.ops_;
+}
 const Op &Graph::op(OpId a) const {
 
-  const auto &opPtr = ops_[static_cast<uint64_t>(a.get())].uptr;
+  const auto &opPtr = ops()[static_cast<uint64_t>(a.get())].uptr;
 
   if (!opPtr) {
-    if (removals.registered(a)) {
+    if (atts.removals_.registered(a)) {
       std::ostringstream oss;
       oss << "Invalid call, multiout::Graph::op(OpId = " << a << "). The op "
           << a << " was deleted, in RemovalEvent: \n     "
-          << removals.event(a).str() << ". ";
+          << atts.removals_.event(a).str() << ". ";
       throw error(oss.str());
     }
 
@@ -333,15 +405,13 @@ void Graph::verifyTensorId(const TensorId &tId) const {
 TensorIds Graph::tensorIds() const {
   TensorIds ids;
   ids.reserve(nTensors());
-  for (uint64_t i = 0; i < nOps(); ++i) {
-    for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
-      ids.push_back({i, o});
+  for (auto opId : opIds()) {
+    for (uint64_t o = 0; o < op(opId).nOutTensors(); ++o) {
+      ids.push_back({opId, o});
     }
   }
   return ids;
 }
-
-OpIds Graph::opIds() const { return OpIds(live_.cbegin(), live_.cend()); }
 
 TensorIds Graph::outTensorIds(OpId id) const { return op(id).outTensorIds(); }
 
@@ -364,10 +434,7 @@ void Graph::setName(const TensorId &id, const std::string &name) {
 }
 
 TensorIds Graph::inAndOutTensorIds(OpId i) const {
-  TensorIds outs       = outTensorIds(i);
-  TensorIds insAndOuts = inTensorIds(i);
-  insAndOuts.insert(insAndOuts.end(), outs.cbegin(), outs.cend());
-  return insAndOuts;
+  return op(i).inAndOutTensorIds();
 }
 
 uint64_t Graph::nOpsWithZeroOutputs() const {

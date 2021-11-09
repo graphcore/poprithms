@@ -32,6 +32,7 @@ using common::multiout::ConsumptionIds;
 using common::multiout::InIndex;
 using common::multiout::OpId;
 using common::multiout::OpIds;
+using common::multiout::OptionalTensorIds;
 using common::multiout::OutIndex;
 using common::multiout::TensorId;
 using common::multiout::TensorIds;
@@ -367,6 +368,14 @@ private:
 
   bool
   multiOutTypeSpecificEqualTo(const common::multiout::Graph &) const final;
+
+  void multiOutTypeSpecificRemoveOp(
+      OpId opToRemove,
+      const OptionalTensorIds &outputSubstitutes) final;
+
+  void multiOutTypeSpecificVerifyValidOutputSubstitute(
+      const TensorId &before,
+      const TensorId &after) const final;
 
   Op &op(OpId);
   const Op &op(OpId) const;

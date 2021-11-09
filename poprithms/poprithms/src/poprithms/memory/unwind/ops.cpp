@@ -138,16 +138,15 @@ void Reshape::bwd(Chain &c) const { c.reshape(inShape(0)); }
 void Reshape::fwd(Chain &c) const { c.reshape(outShape(0)); }
 
 Reshape::Reshape(const State &st) : ViewChange1to1(st) {
-  if (st.baseState.inShapes.size() != 1 ||
-      st.baseState.outShapes.size() != 1) {
+  if (st.baseState.inIds.size() != 1 || st.baseState.outShapes.size() != 1) {
     throw error("Invalid reshape, expected 1 input and 1 output");
   }
 
   if (st.baseState.outShapes[0].nelms_u64() !=
-      st.baseState.inShapes[0].nelms_u64()) {
+      st.baseState.inShape(0).nelms_u64()) {
     std::ostringstream oss;
     oss << "Invalid reshape, number of elements changes. "
-        << "Cannot reshape from " << st.baseState.inShapes[0] << " to "
+        << "Cannot reshape from " << st.baseState.inShape(0) << " to "
         << st.baseState.outShapes[0] << ". ";
     throw error(oss.str());
   }
@@ -182,10 +181,10 @@ void ViewChange1to1::extendBwd(Chain &c, InIndex i, OutIndex o) const {
 
 SumLike::SumLike(const State &st, InIndex unwindIndex)
     : NonInput(st), unwindIndex_(unwindIndex) {
-  if (st.baseState.inShapes.size() <= unwindIndex.get()) {
+  if (st.baseState.inIds.size() <= unwindIndex.get()) {
     std::ostringstream oss;
     oss << "Invalid number of inputs to SumLike constructor. "
-        << "Number of inputs in State = " << st.baseState.inShapes.size()
+        << "Number of inputs in State = " << st.baseState.inIds.size()
         << ", while unwindIndex = " << unwindIndex << ". ";
     throw error(oss.str());
   }
@@ -196,10 +195,10 @@ SumLike::SumLike(const State &st, InIndex unwindIndex)
         << st.baseState.outShapes.size() << '.';
     throw error(oss.str());
   }
-  if (st.baseState.inShapes[unwindIndex.get()] != st.baseState.outShapes[0]) {
+  if (st.baseState.inShape(unwindIndex.get()) != st.baseState.outShapes[0]) {
     std::ostringstream oss;
     oss << "Invalid Shape of input at unwindIndex (" << unwindIndex
-        << ") of SumLike Op, " << st.baseState.inShapes[unwindIndex.get()]
+        << ") of SumLike Op, " << st.baseState.inShape(unwindIndex.get())
         << ". It must be the same as the output Shape, "
         << st.baseState.outShapes[0] << ". "
         << "This design decision is taken for this unwinding project, "

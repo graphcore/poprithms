@@ -32,9 +32,9 @@ using common::multiout::TensorIds;
  * The common::multiout::Graph from which this Graph inherits, does not have
  * control dependencies. It only has data dependencies implicitly defined by
  * the Tensors produced and consumed by Ops. This class introduces control
- * dependencies, between Ops which needn't be data dependencies.
+ * dependencies between Ops, which needn't be data dependencies.
  *
- * The other feature which this Graph introduces is a partitioning into
+ * The second feature which this Graph introduces is a partitioning into
  * sub-graphs of the Ops. Each Op has a single SubGraphId attribute. Control
  * dependencies can only be introduced between Ops with the same SubGraphId.
  * */
@@ -96,12 +96,12 @@ public:
   void binConstraint(const std::vector<OpIds> &bins);
 
   /**
-   * Get all Ops in the Graph which has SubGraphId #subGraphId.
+   * Get all Ops in the Graph which have SubGraphId #subGraphId.
    * */
   OpIds opIds(SubGraphId subGraphId) const;
 
   /**
-   * Get all Tensors in the Graph which has SubGraphId #subGraphId.
+   * Get all Tensors in the Graph which have SubGraphId #subGraphId.
    * */
   TensorIds tensorIds(SubGraphId subGraphId) const;
 
@@ -165,7 +165,7 @@ public:
   /**
    * A sub-schedule of a set of ops. This is equivalent to
    * 1) get the schedule for the complete graph, then
-   * 2) pull out the entries in #opIds, retaining their relative positiions.
+   * 2) pull out the entries in #opIds, retaining their relative positions.
    * */
   OpIds vanillaSubSchedule(const std::set<OpId> &opIds) const;
 
@@ -285,16 +285,40 @@ public:
   OpIds mayBeFinals(SubGraphId subGraphId) const;
 
   /**
-   * return all Ops which must be scheduled before Op #opId. This includes
-   * data dependencies.
+   * All of the Ops which must be scheduled before #opId due to an explict
+   * non-data dependency constraint.
    * */
-  OpIds inOps(OpId opId) const;
+  OpIds controlDependencyInOps(OpId opId) const;
 
   /**
-   * return all Ops which must be scheduled after Op #opId. This includes data
-   * dependencies.
+   * All of the Ops which must be scheduled before #opId due to a data
+   * dependency.
    * */
-  OpIds outOps(OpId opId) const;
+  OpIds dataDependencyInOps(OpId opId) const;
+
+  /**
+   * All Ops which must be scheduled before #opId, either because of a data
+   * dependency, or a non-data "control" dependency.
+   * */
+  OpIds allInOps(OpId opId) const;
+
+  /**
+   * All of the Ops which must be scheduled after #opId due to an explict
+   * non-data dependency constraint.
+   * */
+  OpIds controlDependencyOutOps(OpId opId) const;
+
+  /**
+   * All of the Ops which must be scheduled after #opId due to a data
+   * dependency.
+   * */
+  OpIds dataDependencyOutOps(OpId opId) const;
+
+  /**
+   * All Ops which must be scheduled after #opId, either because of a data
+   * dependency, or a non-data "control" dependency.
+   * */
+  OpIds allOutOps(OpId opId) const;
 
   std::vector<poprithms::util::StringColumn>
   getSchedulableColumns(const OpIds &) const;
@@ -309,47 +333,63 @@ public:
    * */
   void assertSchedulableGraphCorrectness() const;
 
+  /**
+   * How control dependencies should be propagated when graphs are
+   * modified might depend on the specific transformation. This placeholder
+   * method will need extension in the future.*/
+  enum class ControlDependencyPropagationType {
+    ///< If 'from' (see method below) has a control dependency to be before x,
+    ///< then all data and control dependency inputs to 'from' will remain
+    ///< before x after opId is removed.
+    ConserveLocally
+  };
+  void propagateControlDependencies(OpId from,
+                                    ControlDependencyPropagationType);
+
+  /** Get a vector of SubGraphIds from a vector of integers. */
+  SubGraphIds asSubGraphIds(const std::vector<uint64_t> &) const;
+
+  /** Get a vector of integers from a vector of SubGraphIds. */
+  std::vector<uint64_t> asUnsigned64s(const SubGraphIds &) const;
+
 protected:
   OpId insertSchedulableOp(std::unique_ptr<Op>);
 
+  // TODO(T49671): reconsider the naming of this method.
   bool schedulableTypeSpecificEqualTo(const Graph &rhs) const {
     // All of the state of this Graph is captures in this single field
     return rhs.subGraphStates == subGraphStates;
   }
 
-  /**
-   * Remove the Op #toRemove from this Graph, substituting the ConsumptionIds
-   * of its outputs with #substitutes. See multiout::Graph::removeMultioutOp,
-   * for more information.
-   *
-   * All topological constraints of #toRemove are transferred. For
-   * example, if 'a' is an input dependency and 'b' and 'c' are output
-   * dependencies,
-   *
-   *  'a' --> toRemove --+--> 'b'
-   *                     |
-   *                     +--> 'c'
-   *
-   * then the new constraints after the removal of #toRemove will be 'a'->'b'
-   * and 'a'->'c'. These constraints might be indirect, via an intermediate
-   * 'bin boundary' op.
-   *
-   * Note that \b all constraints are transferred, not just the non-data
-   * constraints. This may not always be the desired behaviour, in which case
-   * constraints should be removed manually after this call.
-   * */
-  void removeSchedulableOp(OpId toRemove,
-                           const OptionalTensorIds &substitutes,
-                           const std::string &context);
+  // inheriting classes must implement this method, to safely remove derived
+  // attributes of ops.
+  virtual void schedulableTypeSpecificRemoveOp(
+      OpId opToRemove,
+      const OptionalTensorIds &outputSubstitutes) = 0;
+
+  // replacements must be in the same sub-graph.
+  virtual void schedulableTypeSpecificVerifyValidOutputSubstitute(
+      const TensorId &before,
+      const TensorId &after) const = 0;
 
 private:
+  // This method will remove the control dependencies of opToRemove, ensuring
+  // that there are no dangling ends when it is removed. No control
+  // dependncies are 'transferred', these must be done before the call to
+  // #removeOp, using for example propagateControlDependencies.
+  void multiOutTypeSpecificRemoveOp(
+      OpId opToRemove,
+      const OptionalTensorIds &outputSubstitutes) final;
+
+  // This method will remove
+  void multiOutTypeSpecificVerifyValidOutputSubstitute(
+      const TensorId &before,
+      const TensorId &after) const final;
+
   // Ops which inherit from this class should use insertSchedulableOp, and
   // not insertMultioutOp. By having this 'using' here, we make this method
   // private, preventing its use in derived classes.
   using common::multiout::Graph::insertMultioutOp;
-
-  // Same comment for removal of Ops.
-  using common::multiout::Graph::removeMultioutOp;
 
   /**
    * Insert a "null" Op which serves no purpose other than to separate bins of
@@ -415,6 +455,8 @@ private:
     }
 
     void insertBack(OpId opId) { ops_.insert(/* hint = */ ops_.end(), opId); }
+
+    void removeOp(OpId opId);
 
   private:
     std::tuple<std::string, Eager, bool, OpId> t() const {

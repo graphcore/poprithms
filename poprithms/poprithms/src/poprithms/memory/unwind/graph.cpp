@@ -110,8 +110,7 @@ OpId Graph::createOp(const TensorIds &inIds,
                      Args... args) {
 
   return insertOp(std::make_unique<T>(
-      Op::getStartingState(nOps_i64(), inIds, shapes(inIds), outShapes),
-      args...));
+      Op::getStartingState(nOps_i64(), inIds, outShapes, *this), args...));
 }
 
 void Graph::insertValuedPair(const TensorId &a, const TensorId &b, double v) {
@@ -490,6 +489,30 @@ std::array<Shape, 2> Graph::matmulBarrierShapes(const TensorId &id) const {
     throw error(oss.str());
   }
   return {mmp->lhs(), mmp->rhs()};
+}
+
+void Graph::multiOutTypeSpecificRemoveOp(
+    OpId opToRemove,
+    const OptionalTensorIds &outputSubstitutes) {
+  // TODO(T49502)
+  std::ostringstream oss;
+  oss << "Must implement multiOutTypeSpecificRemoveOp. Called with "
+         "opToRemove = "
+      << opToRemove << " and outputSubstitutes = " << outputSubstitutes
+      << ".";
+  throw error(oss.str());
+}
+
+void Graph::multiOutTypeSpecificVerifyValidOutputSubstitute(
+    const TensorId &before,
+    const TensorId &after) const {
+  // TODO(T49502)
+
+  std::ostringstream oss;
+  oss << "Must implement multiOutTypeSpecificVerifyValidOutputSubstitute. "
+      << "Called with before = " << before << " and after = " << after
+      << ". ";
+  throw error(oss.str());
 }
 
 } // namespace unwind

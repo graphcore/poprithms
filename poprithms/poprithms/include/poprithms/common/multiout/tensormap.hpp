@@ -72,20 +72,34 @@ public:
   /**
    * Set the Value corresponding to the Tensor #tId to #v.
    * */
-  void setValue(const TensorId &tId, const Value &v) const {
+  void setValue(const TensorId &tId, const Value &v) {
     assertValidTensorId(tId);
     values[tId.opId().get()][tId.outIndex().get()] = v;
+  }
+
+  void setValues(OpId opId, const Values &vs) {
+    assertValidOpId(opId);
+    values[opId.get()] = vs;
   }
 
   /**
    * Set the Value corresponding to the Tensor #tId to #v.
    * */
-  void setValue(const TensorId &tId, Value &&v) const {
+  void setValue(const TensorId &tId, Value &&v) {
     assertValidTensorId(tId);
     values[tId.opId().get()][tId.outIndex().get()] = std::move(v);
   }
 
 private:
+  void assertValidOpId(OpId opId) {
+
+    if (values.size() <= opId) {
+      throw poprithms::error::error(
+          "common::multiout",
+          "Invalid OpId, " + std::to_string(opId.get()) + ". Only " +
+              std::to_string(values.size()) + " Ops in this TensorMap.");
+    }
+  }
   /**
    * Assert that the Tensor #tId has a Value stored for it.
    * */
@@ -93,12 +107,7 @@ private:
     uint64_t opId     = tId.opId().get();
     uint64_t outIndex = tId.outIndex().get();
 
-    if (values.size() <= opId) {
-      throw poprithms::error::error(
-          "common::multiout",
-          "Invalid TensorId, " + tId.str() + ". Only " +
-              std::to_string(values.size()) + " Ops in this TensorMap.");
-    }
+    assertValidOpId(opId);
 
     if (values[opId].size() <= outIndex) {
       throw poprithms::error::error(

@@ -30,6 +30,7 @@ using common::multiout::TensorId;
 using common::multiout::TensorIds;
 using ndarray::Shape;
 using ndarray::Shapes;
+class Graph;
 
 /** A node in an inplace::Graph, with directed edges (control dependencies /
  * topological constraints) to and from other Ops, input and output Tensors,
@@ -50,19 +51,11 @@ public:
     State(const OpId id_,
           const TensorIds &inIds_,
           const std::vector<ConsumptionIds> &consumptionIds_,
-          const Shapes &inShapes_,
           const Shapes &outShapes_,
           const std::string &name_,
           const OpIds &ins_,
-          const OpIds &outs_)
-        : State(common::multiout::Op::State(id_,
-                                            inIds_,
-                                            consumptionIds_,
-                                            inShapes_,
-                                            outShapes_,
-                                            name_),
-                ins_,
-                outs_) {}
+          const OpIds &outs_,
+          const Graph &g_);
 
     const common::multiout::Op::State baseState;
 
@@ -129,8 +122,8 @@ public:
 
   static State getStartingState(const OpId opId,
                                 const TensorIds &tensorIns,
-                                const Shapes &inShapes,
-                                const Shapes &outShapes);
+                                const Shapes &outShapes,
+                                const Graph &);
 
   using AliasTensorIds = std::vector<alias::TensorId>;
 

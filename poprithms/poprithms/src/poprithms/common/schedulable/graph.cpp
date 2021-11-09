@@ -25,25 +25,13 @@ namespace poprithms {
 namespace common {
 namespace schedulable {
 
-void Graph::removeSchedulableOp(OpId opId,
-                                const OptionalTensorIds &substitutes,
-                                const std::string &context) {
+void Graph::multiOutTypeSpecificVerifyValidOutputSubstitute(
+    const TensorId &before,
+    const TensorId &after) const {
 
-  assertSubGraphId(util::nonOptionals<TensorId>(substitutes),
-                   subGraphId(opId));
+  schedulableTypeSpecificVerifyValidOutputSubstitute(before, after);
 
-  // transfer constraints. Note that we've lost track of which constraints are
-  // 'data' and 'non-data', so there might be some constraints in here which
-  // are no longer desired. These must be removed separately.
-  binConstraint({inOps(opId), outOps(opId)});
-  for (auto in_ : inOps(opId)) {
-    op(in_).removeOut(opId);
-  }
-  for (auto out_ : outOps(opId)) {
-    op(out_).removeIn(opId);
-  }
-
-  removeMultioutOp(opId, substitutes, context);
+  assertSubGraphId({before}, subGraphId(after));
 }
 
 // something faster TODO(T42434)
@@ -184,14 +172,107 @@ bool Graph::eagerIsEnabled(SubGraphId id_) const {
   return subGraphStates[id_.get_u64()].eagerEnabled();
 }
 
+void Graph::propagateControlDependencies(
+    OpId opId,
+    ControlDependencyPropagationType type) {
+
+  switch (type) {
+
+  case ControlDependencyPropagationType::ConserveLocally: {
+
+    for (auto in_ : controlDependencyInOps(opId)) {
+      for (auto o : allOutOps(opId)) {
+        constraint(in_, o);
+      }
+    }
+
+    for (auto out_ : controlDependencyOutOps(opId)) {
+      for (auto i : allInOps(opId)) {
+        constraint(i, out_);
+      }
+    }
+    break;
+  }
+
+  default:
+    throw error("Unrecognised ControlDependencyPropagationType");
+  }
+}
+
+void Graph::SubGraphState::removeOp(OpId opId) {
+  ops_.erase(opId);
+  if (eagerEnabled()) {
+    if (hasKnownLast() && knownLast() == opId) {
+      hasLast_ = false;
+    }
+  }
+}
+
+void Graph::multiOutTypeSpecificRemoveOp(
+    OpId opId,
+    const OptionalTensorIds &substitutes) {
+
+  schedulableTypeSpecificRemoveOp(opId, substitutes);
+
+  for (auto in_ : controlDependencyInOps(opId)) {
+    op(in_).removeControlDependencyOut(opId);
+  }
+
+  for (auto out_ : controlDependencyOutOps(opId)) {
+    op(out_).removeControlDependencyIn(opId);
+  }
+
+  auto sgId     = subGraphId(opId);
+  auto &sgState = subGraphStates[sgId.get_u64()];
+  sgState.removeOp(opId);
+}
+
+OpIds Graph::allOutOps(OpId opId) const {
+  OpIds outs = dataDependencyOutOps(opId);
+  for (auto x : controlDependencyOutOps(opId)) {
+    if (std::find(outs.cbegin(), outs.cend(), x) == outs.cend()) {
+      outs.push_back(x);
+    }
+  }
+  return outs;
+}
+
+OpIds Graph::allInOps(OpId opId) const {
+  OpIds ins = dataDependencyInOps(opId);
+  for (auto x : controlDependencyInOps(opId)) {
+    if (std::find(ins.cbegin(), ins.cend(), x) == ins.cend()) {
+      ins.push_back(x);
+    }
+  }
+  return ins;
+}
+
+OpIds Graph::dataDependencyInOps(OpId opId) const {
+  std::set<OpId> opIds;
+  for (auto x : inTensorIds(opId)) {
+    opIds.insert(x.opId());
+  }
+  return OpIds(opIds.cbegin(), opIds.cend());
+}
+
+OpIds Graph::dataDependencyOutOps(OpId opId) const {
+  std::set<OpId> opIds;
+  for (auto x : outTensorIds(opId)) {
+    for (auto c : consumptionIds(x)) {
+      opIds.insert(c.opId());
+    }
+  }
+  return OpIds(opIds.cbegin(), opIds.cend());
+}
+
 OpId Graph::insertSchedulableOp(std::unique_ptr<Op> op_) {
 
   // insert the new Op into the base multiout::Graph class, which stores all
   // Ops, nut no constraints or subgraph info.
   auto newId = insertMultioutOp(std::move(op_));
 
-  for (auto inId : op(newId).inTensorIds()) {
-    constraint(inId.opId(), newId);
+  for (auto inId : op(newId).controlDependencyInOps()) {
+    constraint(inId, newId);
   }
 
   // subgraph specific registering:
@@ -214,12 +295,14 @@ OpId Graph::insertSchedulableOp(std::unique_ptr<Op> op_) {
 
 void Graph::ensureLastOfCurrentOps(OpId opId) {
 
-  if (!outOps(opId).empty()) {
+  const auto allOutsOfOp = allOutOps(opId);
+  if (!allOutsOfOp.empty()) {
     std::ostringstream oss;
     oss << "Cannot make " << opId
         << " the last of the current ops, at it has "
         << "existing output dependencies: ";
-    util::append(oss, outOps(opId));
+    util::append(oss, allOutsOfOp);
+    oss << ". It is impossible for " << opId << " to appear after them. ";
     throw error(oss.str());
   }
 
@@ -245,12 +328,19 @@ void Graph::SubGraphState::toggleEager(bool enabled) {
 void Graph::constraint(OpId before, OpId after) {
   if (op(before).subGraphId() != op(after).subGraphId()) {
     std::ostringstream oss;
-    oss << "Cannot insert Constraint between Ops in different Graphs. ";
+    oss << "Cannot insert constraint between Ops in different Graphs. ";
     oss << "Bad constraint, " << op(before) << " -> " << op(after) << ".";
     throw error(oss.str());
   }
-  op(before).insertOut(after);
-  op(after).insertIn(before);
+
+  if (before == after) {
+    std::ostringstream oss;
+    oss << "Cannot insert constraint " << before << " -> " << after
+        << ", as this creates a cycle (of size 1). ";
+    throw error(oss.str());
+  }
+  op(before).insertControlDependencyOut(after);
+  op(after).insertControlDependencyIn(before);
 }
 
 void Graph::constraint(OpId a, const OpIds &bs) {
@@ -331,8 +421,10 @@ std::vector<OpIds> Graph::subGraphPartitioned(const OpIds &opIds) const {
 }
 
 OpIds Graph::vanillaSchedule() const {
-  const auto fwdEdgeMap = getForwardEdgeMap_u64();
-  return unpacked(fwdEdgeMap, getVanillaSchedule(fwdEdgeMap.fwdEdgesCompact));
+  const auto fwdEdgeMap      = getForwardEdgeMap_u64();
+  const auto compactSchedule = getVanillaSchedule(fwdEdgeMap.fwdEdgesCompact);
+
+  return unpacked(fwdEdgeMap, compactSchedule);
 }
 
 OpIds Graph::randomSchedule(uint32_t s) const {
@@ -342,8 +434,9 @@ OpIds Graph::randomSchedule(uint32_t s) const {
 }
 
 OpIds Graph::vanillaSchedule(SubGraphId sgId) const {
-  const auto fwdEdgeMap = getForwardEdgeMap_u64(sgId);
-  return unpacked(fwdEdgeMap, getVanillaSchedule(fwdEdgeMap.fwdEdgesCompact));
+  const auto fwdEdgeMap      = getForwardEdgeMap_u64(sgId);
+  const auto compactSchedule = getVanillaSchedule(fwdEdgeMap.fwdEdgesCompact);
+  return unpacked(fwdEdgeMap, compactSchedule);
 }
 
 OpIds Graph::randomSchedule(SubGraphId sgId, uint32_t s) const {
@@ -360,9 +453,13 @@ std::vector<OpIds> Graph::randomSchedules(uint32_t s) const {
   return subGraphPartitioned(vanillaSchedule(s));
 }
 
-OpIds Graph::inOps(OpId opId) const { return op(opId).inOps(); }
+OpIds Graph::controlDependencyInOps(OpId opId) const {
+  return op(opId).controlDependencyInOps();
+}
 
-OpIds Graph::outOps(OpId opId) const { return op(opId).outOps(); }
+OpIds Graph::controlDependencyOutOps(OpId opId) const {
+  return op(opId).controlDependencyOutOps();
+}
 
 Graph::FwdEdgeMap
 Graph::getSparseForwardEdgeMap_u64(const OpIds &opIds) const {
@@ -377,7 +474,7 @@ Graph::getSparseForwardEdgeMap_u64(const OpIds &opIds) const {
   }
 
   for (auto id : opIds) {
-    const auto outs      = outOps(id);
+    const auto outs      = allOutOps(id);
     const auto compactId = toCompact[id];
     fEdges[compactId].reserve(outs.size());
     for (auto out : outs) {
@@ -422,7 +519,7 @@ OpIds Graph::mayBeFinals(SubGraphId subGraphId) const {
   OpIds tailEnders;
   const auto ids = opIds(subGraphId);
   for (auto id : ids) {
-    if (op(id).outOps().empty()) {
+    if (allOutOps(id).size() == 0) {
       tailEnders.push_back(id);
     }
   }
@@ -465,7 +562,7 @@ Graph::getSchedulableColumns(const OpIds &opIds) const {
 
   uint64_t ti{0};
   for (auto i : opIds) {
-    const auto nonDataIns = op(i).nonDataInOps();
+    const auto nonDataIns = op(i).controlDependencyInOps();
     hasNonDataIns |= !nonDataIns.empty();
     nonDataIns__[ti]      = util::getStr(nonDataIns);
     const auto subGraphId = op(i).subGraphId();
@@ -502,26 +599,9 @@ void Graph::assertSchedulableGraphCorrectness() const {
   // check the base class is in a correct state:
   assertMultioutGraphCorrectness();
 
-  // check that sub-graphs in in/out relationships agree.
   for (auto opId : multiout::Graph::opIds()) {
-    for (auto in_ : inOps(opId)) {
-      if (!op(in_).isOut(opId)) {
-        std::ostringstream oss;
-        oss << "Op " << opId << " has " << in_ << " as an in dep, but " << in_
-            << " doesn't have " << opId
-            << " as an out dep. Correctness assertion failed. ";
-        throw error(oss.str());
-      }
-    }
 
-    for (auto out_ : outOps(opId)) {
-      if (!op(out_).isIn(opId)) {
-        std::ostringstream oss;
-        oss << "Op " << opId << " has " << out_ << " as an out dep, but "
-            << out_ << " doesn't have " << opId
-            << " as an in dep. Correctness assertion failed. ";
-        throw error(oss.str());
-      }
+    for (auto out_ : allOutOps(opId)) {
 
       if (subGraphId(out_) != subGraphId(opId)) {
         std::ostringstream oss;
@@ -532,6 +612,24 @@ void Graph::assertSchedulableGraphCorrectness() const {
       }
     }
   }
+}
+
+SubGraphIds Graph::asSubGraphIds(const std::vector<uint64_t> &i) const {
+  SubGraphIds o;
+  o.reserve(i.size());
+  for (auto v : i) {
+    o.push_back(SubGraphId(v));
+  }
+  return o;
+}
+
+std::vector<uint64_t> Graph::asUnsigned64s(const SubGraphIds &i) const {
+  std::vector<uint64_t> o;
+  o.reserve(i.size());
+  for (auto v : i) {
+    o.push_back(v.get_u64());
+  }
+  return o;
 }
 
 } // namespace schedulable

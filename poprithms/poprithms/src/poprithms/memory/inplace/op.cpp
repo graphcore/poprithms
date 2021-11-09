@@ -11,12 +11,30 @@
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/util.hpp>
 #include <poprithms/memory/alias/graph.hpp>
+#include <poprithms/memory/inplace/graph.hpp>
 #include <poprithms/memory/inplace/tensormap.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace inplace {
+
+Op::State::State(const OpId id_,
+                 const TensorIds &inIds_,
+                 const std::vector<ConsumptionIds> &consumptionIds_,
+                 const Shapes &outShapes_,
+                 const std::string &name_,
+                 const OpIds &ins_,
+                 const OpIds &outs_,
+                 const Graph &g_)
+    : State(common::multiout::Op::State(id_,
+                                        inIds_,
+                                        consumptionIds_,
+                                        outShapes_,
+                                        name_,
+                                        g_),
+            ins_,
+            outs_) {}
 
 Op::~Op() = default;
 
@@ -68,8 +86,8 @@ std::ostream &operator<<(std::ostream &os, const Op &op) {
   return os;
 }
 
-void Op::grow(alias::Graph &g, TensorMap &m) const {
-  AliasTensorIds outIds = typeSpecificGrow(g, m);
+void Op::grow(alias::Graph &g_, TensorMap &m) const {
+  AliasTensorIds outIds = typeSpecificGrow(g_, m);
   for (uint64_t o = 0; o < nOutTensors(); ++o) {
     m.insert(outTensorId(o), outIds[o]);
   }
@@ -77,8 +95,8 @@ void Op::grow(alias::Graph &g, TensorMap &m) const {
 
 Op::State Op::getStartingState(const OpId opId,
                                const TensorIds &inIds,
-                               const Shapes &inShapes,
-                               const Shapes &outShapes) {
+                               const Shapes &outShapes,
+                               const Graph &g) {
 
   const OpIds opOuts{};
   const std::string name{};
@@ -89,11 +107,11 @@ Op::State Op::getStartingState(const OpId opId,
   return State(opId,
                inIds,
                consumptionIds,
-               inShapes,
                outShapes,
                name,
                common::multiout::Graph::opIds(inIds),
-               opOuts);
+               opOuts,
+               g);
 }
 
 bool Op::multiOutTypeSpecificEqualTo(const common::multiout::Op &rhs_) const {

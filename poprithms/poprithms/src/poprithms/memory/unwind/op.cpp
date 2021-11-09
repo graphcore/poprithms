@@ -8,11 +8,27 @@
 #include <memory/unwind/op.hpp>
 
 #include <poprithms/memory/alias/graph.hpp>
+#include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
 namespace memory {
 namespace unwind {
+
+Op::State::State(const OpId id_,
+                 const TensorIds &inIds_,
+                 const std::vector<ConsumptionIds> &consumptionIds_,
+                 const Shapes &outShapes_,
+                 const std::string &name_,
+                 const std::vector<ValuedTensorIds> &valuedPartners_,
+                 const Graph &g_)
+    : State(common::multiout::Op::State(id_,
+                                        inIds_,
+                                        consumptionIds_,
+                                        outShapes_,
+                                        name_,
+                                        g_),
+            valuedPartners_) {}
 
 const std::vector<ValuedTensorIds> &Op::valuedPartners() const {
   return valuedPartners_;
@@ -29,7 +45,9 @@ Op::State Op::getState() const {
 DisjointRegions
 Op::outRegions(const DisjointRegions &inRegs, InIndex i, OutIndex o) const {
   auto ch = Chain(inShape(i));
+
   extendFwd(ch, i, o);
+
   return ch.apply(inRegs);
 }
 
@@ -44,8 +62,8 @@ Op::~Op() = default;
 
 Op::State Op::getStartingState(const OpId opId,
                                const TensorIds &inIds,
-                               const Shapes &inShapes,
-                               const Shapes &outShapes) {
+                               const Shapes &outShapes,
+                               const Graph &g) {
 
   const std::string name{};
 
@@ -54,13 +72,8 @@ Op::State Op::getStartingState(const OpId opId,
 
   const std::vector<ValuedTensorIds> valuedPartners__(outShapes.size());
 
-  return State(opId,
-               inIds,
-               consumptionIds,
-               inShapes,
-               outShapes,
-               name,
-               valuedPartners__);
+  return State(
+      opId, inIds, consumptionIds, outShapes, name, valuedPartners__, g);
 }
 
 void Op::extend(Chain &c, InIndex i, OutIndex o, bool isFwd) const {

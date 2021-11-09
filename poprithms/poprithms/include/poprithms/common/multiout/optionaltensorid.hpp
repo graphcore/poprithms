@@ -7,9 +7,10 @@
 namespace poprithms {
 namespace common {
 namespace multiout {
+
 /**
- * This class behaves like std::optional<TensorId>, but without requiring
- * c++17.
+ * This class provided a subset of the functionality of
+ * std::optional<TensorId>, without requiring c++17.
  * */
 class OptionalTensorId {
 public:
@@ -19,9 +20,17 @@ public:
   bool has_value() const { return isSet; }
   void append(std::ostream &) const;
 
-  /** Either both are 'none', or they have the same #id. */
   bool operator==(const OptionalTensorId &rhs) const {
-    return ((isSet == rhs.isSet) && isSet == false) || id == rhs.id;
+    if (has_value() != rhs.has_value()) {
+      return false;
+    }
+    if (rhs.has_value() && id != rhs.id) {
+      return false;
+    }
+    return true;
+  }
+  bool operator!=(const OptionalTensorId &rhs) const {
+    return !operator==(rhs);
   }
 
 private:

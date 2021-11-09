@@ -69,7 +69,7 @@ public:
   Concat(const State &st, uint64_t axis__)
       : NonInput(st), axis_(axis__),
         partitionPoints_(
-            Shape::concatPartitionPoints(st.baseState.inShapes, axis__)) {}
+            Shape::concatPartitionPoints(st.baseState.inShapes(), axis__)) {}
   uint64_t axis() const { return axis_; }
   std::string typeString() const final;
   void extendFwd(Chain &, InIndex, OutIndex) const final;
