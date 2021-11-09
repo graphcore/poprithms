@@ -1303,6 +1303,16 @@ private:
   class Ones;
 
   void assertContainsAliases(bool) const;
+
+public:
+  /** 
+   * Certain backends require this cast to void *. We don't advise doing this
+   * unless it is strictly required.
+   *
+   * If the underlying data is not contiguous, an error is thrown. Otherwise,
+   * a void pointer to the #rowMajorIndex'th element is returned.
+   * */
+  void *getPtrToOriginData(uint64_t rowMajorIndex = 0) const;
 };
 
 class OptionalTensor {

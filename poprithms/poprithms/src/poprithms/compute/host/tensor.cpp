@@ -148,6 +148,37 @@ Tensor Tensor::copy(DType t, const Shape &s, const void *vp) {
   return typeSwitch<Caster, Tensor>(t, s, vp);
 }
 
+// This class supports the case where a user requires a raw pointer to the
+// underlying data.
+class UnwiseCaster {
+public:
+  template <typename T>
+  static void *go(BaseData *bd, uint64_t rowMajorIndex) {
+    auto od = dynamic_cast<OriginData<T> *>(bd);
+    return static_cast<void *>(od->dataPtr() + rowMajorIndex);
+  }
+};
+
+void *Tensor::getPtrToOriginData(uint64_t rowMajorIndex) const {
+  if (!tData_->isOriginData()) {
+    std::ostringstream oss;
+    oss << "Invalid call to getPtrToOriginData on a Tensor which is "
+        << "not contiguous (it does not have 'origin' data). \nThe Tensor is "
+           "\n"
+        << *this;
+    throw error(oss.str());
+  }
+  if (rowMajorIndex >= nelms_u64()) {
+    std::ostringstream oss;
+    oss << "Invalid offset in getPtrToOriginData, rowMajorIndex="
+        << rowMajorIndex << ". This for a Tensor with only " << nelms()
+        << " elements. The shape of this Tensor " << shape();
+    throw error(oss.str());
+  }
+  return typeSwitch<UnwiseCaster, void *>(
+      dtype(), tData_.get(), rowMajorIndex);
+}
+
 Tensor Tensor::zeros(DType t, const Shape &s) {
   return typeSwitch<Zeros, Tensor>(t, s);
 }

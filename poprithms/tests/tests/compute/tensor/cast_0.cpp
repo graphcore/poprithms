@@ -57,10 +57,47 @@ void testScalarCreation() {
     }
   }
 }
+
+void testGetPtrToOriginData() {
+  const auto t0 = Tensor::arangeFloat32(5., 10., 1.);
+
+  {
+    const auto vptr = t0.getPtrToOriginData();
+    const auto fptr = static_cast<const float *>(vptr);
+    for (uint64_t i = 0; i < t0.nelms_u64(); ++i) {
+      if (fptr[i] != t0.getFloat32(i)) {
+        throw poprithms::test::error("Failure in getPtrToOriginData");
+      }
+    }
+  }
+
+  bool caught{false};
+  auto c = t0.subSample_(Stride(2), Dimension(0));
+  try {
+    c.getPtrToOriginData();
+  } catch (const poprithms::error::error &err) {
+    const std::string w = err.what();
+    if (w.find("not contiguous") != std::string::npos) {
+      caught = true;
+    }
+  }
+  if (!caught) {
+    throw poprithms::test::error(
+        "Failed to catch error stating non contiguous Tensors can't have "
+        "getPtrToOriginData called on them.");
+  }
+
+  auto foo = t0.getPtrToOriginData(3);
+  if (*static_cast<const float *>(foo) != 5. + 3) {
+    throw poprithms::test::error("Failed in test of getPtrToOriginData when "
+                                 "there's a non-zero rowMajorIndex offset");
+  }
+}
 } // namespace
 
 int main() {
   testFromFloat64();
   testScalarCreation();
+  testGetPtrToOriginData();
   return 0;
 }
