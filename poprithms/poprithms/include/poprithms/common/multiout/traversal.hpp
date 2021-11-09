@@ -19,7 +19,7 @@ namespace multiout {
 /**
  * Traverse through the Ops in graph #g in a forwards direction, starting at
  * the Tensors in #starts. During the traversal, record all OpTraversals
- * taken. Terminate, and do not record, OpTraversals for which #accept
+ * taken. Terminate at, and do not record, OpTraversals for which #accept
  * evaluates as false.
  *
  * This is similar to depth-first search of all Ops in a graph, except that it
@@ -171,6 +171,112 @@ std::vector<OpTraversal> depthFirstBackward(const G &g,
     }
   }
   return util::unisorted(routes);
+}
+
+/**
+ * A utility class which stores a stack of nodes, and is used in different
+ * depth first traversal functions.
+ * */
+template <class Node> struct DepthFirstNodes {
+  using Nodes = std::vector<Node>;
+  DepthFirstNodes(const Nodes &starts)
+      : toProcess(starts), visited(starts.cbegin(), starts.cend()),
+        accepted({}) {}
+
+  Nodes toProcess;
+  std::set<Node> visited;
+  Nodes accepted;
+
+  void insertAccepted(const Node &tId) { accepted.push_back(tId); }
+
+  void insertToProcessIfNotAlready(const Node &tId) {
+    if (visited.count(tId) == 0) {
+      toProcess.push_back(tId);
+      visited.insert(tId);
+    }
+  }
+
+  bool moreToProcess() const { return !toProcess.empty(); }
+
+  Node pop() {
+    auto x = toProcess.back();
+    toProcess.pop_back();
+    return x;
+  }
+};
+
+/**
+ * Perform depth first on #ng, starting from nodes #starts and recording and
+ * traversing through all nodes for which #accept evaluates to true.
+ *
+ * A NeighborGetter must provide 1 method, 'neighbors', which returns all
+ * nodes which can be traversed to from a node. As an example, if nodes are
+ * ops and you want to find all forward going data dependencies, then the
+ * neighbors of an op are the consumers of all of its output tensors.
+ * */
+template <class NeighborGetter, class Node, class AcceptanceCondition>
+std::vector<Node> depthFirst(NeighborGetter &&ng,
+                             const std::vector<Node> &starts,
+                             AcceptanceCondition &&accept) {
+
+  DepthFirstNodes<Node> ns(starts);
+  while (ns.moreToProcess()) {
+    const auto nxt = ns.pop();
+    if (accept(nxt)) {
+      ns.insertAccepted(nxt);
+      for (const auto &tId : ng.neighbors(nxt)) {
+        ns.insertToProcessIfNotAlready(tId);
+      }
+    }
+  }
+
+  return ns.accepted;
+}
+
+/**
+ * Perform a depth first forward traversal of the graph #g, starting from
+ * tensors #starts, and recording and traversing through all tensors for which
+ * #accept evaluates to true.
+ * */
+template <class G, class AcceptanceCondition>
+TensorIds depthFirstBackwardTensors(G &&g,
+                                    const TensorIds &starts,
+                                    AcceptanceCondition &&accept) {
+  DepthFirstNodes<TensorId> ts(starts);
+  while (ts.moreToProcess()) {
+    const auto nxt = ts.pop();
+    if (accept(nxt)) {
+      ts.insertAccepted(nxt);
+      for (const auto &tId : g.inTensorIds(nxt.opId())) {
+        ts.insertToProcessIfNotAlready(tId);
+      }
+    }
+  }
+  return ts.accepted;
+}
+
+/**
+ * Perform a depth first backward traversal of the graph #g, starting from
+ * tensors #starts, and recording and traversing through all tensors for which
+ * #accept evaluates to true.
+ * */
+template <class G, class AcceptanceCondition>
+TensorIds depthFirstForwardTensors(G &&g,
+                                   const TensorIds &starts,
+                                   AcceptanceCondition &&accept) {
+  DepthFirstNodes<TensorId> ts(starts);
+  while (ts.moreToProcess()) {
+    const auto nxt = ts.pop();
+    if (accept(nxt)) {
+      ts.insertAccepted(nxt);
+      for (const auto &cId : g.consumptionIds(nxt)) {
+        for (const auto &tId : g.outTensorIds(cId.opId())) {
+          ts.insertToProcessIfNotAlready(tId);
+        }
+      }
+    }
+  }
+  return ts.accepted;
 }
 
 } // namespace multiout
