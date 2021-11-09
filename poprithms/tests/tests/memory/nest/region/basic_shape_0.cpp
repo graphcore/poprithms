@@ -39,7 +39,7 @@ void nelmsTest() {
   assertNelms(Region::createFull({1}), 1);
   assertNelms(Region::createFull({5, 2}), 10);
   assertNelms(Region::createFull({5, 2, 0, 1}), 0);
-  assertNelms(Region({}, {}), 1);
+  assertNelms(Region::createEmpty({}), 0);
   assertNelms(Region({1}, {{{{1, 1, 1}}}}), 0);
   assertNelms(Region({2}, {{{{1, 1, 1}}}}), 1);
   assertNelms(Region({10}, {{{{4, 6, 2}}}}), 4);

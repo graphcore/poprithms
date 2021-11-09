@@ -18,6 +18,16 @@ namespace nest {
 
 namespace {
 
+std::string getBadScalarConstructorMessage() {
+
+  std::ostringstream oss;
+  oss << "This Region constructor/factory can only be used for "
+      << "non-scalars. That is, Regions which have rank > 0. "
+      << "Scalars should be created with Region::createFull({}) and "
+      << "Region::createEmpty({}). ";
+  return oss.str();
+}
+
 // Example, if setts = {{a,b}, {c}, {d,e}};
 //
 // Will return 2 x 1 x 2 DisjointRegions,
@@ -54,11 +64,21 @@ DisjointRegions getOuterProduct(const Shape &shape,
 } // namespace
 
 Region Region::createEmpty(const Shape &sh) {
+
+  // scalar Regions cannot be constructed with the standard constructor, as
+  // there is no way to distinguish between the 2 types of scalar region (full
+  // and empty) with it.
+  if (sh.rank_u64() == 0) {
+    return Region(false);
+  }
   return Region(sh,
                 std::vector<Sett>(sh.rank_u64(), Sett::createAlwaysOff()));
 }
 
 Region Region::createFull(const Shape &sh) {
+  if (sh.rank_u64() == 0) {
+    return Region(true);
+  }
   return Region(sh, std::vector<Sett>(sh.rank_u64(), Sett::createAlwaysOn()));
 }
 
@@ -83,6 +103,13 @@ std::vector<std::vector<int64_t>> Region::getOns() const {
 }
 
 int64_t Region::totalElms() const {
+
+  // without this special case for scalar regions, empty scalar regions would
+  // have 1 element (the base case of the product reduction).
+  if (rank_u64() == 0) {
+    return fullScalar ? 1LL : 0LL;
+  }
+
   int64_t n = 1;
   for (uint64_t d = 0; d < rank_u64(); ++d) {
     n *= nelms(d);
@@ -100,10 +127,22 @@ std::string Region::str() const {
 }
 
 Region Region::dimShuffle(const Permutation &p) const {
+
+  // This covers the case of scalar regions.
+  if (p.isIdentity()) {
+    return *this;
+  }
+
   return {p.apply(shape().get()), p.apply(setts())};
 }
 
 Region Region::reverse(const std::vector<uint64_t> &where) const {
+
+  // This covers the case of scalar regions.
+  if (full() || empty()) {
+    return {*this};
+  }
+
   std::vector<Sett> flipped = setts();
   for (auto d : shape().getCanonicalReverseIndices(where)) {
     flipped[d] = sett(d).getReverse(0);
@@ -112,6 +151,15 @@ Region Region::reverse(const std::vector<uint64_t> &where) const {
 }
 
 Region Region::expand(const Shape &to) const {
+
+  // These 2 general cases cover the scalar cases:
+  if (empty()) {
+    return createEmpty(to);
+  }
+  if (full()) {
+    return createFull(to);
+  }
+
   auto doExpand = shape().numpyWhereToExpand(to);
   auto delta    = to.rank_u64() - rank_u64();
   std::vector<Sett> expandSetts(to.rank_u64(), {{}});
@@ -180,9 +228,15 @@ DisjointRegions DisjointRegions::intersect(const DisjointRegions &rhs) const {
 }
 
 DisjointRegions Region::intersect(const Region &rhs) const {
+
+  // These 2 general cases cover all of the scalar region cases.
+  if (full() && rhs.full()) {
+    return createFull(shape());
+  }
   if (empty() || rhs.empty()) {
     return DisjointRegions::createEmpty(shape());
   }
+
   std::vector<DisjointSetts> partials;
   partials.reserve(rank_u64());
   for (uint64_t d = 0; d < rank_u64(); ++d) {
@@ -237,11 +291,12 @@ DisjointRegions Region::intersect(const Region &rhs) const {
 //
 
 DisjointRegions Region::getComplement() const {
+
   if (full()) {
-    return createEmpty(shape());
+    return DisjointRegions(Shape({}), std::vector<Region>{});
   }
   if (empty()) {
-    return createFull(shape());
+    return {createFull(shape())};
   }
 
   // implementation of above formulation.
@@ -262,6 +317,15 @@ DisjointRegions Region::getComplement() const {
 }
 
 DisjointRegions Region::subtract(const Region &rhs) const {
+  if (rhs.empty()) {
+    // subtracting nothing, return this Region
+    return *this;
+  }
+  if (rhs.full()) {
+    // subtracting everything, return empty disjoint regions.
+    return DisjointRegions(shape(), std::vector<Region>{});
+  }
+
   const auto rhsCompl = rhs.getComplement();
   std::vector<Region> intersection;
   for (const auto &complElm : rhsCompl.get()) {
@@ -281,6 +345,11 @@ Region::Region(const Shape &sh_, const std::vector<Sett> &se_) : shape_(sh_) {
     throw error(oss.str());
   }
 
+  if (sh_.rank_u64() == 0) {
+    throw error("Failure in Region::Region(Shape, Setts). " +
+                getBadScalarConstructorMessage());
+  }
+
   setts_.reserve(sh_.rank_u64());
   for (uint64_t i = 0; i < sh_.rank_u64(); ++i) {
     if (sh_.dim(i) == 0) {
@@ -293,6 +362,9 @@ Region::Region(const Shape &sh_, const std::vector<Sett> &se_) : shape_(sh_) {
 }
 
 bool Region::empty() const {
+  if (rank_u64() == 0) {
+    return !fullScalar;
+  }
   for (uint64_t d = 0; d < rank_u64(); ++d) {
     if (nelms(d) == 0) {
       return true;
@@ -301,13 +373,29 @@ bool Region::empty() const {
   return false;
 }
 
-bool Region::full() const { return totalElms() == shape().nelms(); }
+bool Region::full() const {
+  if (rank_u64() == 0) {
+    return fullScalar;
+  }
+  return totalElms() == shape().nelms();
+}
 
 bool Region::contains(const Region &rhs) const {
   confirmSameShape(rhs);
+
+  // covers scalar region case of (full, rhs=empty), (empty, rhs=empty)
   if (rhs.empty()) {
     return true;
   }
+  // covers scalar region case of (full, rhs=full)
+  if (full()) {
+    return true;
+  }
+  // This covers the final case for scalar regions (empty, rhs=full).
+  if (rank_u64() == 0 && rhs.full() && empty()) {
+    return false;
+  }
+
   for (uint64_t d = 0; d < rank_u64(); ++d) {
     if (!sett(d).contains(rhs.sett(d))) {
       return false;
@@ -325,6 +413,11 @@ bool Region::equivalent(const DisjointRegions &lhs,
 
   if (lhs.shape() != rhs.shape()) {
     return false;
+  }
+
+  // scalar regions are summarized by a single bit : "empty" of "full".
+  if (lhs.rank_u64() == 0) {
+    return lhs.empty() == rhs.empty();
   }
 
   const auto lhsFlat = lhs.flattenToSetts();
@@ -408,6 +501,21 @@ void Region::appendBitwise(std::ostream &ost) const {
 
 DisjointRegions Region::settSample(const Region &where) const {
   confirmSameShape(where);
+
+  if (where.full()) {
+    return *this;
+  }
+
+  if (rank_u64() == 0 && where.empty()) {
+    std::ostringstream oss;
+    oss << "In Region::settSample(where = empty scalar region). "
+        << "This is surprising, as settSample is a generalization of slice, "
+        << "and slicing a scalar is unexpected. "
+        << "It is not clear what to return in this case: "
+        << "full / empty scalar? ";
+    throw error(oss.str());
+  }
+
   const auto outShape = where.nelms();
   if (std::any_of(outShape.cbegin(), outShape.cend(), [](const auto &v) {
         return v == 0;
@@ -433,6 +541,12 @@ DisjointRegions DisjointRegions::settSample(const Region &where) const {
 
 DisjointRegions Region::settFillInto(const Region &scaffold) const {
   confirmShape(scaffold.nelms());
+
+  // if rank is 0, scaffold cannot be empty.
+  if (scaffold.full()) {
+    return *this;
+  }
+
   std::vector<DisjointSetts> partials;
   partials.reserve(rank_u64());
   for (uint64_t d = 0; d < rank_u64(); ++d) {
@@ -443,6 +557,12 @@ DisjointRegions Region::settFillInto(const Region &scaffold) const {
 
 DisjointRegions Region::settFillWith(const Region &ink) const {
   ink.confirmShape(nelms());
+
+  // if rank is 0, this cannot be empty be empty.
+  if (rank_u64() == 0) {
+    return ink;
+  }
+
   std::vector<DisjointSetts> partials;
   partials.reserve(rank_u64());
   for (uint64_t d = 0; d < rank_u64(); ++d) {
@@ -452,6 +572,7 @@ DisjointRegions Region::settFillWith(const Region &ink) const {
 }
 
 DisjointRegions Region::reshape(const Shape &to) const {
+
   if (shape().nelms() != to.nelms()) {
     std::ostringstream oss;
     oss << "Invalid call Region::reshape(" << to << "). Cannot reshape from "
@@ -459,12 +580,29 @@ DisjointRegions Region::reshape(const Shape &to) const {
         << ", as the number of elements is not conserved.";
     throw error(oss.str());
   }
+
+  if (empty()) {
+    return createEmpty(to);
+  }
+  if (full()) {
+    return createFull(to);
+  }
+
   const auto flatRegion      = flatten();
   auto unFlatDisjointRegions = flatRegion.unflatten(to);
   return unFlatDisjointRegions;
 }
 
 Region Region::flatten() const {
+
+  if (full()) {
+    return createFull({shape().nelms()});
+  }
+
+  if (empty()) {
+    return createEmpty({shape().nelms()});
+  }
+
   const auto strides = shape().getRowMajorStrides();
   std::vector<Stripe> stripes;
   for (auto d = 0UL; d < rank_u64(); ++d) {
@@ -535,6 +673,7 @@ DisjointRegions Region::unflatten(const Shape &to) const {
 }
 
 bool Region::disjoint(const Region &rhs) const {
+
   auto flat    = flatten();
   auto rhsFlat = rhs.flatten();
   return flat.sett(0).disjoint(rhsFlat.sett(0));
@@ -616,6 +755,19 @@ DisjointRegions Region::slice(const std::vector<int64_t> &l,
 Region Region::reduce(const Shape &outShape) const {
 
   shape().assertCanReduceTo(outShape);
+
+  if (empty()) {
+    return createEmpty(outShape);
+  }
+
+  if (full()) {
+    return createFull(outShape);
+  }
+
+  if (outShape.rank_u64() == 0 && !empty()) {
+    return createFull(outShape);
+  }
+
   const auto outRank   = outShape.rank_u64();
   const auto deltaRank = rank_u64() - outRank;
 
@@ -733,6 +885,7 @@ DisjointRegions DisjointRegions::settFillInto(const Region &scaffold) const {
 
 DisjointRegions
 DisjointRegions::reverse(const std::vector<uint64_t> &dimensions) const {
+
   std::vector<Region> oRegs;
   oRegs.reserve(size());
   for (const auto &reg : get()) {
@@ -742,6 +895,7 @@ DisjointRegions::reverse(const std::vector<uint64_t> &dimensions) const {
 }
 
 DisjointRegions DisjointRegions::dimShuffle(const Permutation &p) const {
+
   std::vector<Region> oRegs;
   oRegs.reserve(size());
   for (const auto &reg : get()) {
@@ -752,6 +906,12 @@ DisjointRegions DisjointRegions::dimShuffle(const Permutation &p) const {
 }
 
 DisjointRegions DisjointRegions::reshape(const Shape &s) const {
+
+  // this covers the case of scalar regions
+  if (s == shape()) {
+    return {*this};
+  }
+
   std::vector<Region> oRegs;
   oRegs.reserve(size());
   for (const auto &reg : get()) {
@@ -791,7 +951,17 @@ bool DisjointRegions::disjoint(const DisjointRegions &rhs) const {
 
 DisjointRegions::DisjointRegions(const Shape &s,
                                  const std::vector<Region> &rs)
-    : sh_(s), regs_(rs) {
+    : sh_(s) {
+
+  // do not include empty regions in the union. With this optimization, it
+  // should be guaranteed that totalElms == 0 if and only if regs_.size() ==
+  // 0.
+  regs_.reserve(rs.size());
+  for (const auto &r : rs) {
+    if (!r.empty()) {
+      regs_.push_back(r);
+    }
+  }
 
   for (const auto &reg : rs) {
     if (reg.shape() != s) {

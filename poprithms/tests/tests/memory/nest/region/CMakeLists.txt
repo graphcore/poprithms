@@ -12,8 +12,10 @@ add_memory_nest_test(memory_nest_region_reduce_0  reduce_0.cpp)
 add_memory_nest_test(memory_nest_region_equivalent_0  equivalent_0.cpp)
 add_memory_nest_test(memory_nest_region_subtract_0  subtract_0.cpp)
 add_memory_nest_test(memory_nest_region_get_complement_0  get_complement_0.cpp)
+add_memory_nest_test(memory_nest_region_scalars_0  scalars_0.cpp)
 
 add_memory_nest_test(memory_nest_region_sett_operations_random_0  sett_operations_random_0.cpp)
 add_memory_nest_test(memory_nest_region_reshape_random_0  reshape_random_0.cpp)
 add_memory_nest_test(memory_nest_region_subtract_random_0  subtract_random_0.cpp)
+add_memory_nest_test(memory_nest_region_empty_full_0  empty_full_0.cpp)
 

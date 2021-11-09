@@ -1,6 +1,4 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include <iostream>
-
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 
@@ -33,7 +31,7 @@ int main() {
   }
 
   const auto red3 = r0.reduce({});
-  if (!red3.equivalent({{}, {}})) {
+  if (!red3.equivalent(Region::createFull({}))) {
     throw poprithms::test::error("Reduction not as expected in test 1");
   }
 }

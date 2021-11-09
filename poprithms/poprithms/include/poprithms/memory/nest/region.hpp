@@ -368,13 +368,6 @@ public:
   OptionalRegion merge(const Region &other) const;
 
   /**
-   * \param rhs A set of disjoint Regions
-   *
-   * \return true if all elements in this DisjointRegions are also in rhs.
-   * */
-  bool containedIn(const DisjointRegions &rhs) const;
-
-  /**
    * Append debug information about this Region, by printing the Setts in each
    * dimension.
    * */
@@ -399,7 +392,7 @@ public:
 
   /**
    * \return true if rhs and this have exactly the same elements and
-   * containing Shape.
+   *         containing Shape.
    * */
   bool equivalent(const Region &rhs) const;
 
@@ -418,6 +411,32 @@ public:
 private:
   Shape shape_;
   std::vector<Sett> setts_;
+
+  /**
+   * Regions with rank-0 Shapes, also called 'scalar' regions, need to be
+   * handled separately. To convince you that this is (unfortunately) true,
+   * consider the following statement:
+   *
+   * 'For any Region r,
+   *     r.totalElms() + r.getComplement().totalElms() =
+   *                                                   = r.shape().nelms()'
+   *
+   * totalElms is the total number of 'ons' in the region, computed as the
+   * product over dimensions of the number of 'ons' in that dimension. The
+   * base reduction case, is totalElms = 1 for rank-0 regions. But if used
+   * this base case for rank-0 regions, the above statement would not be true
+   * (1 + 1 != 1).
+   *
+   * More generally, it is useful to distinguish between a 'full' and an
+   * 'empty' scalar region. This is particularly useful when we're keeping
+   * track of how much of a tensor is 'covered': sum over totalElms of the
+   * disjoint regions of the tensor's shape. This only works of we can have a
+   * scalar region with 0 'ons'.
+   * */
+  bool fullScalar{true};
+
+  /** Constructor for a scalar region. */
+  Region(bool r) : shape_({}), setts_({}), fullScalar(r) {}
 
   DisjointRegions unflatten(const Shape &to) const;
 
@@ -487,7 +506,14 @@ public:
 
   size_t size() const { return regs_.size(); }
 
-  bool empty() const { return regs_.empty(); }
+  /**
+   * If all Regions are empty, then their union is empty. There is an
+   * optimization in the constructor of DisjointRegions to remove empty
+   * Regions, so this should be equivalent to checking that regs_ is empty. In
+   * case there is a future constructor which allows empty Regions in regs_
+   * however, we prefer to explicily count all elements in all Regions.
+   * */
+  bool empty() const { return totalElms() == 0; }
 
   const std::vector<Region> &get() const { return regs_; }
 

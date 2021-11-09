@@ -19,7 +19,7 @@ void test1() {
 
 void test0() {
   for (Region r0 : std::vector<Region>{
-           {{}, {}},
+           Region::createFull({}),
            {{1}, {{{{1, 0, 0}}}}},
            {{1, 1, 1}, {{{{1, 0, 0}}}, {{{1, 0, 0}}}, {{{1, 0, 0}}}}}}) {
     const auto expanded = r0.expand({1, 2, 3});
