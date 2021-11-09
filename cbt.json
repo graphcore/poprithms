@@ -1,3 +1,3 @@
 {
-  "dependencies" : [ "boost", "llvm" ]
+  "dependencies" : [ "boost"]
 }

@@ -1,7 +1,7 @@
 # Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 # This test checks through all the header files it can find
 # in the argument path and checks the files "#include"
-# statments for boost and llvm headers.
+# statments for boost, llvm, etc. headers.
 # Usage:
 #   python3 boost_free_interface_test.py path_to_include_folder
 import sys

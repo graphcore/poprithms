@@ -44,7 +44,3 @@ add_subdirectory(dependency_free_interface)
 
 add_subdirectory(boost)
 
-if (${POPRITHMS_BUILD_WITH_LLVM})
-  add_subdirectory(llvm_mlir)
-endif()
-
