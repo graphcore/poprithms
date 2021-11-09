@@ -1,5 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <iostream>
 #include <random>
 
 #include <poprithms/error/error.hpp>
@@ -53,6 +54,67 @@ void testNoConst() {
   }
 }
 
+void testSkittyAccl() {
+
+  Graph g;
+  //
+  // modeling the program:
+  //
+  //    a = var()
+  //    b = var()
+  //    c = var()
+  //    d = a + b
+  //    e = b + c
+  //    dMod = f.relu_()
+  //    eMod = e.relu_()
+  //
+  // a ----+
+  //       |
+  //     aliasGate --- d ---> modify
+  //       |
+  // b ----+
+  //       |
+  //     aliasGate --- e ---> modify
+  //       |
+  // c ----+
+  //
+  const auto a    = Tensor::variable(g, {3});
+  const auto b    = Tensor::variable(g, {3});
+  const auto c    = Tensor::variable(g, {3});
+  const auto d    = Tensor::aliasGate({a, b});
+  const auto e    = Tensor::aliasGate({b, c});
+  const auto dMod = d.modify();
+  e.modify();
+
+  auto g2 = g;
+
+  // try to make
+  //   d = b_.add(a)
+  //   e = c_.add(b).
+  //
+  //  This is fine, as long as d is created as only after b has been used
+  //  (order of operations need to change).
+  //
+  auto x = g.tryOpenings(
+      {{d, 1}, {e, 1}}, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
+  if (d.aliasGateIsClosed() || e.aliasGateIsClosed()) {
+    throw poprithms::test::error("Expected both gates to be opened");
+  }
+
+  {
+    // verify that when d is inplaced to 'd = b_.add(a)', there are
+    // constraints inserted:
+    auto x2 = g2.tryOpeningPartial(
+        {d, 1}, CheckParallelWriteable::Yes, AllowMultiGateAlias::No);
+    auto cs = x2.constraints();
+    Constraint expected{e.opId(), dMod.opId()};
+
+    if (std::find(cs.begin(), cs.end(), expected) == cs.end()) {
+      throw poprithms::test::error("Expected constraint is not present");
+    }
+  }
+}
+
 void testMultiplePossibilities() {
   Graph g;
   const auto a = Tensor::variable(g, {3});
@@ -99,4 +161,5 @@ int main() {
   testNoConst();
   testMultiplePossibilities();
   testChain0();
+  testSkittyAccl();
 }
