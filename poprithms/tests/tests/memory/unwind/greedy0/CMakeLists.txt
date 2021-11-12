@@ -31,4 +31,7 @@ add_memory_unwind_test(memory_unwind_greedy_dynamic_0
 add_memory_unwind_test(memory_unwind_greedy_matmul_0
                                             matmul_0.cpp)
 
+add_memory_unwind_test(memory_unwind_greedy_order_matters_0
+                                            order_matters_0.cpp)
+
 

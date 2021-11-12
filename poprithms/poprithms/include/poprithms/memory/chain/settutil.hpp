@@ -136,7 +136,7 @@ private:
       newShape.push_back(current.period());
       const auto shapeUp = helper.reshape(flatSlice, newShape);
 
-      // shapeUp no looks like
+      // shapeUp now looks like
       // 11111.....
       // 11111.....
       // because we've reshaped it to have all the 0's on the right. We can

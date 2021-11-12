@@ -31,10 +31,11 @@ public:
       const std::map<TensorId, compute::host::Tensor> &barriers);
 
   /**
-   * A utility method for testing. For every Source and Barrier Tensor, create
+   * A utility method for testing. For every Source/Barrier Tensor, create
    * a host::Tensor of distinct values. As an example, if a Graph has just 2
-   * Sources and no Barriers, of Shapes (2,3) and (4) respectively, then the
-   * return Tensors will be
+   * Sources and, of Shapes (2,3) and (4) respectively, then the returned
+   * Tensors will be
+   *
    *  [[ 0 1 2 ]      and    [ 6 7 8 9 ].
    *   [ 3 4 5 ]]
    * */

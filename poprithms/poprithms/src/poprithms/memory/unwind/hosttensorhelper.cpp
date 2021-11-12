@@ -67,6 +67,7 @@ compute::host::Tensor HostTensorHelper::get(
           << "host::Tensors. ";
       throw error(oss.str());
     }
+
     out = out + p.chain().apply(found->second);
   }
   return out;
