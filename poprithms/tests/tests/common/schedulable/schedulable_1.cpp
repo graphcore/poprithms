@@ -128,6 +128,29 @@ void removal2() {
   g.assertSchedulableGraphCorrectness();
 }
 
+void catchBadOpId0() {
+  Graph g;
+  const auto gid = g.createSubGraphId("g0");
+  const auto in0 = g.insert({}, 1, gid, {});
+  const auto in1 = g.insert({}, 1, gid, {});
+  const auto in2 = g.insert({}, 1, gid, {});
+  // This is fine:
+  g.vanillaSubSchedule({in0, in2, in1});
+
+  g.removeOp(in1, {TensorId(in0, 0)}, {});
+
+  bool caught{false};
+  try {
+    g.vanillaSubSchedule({in0, in2, in1});
+  } catch (const poprithms::error::error &e) {
+    caught = true;
+  }
+  if (!caught) {
+    throw poprithms::test::error("Failed to catch error where not-live op is "
+                                 "passed to vanillaSubSchedule");
+  }
+}
+
 void removal3() {
   Graph g;
   const auto gid = g.createSubGraphId("g0");
@@ -221,7 +244,8 @@ int main() {
   removal3();
   removal4();
   compare0();
-
   checkPostRemovalCopies();
+  catchBadOpId0();
+
   return 0;
 }

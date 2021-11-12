@@ -71,6 +71,7 @@ set(common_schedulable_sources
   ${src_dir}/common/schedulable/error.cpp
   ${src_dir}/common/schedulable/graph.cpp
   ${src_dir}/common/schedulable/subgraphid.cpp
+  ${src_dir}/common/schedulable/fwdedgemap.cpp
 )
 add_library(poprithms-common-schedulable-objlib OBJECT ${common_schedulable_sources})
 add_library(poprithms-common-schedulable SHARED

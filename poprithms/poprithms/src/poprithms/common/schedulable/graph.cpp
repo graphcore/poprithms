@@ -12,6 +12,7 @@
 
 #include <common/schedulable/error.hpp>
 
+#include <poprithms/common/multiout/opid.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/op.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
@@ -41,8 +42,8 @@ OpIds Graph::vanillaSubSchedule(const std::set<OpId> &opIds) const {
     return {};
   }
 
-  // If all the Ops in the same sub-graph, we use only the schedule of that
-  // sub-graph.
+  // If all the Ops are in the same sub-graph SG, we use only the schedule of
+  // the sub-graph SG.
   const auto superSchedule = [this, &opIds]() {
     const auto sg0 = subGraphId(*opIds.cbegin());
     if (std::all_of(opIds.cbegin(), opIds.cend(), [this, sg0](auto opId) {
@@ -61,13 +62,25 @@ OpIds Graph::vanillaSubSchedule(const std::set<OpId> &opIds) const {
       schedule.push_back(opId);
     }
   }
+
+  if (schedule.size() != opIds.size()) {
+    std::ostringstream oss;
+    oss << "Failed to obtain a sub-schedule for a set of " << opIds.size()
+        << " ops. "
+        << "The super-schedule contains " << superSchedule.size()
+        << ", but only " << schedule.size()
+        << " of the ops in the provided set are in the super-schedule. ";
+
+    throw error(oss.str());
+  }
   return schedule;
 }
 
 bool Graph::hasUniqueSchedule(SubGraphId sgId) const {
   using namespace schedule;
   return vanilla::Query<uint64_t>::hasUniqueSchedule(
-      getForwardEdgeMap_u64(sgId).fwdEdgesCompact, vanilla::VerifyEdges::No);
+      getForwardEdgeMap_u64(sgId).fwdEdgesCompact(),
+      vanilla::VerifyEdges::No);
   return true;
 }
 
@@ -364,38 +377,6 @@ std::string Graph::subGraphName(SubGraphId id) const {
   return subGraphStates[id.get_u64()].name();
 }
 
-std::ostream &operator<<(std::ostream &ost, const Graph::FwdEdgeMap &fem) {
-  auto fromCompact     = fem.fromCompact;
-  auto fwdEdgesCompact = fem.fwdEdgesCompact;
-  ost << "from compact" << '\n';
-  ost << "------------" << '\n';
-  for (uint64_t i = 0; i < fromCompact.size(); ++i) {
-    ost << ' ' << i << " --> " << fromCompact[i] << '\n';
-  }
-
-  ost << "Compact edges" << '\n';
-  ost << "-------------" << '\n';
-  for (uint64_t i = 0; i < fwdEdgesCompact.size(); ++i) {
-    ost << ' ' << i << " --> ";
-    util::append(ost, fwdEdgesCompact[i]);
-    ost << '\n';
-  }
-  return ost;
-}
-
-namespace {
-
-// Convert a compact schedule into a non-compact (might have holes) one.
-OpIds unpacked(const Graph::FwdEdgeMap &fwdEdgeMap,
-               const std::vector<uint64_t> &s_u64) {
-  OpIds f;
-  f.reserve(s_u64.size());
-  for (auto v : s_u64) {
-    f.push_back(fwdEdgeMap.fromCompact[v]);
-  }
-  return f;
-}
-
 std::vector<uint64_t>
 getVanillaSchedule(const std::vector<std::vector<uint64_t>> &fwd) {
   using namespace schedule::vanilla;
@@ -410,8 +391,6 @@ getRandomSchedule(const std::vector<std::vector<uint64_t>> &fwd,
       fwd, {}, {}, seed, ErrorIfCycle::Yes, VerifyEdges::Yes);
 }
 
-} // namespace
-
 std::vector<OpIds> Graph::subGraphPartitioned(const OpIds &opIds) const {
   std::vector<OpIds> p(nSubGraphs());
   for (auto id : opIds) {
@@ -421,28 +400,30 @@ std::vector<OpIds> Graph::subGraphPartitioned(const OpIds &opIds) const {
 }
 
 OpIds Graph::vanillaSchedule() const {
-  const auto fwdEdgeMap      = getForwardEdgeMap_u64();
-  const auto compactSchedule = getVanillaSchedule(fwdEdgeMap.fwdEdgesCompact);
+  const auto fwdEdgeMap = getForwardEdgeMap_u64();
+  const auto compactSchedule =
+      getVanillaSchedule(fwdEdgeMap.fwdEdgesCompact());
 
-  return unpacked(fwdEdgeMap, compactSchedule);
+  return fwdEdgeMap.unpacked(compactSchedule);
 }
 
 OpIds Graph::randomSchedule(uint32_t s) const {
   const auto fwdEdgeMap = getForwardEdgeMap_u64();
-  return unpacked(fwdEdgeMap,
-                  getRandomSchedule(fwdEdgeMap.fwdEdgesCompact, s));
+  return fwdEdgeMap.unpacked(
+      getRandomSchedule(fwdEdgeMap.fwdEdgesCompact(), s));
 }
 
 OpIds Graph::vanillaSchedule(SubGraphId sgId) const {
-  const auto fwdEdgeMap      = getForwardEdgeMap_u64(sgId);
-  const auto compactSchedule = getVanillaSchedule(fwdEdgeMap.fwdEdgesCompact);
-  return unpacked(fwdEdgeMap, compactSchedule);
+  const auto fwdEdgeMap = getForwardEdgeMap_u64(sgId);
+  const auto compactSchedule =
+      getVanillaSchedule(fwdEdgeMap.fwdEdgesCompact());
+  return fwdEdgeMap.unpacked(compactSchedule);
 }
 
 OpIds Graph::randomSchedule(SubGraphId sgId, uint32_t s) const {
   const auto fwdEdgeMap = getForwardEdgeMap_u64(sgId);
-  return unpacked(fwdEdgeMap,
-                  getRandomSchedule(fwdEdgeMap.fwdEdgesCompact, s));
+  return fwdEdgeMap.unpacked(
+      getRandomSchedule(fwdEdgeMap.fwdEdgesCompact(), s));
 }
 
 std::vector<OpIds> Graph::vanillaSchedules() const {
@@ -461,35 +442,26 @@ OpIds Graph::controlDependencyOutOps(OpId opId) const {
   return op(opId).controlDependencyOutOps();
 }
 
-Graph::FwdEdgeMap
-Graph::getSparseForwardEdgeMap_u64(const OpIds &opIds) const {
+FwdEdgeMap Graph::getSparseForwardEdgeMap_u64(const OpIds &opIds) const {
 
-  std::vector<std::vector<uint64_t>> fEdges(opIds.size());
-  OpIds fromCompact;
-
-  std::unordered_map<OpId, uint64_t> toCompact;
-  for (auto id : opIds) {
-    toCompact.insert(/*hint = */ toCompact.end(), {id, fromCompact.size()});
-    fromCompact.push_back(id);
-  }
+  FwdEdgeMap fwdEdgeMap(opIds);
 
   for (auto id : opIds) {
-    const auto outs      = allOutOps(id);
-    const auto compactId = toCompact[id];
-    fEdges[compactId].reserve(outs.size());
+    const auto outs = allOutOps(id);
+    fwdEdgeMap.reserve(id, outs.size());
     for (auto out : outs) {
-      fEdges[compactId].push_back(toCompact[out]);
+      fwdEdgeMap.insertEdge(id, out);
     }
   }
 
-  return {fEdges, fromCompact};
+  return fwdEdgeMap;
 }
 
-Graph::FwdEdgeMap Graph::getForwardEdgeMap_u64() const {
+FwdEdgeMap Graph::getForwardEdgeMap_u64() const {
   return getSparseForwardEdgeMap_u64(common::multiout::Graph::opIds());
 }
 
-Graph::FwdEdgeMap Graph::getForwardEdgeMap_u64(SubGraphId sgId) const {
+FwdEdgeMap Graph::getForwardEdgeMap_u64(SubGraphId sgId) const {
   return getSparseForwardEdgeMap_u64(opIds(sgId));
 }
 

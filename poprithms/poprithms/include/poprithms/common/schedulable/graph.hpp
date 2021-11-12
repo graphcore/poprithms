@@ -12,6 +12,7 @@
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
+#include <poprithms/common/schedulable/fwdedgemap.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 
@@ -200,18 +201,6 @@ public:
    * */
   // TODO(T39701) implement this using TransitiveClosures.
   void simplifyConstraints() const;
-
-  /**
-   * Represent a Graph's OpIds, or the OpIds in a SubGraph, by mapping all
-   * OpIds to the contiguous set [0, NopIds).
-   * */
-  struct FwdEdgeMap {
-    // The forward edges of the compact representation. All values (ends of
-    // edges) are less than NopIds.
-    std::vector<std::vector<uint64_t>> fwdEdgesCompact;
-    // A mapping to the original OpIds.
-    OpIds fromCompact;
-  };
 
   /**
    * Convert all of the constraints in this Graph to a forward edge map.
@@ -471,8 +460,6 @@ private:
   };
   std::vector<SubGraphState> subGraphStates;
 };
-
-std::ostream &operator<<(std::ostream &, const Graph::FwdEdgeMap &);
 
 } // namespace schedulable
 } // namespace common
