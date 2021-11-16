@@ -68,8 +68,12 @@ public:
   bool containsAliases() const;
 
   /** \return true iff this Origins has at least 1 allocation address in
-   * common with rhs */
+   *          common with rhs */
   bool isAliasedTo(const Origins &rhs) const;
+
+  /** \return true iff all of the allocation address in rhs are also in this
+   *           Origins. */
+  bool contains(const Origins &rhs) const;
 
   /** Slightly weaker than poplar's isContiguous, this method returns true iff
    * there is some permutation of the  allocation addresses registered for

@@ -487,6 +487,13 @@ public:
     return DisjointRegions(s, {Region::createFull(s)});
   }
 
+  /**
+   * Create the union of all the Regions in #regs, ensuring that that they are
+   * disjoint by taking set differences where required.
+   * */
+  static DisjointRegions
+  createUnion(const std::vector<DisjointRegions> &regs);
+
   DisjointRegions(const DisjointRegions &) = default;
   DisjointRegions(DisjointRegions &&regs)  = default;
 

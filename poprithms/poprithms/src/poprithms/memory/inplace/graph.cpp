@@ -313,6 +313,12 @@ bool Graph::areAliased(const TensorId &a, const TensorId &b) const {
   return aGraph().areAliased(id0, id1);
 }
 
+bool Graph::contains(const TensorId &super, const TensorId &sub) const {
+  const auto id0 = tensorMap.toAliasGraphId(super);
+  const auto id1 = tensorMap.toAliasGraphId(sub);
+  return aGraph().contains(id0, id1);
+}
+
 uint64_t Graph::scheduleIndex(OpId id) const {
   if (!scheduleIsValid) {
     throw error("call to scheduleIndex but !scheduleIsValid");

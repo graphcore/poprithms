@@ -1073,6 +1073,29 @@ DisjointRegions DisjointRegions::getComplement() const {
   return DisjointRegions::createFull(shape()).subtract(*this);
 }
 
+DisjointRegions
+DisjointRegions::createUnion(const std::vector<DisjointRegions> &regs) {
+  if (regs.empty()) {
+    std::ostringstream oss;
+    oss << "Failure in createUnion, "
+        << "where an empty vector of DisjointRegions was provided. "
+        << "Without providing a single Region, "
+        << "it is not possible to determine the shape required. "
+        << "This method must be provided with a non-empty vector. "
+        << "To create an empty DisjointRegions object, use one of the "
+        << "privided constructors. ";
+    throw error(oss.str());
+  }
+  // we will start with the first DisjointRegions, then merge in the others.
+  auto uni = regs[0];
+  for (uint64_t i = 1; i < regs.size(); ++i) {
+    // only the elements which are not already present in the union.
+    auto rem = regs[i].subtract(uni);
+    uni.regs_.insert(uni.regs_.end(), rem.regs_.cbegin(), rem.regs_.cend());
+  }
+  return uni;
+}
+
 static_assert(std::is_nothrow_move_constructible<DisjointRegions>::value,
               "Expect DisjointRegions to be nothrow move constructible");
 

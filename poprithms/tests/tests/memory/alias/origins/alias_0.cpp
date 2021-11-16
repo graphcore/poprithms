@@ -56,12 +56,36 @@ void test1() {
   }
 }
 
+void test2() {
+  Origins o0({5, 10});
+  Origins o1({5, 10});
+
+  o0.insert({10}, Region::createEmpty({5, 10}));
+  o1.insert({20}, Region::createEmpty({5, 10}));
+
+  o0.insert({1}, Region::createFull({5, 10}));
+  o1.insert({1}, Region::createFull({5, 10}));
+
+  if (!o0.contains(o1) || !o1.contains(o0)) {
+    throw poprithms::test::error(
+        "Empty regions should have not effect in checking for subsets");
+  }
+
+  o0.insert({3}, Region::createFull({5, 10}).slice({0, 0}, {1, 1}));
+
+  if (!o0.contains(o1) || o1.contains(o0)) {
+    throw poprithms::test::error(
+        "o0 contains o1, but the reverse is not true");
+  }
+}
+
 } // namespace
 
 int main() {
 
   test0();
   test1();
+  test2();
 
   return 0;
 }

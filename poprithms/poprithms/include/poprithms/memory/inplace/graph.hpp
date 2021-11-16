@@ -202,6 +202,12 @@ public:
    * */
   bool areAliased(const TensorId &a, const TensorId &b) const;
 
+  /**
+   * \return true if all of the 'allocation' elements of \a sub and are also
+   *         in \a super.
+   * */
+  bool contains(const TensorId &super, const TensorId &sub) const;
+
   /** Insert a topological constraint, ensuring that \a before appears before
    * \a after in all schedules. */
   void constraint(OpId before, OpId after);

@@ -166,6 +166,14 @@ Tensors Tensor::allAliases() const {
   return tensors(ids);
 }
 
+bool Tensor::isAliasedTo(const Tensor &t) const {
+  return graph().areAliased(id(), t.id());
+}
+
+bool Tensor::contains(const Tensor &t) const {
+  return graph().contains(id(), t.id());
+}
+
 Tensor Tensor::pad(const std::array<std::vector<int64_t>, 2> &lu,
                    bool pw) const {
   return {graph().pad(id(), lu, pw), graph()};

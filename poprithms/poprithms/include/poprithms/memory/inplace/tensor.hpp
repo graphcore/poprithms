@@ -158,6 +158,13 @@ public:
   /** \return All Tensors which are aliased to this Tensor. */
   Tensors allAliases() const;
 
+  /** \return True if this Tensor is aliased to \a rhs. */
+  bool isAliasedTo(const Tensor &) const;
+
+  /** \return True if all of the elements of the Tensor \a rhs are also in
+   *          this Tensor. */
+  bool contains(const Tensor &) const;
+
   /** \return The string description of the creator. */
   std::string opTypeString() const;
 

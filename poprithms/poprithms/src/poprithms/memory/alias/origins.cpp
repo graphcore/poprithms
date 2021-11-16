@@ -1,6 +1,7 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <memory>
+#include <numeric>
 #include <ostream>
 #include <vector>
 
@@ -38,6 +39,33 @@ bool Origins::isAliasedTo(const Origins &rhs) const {
     }
   }
   return false;
+}
+
+bool Origins::contains(const Origins &subOrigins) const {
+
+  // For each of the regions in the proposed sub-origins, check that it is
+  // either
+  //
+  // 1) empty, or
+  // 2) contained in a corresponding region in this object, the proposed
+  //    super-origins.
+  //
+  for (const auto &[allocId, regsSub] : subOrigins.oMap) {
+    DisjointRegions regsSubUnion = DisjointRegions::createUnion(regsSub);
+    if (!regsSubUnion.empty()) {
+      auto foundSuper = oMap.find(allocId);
+      if (foundSuper != oMap.cend()) {
+        const auto &regsSuper = foundSuper->second;
+        auto regsSuperUnion   = DisjointRegions::createUnion(regsSuper);
+        if (!regsSuperUnion.contains(regsSubUnion)) {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 std::unique_ptr<Origins> Origins::clone() const {

@@ -119,6 +119,10 @@ public:
     return origins_.isAliasedTo(rhs.origins_);
   }
 
+  bool contains(const Node &sub) const {
+    return origins_.contains(sub.origins_);
+  }
+
   void clearOrigins() { origins_.clear(); }
 
   void insertOrigin(AllocId id, const DisjointRegions &r) {

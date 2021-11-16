@@ -487,6 +487,10 @@ bool Graph::areAliased(TensorId tenId0, TensorId tenId1) const {
   return node(tenId0).isAliasedTo(node(tenId1));
 }
 
+bool Graph::contains(TensorId super, TensorId sub) const {
+  return node(super).contains(node(sub));
+}
+
 bool Graph::isRowMajorSetContiguous(TensorId id) const {
   return node(id).isRowMajorSetContiguous();
 }

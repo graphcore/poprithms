@@ -169,6 +169,12 @@ public:
   /** \return true if the two argument Tensors intersect */
   bool areAliased(TensorId, TensorId) const;
 
+  /**
+   * \return true if every element in \a sub is also in \a super. In other
+   *         words, if intersection(\a super,\a sub) is \a sub.
+   * */
+  bool contains(TensorId super, TensorId sub) const;
+
   /** \return true if the two argument Tensors intersect within a specific
    *          allocation Tensor */
   bool areAliased(TensorId id0, TensorId id1, AllocId ida) const;
