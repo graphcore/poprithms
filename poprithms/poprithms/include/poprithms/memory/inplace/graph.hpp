@@ -194,6 +194,11 @@ public:
   /** The ConsumptionIds of a Tensor which modify it. */
   ConsumptionIds modifiers(const TensorId &) const;
 
+  /**
+   * The consumers of #tId which read its value.
+   * */
+  ConsumptionIds readingConsumers(const TensorId &) const;
+
   /** All Tensors which are aliased to \a t */
   TensorIds allAliases(const TensorId &t) const;
 
@@ -335,36 +340,105 @@ public:
    *    |        |
    * modify    modify.
    *
-   * without any topological constraints between b and c, the final value of a
-   * is potentially ambiguous. Suppose that b is 'sqrt' and c is 'sin'. The
-   * final value of 'a' depends on the schedule:
+   * without any topological constraints between b and c, the final value of
+   * 'a' is potentially ambiguous. Suppose that b is 'sqrt' and c is 'sin'.
+   * The final value of 'a' depends on the schedule:
    *
    * (a,b,c) : a <- sin(sqrt(a))
    * (a,c,b) : a <- sqrt(sin(a)).
    *
-   * This method detects ambiguities of this form. In particular, if there is
-   * memory which is modified more than once, and the order of the modifiers
-   * acting on that memory is not completely determined by constraints in the
-   * graph, then 'true' is returned.
+   * As a second example, consider the 'compute' graph:
+   *      --------------
+   *
+   * a <- variable({})
+   * b <- variable({})
+   * m <- sqrt_(a)
+   * c <- a + x.
+   *
+   * Without any topological constraints between c and m, the final value of
+   * 'c' is ambiguous.
+   *
+   * The general rule is as follows: If a tensor 'a' is consumed by an op 'm'
+   * which modifies it, and 'a' is aliased to another tensor 'b' which is
+   * consumed by an op 'c' which reads the value of 'b', then unless there
+   * is a constraint between 'm' and 'c', the value of 'b' is ambiguous. By
+   * 'reads' we include all ops which are not simply view-changers, or ops
+   * like 'shape' which don't use the numerical values of the input. The case
+   * of an op which resets the value of an input is not currently supported
+   * TODO(T32975).
+   *
+   * An object of class 'AmbiguityStatus' is returned when ambiguity detection
+   * is run on a Graph (see 'containsAmbiguity'). It,
+   *
+   * (1) records whether an ambiguity was detected, and if so
+   * (2) records the first ambiguity detected.
    * */
-  bool containsAmbiguity() const;
+  class AmbiguityStatus {
+  public:
+    /** Was an ambiguity detected? */
+    bool detected() const { return detected_; }
 
-protected:
-  //  if there is no ambiguity: false is returned
-  //  if there is an ambiguity: true/false is returned
-  bool mightContainAmbiguity() const;
+    /**
+     * If there was an ambiguity, what was the modifying Op involved?
+     * */
+    OpId modifier() const { return modifier_; }
 
-  //  if there is no ambiguity: false is returned
-  //  if there is an ambiguity: true is returned
-  bool definitelyContainsAmbiguity() const {
-    return containsAmbiguity(getFwdEdges<uint64_t>({}));
-  }
+    /**
+     * If there was an ambiguity, which tensor was directy modified? (This
+     * corresponds to 'a' in the second example above).
+     * */
+    TensorId modified() const { return modified_; }
+
+    /**
+     * If there was an ambiguity, which Op was the one which read the value of
+     * the alias of the modified tensor?
+     * */
+    OpId reader() const { return reader_; }
+
+    /**
+     * If there was an ambiguity, which tensor was ambiguously read? (This
+     * also corresponds to 'a' in the second example above).
+     * */
+    TensorId readIn() const { return readIn_; }
+
+    /**
+     * In the case where an ambiguity was detected, this string summarizes the
+     * ambiguity.
+     * */
+    std::string summary() const { return summary_; }
+
+    /**
+     * Constructor for the case where there was an ambiguity.
+     * */
+    AmbiguityStatus(const Graph &g,
+                    OpId modifier,
+                    TensorId modified,
+                    OpId reader,
+                    TensorId readIn);
+
+    static AmbiguityStatus None() { return {false}; }
+
+  private:
+    AmbiguityStatus(bool d) : detected_(d) {}
+
+    std::string summary_;
+    bool detected_;
+    OpId modifier_;
+    TensorId modified_;
+    OpId reader_;
+    TensorId readIn_;
+  };
+
+  /**
+   * Perform ambiguity detection on this graph.
+   * */
+  AmbiguityStatus containsAmbiguity() const;
 
 private:
   // Decoupling the true edges (constraints) from ambiguity detection allows
   // us to quickly determine if a graph is ambiguity free using a subset of
   // the edges in the graph.
-  bool
+  AmbiguityStatus
   containsAmbiguity(const std::vector<std::vector<uint64_t>> &edges) const;
 
   template <class T, class... Args>

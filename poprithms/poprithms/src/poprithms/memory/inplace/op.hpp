@@ -127,6 +127,14 @@ public:
 
   using AliasTensorIds = std::vector<alias::TensorId>;
 
+  /**
+   * Is the value of the output at #o a view of the input at #i? This does not
+   * include inplace modifiers.
+   * */
+  virtual bool isView(InIndex i, OutIndex o) const = 0;
+
+  bool isViewOfAnyOutput(InIndex i) const;
+
 private:
   OpIds ins_;
   OpIds outs_;

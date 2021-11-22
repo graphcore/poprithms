@@ -19,6 +19,21 @@ namespace poprithms {
 namespace memory {
 namespace inplace {
 
+bool Op::isViewOfAnyOutput(InIndex i) const {
+  if (i.get() >= nInTensors()) {
+    std::ostringstream oss;
+    oss << "Invalid InIndex " << i << " for Op " << *this
+        << ", which only has " << nInTensors() << " inputs. ";
+    throw error(oss.str());
+  }
+  for (uint64_t o = 0; o < nOutTensors(); ++o) {
+    if (isView(i, OutIndex(o))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 Op::State::State(const OpId id_,
                  const TensorIds &inIds_,
                  const std::vector<ConsumptionIds> &consumptionIds_,

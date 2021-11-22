@@ -20,7 +20,7 @@ int main() {
           "Error in testing move semantics of CrossLink");
     }
 
-    if (!m1.isAliasing() || m1.isPureAliasing()) {
+    if (!m1.isAliasing() || m1.isPureIdentityAliasing()) {
       throw poprithms::test::error(
           "Error testing aliasing of a modiying CrossLink");
     }

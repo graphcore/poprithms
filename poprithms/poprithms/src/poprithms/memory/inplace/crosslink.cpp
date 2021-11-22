@@ -25,8 +25,8 @@ CrossLink CrossLink::modifies(InIndex i, OutIndex o) {
   return CrossLink(i, o, Type::Modifies);
 }
 
-CrossLink CrossLink::pureAliases(InIndex i, OutIndex o) {
-  return CrossLink(i, o, Type::PureAliases);
+CrossLink CrossLink::pureIdentityAliases(InIndex i, OutIndex o) {
+  return CrossLink(i, o, Type::PureIdentityAliases);
 }
 
 std::ostream &operator<<(std::ostream &ost, const CrossLinks &m) {

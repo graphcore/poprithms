@@ -36,6 +36,12 @@ public:
   void openAt(alias::Graph &g, TensorMap &m, InIndex);
   void close(alias::Graph &, TensorMap &);
 
+  // TODO(T50538) Currently we assume that AliasGate is never a view-changing
+  // op, for any input indices. This works well when it is used to model the
+  // "normal" elememtwise opeerations (sqrt, mul, sum, etc.) but there may be
+  // use cases where it is not appropriate. I can't think of any currently.
+  bool isView(InIndex, OutIndex) const final { return false; }
+
 private:
   int64_t inIndex_{-1};
   bool inplaceTypeSpecificEqualTo(const Op &other) const final;
@@ -51,6 +57,7 @@ public:
   std::string typeString() const final;
   UpMultioutOp cloneMultioutOp() const final;
   bool modifies(InIndex) const final { return false; }
+  bool isView(InIndex, OutIndex) const final;
 
 private:
   bool inplaceTypeSpecificEqualTo(const Op &other) const final;
@@ -70,6 +77,7 @@ public:
   std::string typeString() const final;
   UpMultioutOp cloneMultioutOp() const final;
   bool modifies(InIndex) const final { return false; }
+  bool isView(InIndex, OutIndex) const final { return true; }
 
 private:
   bool inplaceTypeSpecificEqualTo(const Op &other) const final;
@@ -86,15 +94,9 @@ private:
 };
 
 /** UnaryModifier (sqrt, etc) */
-class Unary : public Op {
+class UnaryModifier : public Op {
 public:
-  Unary(const State &st) : Op(st) {}
-};
-
-/** UnaryModifier (sqrt, etc) */
-class UnaryModifier : public Unary {
-public:
-  UnaryModifier(const State &st) : Unary(st) {}
+  UnaryModifier(const State &st) : Op(st) {}
   std::string typeString() const final { return "UnaryModifier"; }
   UpMultioutOp cloneMultioutOp() const final;
   bool modifies(InIndex) const final { return true; }
@@ -103,12 +105,14 @@ private:
   bool inplaceTypeSpecificEqualTo(const Op &) const final { return true; }
   AliasTensorIds typeSpecificGrow(alias::Graph &,
                                   const TensorMap &) const final;
+  bool isView(InIndex, OutIndex) const final { return false; }
 };
 
 class ViewChange1to1 : public Op {
 public:
   ViewChange1to1(const State &st) : Op(st) {}
   bool modifies(InIndex) const final { return false; }
+  bool isView(InIndex, OutIndex) const final { return true; }
 
 private:
 };
@@ -210,6 +214,7 @@ public:
   std::string typeString() const final;
   UpMultioutOp cloneMultioutOp() const final;
   bool modifies(InIndex) const final;
+  bool isView(InIndex i, OutIndex o) const final;
 
 private:
   bool inplaceTypeSpecificEqualTo(const Op &) const final;

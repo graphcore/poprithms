@@ -12,7 +12,7 @@ namespace {
 using namespace poprithms::memory::inplace;
 
 void baseTest(const Graph &g, bool expected) {
-  if (g.containsAmbiguity() != expected) {
+  if (g.containsAmbiguity().detected() != expected) {
     std::ostringstream oss;
     oss << "In test of inplace::Graph::containsAmbiguity(). "
         << "The graph \n"
@@ -78,72 +78,115 @@ void test4() {
   baseTest(g, false);
 }
 
-class TestGraph : public Graph {
-public:
-  using Graph::definitelyContainsAmbiguity;
-  using Graph::mightContainAmbiguity;
-};
+void test7() {
 
-void test5() {
-  // This is the example in the comment of Graph::containsAmbiguity
-  // implementation.
-  TestGraph g;
+  /**
+   *
+   * a -+
+   *    |
+   *    +-- agate -- modifies -- d : models add (nothing gets modified)
+   *    |
+   * b -+
+   *    |
+   *    +-- agate -- modifies -- e : models add_ (b gets modified)
+   *    |
+   * c -+
+   *
+   * */
 
-  //
-  //       +---> m0 ----> aliasGate(b)
-  //       |                  |
-  //  a >--+                  |
-  //       |                  |
-  //       +--->  m1  <-------+
-  //
+  Graph g;
+  const auto a = g.variable({10, 10});
+  const auto b = g.variable({10, 10});
+  const auto c = g.variable({10, 10});
+  const auto d = g.aliasGate({a, b});
+  const auto e = g.aliasGate({b, c}, 0);
 
-  auto a  = g.variable({10, 10});
-  auto m0 = g.modify(a);
-  auto m1 = g.modify(a);
-  auto b  = g.aliasGate({m0});
-  baseTest(g, true);
-  g.constraint(b, m1);
+  // No modifiers in the graph yet, so impossible to have an ambiguity.
   baseTest(g, false);
-  if (!g.mightContainAmbiguity()) {
-    std::ostringstream oss;
-    oss << "Expected the edge from m0 -> aliasGate to be ommited in this "
-           "case, and for an ambiguity to be present. ";
-    throw poprithms::test::error(oss.str());
-  }
-  g.constraint(m0, m1);
-  if (g.mightContainAmbiguity()) {
-    throw poprithms::test::error(
-        "With the addition of m0 -> m1, there should not be any "
-        "ambiguity, even with the reduced edge map");
-  }
+  g.modify(d);
+  g.modify(e);
+
+  // At this point, we're exactly modelling the compute graph above.
+  baseTest(g, true);
 }
 
-// A test showing that using the reduced graph as an initial test for
-// ambiguity can help significantly:
-void test6() {
+void test8() {
 
-  // we build a very large and highly aliased graph, with 1e5 Ops:
-  uint64_t chainLength{10};
-  uint64_t nChains{10000};
+  /**
+   *       +----- view changing stuff ----> modifier
+   *       |
+   *  a ---+
+   *       |
+   *       +----- view changing stuff ----> modifier
+   *
+   * a is (indirectly) modified by both the modifiers. If there is a control
+   * dependency (topological constraint) between them, directly, then there is
+   * no ambiguity.
+   *
+   * */
 
-  TestGraph g;
-  TensorIds ends_;
-  for (uint64_t i = 0; i < nChains; ++i) {
-    auto x0 = g.variable({5, 6, 7, 8});
-    for (uint64_t j = 0; j < chainLength; ++j) {
-      x0 = g.modify(x0);
-      x0 = g.dimShuffle(x0, {{1, 2, 3, 0}});
-    }
-    x0 = g.aliasGate({x0});
-    ends_.push_back(x0);
-  }
-  g.concat(ends_, 0);
+  Graph g;
+  const auto a = g.variable({5, 7});
 
-  // 25 seconds. 75% in creating TransitiveClosures:
-  g.definitelyContainsAmbiguity();
+  const auto b = g.slice(a, {0, 0}, {3, 7});
+  const auto c = g.slice(a, {2, 0}, {5, 7});
 
-  // 7 seconds. 0% of time in creating TransitiveClosures:
-  g.containsAmbiguity();
+  const auto d = g.reverse(b, Dimensions({0, 1}));
+  const auto e = g.dimShuffle(c, {{1, 0}});
+
+  baseTest(g, false);
+  const auto f = g.modify(d);
+
+  baseTest(g, false);
+  const auto h = g.modify(e);
+
+  baseTest(g, true);
+
+  g.constraint(f, h);
+  baseTest(g, false);
+}
+
+void test9() {
+  /**
+   * like test8, except there is an open alias gate before each modifier:
+   *
+   *                            d               f
+   *       +----- slice --- alias gate ----> modifier
+   *       |
+   *  a ---+
+   *       |
+   *       +----- slice --- alias gate ----> modifier
+   *                            e               h
+   */
+  Graph g;
+  const auto a = g.variable({5, 7});
+
+  const auto b = g.slice(a, {0, 0}, {3, 7});
+  const auto c = g.slice(a, {2, 0}, {5, 7});
+
+  const auto d = g.aliasGate({b}, 0);
+  const auto e = g.aliasGate({c}, 0);
+
+  baseTest(g, false);
+  const auto f = g.modify(d);
+
+  // ambiguity between e and f.
+  baseTest(g, true);
+  const auto h = g.modify(e);
+
+  // ambiguity between e and f, and between d and h.
+  baseTest(g, true);
+
+  g.constraint(f, h);
+  baseTest(g, true);
+
+  g.constraint(d, h);
+
+  // there is still an ambiguity between e and f.
+  baseTest(g, true);
+
+  g.constraint(e, f);
+  baseTest(g, false);
 }
 
 } // namespace
@@ -154,11 +197,8 @@ int main() {
   test2();
   test3();
   test4();
-  test5();
-
-  bool demonstrateThatTheInitialProxyGraphHelps = false;
-  if (demonstrateThatTheInitialProxyGraphHelps) {
-    test6();
-  }
+  test7();
+  test8();
+  test9();
   return 0;
 }

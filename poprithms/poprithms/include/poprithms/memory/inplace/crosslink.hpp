@@ -24,7 +24,14 @@ public:
   static CrossLink modifies(InIndex i, OutIndex o);
 
   /** The Tensor at OutIndex #o is an alias of the Tensor at InIndex #i */
-  static CrossLink pureAliases(InIndex i, OutIndex o);
+  static CrossLink pureIdentityAliases(InIndex i, OutIndex o);
+
+  /**
+   * \deprecated { on 19 November 2021. Please use pureIdentityAliases. }
+   * */
+  static CrossLink pureAliases(InIndex i, OutIndex o) {
+    return pureIdentityAliases(i, o);
+  }
 
   bool operator==(const CrossLink &rhs) const { return tup() == rhs.tup(); }
   bool operator!=(const CrossLink &rhs) const { return !operator==(rhs); }
@@ -36,13 +43,22 @@ public:
   uint64_t out_u64() const { return out().get(); }
 
   bool isModifying() const { return type_ == Type::Modifies; }
-  bool isPureAliasing() const { return type_ == Type::PureAliases; }
-  bool isAliasing() const { return isModifying() || isPureAliasing(); }
+
+  /**
+   * The input is exactly the same as the output, without any view-change or
+   * modification.
+   * */
+  bool isPureIdentityAliasing() const {
+    return type_ == Type::PureIdentityAliases;
+  }
+  bool isAliasing() const {
+    return isModifying() || isPureIdentityAliasing();
+  }
 
   void append(std::ostream &) const;
 
 private:
-  enum class Type { Uses = 0, PureAliases, Modifies };
+  enum class Type { Uses = 0, PureIdentityAliases, Modifies };
 
   CrossLink(InIndex i_, OutIndex o_, Type t_)
       : inIndex_(i_), outIndex_(o_), type_(t_) {}

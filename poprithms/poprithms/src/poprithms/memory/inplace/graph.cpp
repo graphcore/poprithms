@@ -783,109 +783,19 @@ TensorId Graph::flatten(const TensorId &id) {
   return reshape(id, {shape(id).nelms()});
 }
 
-bool Graph::mightContainAmbiguity() const {
-
-  // For performance reasons, we first search for an ambiguity with a
-  // carefully chosen subset of all edges (constraints). If no ambiguity is
-  // found, we can be sure that there is no ambiguity with the full set of
-  // edges, as more edges implies less scheduling freedom. If there is an
-  // ambiguity found, we must check for an ambiguity with the full set of
-  // edges. This 'trick' to accelerate the ambiguity search assumes that in
-  // most cases, there is no ambiguity.
-  //
-  //
-  // 1) What is the "specially chosen" subset of edges, and why might this
-  // subset be a good proxy for the full set of edges?
-  // -----------
-  // We do not include an edge a->b if it is a data dependency where none of
-  // the outputs of a are aliased to any outputs of b. An example of where
-  // this might result in a false positive (detecting an ambiguity where there
-  // is none) is:
-  //
-  // a -> m0 (data constraint, m0 is a modifier)
-  // a -> m1 (data constraint, m1 is a modifier)
-  // m0 -> b (data constraint, with no aliases between outputs of m0 and
-  //          outputs of b)
-  // b -> m1 (a non-data constraint).
-  //
-  // In this case, the proxy edge set does not contain m0->b. The presence of
-  // edge m0 -> b ensures there is no ambiguity when considering the full set
-  // of edges, but its exclusion from the proxy set means
-  // `mightContainAmbiguity` returns `true` even though there is no ambiguity.
-  //
-  // Diagramatically:
-  //
-  // ----> data constraint
-  // ....> non-data contraint.
-  //
-  //
-  //       the edge which is missing
-  //       with the 'proxy' edge set
-  //                  v
-  //       +---> m0 ----> aliasGate(b)
-  //       |                  .
-  //  a >--+                  .
-  //       |                  .
-  //       +--->  m1  <.......+
-  //
-  //
-  // 2) Why do we think this subset is a good choice for performance reasons?
-  // -----------
-  // The PartitionedTransitiveClosure is quadratic in memory in the size of
-  // its largest connected component. By removing edges, it becomes more
-  // likely for large components to be divided into smaller components.
-  //
-  //
-  // It's worth repeating that this is a proxy purely for performance reasons:
-  // if an ambiguity is detected, then the full edge graph will be used.
-  //
-  // The inclusion condition:
-  auto inclusionCondition = [this](OpId from, OpId to) {
-    const auto toIns = op(to).inTensorIds();
-
-    // Non-data dependency.
-    if (std::all_of(toIns.cbegin(), toIns.cend(), [from](auto tId) {
-          return tId.opId() != from;
-        })) {
-      return true;
-    }
-
-    // Non-aliasing data dependency.
-    for (auto t0 : op(from).outTensorIds()) {
-      for (auto t1 : op(to).outTensorIds()) {
-        if (areAliased(t0, t1)) {
-          return true;
-        }
-      }
-    }
-    // aliasing data dependency.
-    return false;
-  };
-
-  return containsAmbiguity(
-      getConditionalFwdEdges<uint64_t>(inclusionCondition));
+Graph::AmbiguityStatus Graph::containsAmbiguity() const {
+  return containsAmbiguity(getFwdEdges<uint64_t>({}));
 }
 
-bool Graph::containsAmbiguity() const {
-
-  if (!mightContainAmbiguity()) {
-    return false;
-  }
-
-  // An ambiguity was found with the reduced edge map, see if there is still
-  // one with the full edge map.
-  return definitelyContainsAmbiguity();
-}
-
-bool Graph::containsAmbiguity(
+Graph::AmbiguityStatus Graph::containsAmbiguity(
     const std::vector<std::vector<uint64_t>> &edges) const {
 
-  // We look for 2 modifiers, which modify the same data, but are
-  // unconstrained, relative to each other.
+  // We look for a tensor which is modified, and is also aliased to a tensor
+  // which is read from, such that there is no constraint between the
+  // reading op and the modifying op.
   //
-  // The TransitiveClosure class (and the PartitionedTransitiveClosure class)
-  // is used for querying whether any 2 Ops in a graph are relatively
-  // unconstrained.
+  // The TransitiveClosure class is used for querying whether any 2 Ops in a
+  // graph are relatively unconstrained.
 
   schedule::transitiveclosure::PartitionedTransitiveClosure ptc(edges);
 
@@ -894,18 +804,19 @@ bool Graph::containsAmbiguity(
     auto mods0 = modifiers(t0);
     if (!mods0.empty()) {
 
-      /// and for all aliases of #t0, called #t1, and modifiers #m1 of #t1,
+      /// and for all aliases of #t0, called #t1, and reading op #c1 of #t1,
       for (auto t1 : allAliases(t0)) {
-        auto mods1 = modifiers(t1);
-        for (auto m0 : mods0) {
-          for (auto m1 : mods1) {
+        auto cons1 = readingConsumers(t1);
 
-            /// Are #m0 and #m1 relatively unconstrained? If so, the graph
+        for (auto m0 : mods0) {
+          for (auto c1 : cons1) {
+
+            /// Are #m0 and #c1 relatively unconstrained? If so, the graph
             /// contains an ambiguity.
-            if (m0.opId() != m1.opId()) {
+            if (m0.opId() != c1.opId()) {
               if (ptc.unconstrainedInBothDirections(m0.opId().get(),
-                                                    m1.opId().get())) {
-                return true;
+                                                    c1.opId().get())) {
+                return {*this, m0.opId(), t0, c1.opId(), t1};
               }
             }
           }
@@ -913,7 +824,31 @@ bool Graph::containsAmbiguity(
       }
     }
   }
-  return false;
+
+  // no ambiguity detected
+  return AmbiguityStatus::None();
+}
+
+ConsumptionIds Graph::readingConsumers(const TensorId &tId) const {
+
+  /**
+   * TODO(T50541) We use if an op is not a view-change op as proxy for if it
+   * reads its input(s). This is not quite correct in every imaginable case.
+   * In particular, for Multi Ops:
+   *
+   * If an input to a Multi Op is not aliased by any output, it is assumed to
+   * be be read in the logic below. This might be the case, one example being
+   * the 'shape' op, which might be modelled as a Multi Op. Similarly, if a
+   * Multi Op input does alias an output, it is assumed to not be read. This
+   * too might be false.
+   * */
+  ConsumptionIds readers;
+  for (auto c : consumptionIds(tId)) {
+    if (!op(c.opId()).isViewOfAnyOutput(c.inIndex())) {
+      readers.push_back(c);
+    }
+  }
+  return readers;
 }
 
 void Graph::multiOutTypeSpecificRemoveOp(
@@ -937,6 +872,24 @@ void Graph::multiOutTypeSpecificVerifyValidOutputSubstitute(
       << "Called with before = " << before << " and after = " << after
       << ". ";
   throw error(oss.str());
+}
+
+Graph::AmbiguityStatus::AmbiguityStatus(const Graph &g,
+                                        OpId modifier__,
+                                        TensorId modified__,
+                                        OpId reader__,
+                                        TensorId readIn__)
+    : detected_(true), modifier_(modifier__), modified_(modified__),
+      reader_(reader__), readIn_(readIn__) {
+
+  std::ostringstream oss;
+  oss << "Ambiguity detected. The tensor " << modified() << " is modified by "
+      << g.op(modifier__) << ", and the tensor " << readIn()
+      << ", which is an alias of " << modified()
+      << ", is used by the reading op " << g.op(reader__)
+      << ". There is no order constraint, explicit or implicit, between "
+         "these 2 Ops. ";
+  summary_ = oss.str();
 }
 
 } // namespace inplace

@@ -90,6 +90,10 @@ bool Alloc::inplaceTypeSpecificEqualTo(const Op &rhs) const {
   return color() == rhs_.color();
 }
 
+bool Alloc::isView(InIndex, OutIndex) const {
+  throw error("Invalid InIndex to Alloc::isView");
+}
+
 UpMultioutOp Alloc::cloneMultioutOp() const { return mu<Alloc>(this); }
 
 std::vector<alias::TensorId>
@@ -275,6 +279,16 @@ Multi::Multi(const State &st, const CrossLinks &m) : Op(st), mapping_(m) {
     inIndexIsModified_[crossAlias.in_u64()] = crossAlias.isModifying();
   }
 }
+
+bool Multi::isView(InIndex i, OutIndex o) const {
+  for (const auto &cl : mapping()) {
+    if (cl.in() == i && cl.out() == o) {
+      return cl.isPureIdentityAliasing();
+    }
+  }
+  return false;
+}
+
 std::string Multi::typeString() const {
   std::ostringstream oss;
   oss << "Multi(" << mapping() << ')';
