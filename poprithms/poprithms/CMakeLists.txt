@@ -51,6 +51,7 @@ add_library(poprithms-util SHARED  $<TARGET_OBJECTS:poprithms-util-objlib>)
 
 set(common_multiout_sources
   ${src_dir}/common/multiout/consumptionid.cpp
+  ${src_dir}/common/multiout/optraversal.cpp
   ${src_dir}/common/multiout/error.cpp
   ${src_dir}/common/multiout/graph.cpp
   ${src_dir}/common/multiout/logging.cpp
@@ -187,6 +188,23 @@ add_library(poprithms-outline SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
+set(autodiff_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/autodiff)
+set(autodiff_sources
+  ${autodiff_src_dir}/core/autodiff.cpp
+  ${autodiff_src_dir}/core/summary.cpp
+  ${autodiff_src_dir}/guide/graphinfo.cpp
+  ${autodiff_src_dir}/guide/guide.cpp
+  ${autodiff_src_dir}/guide/objective.cpp
+  ${autodiff_src_dir}/autodiff/error.cpp
+)
+add_library(poprithms-autodiff-objlib OBJECT ${autodiff_sources})
+add_library(poprithms-autodiff SHARED
+  $<TARGET_OBJECTS:poprithms-autodiff-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+  $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
+)
+
+
 
 set(compute_src_dir ${src_dir}/compute)
 set(compute_host_sources
@@ -313,6 +331,7 @@ add_library(poprithms-memory-unwind SHARED
 )
 
 add_library(poprithms SHARED 
+  $<TARGET_OBJECTS:poprithms-autodiff-objlib>
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
@@ -341,6 +360,8 @@ foreach(tgt IN ITEMS
   poprithms-schedule-other
   poprithms-outline-objlib
   poprithms-outline
+  poprithms-autodiff-objlib
+  poprithms-autodiff
   poprithms-memory-nest-objlib
   poprithms-memory-nest
   poprithms-memory-alias-objlib

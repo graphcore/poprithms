@@ -26,6 +26,8 @@ endfunction()
 
 include(EnableCompilerWarnings)
 
+add_subdirectory(autodiff)
+
 add_subdirectory(schedule)
 
 add_subdirectory(compute)
