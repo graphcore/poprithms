@@ -32,6 +32,7 @@ set(util_sources
 set(ndarray_sources
   ${src_dir}/ndarray/shape.cpp
   ${src_dir}/ndarray/accessors.cpp
+  ${src_dir}/ndarray/broadcastsetter.cpp
   ${src_dir}/ndarray/dtype.cpp
   ${src_dir}/ndarray/error.cpp
 )

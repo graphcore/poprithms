@@ -47,6 +47,17 @@ public:
   static Permutation dimRoll(uint64_t rnk, DimRollPair p);
 
   /**
+   * Return a permutation which, when applied to #vs, results in a vector
+   * whose 1's all appear before its other values. Example,
+   * <code>
+   *   toStartWithOnes({2,3,1,4,5,1});
+   * </code>
+   * might return (2,5,0,1,3,4).
+   * */
+  static Permutation toStartWithOnes(const std::vector<uint64_t> &vs);
+  static Permutation toStartWithOnes(const std::vector<int64_t> &vs);
+
+  /**
    * \return true if and only if (iff) this Permutation is
    *         (0 1 2 ... size() -1)
    * */
@@ -222,6 +233,8 @@ public:
     return permutation == rhs.permutation;
   }
   bool operator!=(const Permutation &rhs) const { return !operator==(rhs); }
+
+  std::string str() const;
 
 private:
   std::vector<uint64_t> permutation;

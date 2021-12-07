@@ -18,6 +18,7 @@
 
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/ndarray/dtype.hpp>
+#include <poprithms/ndarray/groupedmatmulpack.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
@@ -62,6 +63,21 @@ Shapes Tensor::getShapes(const Tensors &tensors) {
     shapes_.push_back(t.shape());
   }
   return shapes_;
+}
+Tensor Tensor::prependOnesReshape(uint64_t n) const {
+  return reshape({shape().prependOnes(n)});
+}
+
+Tensor Tensor::prependOnesReshape_(uint64_t n) const {
+  return reshape_({shape().prependOnes(n)});
+}
+
+Tensor Tensor::flatten(uint64_t i0, uint64_t i1) const {
+  return reshape({shape().flatten(i0, i1)});
+}
+
+Tensor Tensor::flatten_(uint64_t i0, uint64_t i1) const {
+  return reshape_({shape().flatten(i0, i1)});
 }
 
 Tensor Tensor::flattenTo2d(uint64_t axis) const {
@@ -458,45 +474,39 @@ Tensor Tensor::mul_(const Tensor &rhs) const {
   return *this;
 }
 
+class MatMulMolder {
+public:
+  static Shape shape(const Tensor &t) { return t.shape(); }
+  static Tensor unsqueeze(const Tensor &t, uint64_t d) {
+    return t.unsqueeze(d);
+  }
+  static Tensor expand(const Tensor &t, const Shape &s) {
+    return t.expand(s);
+  }
+
+  static Tensor reshape(const Tensor &t, const Shape &s) {
+    return t.reshape(s);
+  }
+  static int64_t dim(const Tensor &t, uint64_t d) { return t.dim(d); }
+};
+
 Tensor Tensor::matmul(const Tensor &rhs) const {
-  const auto outShape = shape().matmul(rhs.shape());
 
-  // Increase the rank to 2, if it is 1. For both lhs (a) and rhs (b).
-  auto a = rank_u64() == 1 ? unsqueeze(0) : *this;
-  auto b = rhs.rank_u64() == 1 ? rhs.unsqueeze(1) : rhs;
-
-  // a is M x K
-  // b is K x N.
-  const uint64_t M = a.dim(a.rank_u64() - 2);
-  const uint64_t N = b.dim(b.rank_u64() - 1);
-  const uint64_t K = a.dim(a.rank_u64() - 1);
-
-  const int64_t M_i64 = static_cast<int64_t>(M);
-  const int64_t N_i64 = static_cast<int64_t>(N);
-  const int64_t K_i64 = static_cast<int64_t>(K);
-
-  const auto aShape = a.shape().get();
-  const auto bShape = b.shape().get();
-
-  // numpy shape broadcasting, applied to all but the final 2 dimensions.
-  auto preShape = Shape{{aShape.cbegin(), aShape.cend() - 2}}.numpyBinary(
-      {{bShape.cbegin(), bShape.cend() - 2}});
-
-  const auto nGroups = preShape.nelms();
-
-  a = a.expand(preShape.append(M).append(K)).reshape({nGroups, M_i64, K_i64});
-  b = b.expand(preShape.append(K).append(N)).reshape({nGroups, K_i64, N_i64});
+  const ndarray::GroupedMatMulPack<MatMulMolder, Tensor> mmp(*this, rhs);
 
   Tensors dots;
 
-  // Perform each of the matmuls in the grouped matmul, separately.
-  for (int64_t i = 0; i < nGroups; ++i) {
-    dots.push_back({{1, M_i64, N_i64},
-                    dtype(),
-                    a.at(i).tData().matmul(b.at(i).tData(), M, N, K)});
+  // Perform each of the matmuls in the grouped matmul, separately. Then
+  // concatenate them together.
+  for (uint64_t i = 0; i < mmp.nGroups_u64(); ++i) {
+    dots.push_back(
+        {{1, mmp.M_i64(), mmp.N_i64()},
+         dtype(),
+         mmp.lhs3d().at(i).tData().matmul(
+             mmp.rhs3d().at(i).tData(), mmp.M(), mmp.N(), mmp.K())});
   }
 
-  return Tensor::concat(dots, 0).reshape(outShape);
+  return Tensor::concat(dots, 0).reshape(mmp.outShape());
 }
 
 Tensor Tensor::pow(const Tensor &rhs) const {

@@ -393,17 +393,6 @@ void testFlattenRange() {
     throw poprithms::test::error(
         "Failed to catch error of flatten beyond range");
   }
-
-  caught = false;
-  try {
-    auto f3 = s.flatten(4, 4);
-  } catch (const poprithms::error::error &) {
-    caught = true;
-  }
-  if (!caught) {
-    throw poprithms::test::error(
-        "Failed to catch error of flatten with from=to.");
-  }
 }
 
 void assertCorrectRedDims(const Shape &from,

@@ -561,6 +561,13 @@ public:
   Tensor flatten_() const { return reshape_({shape().nelms()}); }
 
   /**
+   * Reshape by collapsing the dimensions in the the interval [i0, i1) into a
+   * single dimension. \sa Shape::flatten.
+   * */
+  Tensor flatten(uint64_t i0, uint64_t i1) const;
+  Tensor flatten_(uint64_t i0, uint64_t i1) const;
+
+  /**
    * \return Reshape this Tensor by removing all dimensions which have size
    *         `1'. Note that `0's are not removed.
    * */
@@ -595,6 +602,9 @@ public:
   Tensor unsqueeze_(uint64_t d) const {
     return reshape_(shape().unsqueeze(d));
   }
+
+  Tensor prependOnesReshape(uint64_t nOnes) const;
+  Tensor prependOnesReshape_(uint64_t nOnes) const;
 
   /**
    * Expand the Tensor using numpy broadcasting rules.

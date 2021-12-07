@@ -251,12 +251,17 @@ public:
 
   /**
    * \return A copy of this Shape but with the dimensions in \a dims0
-   * prepended.
+   *         prepended.
    *
    * Example: If this is (3,4) and #dims0 is (5,6), the calling prepend(dims)
    *          on this Shape returns the Shape (5,6,3,4).
    * */
   Shape prepend(const Shape &dims0) const;
+
+  /**
+   * \return A copy of this Shape but with nOnes 1's prepended.
+   * */
+  Shape prependOnes(uint64_t nOnes) const;
 
   /**
    * Increase this Shape's rank by 1, by adding the dimension \a dimEnd to the
@@ -1024,6 +1029,15 @@ public:
   static void assertNumpyBroadcastable(const std::vector<int64_t> &a,
                                        const std::vector<int64_t> &b);
 
+  /**
+   * Return true if this Shape numpy dominates #b.
+   * */
+  bool numpyDominates(const Shape &b) const {
+    return numpyBinary(b) == *this;
+  }
+
+  void assertNumpyDominates(const Shape &b) const;
+
   void assertFlatPoint(int64_t flatPoint) const;
 
   void assertValidDimension(uint64_t d) const;
@@ -1156,6 +1170,11 @@ public:
   std::pair<bool, Permutation>
   moveDimShuffleFirst(const Shape &shapePreDimShuffle,
                       const Permutation &tailPerm) const;
+
+  /**
+   * \return The number of dimensions of this Shape of size s.
+   * */
+  uint64_t nDimsOfSize(int64_t s) const;
 
   bool operator==(const Shape &rhs) const { return shp == rhs.shp; }
   bool operator!=(const Shape &rhs) const { return shp != rhs.shp; }

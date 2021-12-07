@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <numeric>
+#include <sstream>
 #include <util/error.hpp>
 
 #include <poprithms/util/permutation.hpp>
@@ -8,6 +9,12 @@
 
 namespace poprithms {
 namespace util {
+
+std::string Permutation::str() const {
+  std::ostringstream oss;
+  util::append(oss, permutation);
+  return oss.str();
+}
 
 bool Permutation::containsSubSequence(
     const std::vector<uint64_t> &query) const {
@@ -213,6 +220,29 @@ Permutation::mapBackward(const std::vector<uint64_t> &indicesAfter) const {
 std::vector<uint64_t>
 Permutation::mapForward(const std::vector<uint64_t> &indicesBefore) const {
   return inverse().mapBackward(indicesBefore);
+}
+
+template <typename T> Permutation onesToFront(const std::vector<T> &vs) {
+  std::vector<uint64_t> f;
+  f.reserve(vs.size());
+  std::vector<uint64_t> indicesWhereNotOne;
+  for (uint64_t i = 0; i < vs.size(); ++i) {
+    if (vs[i] == 1) {
+      f.push_back(i);
+    } else {
+      indicesWhereNotOne.push_back(i);
+    }
+  }
+  f.insert(f.end(), indicesWhereNotOne.cbegin(), indicesWhereNotOne.cend());
+  return Permutation(f);
+}
+
+Permutation Permutation::toStartWithOnes(const std::vector<uint64_t> &v) {
+  return onesToFront<uint64_t>(v);
+}
+
+Permutation Permutation::toStartWithOnes(const std::vector<int64_t> &v) {
+  return onesToFront<int64_t>(v);
 }
 
 std::ostream &operator<<(std::ostream &ost, const Permutation &p) {

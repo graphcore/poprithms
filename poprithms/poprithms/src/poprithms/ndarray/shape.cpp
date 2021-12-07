@@ -234,6 +234,14 @@ Shape Shape::prepend(const Shape &dims0) const {
   return outShape_;
 }
 
+Shape Shape::prependOnes(uint64_t n) const {
+  std::vector<int64_t> outShape(n + rank_u64(), 1);
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    outShape[i + n] = shp[i];
+  }
+  return outShape;
+}
+
 Shape Shape::append(int64_t dimEnd) const & {
   auto outShape_ = get();
   outShape_.push_back(dimEnd);
@@ -930,6 +938,14 @@ void Shape::assertNumpyBroadcastable(const std::vector<int64_t> &a,
           << " `a` and `b` cannot be numpy added. ";
       throw error(oss.str());
     }
+  }
+}
+
+void Shape::assertNumpyDominates(const Shape &b) const {
+  if (!numpyDominates(b)) {
+    std::ostringstream oss;
+    oss << "This Shape (" << *this << ") does not dominate " << b;
+    throw error(oss.str());
   }
 }
 
@@ -1631,12 +1647,12 @@ std::vector<uint64_t> Shape::nonSingletonDimensions() const {
 
 void Shape::assertValidFlatten(uint64_t from, uint64_t to) const {
 
-  if (from >= to || to > rank_u64()) {
+  if (from > to || to > rank_u64()) {
     std::ostringstream oss;
     oss << "Invalid call for this Shape: " << *this
         << ". Call to flatten(from = " << from << ", to = " << to
         << ") is invalid as it does not satisfy the requirement that "
-        << "0 <= from < to <= rank. ";
+        << "0 <= from <= to <= rank. ";
     throw error(oss.str());
   }
 }
@@ -1807,7 +1823,7 @@ Shape Shape::flatten(uint64_t from, uint64_t to) const & {
   assertValidFlatten(from, to);
 
   std::vector<int64_t> dims;
-  dims.reserve(rank_u64() - (to - from - 1));
+  dims.reserve(rank_u64() - (to - from) + 1);
   dims.insert(dims.end(), shp.cbegin(), shp.cbegin() + from);
   dims.push_back(dimProduct(from, to));
   dims.insert(dims.end(), shp.begin() + to, shp.cend());
@@ -1816,12 +1832,15 @@ Shape Shape::flatten(uint64_t from, uint64_t to) const & {
 
 Shape &&Shape::flatten(uint64_t from, uint64_t to) && {
   assertValidFlatten(from, to);
-  shp[from]         = dimProduct(from, to);
-  const auto offset = to - from - 1;
-  for (uint64_t i = to; i < rank_u64(); ++i) {
-    shp[i - offset] = shp[i];
+  if (from == to) {
+    shp.insert(shp.begin() + from, 1);
+  } else {
+    shp[from] = dimProduct(from, to);
+    for (uint64_t i = to; i < rank_u64(); ++i) {
+      shp[i + 1 - (to - from)] = shp[i];
+    }
+    shp.resize(rank_u64() + 1 - (to - from));
   }
-  shp.resize(rank_u64() - offset);
   return std::move(*this);
 }
 
@@ -1962,6 +1981,10 @@ Dimensions Shape::reductionDimensions(const Shape &to) const {
     }
   }
   return Dimensions(dims);
+}
+
+uint64_t Shape::nDimsOfSize(int64_t s) const {
+  return std::count(shp.cbegin(), shp.cend(), s);
 }
 
 } // namespace ndarray
