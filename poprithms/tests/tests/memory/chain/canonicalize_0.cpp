@@ -131,6 +131,35 @@ void testBubbleSettSampleReverse0() {
   expected.confirmEqual(chain);
 }
 
+void testRedundantSampleFill0() {
+
+  const Region r0({15}, {{{{5, 10, 5}}}});
+  const Region r1({15}, {{{{3, 12, 6}}}});
+  const Region r2({15}, {{{{7, 8, 4}}}});
+
+  {
+    // In this case the sampling might eliminate some elements as r1 does not
+    // contain r0. So the canonicalization pass cannot eliminate the final 2
+    // ops.
+    Chain chain({5});
+    chain.settFillInto(r0);
+    chain.settSample(r1);
+    chain.settFillInto(r1);
+    chain.canonicalized().confirmEqual(chain);
+  }
+
+  {
+    // In this case the sampling cannot eliminate any elements, as r2 does
+    // contain r0. So the final 2 ops can be elimininated.
+    Chain chain({5});
+    chain.settFillInto(r0);
+    auto expected = chain;
+    chain.settSample(r2);
+    chain.settFillInto(r2);
+    chain.canonicalized().confirmEqual(expected);
+  }
+}
+
 } // namespace
 
 int main() {
@@ -139,6 +168,7 @@ int main() {
   rubixTwist();
   testBubbleDimShuffleReverse0();
   testBubbleSettSampleReverse0();
+  testRedundantSampleFill0();
 
   return 0;
 }

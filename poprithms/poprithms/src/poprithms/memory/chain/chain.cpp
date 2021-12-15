@@ -20,6 +20,11 @@ DisjointRegions Chain::apply(const DisjointRegions &rIn) const {
   return apply<DisjointRegionsMapper, DisjointRegions>(rIn);
 }
 
+DisjointRegions Chain::apply(const DisjointRegions &rIn,
+                             uint64_t nOpsToApply) const {
+  return apply<DisjointRegionsMapper, DisjointRegions>(rIn, nOpsToApply);
+}
+
 compute::host::Tensor Chain::apply(const compute::host::Tensor &t) const {
   return apply<HostTensorMapper, compute::host::Tensor>(t);
 }
@@ -150,39 +155,52 @@ bool Chain::tryMergeLastTwo() {
     return false;
   }
 
-  // A SettFill followed by a SettSample of the exact same Region.
-  //
-  //
-  // settFill(region0)
-  // |
-  // v
-  //    settSample(region0)
-  //    |
-  //    v
-  //   .
-  //   x
-  //  /.\       .
-  // x . x
-  // x-x-x
-  // x . x
-  //  \./       .
-  //   x
-  //   .
-  // ^
-  // |
-  // in
-  //     ^
-  //     |
-  //    out
-  //
-  // same Region out.
-  //
+  /**
+   * A SettFill followed by a SettSample of the exact same Region results in
+   * the initial region.
+   *
+   *  region ->
+   *   V     region.setFill(region0) ->
+   *          V      region.setFill(region0).settSample(region0).
+   *                  V
+   *
+   *          .
+   *   x      .       x
+   *   x      x       x
+   *   x      .       x
+   *          .
+   *          x
+   *
+   */
+
   if (type(nOps() - 2) == Type::SettFillInto &&
       type(nOps() - 1) == Type::SettSample &&
       region(nOps() - 1).equivalent(region(nOps() - 2))) {
     popBack();
     popBack();
     return true;
+  }
+
+  /**
+   * A SettSample followed by a SettFillInto of the same Region results in the
+   * initial region, if the filtering Region contains the full input.
+   * */
+  if (type(nOps() - 2) == Type::SettSample &&
+      type(nOps() - 1) == Type::SettFillInto) {
+
+    if (region(nOps() - 2).equivalent(region(nOps() - 1))) {
+
+      // Apply all but last 2 Ops to the full input:
+      const auto regs = apply(Region::createFull(inShape(0)), nOps() - 2);
+
+      // If the sampling region contains 'regs', then it will contain all
+      // inputs.
+      if (DisjointRegions({region(nOps() - 2)}).contains(regs)) {
+        popBack();
+        popBack();
+        return true;
+      }
+    }
   }
 
   // Case of 2 contiguous Ops of the same type. They can sometimes be merged.
@@ -582,4 +600,5 @@ Chain::Chain(const Shape &s) : ops_(std::make_unique<Ops>()), inShape_(s) {}
 namespace util {
 template class CopyByClone<memory::chain::Chain::Ops>;
 }
+
 } // namespace poprithms

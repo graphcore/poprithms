@@ -66,7 +66,8 @@ public:
   /** The Shape of the output Tensor of the final Op in this Chain. */
   Shape outShape() const;
 
-  /** The view-changing Ops which can be applied to the end of this Chain.
+  /** 
+   * The view-changing Ops which can be applied to the end of this Chain.
    * These methods add a new "link" in this Chain and return a reference to
    * this Chain.
    *
@@ -112,17 +113,33 @@ public:
    * methods reshape, expand, reduce, settSample, settFillInto, reverse, and
    * dimShuffle. Two example uses cases are
    *
-   * 1) ViewChanger=DisjointRegionsMapper and View=DisjointRegions
-   * 2) ViewChanger=HostTensorMapper and View=compute::host::Tensor.
+   *    ViewChanger              View
+   *    -----------------------+--------------------------+
+   * 1) DisjointRegionsMapper  | DisjointRegions          |
+   * 2) HostTensorMapper       | compute::host::Tensor    |
+   *    -----------------------+--------------------------+
+   *
+   * \tparam view The View to apply this Chain to.
+   *
+   * \tparam nOpsToApply Apply the first #nOpsToApply Ops in this chain to
+   *                    #view.
    *  */
   template <typename ViewChanger, typename View>
-  View apply(const View &t_) const {
-    const ViewChanger v;
-    auto t = t_;
-    for (uint64_t opIndex = 0; opIndex < nOps(); ++opIndex) {
-      t = get<ViewChanger, View>(opIndex, v, t);
+  View apply(const View &view, uint64_t nOpsToApply) const {
+    const ViewChanger viewChanger;
+    auto outView = view;
+    for (uint64_t opIndex = 0; opIndex < nOpsToApply; ++opIndex) {
+      outView = get<ViewChanger, View>(opIndex, viewChanger, outView);
     }
-    return t;
+    return outView;
+  }
+
+  /**
+   * Apply all Ops in this Chain to a View.
+   * */
+  template <typename ViewChanger, typename View>
+  View apply(const View &view) const {
+    return apply<ViewChanger, View>(view, nOps());
   }
 
   /**
@@ -130,6 +147,8 @@ public:
    * DijsointRegions. It is an instantiation of the template `apply` method.
    * */
   DisjointRegions apply(const DisjointRegions &rIn) const;
+  DisjointRegions apply(const DisjointRegions &rIn,
+                        uint64_t nOpsToApply) const;
 
   /**
    * A method to sequentially apply each link in this Chain to a
