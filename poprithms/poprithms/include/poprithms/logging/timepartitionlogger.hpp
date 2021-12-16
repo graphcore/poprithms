@@ -56,6 +56,7 @@ public:
   TimePartitionLogger(const std::string &id)
       : timeOfConstruction(std::chrono::high_resolution_clock::now()),
         id_(id) {}
+  virtual ~TimePartitionLogger() = default;
 
   std::string id() const { return id_; }
 

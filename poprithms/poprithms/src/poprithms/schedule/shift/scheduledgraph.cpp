@@ -336,8 +336,9 @@ void ScheduledGraph::initialize(const KahnDecider &kd,
 
   //
   // opToSch
-  opToSch.reserve(nOps());
   opToSch.clear();
+  opToSch.reserve(nOps());
+  opToSch.resize(nOps_i32());
 
   for (ScheduleIndex i = 0; i < nOps_i32(); ++i) {
     opToSch[scheduleToOp(i)] = i;
@@ -345,8 +346,9 @@ void ScheduledGraph::initialize(const KahnDecider &kd,
 
   //
   // allocToSch
-  allocToSch.resize(graph.nAllocs());
   allocToSch.clear();
+  allocToSch.reserve(graph.nAllocs());
+  allocToSch.resize(graph.nAllocs());
 
   for (AllocAddress allocAddress = 0; allocAddress < graph.nAllocs();
        ++allocAddress) {
