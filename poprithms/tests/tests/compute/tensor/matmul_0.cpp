@@ -5,6 +5,7 @@
 
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/error/error.hpp>
+#include <poprithms/ndarray/groupedmatmulpack.hpp>
 
 namespace {
 
@@ -99,6 +100,51 @@ void test7() {
   a.matmul(b).assertAllEquivalent(Tensor::int32(5).expand({2, 6, 4}));
 }
 
+class MatMulMolder {
+public:
+  static Shape shape(const Tensor &t) { return t.shape(); }
+  static Tensor unsqueeze(const Tensor &t, uint64_t d) {
+    return t.unsqueeze(d);
+  }
+  static Tensor reshape(const Tensor &t, const Shape &s) {
+    return t.reshape(s);
+  }
+  static Tensor expand(const Tensor &t, const Shape &s) {
+    return t.expand(s);
+  }
+  static int64_t dim(const Tensor &t, uint64_t d) { return t.dim(d); }
+  static Tensor empty() { return Tensor::int32(0); }
+};
+
+void test8() {
+
+  constexpr uint64_t N0 = 5;
+  constexpr uint64_t N1 = 6;
+  const auto a          = Tensor::uniformFloat32(-1, 1, {N0, 1, 2, 3}, 1011);
+  const auto b          = Tensor::uniformFloat32(-1, 1, {1, N1, 3, 4}, 1012);
+  const auto mmp =
+      poprithms::ndarray::GroupedMatMulPack<MatMulMolder, Tensor>(a, b);
+  if (mmp.outShape() != Shape({N0, N1, 2, 4})) {
+    throw poprithms::test::error(
+        "Incorrect output Shape of GroupedMatMulPack");
+  }
+  if (mmp.nGroups() != 30) {
+    throw poprithms::test::error("Incorrect nGroups of GroupedMatMulPack");
+  }
+
+  if (mmp.K() != 3) {
+    throw poprithms::test::error("Incorrect K of GroupedMatMulPack");
+  }
+
+  if (mmp.M() != 2) {
+    throw poprithms::test::error("Incorrect M of GroupedMatMulPack");
+  }
+
+  if (mmp.N() != 4) {
+    throw poprithms::test::error("Incorrect N of GroupedMatMulPack");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -110,5 +156,6 @@ int main() {
   test5();
   test6();
   test7();
+  test8();
   return 0;
 }

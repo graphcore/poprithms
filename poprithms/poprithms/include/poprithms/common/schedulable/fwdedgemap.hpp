@@ -27,7 +27,7 @@ public:
    * Initialize the edge map from a set of distinct OpIds, but without any
    * edges. Edges are added with 'insertEdge'.
    * */
-  FwdEdgeMap(const OpIds &);
+  explicit FwdEdgeMap(const OpIds &);
 
   /**
    * Map a set of ids in the compact/contiguous back to the original set of
@@ -55,6 +55,12 @@ public:
   const std::vector<std::vector<uint64_t>> &fwdEdgesCompact() const {
     return fwdEdgesCompact_;
   }
+
+  uint64_t nOps() const { return fwdEdgesCompact_.size(); }
+
+  uint64_t compactId(OpId opId) const { return toCompact_.at(opId); }
+
+  OpId opId(uint64_t compactId) const { return fromCompact_[compactId]; }
 
 private:
   // A map from original (non-contiguous) ids to the compact (contiguous)

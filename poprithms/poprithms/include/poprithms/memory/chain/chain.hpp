@@ -66,7 +66,7 @@ public:
   /** The Shape of the output Tensor of the final Op in this Chain. */
   Shape outShape() const;
 
-  /** 
+  /**
    * The view-changing Ops which can be applied to the end of this Chain.
    * These methods add a new "link" in this Chain and return a reference to
    * this Chain.
@@ -122,7 +122,7 @@ public:
    * \tparam view The View to apply this Chain to.
    *
    * \tparam nOpsToApply Apply the first #nOpsToApply Ops in this chain to
-   *                    #view.
+   *                     #view.
    *  */
   template <typename ViewChanger, typename View>
   View apply(const View &view, uint64_t nOpsToApply) const {

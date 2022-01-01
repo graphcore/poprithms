@@ -6,6 +6,14 @@ namespace poprithms {
 namespace common {
 namespace schedulable {
 
+Op::State Op::getSchedulableState() const {
+
+  return State{schedulable::Op::getState(),
+               subGraphId(),
+               controlDependencyInOps(),
+               controlDependencyOutOps()};
+}
+
 void Op::insertControlDependencyOut(OpId ido) {
   if (std::find(controlDependencyOutOps_.cbegin(),
                 controlDependencyOutOps_.cend(),

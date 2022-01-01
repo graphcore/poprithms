@@ -66,6 +66,11 @@ public:
   Op(const State &ob);
 
   /**
+   * \return the Op::State of this Op.
+   * */
+  State getSchedulableState() const;
+
+  /**
    * Ops which must be scheduled before this Op, for non-data dependency
    * reasons.
    * */

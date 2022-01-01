@@ -91,9 +91,9 @@ public:
   }
 
 private:
-  void assertValidOpId(OpId opId) {
+  void assertValidOpId(OpId opId) const {
 
-    if (values.size() <= opId) {
+    if (values.size() <= opId.get()) {
       throw poprithms::error::error(
           "common::multiout",
           "Invalid OpId, " + std::to_string(opId.get()) + ". Only " +
