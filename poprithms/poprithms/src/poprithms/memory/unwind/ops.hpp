@@ -26,19 +26,23 @@ public:
 
 class SumLike : public NonInput {
 public:
-  SumLike(const State &st, InIndex unwindIndex);
+  SumLike(const State &st, const std::vector<InIndex> &unwindIndices);
   std::string typeString() const final;
   void extendFwd(Chain &, InIndex, OutIndex) const final;
   void extendBwd(Chain &, InIndex, OutIndex) const final;
   UpMultioutOp cloneMultioutOp() const final { return Op::mu<SumLike>(this); }
-  InIndex unwindIndex() const { return unwindIndex_; }
+  const std::vector<InIndex> &unwindIndices() const { return uwis; }
+  bool isUnwindIndex(InIndex i) const {
+    return std::find(uwis.cbegin(), uwis.cend(), i) != uwis.cend();
+  }
+
   bool isUnwindable(InIndex i, OutIndex) const final {
-    return i == unwindIndex();
+    return isUnwindIndex(i);
   }
   bool isBarrier(OutIndex) const final { return false; }
 
 private:
-  InIndex unwindIndex_;
+  std::vector<InIndex> uwis;
   bool unwindTypeSpecificEqualTo(const Op &) const final;
 };
 
@@ -90,9 +94,12 @@ private:
   std::vector<int64_t> getUpperSlice(InIndex) const;
 };
 
+/**
+ * View-change operators with 1 input and 1 output.
+ * */
 class ViewChange1to1 : public NonInput {
 public:
-  ViewChange1to1(const Op::State &st) : NonInput(st) {}
+  ViewChange1to1(const Op::State &st);
   virtual bool isUnwindable(InIndex, OutIndex) const { return true; }
   void extendFwd(Chain &, InIndex, OutIndex) const final;
   void extendBwd(Chain &, InIndex, OutIndex) const final;
@@ -152,6 +159,18 @@ private:
   void bwd(Chain &) const final;
   bool unwindTypeSpecificEqualTo(const Op &other) const final;
   Dimensions dimensions_;
+};
+
+class Expand : public ViewChange1to1 {
+public:
+  Expand(const State &st);
+  std::string typeString() const final { return "Expand"; }
+  UpMultioutOp cloneMultioutOp() const final { return Op::mu<Expand>(this); }
+
+private:
+  void fwd(Chain &) const final;
+  void bwd(Chain &) const final;
+  bool unwindTypeSpecificEqualTo(const Op &) const final { return true; }
 };
 
 class Reshape : public ViewChange1to1 {

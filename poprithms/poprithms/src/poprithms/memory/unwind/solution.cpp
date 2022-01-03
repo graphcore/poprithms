@@ -207,11 +207,18 @@ Solution::Solution(Graph &&g, Algo a) : graph_(std::move(g)) {
 void Solution::assertCompletelyCovererdByPaths() const {
 
   if (!completelyCoveredByPaths()) {
+    TensorIds notCovered;
+    for (auto tId : graph().tensorIds()) {
+      if (!completelyCoveredByPaths(tId)) {
+        notCovered.push_back(tId);
+      }
+    }
     std::ostringstream oss;
     oss << "Failed in assertCompletelyCovererdByPaths. "
         << "The Graph may have been underspecified. "
         << "All Tensor Sources must be included, including fall backs. "
-        << "(map linearly in Poplar for example). ";
+        << "(map linearly in Poplar for example). "
+        << "The tensors which are not completely covered are: " << notCovered;
     throw error(oss.str());
   }
 }
@@ -394,8 +401,14 @@ TensorIds Solution::processPathStack() {
         // not a barrier, so unwindable.
         else if (graph().isUnwindable(opId, inInd, outInd)) {
 
-          const auto outRegs =
+          auto outRegs =
               graph().outRegions(currPath.dstRegions(), inInd, opId, outInd);
+
+          // This is required only in the case where unwinding is not 1:1 such
+          // as when you have sums which are unwindable along multiple axes,
+          // with repeated inputs. For example, out=a+a.
+          outRegs = outRegs.intersect(
+              coveredByPaths({opId, outInd}).getComplement());
 
           if (!outRegs.empty()) {
             add(graph().extendedPath(currPath, inInd, opId, outInd));

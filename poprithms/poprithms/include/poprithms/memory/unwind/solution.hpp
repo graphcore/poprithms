@@ -4,6 +4,7 @@
 
 #include <map>
 
+#include <poprithms/common/schedulable/fwdedgemap.hpp>
 #include <poprithms/memory/chain/chain.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
@@ -70,7 +71,7 @@ public:
    * The order of the Paths is important. If the Paths are used for unwinding
    * in the provided order to set the layouts of the target application's Sink
    * Tensors (for example input poplar::Tensors), it is guaranteed that all
-   * required Barrier layouts will be availale when needed.
+   * required Barrier layouts will be available when needed.
    */
   const Paths &barriersToSinks() const;
 

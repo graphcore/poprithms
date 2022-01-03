@@ -200,10 +200,9 @@ class Op;
  * inherited X's layout exactly, so as to minimise the cost of inter-tile
  * exchange. In the case where Q must be broadcast up, there is still a good
  * layout for Q in terms of X, and Poplibs provides an API for this:
- * #createBias. Note: The Poplibs API might have changed, but the principal is
- * the same.
+ * #createBroadcastOperand.
  *
- * More information on this case, and how it s represented in this Graph
+ * More information on this case, and how it is represented in this Graph
  * class, can be found in the comment for the class method, \a sumLike.
  *
  * */
@@ -323,8 +322,9 @@ class Op;
  * We will model matmuls as fixed-point operations. See the discussion in
  * T32143 for why we think this is possible and (currently) a good idea.
  *
- * Not that the fixed-point type is an abstraction which is not implemented in
- * this class, as it can be implemented as an inputless Barrier.
+ * Note that the fixed-point type is an abstraction which is not explicitly
+ * implemented in this class, as it can be implemented as an inputless
+ * Barrier.
  *
  *
  * Dependencies of layouts
@@ -554,6 +554,7 @@ public:
   bool isMatMulRhsSource(OpId) const;
   bool isSumLikeReduce(OpId) const;
 
+  // TODO(T52317): neater would be separate methods for lhs and rhs.
   std::array<Shape, 2> matmulBarrierShapes(const TensorId &) const;
 
   /**
@@ -638,16 +639,40 @@ public:
   TensorId subSample(const TensorId &, const Strides &);
 
   /**
+   * The expand operation maps 1 input to multiple output elements. This makes
+   * unwinding ambiguous: which element of the output should be used to set
+   * the layout of a particular input element? Currently, the lowest index
+   * element is used. For example, if the expansion is from Shape (3,1) to
+   * (3,5), then the slice between lower=(0,0) and upper=(3,1) of the output
+   * is used to set the inputs layout.
+   *
+   * Expand ops can result in an underestimated score. Consider,
+   *
+   *      sink ---> x0 (1,4) ---> expand ---> x1 (3,4)
+   *
+   *                     barrier ---> x2 (3,4)
+   *
+   * with ValuePair (x1, x2, 1.). That is, for each corresponding element of
+   * x1 and x2 with the same layout, 1. point is added to the score.
+   *
+   * If x0's layout is taken to be the lowest slice of x2, then the score
+   * should be 4.0, but currently 0.0 is reported. See the test
+   * expandScoreTest0 for more info.
+   * */
+
+  TensorId expand(const TensorId &, const Shape &);
+
+  /**
    * A utility method for variadic elementwise operators, which inserts
-   * attractions between certain input Tensors and additional Ops to handle
-   * differently shaped inputs.
+   * attractions between certain input Tensors and outputs of additional Ops,
+   * to handle differently shaped inputs.
    *
    * The output can unwind through the input at \a unwindableIndex. That is,
    * the layout of the output matches the layout of the input at \a
    * unwindableIndex.
    *
    * The attraction between inputs is of value \a val. This attraction is
-   * direct between inputs of the same Shape, for inputs of different Shapes
+   * direct between inputs of the same Shape. For inputs of different Shapes,
    * an intermediate SumLikeReduce Op -- a special kind of Barrier Op -- is
    * inserted.
    *
@@ -655,7 +680,7 @@ public:
    *
    *   A of Shape (5,4)
    *   B of Shape (5,4)
-   *   C = sumLike({A, B}, 0, 10.).
+   *   C = sumLike({A, B}, 0, 10.). // unwind index is 0, attraction is 10.0.
    *
    *      A       B       ValuedPairs
    *      |       |       ===============
@@ -674,9 +699,9 @@ public:
    *   C of Shape (4)
    *   D = sumLike({A,B,C}, 0, 10.)
    *
-   * In this example, the inputs do not have the same Shapes. Reduction Ops,
-   * which will correspond to Poplibs addBias, are inserted to reduce to the
-   * correct Shapes.
+   * In this example, the inputs have different Shapes. Reduction Ops,
+   * which will correspond to Poplibs createBroadcastOperatand, are inserted
+   * to reduce to the correct Shapes.
    *
    *                        A
    *                        |
@@ -698,8 +723,42 @@ public:
    *
    *
    * */
+  SumLikeOut
+  sumLike(const TensorIds &ids, InIndex unwindableIndex, double val) {
+    return sumLike(ids, std::vector<InIndex>{unwindableIndex}, val);
+  }
 
-  SumLikeOut sumLike(const TensorIds &, InIndex unwindableIndex, double val);
+  /**
+   * In the above sumLike method, there is exactly 1 unwind index. The
+   * following method relaxes this constraint, allowing unwinding through any
+   * subset of the inputs whose Shape is the same as the output's.
+   *
+   *
+   * Recall the definition of unwindable: the layout of the output is a
+   * view of the layout of the input. What does it mean if multiple indices
+   * are unwindable? It is not clear, unless the layouts of all of the inputs
+   * at unwind indices are the same. For this reason, scores (see the Solution
+   * class) are not accurate when multiple indices are unwindable. A backend
+   * (poplibs) can only guarantee that 1 input to an add will have the same
+   * layout as the output. See multiUnwindTest0 for an example illustrating
+   * this point.
+   *
+   * */
+
+  SumLikeOut sumLike(const TensorIds &ids,
+                     const std::vector<InIndex> &uwInds,
+                     double val) {
+    return sumLike(ids, uwInds, SumAttractions(val));
+  }
+
+  /**
+   * In the above sumLike method, the attraction between the layouts of the
+   * inputs was the same, controlled by a single scalar value. The method
+   * below allows for different attractions between different inputs.
+   * */
+  SumLikeOut sumLike(const TensorIds &ids,
+                     const std::vector<InIndex> &iwInds,
+                     const SumAttractions &);
 
   /**
    * A utility method for Ops such as dynamicSlice, where the input layout
@@ -924,12 +983,6 @@ public:
                             InIndex inIndex,
                             OpId opId,
                             OutIndex outIndex) const;
-
-  /**
-   * \return The TensorId of the input to Op \a opId at input index \a
-   *         inIndex.
-   * */
-  TensorId inTensorId(InIndex inIndex, OpId opId) const;
 
   bool isSink(const TensorId &) const;
   bool isSource(const TensorId &) const;

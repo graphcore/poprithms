@@ -2,7 +2,10 @@
 #ifndef POPRITHMS_MEMORY_UNWIND_SUMLIKE_HPP
 #define POPRITHMS_MEMORY_UNWIND_SUMLIKE_HPP
 
+#include <map>
 #include <sstream>
+#include <tuple>
+#include <vector>
 
 #include <poprithms/common/multiout/tensorid.hpp>
 
@@ -10,6 +13,7 @@ namespace poprithms {
 namespace memory {
 namespace unwind {
 
+using common::multiout::InIndex;
 using common::multiout::OpId;
 using common::multiout::TensorId;
 
@@ -87,6 +91,30 @@ public:
 private:
   TensorId out_;
   SumLikeMappings mappings_;
+};
+
+/**
+ * A description of the attractions between the inputs of a sum-like
+ * operation. Values are associated to pairs of inputs, denoting the
+ * importance that they have the same layout. It consists of a default
+ * (global) value, and specializations for individual pairs.
+ * */
+class SumAttractions {
+
+private:
+  using V = std::vector<std::tuple<InIndex, InIndex, double>>;
+  std::map<std::pair<InIndex, InIndex>, double> vs;
+  double defaultValue_;
+
+public:
+  SumAttractions(const V &x, double defVal);
+  explicit SumAttractions(double v) : SumAttractions(V{}, v) {}
+
+  /**
+   * If there is a specific value for the pair (#i0, #i1) then that is
+   * returned. Else the default value is returned.
+   * */
+  double get(InIndex i0, InIndex i1) const;
 };
 
 std::ostream &operator<<(std::ostream &, const SumLikeOut &);

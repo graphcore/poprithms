@@ -286,6 +286,7 @@ set(memory_unwind_sources
   ${memory_src_dir}/unwind/op.cpp
   ${memory_src_dir}/unwind/solution.cpp
   ${memory_src_dir}/unwind/valuedtensorid.cpp
+  ${memory_src_dir}/unwind/sumlike.cpp
 )
 
 
@@ -323,6 +324,8 @@ add_library(poprithms-memory-inplace SHARED
 add_library(poprithms-memory-unwind-objlib OBJECT ${memory_unwind_sources})
 add_library(poprithms-memory-unwind SHARED
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
+  $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
   $<TARGET_OBJECTS:poprithms-memory-unwind-objlib>
   $<TARGET_OBJECTS:poprithms-memory-chain-objlib>

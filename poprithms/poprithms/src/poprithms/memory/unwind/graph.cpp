@@ -155,22 +155,33 @@ Graph::DynamicUpdateLikeOut Graph::dynamicUpdateLike(const TensorId &toUpdate,
   return {updated, targetToSlice, targetToSliceable};
 }
 
-SumLikeOut
-Graph::sumLike(const TensorIds &ids, InIndex unwindIndex, double val) {
+SumLikeOut Graph::sumLike(const TensorIds &ids,
+                          const std::vector<InIndex> &uwIs,
+                          const SumAttractions &attractions) {
 
-  if (ids.size() <= unwindIndex.get()) {
-    std::ostringstream oss;
-    oss << "Graph::sumLike(ids = " << ids << ", unwindIndex = " << unwindIndex
-        << ") is invalid. "
-        << "unwindIndex should be less than " << ids.size()
-        << ", the number of inputs. ";
-    throw error(oss.str());
+  /**
+   * Ops which are not unwindable through any indices are barriers.
+   * */
+  if (uwIs.empty()) {
+    const TensorId outId{
+        createOp<Barrier>(ids, {Shape::numpyVariadic(shapes(ids))}), 0};
+    return {outId, SumLikeMappings()};
   }
 
-  const TensorId outId{createOp<SumLike>(ids,
-                                         {Shape::numpyVariadic(shapes(ids))},
-                                         unwindIndex),
-                       0};
+  for (auto unwindIndex : uwIs) {
+    if (ids.size() <= unwindIndex.get()) {
+      std::ostringstream oss;
+      oss << "Graph::sumLike(ids = " << ids
+          << ", an unwindIndex = " << unwindIndex << ") is invalid. "
+          << "The unwind indices should be less than " << ids.size()
+          << ", the number of inputs. ";
+      throw error(oss.str());
+    }
+  }
+
+  const Shape outShape = Shape::numpyVariadic(shapes(ids));
+
+  const TensorId outId{createOp<SumLike>(ids, {outShape}, uwIs), 0};
 
   SumLikeMappings mappings;
 
@@ -180,35 +191,40 @@ Graph::sumLike(const TensorIds &ids, InIndex unwindIndex, double val) {
 
       const auto idA = ids[iA];
       const auto idB = ids[iB];
-      const auto shA = shape(idA);
-      const auto shB = shape(idB);
+      if (idA != idB) {
+        const auto shA = shape(idA);
+        const auto shB = shape(idB);
 
-      const auto insertUniDir = [this, val, &mappings, &iA, &iB](
-                                    const TensorId &from,
-                                    const TensorId &to) {
-        const TensorId layoutSrc = sumLikeReduce(from, shape(to));
-        if (!getName(from.opId()).empty()) {
-          setName(layoutSrc.opId(),
-                  "sumLike-reduce(" + getName(from.opId()) + "(" +
-                      std::to_string(iA) + "->" + std::to_string(iB) + "))");
+        const auto insertUniDir =
+            [&attractions, this, &mappings, &iA, &iB, &ids](
+                InIndex fromIndex_, InIndex toIndex_) {
+              auto from                = ids[fromIndex_.get()];
+              auto to                  = ids[toIndex_.get()];
+              const TensorId layoutSrc = sumLikeReduce(from, shape(to));
+              if (!getName(from.opId()).empty()) {
+                setName(layoutSrc.opId(),
+                        "sumLike-reduce(" + getName(from.opId()) +
+                            "(InIndex:" + std::to_string(fromIndex_.get()) +
+                            "->" + std::to_string(toIndex_.get()) + "))");
+              }
+              insertValuedPair(layoutSrc, to, attractions.get(iA, iB));
+              mappings.push_back({from, layoutSrc.opId(), to});
+            };
+
+        // insert valuedPair if shapes same.
+        if (shA == shB) {
+          insertValuedPair(idA, idB, attractions.get(iA, iB));
         }
-        insertValuedPair(layoutSrc, to, val);
-        mappings.push_back({from, layoutSrc.opId(), to});
-      };
 
-      // insert valuedPair if shapes same.
-      if (shA == shB) {
-        insertValuedPair(idA, idB, val);
-      }
+        // else if A's shape dominates B's shape:
+        else if (shA.numpyBinary(shB) == shA) {
+          insertUniDir(iA, iB);
+        }
 
-      // else if A's shape dominates B's shape:
-      else if (shA.numpyBinary(shB) == shA) {
-        insertUniDir(idA, idB);
-      }
-
-      // else if B's shape dominates A's shape:
-      else if (shB.numpyBinary(shA) == shB) {
-        insertUniDir(idB, idA);
+        // else if B's shape dominates A's shape:
+        else if (shB.numpyBinary(shA) == shB) {
+          insertUniDir(iB, iA);
+        }
       }
     }
   }
@@ -231,6 +247,10 @@ TensorId Graph::identity(const TensorId &id) {
 }
 TensorId Graph::reshape(const TensorId &id, const Shape &outShape) {
   return {createOp<Reshape>({id}, {outShape}), 0};
+}
+
+TensorId Graph::expand(const TensorId &id, const Shape &outShape) {
+  return {createOp<Expand>({id}, {outShape}), 0};
 }
 
 bool Graph::isUnwindable(OpId opId,
@@ -465,10 +485,6 @@ Path Graph::getPath(const TensorId &src,
   Chain chain(shape(src));
   extend(chain, links);
   return Path(src, chain, dst);
-}
-
-TensorId Graph::inTensorId(InIndex inIndex, OpId opId) const {
-  return op(opId.get()).inTensorId(inIndex);
 }
 
 TensorId Graph::squeeze(const TensorId &id) {

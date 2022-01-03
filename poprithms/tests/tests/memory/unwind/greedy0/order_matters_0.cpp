@@ -19,8 +19,8 @@ void test0() {
                 |                      |
                 |                      |
  Source (6)     |                      |
-     >>>>> DimShuffle (1)          Reverse (4) <<<<<
-                |                      |          Source (7)
+   >->->-> DimShuffle (1)          Reverse (4) <-<-<-<
+                |                      |           Source (7)
                 |                      |
                 |                      |
              MaxPool (2) ----------- Add (5) ---->

@@ -39,6 +39,7 @@ void matmul0() {
     throw poprithms::test::error("Expected layout of rhs to be rhsSource");
   }
 }
+
 } // namespace
 
 int main() {

@@ -132,6 +132,25 @@ bool Reverse::unwindTypeSpecificEqualTo(const Op &rhs) const {
 }
 
 // --------- //
+//  Expand   //
+// --------- //
+
+void Expand::bwd(Chain &c) const {
+  // take the lowest slice of the input. This could be any slice, could
+  // consider making an option to control this.
+  std::vector<int64_t> lowerBound(outShape(0).rank_u64(), 0);
+  const auto upperBound = inShape(0).prependOnes(outRank(0) - inRank(0));
+  c.slice(lowerBound, upperBound.get());
+  c.reshape(inShape(0));
+}
+
+void Expand::fwd(Chain &c) const { c.expand(outShape(0)); }
+
+Expand::Expand(const State &st) : ViewChange1to1(st) {
+  st.baseState.outShapes[0].assertNumpyDominates(st.baseState.inShape(0));
+}
+
+// --------- //
 //  Reshape  //
 // --------- //
 void Reshape::bwd(Chain &c) const { c.reshape(inShape(0)); }
@@ -175,19 +194,24 @@ void ViewChange1to1::extendBwd(Chain &c, InIndex i, OutIndex o) const {
   bwd(c);
 }
 
+ViewChange1to1::ViewChange1to1(const Op::State &st) : NonInput(st) {
+  if (st.baseState.inIds.size() != 1) {
+    throw error("Invalid ViewChange1to1, expect exaclty 1 input, not " +
+                std::to_string(st.baseState.inIds.size()));
+  }
+
+  if (st.baseState.outShapes.size() != 1) {
+    throw error("Invalid ViewChange1to1, expect exaclty 1 output, not " +
+                std::to_string(st.baseState.outShapes.size()));
+  }
+}
+
 /////////////
 // SumLike //
 /////////////
 
-SumLike::SumLike(const State &st, InIndex unwindIndex)
-    : NonInput(st), unwindIndex_(unwindIndex) {
-  if (st.baseState.inIds.size() <= unwindIndex.get()) {
-    std::ostringstream oss;
-    oss << "Invalid number of inputs to SumLike constructor. "
-        << "Number of inputs in State = " << st.baseState.inIds.size()
-        << ", while unwindIndex = " << unwindIndex << ". ";
-    throw error(oss.str());
-  }
+SumLike::SumLike(const State &st, const std::vector<InIndex> &unwindIndices)
+    : NonInput(st), uwis(unwindIndices) {
 
   if (st.baseState.outShapes.size() != 1) {
     std::ostringstream oss;
@@ -195,41 +219,52 @@ SumLike::SumLike(const State &st, InIndex unwindIndex)
         << st.baseState.outShapes.size() << '.';
     throw error(oss.str());
   }
-  if (st.baseState.inShape(unwindIndex.get()) != st.baseState.outShapes[0]) {
-    std::ostringstream oss;
-    oss << "Invalid Shape of input at unwindIndex (" << unwindIndex
-        << ") of SumLike Op, " << st.baseState.inShape(unwindIndex.get())
-        << ". It must be the same as the output Shape, "
-        << st.baseState.outShapes[0] << ". "
-        << "This design decision is taken for this unwinding project, "
-        << "where we assume the output inherits its layout "
-        << "from a single input. ";
-    throw error(oss.str());
+
+  for (auto unwindIndex : unwindIndices) {
+    if (st.baseState.inIds.size() <= unwindIndex.get()) {
+      std::ostringstream oss;
+      oss << "Insufficient number of inputs to SumLike constructor, "
+          << "or invalid unwind index. "
+          << "Number of inputs in State is " << st.baseState.inIds.size()
+          << ", while there is an unwind index of " << unwindIndex << ". ";
+      throw error(oss.str());
+    }
+
+    if (st.baseState.inShape(unwindIndex.get()) !=
+        st.baseState.outShapes[0]) {
+      std::ostringstream oss;
+      oss << "Invalid Shape of input at the unwind index (" << unwindIndex
+          << ") of SumLike Op, " << st.baseState.inShape(unwindIndex.get())
+          << ". It must be the same as the output Shape, "
+          << st.baseState.outShapes[0] << ". ";
+      throw error(oss.str());
+    }
   }
 }
 
 void SumLike::extendFwd(Chain &, InIndex i, OutIndex o) const {
   Op::verify(i, o, "extendFwd");
-  if (i != unwindIndex()) {
-    throw error("Can only extendFwd at InIndex " + i +
+  if (!isUnwindIndex(i)) {
+    throw error("Cannot extendFwd at non-unwindable InIndex " + i +
                 " for this SumLike Op");
   }
-  // identity : no extension to Chain required.
 }
 
 bool SumLike::unwindTypeSpecificEqualTo(const Op &rhs) const {
   const auto &rhs_ = static_cast<const SumLike &>(rhs);
-  return unwindIndex() == rhs_.unwindIndex();
+  return unwindIndices() == rhs_.unwindIndices();
 }
 
 std::string SumLike::typeString() const {
-  return "SumLike(unwindIndex=" + unwindIndex() + ')';
+  std::ostringstream oss;
+  oss << "SumLike(unwindIndices=" << unwindIndices() << ')';
+  return oss.str();
 }
 
 void SumLike::extendBwd(Chain &, InIndex i, OutIndex o) const {
   Op::verify(i, o, "extendBwd");
-  if (i != unwindIndex()) {
-    throw error("Can only extendBwd at InIndex " + i +
+  if (!isUnwindIndex(i)) {
+    throw error("Cannot extendBwd at non-unwindable InIndex " + i +
                 " for this SumLike Op");
   }
   // identity : no extension to Chain required.
