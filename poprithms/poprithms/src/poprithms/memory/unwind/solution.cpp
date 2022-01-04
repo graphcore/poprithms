@@ -139,10 +139,10 @@ void Solution::setPathsBackToSinks() {
 double Solution::getScore() const {
 
   double score{0.0};
-  double maxScore{0.0};
+  // double maxScore{0.0};
   const auto allAttractors = graph().valuedPairs();
   for (const auto &att : allAttractors) {
-    maxScore += att.valPerElm() * (graph().nelms(att.id0()));
+    // maxScore += att.valPerElm() * (graph().nelms(att.id0()));
     const auto &paths0 = inwardsPaths(att.id0());
     const auto &paths1 = inwardsPaths(att.id1());
     for (const auto &p0 : paths0) {

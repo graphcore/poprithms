@@ -1507,8 +1507,6 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
   bool continueShifting =
       (rt.maxSeconds() <= 0 || rt.maxRotations() <= 0) ? false : true;
 
-  int nChangesAtCurrentShift{0};
-
   // at a given shift, there may be multiple rounds
   int nChangesInCurrentRound{0};
   AllocWeight deltaWeightCurrentRound{0};
@@ -1608,7 +1606,6 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
       }
     }
 
-    nChangesAtCurrentShift += nChangesInCurrentRound;
     nChangesInTotal += nChangesInCurrentRound;
     noChangeSinceStart = noChangeSinceStart && nChangesInCurrentRound == 0;
 
@@ -1652,7 +1649,6 @@ void ScheduledGraph::greedyRotate(RotationAlgo algo,
 
     if (oldNToShift != nToShift) {
       updateCanCan(oldNToShift, nToShift);
-      nChangesAtCurrentShift  = 0;
       auto finishCurrentShift = std::chrono::high_resolution_clock::now();
       startCurrentShift       = finishCurrentShift;
     }
