@@ -7,7 +7,7 @@ There are currently 7 types of Op, see [chain.hpp](../../../poprithms/include/po
 
 The initial motivation for Chain canonicalization was for [unwinding](../unwind/Unwinding.md).
 There, to verify that Tensors have the same target layout, Chains are compared for equivalence. 
-Two Chains  `c0` and `c1` are (truly) equivalent if applying them to a Tensor `t` with distinct elements results in the same output Tensor. That is, for all `t`, `c0(t) = `c1(t)`. 
+Two Chains  `c0` and `c1` are (truly) equivalent if applying them to a Tensor `t` with distinct elements results in the same output Tensor. That is, for all `t`, `c0(t) = c1(t)`. 
 This however is computationally expensive, requiring running full ML model size computations. 
 Instead, it is preferable to compare Chains directly. 
 That is, two Chains are considered equivalent if they are opwise identical: they have the same Op at every Chain position.
@@ -47,8 +47,9 @@ For example,  `Reshape(2,3,5,2) -> Reshape(6,10)` is simply `Reshape(6,10)`.
 The same is true for **Expands** and **Reduces**.
 
 Contiguous **SettSamples** can normally be merged. 
+Recall that a **SettSample** is a generalized slice operation. 
 If both SettSamples can be expressed as slices or subSamples, they can always be merged.
-There are cases hoqever of complex "unfactorizable" Regions which cannot be merged. 
+There are cases however of complex "unfactorizable" Regions which cannot be merged. 
 The same is true of **SettFillInto**. 
 For example, using 
 `Slice(Dim, Lower:Upper:Stride)` to denote the special case where a SettSample is a 
@@ -60,7 +61,7 @@ slice or subSample in 1 dimension,
 ### Op position swapping
 
 This pass does not directly reduce the number of Ops in a Chain. 
-It does however make contiguous Ops more likely to be of the same type, which makes to Op-merging pass above more likely to succeed. 
+It does however make contiguous Ops more likely to be of the same type, which makes the Op-merging pass above more likely to succeed. 
 
 The basic idea with this pass is to sort the Ops as far as possible. 
 At the moment in this project, the target ordering is lexicographic:
@@ -69,7 +70,7 @@ is arbitrary and may change.
 
 The ordering of Ops affects the Chain's behaviour. For example, 
 `DimShuffle(0 1) -> Reverse(1)` is not the same as `Reverse(1) -> DimShuffle(0 1)`. 
-To swap 2 contiguous Ops in a Chain without changing behaviour, Ops themselves need to 
+To swap 2 contiguous Ops in a Chain without changing behaviour of the Chain, Ops themselves need to 
 change slightly. In swapping the positions of the Ops in `Reverse(1) -> DimShuffle(0 1)` for example, the 
 axis of reversal must change, to become `DimShuffle(0 1) -> Reverse(0)`. 
 
@@ -82,7 +83,7 @@ Further examples:
 `DimShuffle(2 0 1) -> Reshape(5,7,6)` is the same as `Reshape(6,5,7) -> DimShuffle(1 2 0)`.
 
 
-When a swap contains a Reshape, special care needs to be taken, and is not always possible. 
+When a swap contains a Reshape, special care needs to be takenm and is only valid in certain cases. 
 Examples where it is *not* possible to perform a swap are
 
 1) `(3,2) -> Reshape(2,3) -> DimShuffle(0 1)` 
@@ -107,8 +108,11 @@ The contiguous Ops of the same type in this Chain can be merged, to get
 
 `DimShuffle(0 1 2) -> Reverse()` 
 
-and both of these Ops are no-Ops. So the Chain is null-Chain. 
+and both of these Ops are no-Ops. So the Chain is a null-Chain. 
 
 ## Canonicalization algorithm
 
 The passes above, along with some others, are iterated through until the Chain stops changing. 
+
+
+
