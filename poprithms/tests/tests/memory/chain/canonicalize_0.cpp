@@ -160,6 +160,30 @@ void testRedundantSampleFill0() {
   }
 }
 
+void testRedundantSampleFill1() {
+
+  using poprithms::memory::nest::Sett;
+
+  // [11]
+  Chain chain({2});
+
+  // [11000]
+  chain.settFillInto(Region({5}, {{{{2, 3, 0}}}}));
+
+  const auto chain0 = chain;
+  // These 2 links in the chain have no effect:
+  {
+    // 11..0 -> [011]
+    chain.settSample(Region({5}, {{{{3, 2, 4}}}}));
+    // [11000]
+    chain.settFillInto(Region({5}, {{{{3, 2, 4}}}}));
+  }
+
+  chain.confirmNotEqual(chain0);
+  chain.canonicalize();
+  chain.confirmEqual(chain0);
+}
+
 } // namespace
 
 int main() {
@@ -169,6 +193,6 @@ int main() {
   testBubbleDimShuffleReverse0();
   testBubbleSettSampleReverse0();
   testRedundantSampleFill0();
-
+  testRedundantSampleFill1();
   return 0;
 }
