@@ -1,7 +1,7 @@
 ## The Chain class and canonicalization
 
 A Chain with Ops `op0` and `op1` will be expressed here as `op0 -> op1`, or as `inShape -> op0 -> op1` if the input Shape needs to be specified. 
-There are currently 7 types of Op, see [chain.hpp](../../poprithms/include/poprithms/memory/chain/type.hpp) for details. 
+There are currently 7 types of Op, see [chain.hpp](../../../poprithms/include/poprithms/memory/chain/type.hpp) for details.
 
 ## Canonicalization of Chains ##
 
