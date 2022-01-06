@@ -285,6 +285,7 @@ set(memory_unwind_sources
   ${memory_src_dir}/unwind/ops.cpp
   ${memory_src_dir}/unwind/op.cpp
   ${memory_src_dir}/unwind/solution.cpp
+  ${memory_src_dir}/unwind/scheduledsolution.cpp
   ${memory_src_dir}/unwind/valuedtensorid.cpp
   ${memory_src_dir}/unwind/sumlike.cpp
 )
