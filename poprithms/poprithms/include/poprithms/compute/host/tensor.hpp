@@ -449,6 +449,9 @@ public:
    * \param relTol Relative tolerance.
    *
    * \param absTol Absolute tolerance.
+   *
+   * Either this Tensor must numpy-domintate \a rhs, or \a rhs must
+   * numpy-dominate this Tensor.
    * */
   bool allClose(const Tensor &rhs, double relTol, double absTol) const;
 

@@ -121,6 +121,8 @@ public:
   template <typename T> static Tensor go(const Shape &s) {
     return Tensor::tScalar(T(0)).expand(s);
   }
+
+  static std::string str() { return "Tensor::Zeros"; }
 };
 
 class Tensor::Ones {
@@ -128,6 +130,8 @@ public:
   template <typename T> static Tensor go(const Shape &s) {
     return Tensor::tScalar(T(1)).expand(s);
   }
+
+  static std::string str() { return "Tensor::Ones"; }
 };
 
 class Tensor::Caster {
@@ -135,6 +139,8 @@ public:
   template <typename T> static Tensor go(const Shape &s, const void *vp) {
     return Tensor::tCopyData<T>(s, reinterpret_cast<const T *>(vp));
   }
+
+  static std::string str() { return "Tensor::Caster"; }
 };
 
 template <>
@@ -173,6 +179,7 @@ public:
     auto od = dynamic_cast<OriginData<T> *>(bd);
     return static_cast<void *>(od->dataPtr() + rowMajorIndex);
   }
+  static std::string str() { return "UnwiseCaster"; }
 };
 
 void *Tensor::getPtrToOriginData(uint64_t rowMajorIndex) const {
@@ -267,6 +274,8 @@ public:
     const T v_ = static_cast<T>(v);
     return tScalar<T>(v_);
   }
+
+  static std::string str() { return "Tensor::ScalarCaster"; }
 };
 
 Tensor scalar(DType t, double v) { return Tensor::scalar(t, v); }
@@ -1137,7 +1146,7 @@ bool Tensor::allClose(const Tensor &b, double relTol, double absTol) const {
         << shape() << ", the Tensor being compared to has Shape " << b.shape()
         << ", and the difference between the 2 has Shape " << diffShape
         << ". "
-        << "This method requires the one of the Tensors to dominate the "
+        << "This method requires that one of the Tensors to dominate the "
            "other. ";
     throw error(oss.str());
   }

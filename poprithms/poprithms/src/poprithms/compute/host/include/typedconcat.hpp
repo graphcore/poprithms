@@ -70,6 +70,8 @@ public:
     return std::make_shared<ViewData<T>>(
         allOriginDatas, std::move(concatIndices_), std::move(concatOffsets_));
   }
+
+  static std::string str() { return "TypedConcat_"; }
 };
 
 // Non-aliasing concatenation.
@@ -104,6 +106,8 @@ public:
     return std::make_shared<AllocData<T>>(
         ViewChange<T>::concat(ptrs, inShapes, axis));
   }
+
+  static std::string str() { return "TypedConcat"; }
 };
 
 } // namespace host

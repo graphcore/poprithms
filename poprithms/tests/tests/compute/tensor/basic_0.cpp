@@ -151,6 +151,30 @@ void testl2norm() {
                2);
 }
 
+void testAllClose1() {
+
+  // a (b) does not dominate b (a).
+  auto a = Tensor::float64({1, 3}, {1.0, 1.09, 1.08});
+  auto b = Tensor::float64({3, 1}, {1.0, 0.91, 0.92});
+
+  bool caught{false};
+  try {
+    a.allClose(b, 0.1, 0.0);
+  } catch (poprithms::error::error &e) {
+    std::string w = e.what();
+    if (w.find("dominat") == std::string::npos) {
+      throw poprithms::test::error("Expected an error about one tensor not "
+                                   "dominating the other. Not + '" +
+                                   w + "'");
+    }
+    caught = true;
+  }
+  if (!caught) {
+    throw poprithms::test::error(
+        "Failed to catch error of incompatible tensor comparison");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -164,6 +188,7 @@ int main() {
   testSlice0();
   testAccumulate0();
   testl2norm();
+  testAllClose1();
 
   return 0;
 }
