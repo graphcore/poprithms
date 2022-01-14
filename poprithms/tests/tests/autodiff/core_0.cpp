@@ -119,15 +119,15 @@ void testMatmul0() {
   //
 
   TestGraphInfo testGraph = []() {
-    TestGraphInfo testGraph;
-    auto v0  = testGraph.insertNoFlow({}, "v0", Op::Type::Variable);
-    auto v1  = testGraph.insertNoFlow({}, "v1", Op::Type::Variable);
-    auto mm0 = testGraph.matmul(v0, v1, "mm0");
+    TestGraphInfo testGraph_;
+    auto v0  = testGraph_.insertNoFlow({}, "v0", Op::Type::Variable);
+    auto v1  = testGraph_.insertNoFlow({}, "v1", Op::Type::Variable);
+    auto mm0 = testGraph_.matmul(v0, v1, "mm0");
     const auto g =
         guide::Objective::outOfGraph({{mm0, 0}}, {v0, v1}, {v0, v1});
-    TestGraphMutator a(testGraph);
-    Autodiff(g, testGraph, a);
-    return testGraph;
+    TestGraphMutator a(testGraph_);
+    Autodiff(g, testGraph_, a);
+    return testGraph_;
   }();
 
   std::cout << testGraph << std::endl;

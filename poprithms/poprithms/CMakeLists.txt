@@ -126,8 +126,8 @@ set(schedule_connectedcomponents_sources
 )
 set(schedule_vanilla_source_dir ${schedule_src_dir}/vanilla)
 set(schedule_vanilla_sources
-  ${schedule_vanilla_source_dir}/vanilla.cpp
   ${schedule_vanilla_source_dir}/error.cpp
+  ${schedule_vanilla_source_dir}/vanilla.cpp
 )
 set(supercon_source_dir ${schedule_src_dir}/supercon)
 set(schedule_supercon_sources
@@ -232,6 +232,19 @@ add_library(poprithms-compute-host SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
+set (program_src_dir ${src_dir}/program)
+set (program_distributed_sources
+   ${program_src_dir}/distributed/codelocation.cpp
+   ${program_src_dir}/distributed/error.cpp
+   ${program_src_dir}/distributed/helper.cpp
+   ${program_src_dir}/distributed/program.cpp
+)
+
+add_library(poprithms-program-distributed-objlib OBJECT ${program_distributed_sources})
+add_library(poprithms-program-distributed SHARED
+  $<TARGET_OBJECTS:poprithms-program-distributed-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
 
 
 set(memory_src_dir ${src_dir}/memory)
@@ -347,6 +360,7 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-memory-chain-objlib>
   $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
   $<TARGET_OBJECTS:poprithms-memory-unwind-objlib>
+  $<TARGET_OBJECTS:poprithms-program-distributed-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -376,8 +390,10 @@ foreach(tgt IN ITEMS
   poprithms-memory-inplace
   poprithms-memory-unwind-objlib
   poprithms-memory-unwind
-  poprithms-util-objlib
+  poprithms-program-distributed-objlib
+  poprithms-program-distributed
   poprithms-util
+  poprithms-util-objlib
   poprithms)
 
   target_include_directories (${tgt} SYSTEM PRIVATE ${POPRITHMS_COMMON_INCLUDES})

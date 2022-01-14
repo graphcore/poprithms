@@ -38,6 +38,8 @@ add_subdirectory(memory)
 
 add_subdirectory(outline)
 
+add_subdirectory(program)
+
 add_subdirectory(util)
 
 add_subdirectory(verify_cxx_11_interface)

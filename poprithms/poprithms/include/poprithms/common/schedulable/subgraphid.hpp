@@ -21,9 +21,6 @@ class Graph;
  * */
 class SubGraphId {
 public:
-  /**
-   * Generation of new SubGraphIds is controlled by the Graph class.
-   * */
   SubGraphId() = delete;
 
   SubGraphId(const SubGraphId &) = default;
@@ -55,9 +52,16 @@ public:
   static SubGraphId unset() { return {std::numeric_limits<uint32_t>::max()}; }
   bool isUnset() const { return *this == unset(); }
 
+  /**
+   * Generation of new SubGraphIds is preferably controlled by the (friend)
+   * schedule::Graph class. However, it is possible to create a SubGraphId
+   * with this factory method, for external project interaction.
+   * */
+  static SubGraphId createSubGraphId(uint32_t v) { return SubGraphId(v); }
+
 private:
-  friend class Graph;
   SubGraphId(uint32_t v) : val(v) {}
+  friend class Graph;
   uint32_t val;
 };
 
