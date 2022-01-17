@@ -128,6 +128,7 @@ set(schedule_vanilla_source_dir ${schedule_src_dir}/vanilla)
 set(schedule_vanilla_sources
   ${schedule_vanilla_source_dir}/error.cpp
   ${schedule_vanilla_source_dir}/vanilla.cpp
+  ${schedule_vanilla_source_dir}/pathcount.cpp
 )
 set(supercon_source_dir ${schedule_src_dir}/supercon)
 set(schedule_supercon_sources
