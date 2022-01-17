@@ -1,4 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <iostream>
 #include <sstream>
 
 #include <poprithms/error/error.hpp>

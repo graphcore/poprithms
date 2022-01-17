@@ -28,7 +28,7 @@ void expandScoreTest0() {
   Chain expected({3, 4});
   expected.slice({0, 0}, {1, 4});
   expected.expand({3, 4});
-  toX1[0].chain().confirmEqual(expected);
+  toX1[0].chain().confirmEqual(expected.canonicalized());
 
   if (soln.getScore() != 0) {
     std::ostringstream oss;

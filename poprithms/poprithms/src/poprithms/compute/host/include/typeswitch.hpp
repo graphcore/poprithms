@@ -24,7 +24,7 @@ namespace host {
  * \see TypedConcat_ for example.
  * */
 template <typename F, class ReturnType, class... Args>
-ReturnType typeSwitch(ndarray::DType t, Args &&... args) {
+ReturnType typeSwitch(ndarray::DType t, Args &&...args) {
   switch (t) {
 
   // IEEE floating point numbers

@@ -619,6 +619,12 @@ public:
   std::vector<bool> numpyWhereToExpand(const Shape &to) const;
 
   /**
+   * Like #numpyWhereToExpand, but returns the indices which evaluate to true
+   * instead of boolean mask.
+   * */
+  std::vector<uint64_t> numpyIndicesToExpand(const Shape &to) const;
+
+  /**
    * The partial distances along axes if the Shape is iterated through in row
    * major order. Recall that row major order means iterating faster along
    * later axes.

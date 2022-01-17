@@ -1,8 +1,6 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <iostream>
-#include <sstream>
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
-#include <memory/chain/op.hpp>
+#include <sstream>
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
@@ -74,47 +72,10 @@ void rubixTwist() {
   // 345
   chain.dimShuffle({{1, 0}});
 
-  // Chain does nothing, it is identity!
-
   chain.canonicalize();
 
+  // Chain does nothing, it is identity when canonicalized!
   Chain({2, 3}).confirmEqual(chain);
-}
-
-void testBubbleDimShuffleReverse0() {
-
-  //  (2,3,5,7) ----> DimShuffle((1,2,3,0))
-  //                  Reverse((3))           ----> (3,5,7,2)
-
-  Chain c({2, 3, 5, 7});
-  c.dimShuffle({{1, 2, 3, 0}});
-  c.reverse(Dimensions({3}));
-  // There should be no change, as DimShuffle appears before Reverse
-  // lexicographically.
-  c.canonicalized().confirmEqual(c);
-
-  const Shape inShape0{3, 5, 2};
-  const Permutation p({1, 2, 0});
-  Op x0(Type::DimShuffle, inShape0.dimShuffle(p), p);
-  Op x1(Type::Reverse, {2, 3, 5}, Dimensions({0}));
-
-  auto swapped = Op::bubbleReverseBack(inShape0, x0, x1);
-  if (!swapped) {
-    throw poprithms::test::error("Failed to swap reverse and dimShuffle");
-  }
-  if (x0.type() != Type::Reverse) {
-    throw poprithms::test::error(
-        "x0 and x1 should have had their types swapped");
-  }
-  if (x0.attr().dimensions() != Dimensions({1})) {
-    std::ostringstream oss;
-    oss << "Before the swap, dimension 0 was reversed after the permutation"
-        << "(1 2 0)"
-        << ". dimension 0 after the permutation corresponds to dimension 1"
-        << " before the permutation. Therefore expected the Dimensions of "
-        << "the Reverse before the DimShuffle to be {1}.";
-    throw poprithms::test::error(oss.str());
-  }
 }
 
 void testBubbleSettSampleReverse0() {
@@ -184,15 +145,112 @@ void testRedundantSampleFill1() {
   chain.confirmEqual(chain0);
 }
 
+void testExpandDimshuffle0() {
+  Chain c({3});
+  c.reshape({1, 3});
+  c.expand({2, 3});
+  c.dimShuffle({{1, 0}});
+
+  Chain expected({3});
+  expected.reshape({1, 3});
+  expected.dimShuffle({{1, 0}});
+  expected.expand({3, 2});
+  c.canonicalized().confirmEqual(expected.canonicalized());
+}
+
+void testExpandReverse0() {
+
+  Chain c0({4, 1, 5, 1});
+  c0.reverse(Dimensions({0, 3, 2}));
+  c0.expand({4, 7, 5, 8});
+
+  Chain c1({4, 1, 5, 1});
+  c1.expand({4, 1, 5, 8});
+  c1.expand({4, 7, 5, 8});
+  c1.reverse(Dimensions({0, 2, 3}));
+
+  c0.canonicalized().confirmEqual(c1.canonicalized());
+}
+
+void testExpandSettSample0() {
+
+  {
+    Chain c0({5, 1, 7, 2});
+    c0.slice({0, 0, 0, 0}, {5, 1, 3, 2});
+    c0.expand({5, 8, 3, 2});
+
+    Chain c1({5, 1, 7, 2});
+    c1.expand({5, 8, 7, 2});
+    c1.slice({0, 0, 0, 0}, {5, 8, 3, 2});
+
+    c0.canonicalized().confirmEqual(
+        c1.canonicalized(),
+        "As the expansion dimension is 1 before the slice, the expansion and "
+        "slice are permutable");
+  }
+
+  {
+    Chain c0({4, 3});
+    c0.slice({0, 0}, {1, 3});
+    c0.expand({7, 3});
+
+    auto c1      = c0.canonicalized();
+    auto slices  = c1.where(Type::SettSample);
+    auto expands = c1.where(Type::Expand);
+    if (slices.size() != 1 || expands.size() != 1 || expands[0] < slices[0]) {
+      throw poprithms::test::error(
+          "Expected 1 slice, appearing after 1 expand. As the expansion "
+          "dimension (0) is not of size 1 before the slice, the expand and "
+          "slice cannot be permuted");
+    }
+  }
+}
+
+void testExpandReshape0() {
+  {
+
+    Chain c0({2, 3, 1, 4, 5, 1});
+    c0.reshape({3, 2, 1, 2, 10, 1});
+    c0.expand({3, 2, 99, 2, 10, 98});
+
+    Chain c1({2, 3, 1, 4, 5, 1});
+    c1.expand({2, 3, 99, 4, 5, 98});
+    c1.reshape({3, 2, 99, 2, 10, 98});
+
+    c0.canonicalized().confirmEqual(
+        c1.canonicalized(),
+        "The reshape is localized to be between the expansion dimensions, "
+        "expected the expand and reshape to be permutable");
+  }
+
+  {
+    Chain c0({10, 1, 5});
+    c0.reshape({5, 1, 10});
+    c0.expand({5, 2, 10});
+    auto c1       = c0.canonicalized();
+    auto reshapes = c1.where(Type::Reshape);
+    auto expands  = c1.where(Type::Expand);
+    if (reshapes.size() != 1 || expands.size() != 1 ||
+        expands[0] < reshapes[0]) {
+      throw poprithms::test::error(
+          "The expansion dimension does not localize the reshape. There is "
+          "flow across dimension 1.");
+    }
+  }
+}
+
 } // namespace
 
 int main() {
   testCanonicalize0();
   testMapToEmpty();
   rubixTwist();
-  testBubbleDimShuffleReverse0();
   testBubbleSettSampleReverse0();
   testRedundantSampleFill0();
   testRedundantSampleFill1();
+  testExpandDimshuffle0();
+  testExpandReverse0();
+  testExpandSettSample0();
+  testExpandReshape0();
   return 0;
 }

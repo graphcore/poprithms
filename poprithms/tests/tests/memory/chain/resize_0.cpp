@@ -1,5 +1,4 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <iostream>
 #include <sstream>
 
 #include <memory/inplace/ops.hpp>
@@ -54,9 +53,9 @@ void test0() {
   ch2.expand(unsqueezedShape.scale(Stride(10), Dimension(2)));
   ch2.reshape(inShape.scale(Stride(10), Dimension(1)));
 
-  // Confirm that canonicalizing the more complex approach arrives at the
-  // simpler approach:
-  ch2.confirmEqual(ch.canonicalized());
+  // Confirm that canonicalizing the more complex approach
+  // arrives at the simpler approach:
+  ch2.canonicalized().confirmEqual(ch.canonicalized());
 }
 
 void test1() {
@@ -89,7 +88,7 @@ void test2() {
   Chain expected({2, 3, 5});
   expected.reshape({2, 3, 1, 5});
   expected.expand({2, 3, 7, 5});
-  canon.confirmEqual(expected);
+  canon.confirmEqual(expected.canonicalized());
 }
 
 void test3() {

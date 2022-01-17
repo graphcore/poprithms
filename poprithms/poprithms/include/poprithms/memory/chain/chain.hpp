@@ -109,6 +109,11 @@ public:
   Chain mirror() const;
 
   /**
+   * The indices of ops in this Chain which are of type #t.
+   * */
+  std::vector<uint64_t> where(Type t) const;
+
+  /**
    * Template class requirements: `ViewChanger' and 'View' must both have
    * methods reshape, expand, reduce, settSample, settFillInto, reverse, and
    * dimShuffle. Two example uses cases are
@@ -194,7 +199,7 @@ public:
 
   /** Confirm that #rhs is equal to this Chain. If it is not, a descriptive
    * error is thrown. */
-  void confirmEqual(const Chain &) const;
+  void confirmEqual(const Chain &, const std::string &ctx = {}) const;
 
   /** Confirm that #rhs is not equal to this Chain. If it is, a descriptive
    * error is thrown. */
@@ -279,6 +284,12 @@ private:
   void append(const Op &op);
   template <typename X> void append(Type t, const Shape &o, const X &);
   void append(std::ostream &, uint64_t opIndex) const;
+
+  /**
+   * Verify that the op at index #i is valid (attributes and shapes all make
+   * sense).
+   * */
+  void verifyOp(uint64_t i) const;
 };
 
 using Chains = std::vector<Chain>;

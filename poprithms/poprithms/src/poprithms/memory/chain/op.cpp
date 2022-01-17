@@ -69,26 +69,16 @@ bool Op::bubbleDimShuffleBack(const Shape &inShape0, Op &op0, Op &op1) {
 
   switch (t0) {
 
+    // Using that Expands are guaranteed to be rank preserving:
   case Type::Expand: {
-    const auto p_ = p.get();
-    // This can be solved in the case where the new dimensions are all
-    // constrained to the start.
-    std::vector<uint64_t> pNew(
-        p_.cbegin() + outShape0.rank_u64() - inShape0.rank_u64(), p_.cend());
-
-    if (std::any_of(pNew.cbegin(), pNew.cend(), [&inShape0](auto v) {
-          return v >= inShape0.rank_u64();
-        })) {
-      return false;
-    }
-    op0 = {Type::DimShuffle,
-           inShape0.dimShuffle(Permutation(pNew)),
-           Permutation(pNew)};
-    op1 = {Type::Expand, outShape1, outShape1};
+    const auto interShape = inShape0.dimShuffle(p);
+    op0                   = {Type::DimShuffle, interShape, p};
+    op1                   = {Type::Expand, outShape1, outShape1};
     return true;
   }
-  case Type::Reduce:
+  case Type::Reduce: {
     return false;
+  }
 
   //
   // From
@@ -174,21 +164,149 @@ bool Op::bubbleExpandBack(const Shape &inShape0, Op &op0, Op &op1) {
   if (op1.type() != Type::Expand) {
     throw error("Calling bubbleExpand with op1 of incorrect type");
   }
+
+  const auto t0        = op0.type();
+  const auto outShape0 = op0.outShape();
+  const auto outShape1 = op1.outShape();
+  const auto oldExpand = op1;
   (void)inShape0;
-  const auto t0 = op0.type();
+
   switch (t0) {
   case Type::DimShuffle:
     return false;
   case Type::Reduce:
     return false;
-  case Type::Reshape:
-    return false;
-  case Type::Reverse:
-    return false;
-  case Type::SettSample:
-    return false;
-  case Type::SettFillInto:
-    return false;
+  case Type::Reshape: {
+    //
+    // Can we replace Reshape(w)->Expand(x)
+    //           with Expand(y)->Reshape(z) ?
+    //
+    // Example :    (4,5) -> reshape
+    //           -> (1,4,1,5) -> expand
+    //           -> (2,4,7,5).
+    //
+    // Cannot be permuted. We can never permute here if the reshape changes
+    // the rank.
+    //                 Reshape      Expand
+    //                 -------      ------
+    // Example : (4,3,1) -> (1,12,1) -> (1,12,12)   Can permute.
+    //
+    // Example : (4,3,1) -> (1,12,1) -> (13,12,11)  Can permute.
+    //
+    // Example : (2,5,7) -> (2,35,1) -> (2,35,6)    Cannot permute.
+    //
+    // Example : (4,1,2) -> (2,1,4) -> (2,7,4).     Cannot permute!
+    //
+    // Example : (4,3,2,1) -> (24,1) -> (24,7).     Cannot permute.
+    //
+    // Currently the implemetation rule is that you can permute the Expand
+    // backwards if:
+    //
+    //   1) No rank change.
+    //   2) Expansion dimensions are 1 before the reshape.
+    //   3) No flow between the dimensions partitioned by the 1's.
+    //
+
+    // 1)
+    if (inShape0.rank_u64() != outShape0.rank_u64()) {
+      return false;
+    }
+
+    // 2)
+    const auto expInds = outShape0.numpyIndicesToExpand(outShape1);
+    for (auto i : expInds) {
+      if (inShape0.dim(i) != 1) {
+        return false;
+      }
+    }
+
+    // (2,3,1,1,5,7,1,8) -> (3,1,2,1,7,5,1,8) -> (3,1,2,10,7,5,10,8)
+    //        =     -              =     -              ==     --
+    //
+    //        ===== 35             ===== 35
+    //              --- 8                --- 8
+    // 3)
+    //
+    // We will check the products between all pairs in edges. We use the fact
+    // that reshape preservese number of elements to skip the check of the
+    // range [0, expInds[0]).
+    //
+    auto edges = expInds;
+    edges.push_back(inShape0.rank_i64());
+
+    for (uint64_t e = 0; e < edges.size() - 1; ++e) {
+      if (inShape0.dimProduct(edges[e], edges[e + 1]) !=
+          outShape0.dimProduct(edges[e], edges[e + 1])) {
+        return false;
+      }
+    }
+
+    // At this point, we've established that the permutation is valid.
+    auto vInterShape = inShape0.get();
+    for (auto ei : expInds) {
+      vInterShape[ei] = outShape1.dim(ei);
+    }
+    Shape interShape(std::move(vInterShape));
+    op0 = {Type::Expand, interShape, interShape};
+    op1 = {Type::Reshape, outShape1, outShape1};
+    return true;
+  }
+
+  case Type::Reverse: {
+    op1 = {Type::Reverse, outShape1, op0.attr().dimensions()};
+    op0 = oldExpand;
+    return true;
+  }
+
+  case Type::SettSample: {
+    //         inShape0                 outShape0         outShape1
+    // example: (5,6,7) -> settSample -> (5,1,7) -> expand (5,3,7) No.
+    // example: (5,1,7) -> settSample -> (5,1,2) -> expand (5,8,2) Yes.
+
+    // If all the expansion indices have size 1 before the SettSample, then
+    // the permutation is valid.
+
+    auto expInds   = outShape0.numpyIndicesToExpand(outShape1);
+    auto bubblable = std::all_of(
+        expInds.cbegin(), expInds.cend(), [&inShape0](uint64_t i) {
+          return inShape0.dim(i) == 1ll;
+        });
+
+    if (bubblable) {
+      auto vExpandShape = inShape0.get();
+      for (auto expInd : expInds) {
+        vExpandShape[expInd] = outShape1.dim(expInd);
+      }
+
+      Shape expandShape(vExpandShape);
+      Region r(expandShape, op0.attr().region().setts());
+      op0 = {Type::Expand, expandShape, expandShape};
+      op1 = {Type::SettSample, outShape1, r};
+    }
+
+    return bubblable;
+  }
+
+  case Type::SettFillInto: {
+    // The permutation from SettFillInto(a) -> Expand(b) to
+    //                      Expand(c) -> SettFillInto(d) is always valid.
+    //
+    // Example: (7,1) -> SettFillInto -> (10,1) -> Expand (10, 4) yes.
+    //          (1,1) -> SettFillInto -> (1,2) -> Expand (100, 2) yes.
+
+    const auto expInds = outShape0.numpyIndicesToExpand(outShape1);
+    auto vExpandShape  = inShape0.get();
+    for (auto expInd : expInds) {
+      vExpandShape[expInd] = outShape1.dim(expInd);
+    }
+    Shape expandShape(vExpandShape);
+    Region r(outShape1, op0.attr().region().setts());
+    op0 = {Type::Expand, expandShape, expandShape};
+    op1 = {Type::SettFillInto, outShape1, r};
+
+    return true;
+  }
+
   default:
     throw error("Unhandled case in bubbleExpandBack");
   }
@@ -291,7 +409,7 @@ bool Op::bubbleReverseBack(const Shape &inShape0, Op &op0, Op &op1) {
   }
 
   default:
-    throw error("Unhandled case in bubbleExpandBack");
+    throw error("Unhandled case in bubbleReverseBack");
   }
 }
 

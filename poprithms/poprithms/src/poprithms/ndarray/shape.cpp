@@ -949,6 +949,18 @@ void Shape::assertNumpyDominates(const Shape &b) const {
   }
 }
 
+std::vector<uint64_t>
+Shape::numpyIndicesToExpand(const Shape &targetShape) const {
+  auto wh = numpyWhereToExpand(targetShape);
+  std::vector<uint64_t> inds;
+  for (uint64_t i = 0; i < wh.size(); ++i) {
+    if (wh[i]) {
+      inds.push_back(i);
+    }
+  }
+  return inds;
+}
+
 std::vector<bool> Shape::numpyWhereToExpand(const Shape &targetShape) const {
 
   if (rank_u64() > targetShape.rank_u64()) {

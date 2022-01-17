@@ -41,7 +41,10 @@ template <typename X> void Chain::append(Type t, const Shape &o, const X &a) {
   ops_.uptr->ops.push_back({t, o, a});
 }
 
-void Chain::append(const Op &op) { ops_.uptr->ops.push_back(op); }
+void Chain::append(const Op &op) {
+  ops_.uptr->ops.push_back(op);
+  verifyOp(nOps() - 1);
+}
 
 Chain Chain::mirror() const {
   Chain rev(outShape());
@@ -63,6 +66,7 @@ Chain Chain::mirror() const {
     }
     case Type::Reduce: {
       rev.expand(fwdInShape);
+
       break;
     }
     case Type::SettSample: {
@@ -87,28 +91,104 @@ Chain Chain::mirror() const {
   return rev;
 }
 
-void Chain::reshape(const Shape &s) {
-  outShape().assertSameNumberOfElements(s);
+void Chain::verifyOp(uint64_t i) const {
+
+  const auto &op_ = op(i);
+
+  switch (op_.type()) {
+  case Type::Reverse: {
+    for (auto d : op_.attr().dimensions().get()) {
+      if (d > inShape(i).rank_u64()) {
+        throw error("Invalid reverse dimension " + std::to_string(d) +
+                    " for reverse with input shape " + inShape(i).str());
+      }
+    }
+    break;
+  }
+  case Type::Reshape: {
+    outShape(i).assertSameNumberOfElements(inShape(i));
+    break;
+  }
+  case Type::SettFillInto: {
+    if (inShape(i) != region(i).nelms()) {
+      std::ostringstream oss;
+      oss << "Chain::settFillInto: Region r has nelms="
+          << Shape(region(i).nelms()) << ". This should match inShape, "
+          << inShape(i) << ". This for Chain\n"
+          << *this;
+      throw error(oss.str());
+    }
+
+    if (outShape(i) != region(i).shape()) {
+      std::ostringstream oss;
+      oss << "Chain::settFillInto: outShape is " << outShape(i)
+          << " but region shape is " << region(i).shape()
+          << ". They should be the same. ";
+      throw error(oss.str());
+    }
+    break;
+  }
+  case Type::SettSample: {
+    if (outShape(i) != region(i).nelms()) {
+      std::ostringstream oss;
+      oss << "Chain::settSample: Region's nelms, " << Shape(region(i).nelms())
+          << " is not the same as outShape, " << outShape(i);
+      throw error(oss.str());
+    }
+    if (inShape(i) != region(i).shape()) {
+      std::ostringstream oss;
+      oss << "Chain::settSample: inShape is " << inShape(i)
+          << " but region shape is " << region(i).shape()
+          << ". They should be the same. ";
+      throw error(oss.str());
+    }
+    break;
+  }
+  case Type::DimShuffle: {
+    break;
+  }
+  case Type::Expand: {
+    inShape(i).assertCanExpandTo(outShape(i));
+    if (inShape(i).rank_u64() != outShape(i).rank_u64()) {
+      throw error("Expand Ops in the Chain class must be rank preserving");
+    }
+    break;
+  }
+  case Type::Reduce: {
+    inShape(i).assertCanReduceTo(outShape(i));
+    if (inShape(i).rank_u64() != outShape(i).rank_u64()) {
+      throw error("Reduce Ops in the Chain class must be rank preserving");
+    }
+    break;
+  }
+  }
+}
+
+void Chain::reshape(const Shape &s) { append(Type::Reshape, s, s); }
+
+void Chain::reduce(const Shape &s) {
+
+  // do the reduction in 2 parts.
+  // 1) rank-preserving reduction
+  // 2) reshape
+  const auto surplus = outShape().rank_u64() - s.rank_u64();
+  const auto iShape  = s.prependOnes(surplus);
+  append(Type::Reduce, iShape, iShape);
   append(Type::Reshape, s, s);
 }
 
-void Chain::reduce(const Shape &s) {
-  outShape().assertCanReduceTo(s);
-  append(Type::Reduce, s, s);
-}
-
 void Chain::expand(const Shape &s) {
-  outShape().assertCanExpandTo(s);
+
+  // do the expansion in 2 parts.
+  // 1) reshape
+  // 2) rank-preserving expand.
+  const auto surplus = s.rank_u64() - outShape().rank_u64();
+  const auto iShape  = outShape().prependOnes(surplus);
+  append(Type::Reshape, iShape, iShape);
   append(Type::Expand, s, s);
 }
 
 void Chain::settSample(const Region &r) {
-  if (outShape() != r.shape()) {
-    std::ostringstream oss;
-    oss << "Chain::settSample: Region's Shape, " << r.shape()
-        << " is not the same as outShape(), " << outShape();
-    throw error(oss.str());
-  }
   append(Type::SettSample, {r.nelms()}, r);
 }
 
@@ -117,14 +197,6 @@ void Chain::settSample(const std::vector<nest::Sett> &setts) {
 }
 
 void Chain::settFillInto(const Region &r) {
-  if (outShape() != r.nelms()) {
-    std::ostringstream oss;
-    oss << "Chain::settFillInto: Region r has nelms=" << Shape(r.nelms())
-        << ". This should match outShape, " << outShape()
-        << ". This for Chain\n"
-        << *this;
-    throw error(oss.str());
-  }
   append(Type::SettFillInto, r.shape(), r);
 }
 
@@ -182,8 +254,8 @@ bool Chain::tryMergeLastTwo() {
   }
 
   /**
-   * A SettSample followed by a SettFillInto of the same Region results in the
-   * initial region, if the filtering Region contains the full input.
+   * A SettSample followed by a SettFillInto of the same Region results in
+   * the initial region, if the filtering Region contains the full input.
    * */
   if (type(nOps() - 2) == Type::SettSample &&
       type(nOps() - 1) == Type::SettFillInto) {
@@ -247,8 +319,8 @@ bool Chain::tryMergeLastTwo() {
     case Type::SettSample: {
       auto merged = region(nOps() - 1).settFillInto(region(nOps() - 2));
       if (merged.size() > 1) {
-        // It's not possible to merge these SettSamples, their Regions are not
-        // compatible for merging (they are "co-prime").
+        // It's not possible to merge these SettSamples, their Regions are
+        // not compatible for merging (they are "co-prime").
         break;
       }
       popBack();
@@ -304,8 +376,8 @@ bool Chain::isIdentity(uint64_t opIndex) const {
 
 void Chain::canonicalize() {
 
-  // Check if the full Region gets mapped to the empty Region, if it does, it
-  // can be represented as a simple mask.
+  // Check if the full Region gets mapped to the empty Region, if it does,
+  // it can be represented as a simple mask.
   if (apply(DisjointRegions::createFull(inShape())).empty()) {
     ops_.uptr->ops.clear();
     mask(Region::createEmpty(outShape()));
@@ -319,6 +391,7 @@ void Chain::canonicalize() {
   // sequences of passes: they all either reduce the number of Ops, or move
   // the Chain towards alphabetical order.
   //
+
   while (changed) {
     changed = false;
 
@@ -328,8 +401,8 @@ void Chain::canonicalize() {
 
     for (const auto &oldOp : oldOps) {
 
-      // Push the old Op into the new Chain. The passes which follow will try
-      // and remove / move it.
+      // Push the old Op into the new Chain. The passes which follow will
+      // try and remove / move it.
       append(oldOp);
 
       // remove identities.
@@ -350,10 +423,11 @@ void Chain::canonicalize() {
       }
 
       // try bubbling the Op backwards, towards the front of the Chain.
-      // we try and keep Ops in alphabetical order. This makes the pass which
-      // merges compatible Ops more likely to succeed, so that even though
-      // this pass does not reduce the number of Ops in this Chain, it makes
-      // it more likely for other Op-reducing passes to succeed.
+      // we try and keep Ops in alphabetical order. This makes the pass
+      // which merges compatible Ops more likely to succeed, so that even
+      // though this pass does not reduce the number of Ops in this Chain,
+      // it makes it more likely for other Op-reducing passes to succeed.
+
       if (nOps() > 1) {
         uint64_t current = nOps() - 1;
         bool bubbled{true};
@@ -364,6 +438,10 @@ void Chain::canonicalize() {
         }
       }
     }
+  }
+
+  for (uint64_t i = 0; i < nOps(); ++i) {
+    verifyOp(i);
   }
 }
 
@@ -385,6 +463,7 @@ bool Chain::tryBubbleBack(uint64_t i1) {
   const auto t1 = op1.type();
 
   // Only back if (op0, op1) are not lexicographically sorted.
+  // TODO(T53918): make this a chain attribute, which the user can set.
   if (static_cast<uint64_t>(t0) <= static_cast<uint64_t>(t1)) {
     return false;
   }
@@ -532,15 +611,28 @@ void Chain::confirmNotEqual(const Chain &rhs) const {
   }
 }
 
-void Chain::confirmEqual(const Chain &rhs) const {
+void Chain::confirmEqual(const Chain &rhs, const std::string &ctxt) const {
   if (*this != rhs) {
     std::ostringstream oss;
     oss << "Failed in confirmEqual. "
         << "This Chain is \n"
         << *this << ", rhs Chain is \n"
         << rhs << '.';
+    if (!ctxt.empty()) {
+      oss << "\nContext: " << ctxt;
+    }
     throw error(oss.str());
   }
+}
+
+std::vector<uint64_t> Chain::where(Type t) const {
+  std::vector<uint64_t> where_;
+  for (uint64_t i = 0; i < nOps(); ++i) {
+    if (type(i) == t) {
+      where_.push_back(i);
+    }
+  }
+  return where_;
 }
 
 const Op &Chain::op(uint64_t i) const { return ops_.uptr->ops[i]; }
