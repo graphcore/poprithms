@@ -9,10 +9,10 @@
 #include <tuple>
 #include <vector>
 
+#include <poprithms/common/multiout/fwdedgemap.hpp>
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
-#include <poprithms/common/schedulable/fwdedgemap.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 
@@ -22,6 +22,7 @@ namespace schedulable {
 
 class Op;
 
+using common::multiout::FwdEdgeMap;
 using common::multiout::OpId;
 using common::multiout::OpIds;
 using common::multiout::OptionalTensorId;

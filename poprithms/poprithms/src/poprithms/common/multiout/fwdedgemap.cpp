@@ -1,11 +1,11 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
-#include <poprithms/common/schedulable/fwdedgemap.hpp>
+#include <poprithms/common/multiout/fwdedgemap.hpp>
 #include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace common {
-namespace schedulable {
+namespace multiout {
 
 FwdEdgeMap::FwdEdgeMap(const OpIds &opIds) {
   fwdEdgesCompact_.resize(opIds.size());
@@ -46,6 +46,6 @@ OpIds FwdEdgeMap::unpacked(const std::vector<uint64_t> &s_u64) const {
   return f;
 }
 
-} // namespace schedulable
+} // namespace multiout
 } // namespace common
 } // namespace poprithms

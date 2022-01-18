@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_MEMORY_UNWIND_SCHEDULEDSOLUTION_HPP
 #define POPRITHMS_MEMORY_UNWIND_SCHEDULEDSOLUTION_HPP
 
+#include <poprithms/common/multiout/fwdedgemap.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
 
 namespace poprithms {
@@ -49,7 +50,7 @@ public:
  * */
 class ScheduledSolution : public Solution {
 
-  using FwdEdgeMap = poprithms::common::schedulable::FwdEdgeMap;
+  using FwdEdgeMap = poprithms::common::multiout::FwdEdgeMap;
 
 public:
   /**
@@ -94,6 +95,8 @@ public:
   const std::string &summary() const { return summary_; }
 
   const NodeIds &schedule() const { return schedule_; }
+
+  NodeId schedule(uint64_t i) const { return schedule_[i]; }
 
 private:
   std::string createSummary(const Translator &t) const;

@@ -4,12 +4,11 @@
 
 #include <map>
 
-#include <poprithms/common/schedulable/fwdedgemap.hpp>
+#include <poprithms/common/multiout/fwdedgemap.hpp>
 #include <poprithms/memory/chain/chain.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/path.hpp>
-#include <poprithms/memory/unwind/valuedtensorid.hpp>
 #include <poprithms/util/typedinteger.hpp>
 
 namespace poprithms {

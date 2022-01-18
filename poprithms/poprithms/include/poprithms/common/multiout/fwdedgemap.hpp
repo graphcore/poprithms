@@ -1,13 +1,14 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_COMMON_SCHEDULABLE_FWDEDGEMAP_HPP
-#define POPRITHMS_COMMON_SCHEDULABLE_FWDEDGEMAP_HPP
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
+#ifndef POPRITHMS_COMMON_MULTIOUT_FWDEDGEMAP_HPP
+#define POPRITHMS_COMMON_MULTIOUT_FWDEDGEMAP_HPP
 
 #include <unordered_map>
 
 #include <poprithms/common/multiout/opid.hpp>
+
 namespace poprithms {
 namespace common {
-namespace schedulable {
+namespace multiout {
 
 using common::multiout::OpId;
 using common::multiout::OpIds;
@@ -76,7 +77,7 @@ private:
 
 std::ostream &operator<<(std::ostream &, const FwdEdgeMap &);
 
-} // namespace schedulable
+} // namespace multiout
 } // namespace common
 } // namespace poprithms
 

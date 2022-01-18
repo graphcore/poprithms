@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <poprithms/common/multiout/consumptionid.hpp>
+#include <poprithms/common/multiout/fwdedgemap.hpp>
 #include <poprithms/common/multiout/op.hpp>
 #include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/optraversal.hpp>
@@ -75,6 +76,9 @@ public:
 
   /** All Consumers of a Tensor #id in this Graph. */
   ConsumptionIds consumptionIds(const TensorId &id) const;
+
+  /** DAG of all the (data) edges in this Graph. */
+  FwdEdgeMap getMultioutForwardEdgeMap_u64() const;
 
   /**
    * The number of ConsumptionIds that the Tensor #id has. This is not

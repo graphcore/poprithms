@@ -1,4 +1,5 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
+
 #include <algorithm>
 #include <iostream>
 #include <iterator>
@@ -20,13 +21,11 @@
 #include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/memory/unwind/path.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
+#include <poprithms/schedule/vanilla/pathcount.hpp>
 #include <poprithms/util/copybyclone_impl.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 #include <poprithms/util/unisort.hpp>
-
-// For now in this translation unit
-#include <poprithms/memory/unwind/solution.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -240,6 +239,17 @@ Solution::Solution(const Graph &g, const Paths &sourcesAndBsToSinks)
 
 void Solution::setPathsGreedy0() {
 
+  auto fwdEdgeMap = graph().getMultioutForwardEdgeMap_u64();
+
+  // The longest path, for each op, to a terminal op.
+  auto lengths = [&fwdEdgeMap]() {
+    using namespace poprithms::schedule::vanilla;
+    return PathCounter::count(fwdEdgeMap.fwdEdgesCompact(),
+                              CountType::Max,
+                              ErrorIfCycle::No,
+                              VerifyEdges::No);
+  }();
+
   resetAllPathInfo();
   setPathStackToSources();
 
@@ -247,7 +257,7 @@ void Solution::setPathsGreedy0() {
   // solution, see which values were not obtained and see if an adjustment
   // can make overall score increase.
 
-  std::priority_queue<ValuedPair> valueQueue;
+  std::priority_queue<ExtendedValuedPair> valueQueue;
 
   bool madeProgress{true};
 
@@ -257,19 +267,27 @@ void Solution::setPathsGreedy0() {
     if (!pathStack.empty()) {
       madeProgress        = true;
       const auto extended = processPathStack();
-      // ValuedPairs candidates;
 
       // For all the Tensors which had some part of their layouts determined
       // during processing the stack:
-      for (auto s : extended) {
+      for (auto source : extended) {
 
         // For all Tensors which have an attraction to the newly determined
         // Tensor:
-        for (auto d : graph().valuedPartners(s)) {
+        for (auto destination : graph().valuedPartners(source)) {
 
-          // Emplace a potential seed for unwinding: from the (s)ource to the
-          // (d)estination.
-          valueQueue.emplace(s, d.tensorId(), d.value());
+          // Emplace a potential pair for unwinding: from the #source to
+          // the #destination. The pair is weighted by its attraction
+          // value, and the distance from the destination to a terminal
+          // node is used as a tie-breaker (the logic behind this tie-breaker
+          // is that tensors appearing 'early' in the the computate graph
+          // should have their layouts set earlier).
+          ExtendedValuedPair p{
+              source,
+              destination.tensorId(),
+              destination.value(),
+              lengths[fwdEdgeMap.compactId(destination.tensorId().opId())]};
+          valueQueue.push(p);
         }
       }
     }

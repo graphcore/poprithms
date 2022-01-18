@@ -69,6 +69,10 @@ public:
     return static_cast<const MatMul &>(op(opId)).atts_;
   }
 
+  TensorId reduce(const TensorId &id, const Shape &s) {
+    return {createOp<Reduce>({id}, {s}), 0};
+  }
+
   TensorId sum(const TensorIds &ins,
                const std::vector<InIndex> &unwindIndices,
                const memory::unwind::SumAttractions &sats);

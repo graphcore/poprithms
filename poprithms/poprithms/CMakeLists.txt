@@ -60,6 +60,7 @@ set(common_multiout_sources
   ${src_dir}/common/multiout/tensorid.cpp
   ${src_dir}/common/multiout/removalevent.cpp
   ${src_dir}/common/multiout/optionaltensorid.cpp
+  ${src_dir}/common/multiout/fwdedgemap.cpp
 )
 add_library(poprithms-common-multiout-objlib OBJECT ${common_multiout_sources})
 add_library(poprithms-common-multiout SHARED
@@ -73,7 +74,6 @@ set(common_schedulable_sources
   ${src_dir}/common/schedulable/error.cpp
   ${src_dir}/common/schedulable/graph.cpp
   ${src_dir}/common/schedulable/subgraphid.cpp
-  ${src_dir}/common/schedulable/fwdedgemap.cpp
 )
 add_library(poprithms-common-schedulable-objlib OBJECT ${common_schedulable_sources})
 add_library(poprithms-common-schedulable SHARED

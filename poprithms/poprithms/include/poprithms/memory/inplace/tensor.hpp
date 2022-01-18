@@ -8,7 +8,7 @@ namespace poprithms {
 namespace memory {
 namespace inplace {
 
-// TODO(T32973) reuse the pattern of the this class for other projects with
+// TODO(T32973) reuse the pattern of this class for other projects with
 // Tensors and Graphs.
 
 class Tensor;

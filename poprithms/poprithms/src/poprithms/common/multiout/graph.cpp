@@ -20,6 +20,32 @@ namespace poprithms {
 namespace common {
 namespace multiout {
 
+FwdEdgeMap Graph::getMultioutForwardEdgeMap_u64() const {
+
+  auto outOps = [this](OpId opId) {
+    OpIds outs;
+    auto outTensors = outTensorIds(opId);
+    for (auto t : outTensorIds(opId)) {
+      for (auto c : consumptionIds(t)) {
+        outs.push_back(c.opId());
+      }
+    }
+    return outs;
+  };
+
+  FwdEdgeMap fwdEdgeMap(opIds());
+
+  for (auto id : opIds()) {
+    const auto outs = outOps(id);
+    fwdEdgeMap.reserve(id, outs.size());
+    for (auto out : outs) {
+      fwdEdgeMap.insertEdge(id, out);
+    }
+  }
+
+  return fwdEdgeMap;
+}
+
 void Graph::resetGraphOfOps() {
   for (auto &op_ : ops()) {
     if (op_.uptr) {

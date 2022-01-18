@@ -64,6 +64,17 @@ private:
   TensorIds grow(FullState &u) const final;
 };
 
+class Reduce : public Op {
+public:
+  Reduce(const State &st) : Op(st) {}
+  std::unique_ptr<MultioutOp> cloneMultioutOp() const final;
+  void fwd(FullState &fs) const final;
+  std::string typeString() const final { return "Reduce"; }
+
+private:
+  TensorIds grow(FullState &u) const final;
+};
+
 class Slice : public Op {
 public:
   Lower lower_;

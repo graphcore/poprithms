@@ -4,7 +4,7 @@
 
 #include <sstream>
 
-#include <poprithms/common/schedulable/fwdedgemap.hpp>
+#include <poprithms/common/multiout/fwdedgemap.hpp>
 #include <poprithms/memory/unwind/scheduledsolution.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 

@@ -175,6 +175,24 @@ void Expand::fwd(FullState &fs) const {
                    fs.mainLayout(inTensorId(0)).expand_(outShape(0)));
 }
 
+////////////
+// Reduce //
+////////////
+
+std::unique_ptr<MultioutOp> Reduce::cloneMultioutOp() const {
+  return std::make_unique<Reduce>(getSchedulableState());
+}
+
+TensorIds Reduce::grow(FullState &u) const {
+  auto o = u.uwGraph().barrier({u.toUnwind(inTensorId(0))}, {outShape(0)});
+  return TensorIds{{o, 0}};
+}
+
+void Reduce::fwd(FullState &fs) const {
+  fs.setMainLayout(outTensorId(0),
+                   fs.createMappedSrc(fs.toUnwind(outTensorId(0))));
+}
+
 std::string Expand::typeString() const { return "Expand"; }
 
 ///////////

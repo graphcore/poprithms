@@ -43,3 +43,9 @@ add_memory_unwind_test(memory_unwind_greedy_sum_like_0
 add_memory_unwind_test(memory_unwind_greedy_lower_0
                                             lower_0.cpp)
 
+add_memory_unwind_test(memory_unwind_greedy_lower_tiebreaker_0
+                                            lower_tiebreaker_0.cpp)
+
+add_memory_unwind_test(memory_unwind_greedy_length_tiebreaker_0
+                                            length_tiebreaker_0.cpp)
+
