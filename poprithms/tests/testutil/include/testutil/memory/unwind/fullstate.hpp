@@ -81,6 +81,8 @@ public:
    * */
   HTensor createEmpty() const { return HTensor::int32(-1); }
 
+  static Shape shape(const HTensor &t) { return t.shape(); }
+
   /**
    * 9) Create a mapped tensor for the source of the path #p. This method will
    * call into backend methods for creating specialized layouts, such as

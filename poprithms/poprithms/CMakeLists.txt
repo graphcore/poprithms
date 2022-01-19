@@ -296,6 +296,7 @@ set(memory_unwind_sources
   ${memory_src_dir}/unwind/graph.cpp
   ${memory_src_dir}/unwind/error.cpp
   ${memory_src_dir}/unwind/path.cpp
+  ${memory_src_dir}/unwind/lower.cpp
   ${memory_src_dir}/unwind/ops.cpp
   ${memory_src_dir}/unwind/op.cpp
   ${memory_src_dir}/unwind/solution.cpp

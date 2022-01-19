@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
+#include <iostream>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -45,6 +46,7 @@ void FullState::initialize(OpId opId) { tg_.op(opId).fwd(*this); }
 void FullState::lower() {
   ssp = std::make_unique<ScheduledSolution>(
       uwg_, Translator(*this, tg_), tg_.getForwardEdgeMap_u64());
+
   poprithms::memory::unwind::Lowerer<HTensor, FullState>::lower(*this);
 }
 
@@ -157,12 +159,27 @@ HTensor FullState::createMappedSrc(const TensorId &uwId) const {
 
 std::pair<bool, HTensor> FullState::finalLayout(const TensorId &uwId) const {
 
-  auto f0 = mainLayouts_.find(uwId);
-  if (f0 != mainLayouts_.cend()) {
-    return {true, f0->second};
+  // The tensor in the unwind graph has no corresponding tensor in the toy
+  // (ML) graph:
+  if (toToy_.find(uwId) == toToy_.cend()) {
+    return {false, createEmpty()};
   }
 
-  return {false, createEmpty()};
+  auto f0 = mainLayouts_.find(toToy(uwId));
+  // The tensor in the unwind graph does have a corresponding tensor in the
+  // toy (ML) graph, but the toy tensor has not been allocated a final layout
+  // yet:
+  if (f0 == mainLayouts_.cend()) {
+    return {false, createEmpty()};
+  }
+
+  if (f0->second.shape() != tg_.shape(toToy(uwId))) {
+    std::ostringstream oss;
+    oss << "Error in FullState::finalLayout(uwId = " << uwId
+        << "). There is a shape mismatch. ";
+    throw poprithms::test::error(oss.str());
+  }
+  return {true, f0->second};
 }
 
 } // namespace unwindtoy

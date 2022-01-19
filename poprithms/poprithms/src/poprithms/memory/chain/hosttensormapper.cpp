@@ -1,4 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+
 #include <memory/chain/error.hpp>
 #include <memory/chain/hosttensormapper.hpp>
 
@@ -37,7 +38,6 @@ compute::host::Tensor HostTensorMapper::reduce(const compute::host::Tensor &x,
 compute::host::Tensor
 HostTensorMapper::settSample(const compute::host::Tensor &x,
                              const Region &r) {
-
   return x.gather(r.getOns());
 }
 

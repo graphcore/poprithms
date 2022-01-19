@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
 #include <memory>
 
@@ -370,6 +370,48 @@ void test5() {
   }
 }
 
+void testSliceSliceMatmul() {
+  /**
+   *
+   * in0
+   *  |
+   * slice
+   *  |
+   * slice       in1
+   *  |           |
+   *  +-------+---+
+   *          |
+   *        matmul
+   *          |
+   *         out
+   *
+   * Assert that the slice (of the slice) of in0, which is the lhs input to
+   * the matmul is layed out correctly for the matmul.
+   *
+   * */
+  unwindtoy::Graph g;
+  auto in0 = g.input({10, 10});
+
+  // sliced to shape (8,8)
+  auto s0 = g.slice(in0, {1, 1}, {9, 9});
+
+  // sliced to shape (4,6)
+  auto s1 = g.slice(s0, {3, 1}, {7, 7});
+
+  auto in1 = g.input({6, 8});
+
+  // (4,6) x (6,8) -> (4,8)
+  auto out = g.matmul(s1, in1);
+  (void)out;
+
+  unwindtoy::FullState fs(g);
+  fs.lower();
+
+  fs.mainLayout(in0)
+      .slice({4, 2}, {8, 8})
+      .assertAllEquivalent(fs.createMappedSrc({"lhs", "MatMul"}, 0));
+}
+
 } // namespace
 
 int main() {
@@ -379,5 +421,6 @@ int main() {
   test3();
   test4();
   test5();
+  testSliceSliceMatmul();
   return 0;
 }

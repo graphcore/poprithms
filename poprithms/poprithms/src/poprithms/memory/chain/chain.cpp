@@ -1,4 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+
 #include <numeric>
 #include <sstream>
 #include <variant>
@@ -26,6 +27,13 @@ DisjointRegions Chain::apply(const DisjointRegions &rIn,
 }
 
 compute::host::Tensor Chain::apply(const compute::host::Tensor &t) const {
+
+  if (t.shape() != inShape()) {
+    std::ostringstream oss;
+    oss << "Cannot apply this Chain, whose entry shape is " << inShape()
+        << ", to a host::Tensor of Shape " << t.shape();
+    throw error(oss.str());
+  }
   return apply<HostTensorMapper, compute::host::Tensor>(t);
 }
 
@@ -318,6 +326,7 @@ bool Chain::tryMergeLastTwo() {
     // the preceding SettSample's Region.
     case Type::SettSample: {
       auto merged = region(nOps() - 1).settFillInto(region(nOps() - 2));
+
       if (merged.size() > 1) {
         // It's not possible to merge these SettSamples, their Regions are
         // not compatible for merging (they are "co-prime").

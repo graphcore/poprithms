@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_MEMORY_UNWIND_LOWER_HPP
 #define POPRITHMS_MEMORY_UNWIND_LOWER_HPP
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/memory/unwind/scheduledsolution.hpp>
 #include <poprithms/memory/unwind/solution.hpp>
 
@@ -20,6 +21,15 @@ namespace unwind {
  *         Helper are docmumented in the testutil class, FullState.
  *
  * */
+
+/**
+ * To help catch errors early in lowering, caused either by an invalid
+ * implementations of the Helper template class or otherwise, the lowering
+ * code is sprinkled with shape assertions.
+ * */
+void loweringShapeAssert(const Shape &,
+                         const Shape &,
+                         const std::string &ctxt);
 
 template <typename T, typename Helper> class Lowerer {
 
@@ -52,8 +62,14 @@ public:
       // If the node is a path, then unwind from the source to the
       // destination. This gives the destination of the path a layout/mapping.
       else {
-        const auto &p   = ss.pathToSink(n);
+        const auto &p = ss.pathToSink(n);
+
         const auto tSrc = getPathSrc(p);
+        loweringShapeAssert(
+            helper.shape(tSrc),
+            p.chain().inShape(),
+            "The shape of the input of the path's chain must match the "
+            "shape of the tensor at the start of the chain.");
         if (!helper.unwindSinkInitialized(p.dst())) {
           helper.initializeUnwindSink(p.dst());
         }
@@ -68,6 +84,7 @@ private:
   Lowerer(Helper &h) : helper(h) {}
 
   std::pair<bool, T> layout(const TensorId &uwId) {
+
     /**
      * Look in 2 places for a T. First, check if the #uwId corresponds to a
      * final tensor in the 'compute' graph with a known layout:
@@ -85,6 +102,11 @@ private:
   }
 
   void insertCacheSrc(const Path &p, const T &t) {
+    loweringShapeAssert(helper.shape(t),
+                        p.chain().inShape(),
+                        "Cannot make tensor of shape A into the cache for "
+                        "the source of the chain of path, if the chain has "
+                        "input shape B!=A. Failed to insert cache source.");
     cache_.insert({p.src(), t});
   }
 
@@ -134,6 +156,7 @@ private:
           T subBarrier = getPathSrc(p2);
           helper.unwindAndUpdate(p2, subBarrier, inProxy);
         }
+
         return inProxy;
       }
     };
@@ -155,6 +178,7 @@ private:
 
     auto out = helper.createMappedSrc(p, srcIns);
     insertCacheSrc(p, out);
+
     return out;
   }
 
