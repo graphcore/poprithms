@@ -1,4 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -2039,6 +2040,23 @@ Tensor Tensor::sign() const {
 
   const auto lt = operator<(zero).to(dtype());
   return gt - lt;
+}
+
+bool Tensor::allValuesTheSame() const {
+  // Case where there are no elements. Reverse the question to: Can you find 2
+  // elements which are different? No. Therefore return true.
+  if (nelms() == 0) {
+    return true;
+  }
+
+  // Create a tensor from the first element in the Tensor, and compare it to
+  // this Tensor.
+  return allEquivalent(scalarFromElement(0));
+}
+
+Tensor Tensor::scalarFromElement(uint64_t rowMajorIndex) const {
+  int64_t rmi = static_cast<int64_t>(rowMajorIndex);
+  return flatten_().slice({rmi}, {rmi + 1}).reshape({});
 }
 
 } // namespace host

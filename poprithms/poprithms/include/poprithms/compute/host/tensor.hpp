@@ -468,6 +468,12 @@ public:
     assertAllClose(rhs, 0., 0.);
   }
 
+  /**
+   * \return false if there are 2 elements in this Tensor which do not have
+   *         exactly the same value. Otherwise return true.
+   * */
+  bool allValuesTheSame() const;
+
   DType dtype() const { return dtype_; }
   const Shape &shape() const { return shape_; }
   uint64_t rank_u64() const { return shape().rank_u64(); }
@@ -576,6 +582,12 @@ public:
    * */
   Tensor squeeze() const { return reshape(shape().squeeze()); }
   Tensor squeeze_() const { return reshape_(shape().squeeze()); }
+
+  /**
+   * \return A scalar (rank-0) Tensor created from a single element of this
+   *         Tensor (no aliasing).
+   * */
+  Tensor scalarFromElement(uint64_t rowMajorIndex) const;
 
   /**
    * Reshape this Tensor by removing 1's in certain dimensions.
@@ -1262,7 +1274,7 @@ public:
   Tensor scalarOfSameType(double v) const { return scalar(dtype(), v); }
 
   /**
-   * Return the row-major contiguous data of this Tensor, as a char vector
+   * \return The row-major contiguous data of this Tensor, as a char vector
    *
    * \see The methods which return vectors of specific numerical types.
    * */

@@ -175,6 +175,38 @@ void testAllClose1() {
   }
 }
 
+void testScalarFromElement() {
+
+  auto a = Tensor::int16({3, 2}, {10, 11, 12, 13, 14, 15});
+  auto b = a.scalarFromElement(4);
+  if (b.dtype() != DType::Int16) {
+    throw poprithms::test::error("Tensor::scalarFromElement did not return a "
+                                 "tensor of the same type as the input");
+  }
+  if (b.shape() != Shape{}) {
+    throw poprithms::test::error(
+        "Tensor::scalarFromElement did not return a scalar");
+  }
+  if (b.getInt16(0) != 14) {
+    throw poprithms::test::error("Tensor::testScalarFromElement did not "
+                                 "return a scalar of the correct value");
+  }
+}
+
+void testAllValuesTheSame() {
+  auto a = Tensor::float32({3}, {1, 1.001, 1});
+  if (a.allValuesTheSame()) {
+    throw poprithms::test::error("1.001 != 1, not all elements of a are the "
+                                 "same: failure in 'allValuesTheSame'");
+  }
+
+  auto b = Tensor::int64({2, 2, 1, 2}, {3, 3, 3, 3, 3, 3, 3, 3});
+  if (!b.allValuesTheSame()) {
+    throw poprithms::test::error("All values of the tensor b have value '3': "
+                                 "failure in 'allValuesTheSame'");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -189,6 +221,8 @@ int main() {
   testAccumulate0();
   testl2norm();
   testAllClose1();
+  testScalarFromElement();
+  testAllValuesTheSame();
 
   return 0;
 }
