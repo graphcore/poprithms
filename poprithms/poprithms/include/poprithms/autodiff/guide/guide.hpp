@@ -64,6 +64,10 @@ public:
     return nonGradsWithGrads_;
   }
 
+  bool isNonGradWithGrad(const TensorId &x) const {
+    return nonGradsWithGrads_.count(x) != 0;
+  }
+
   /**
    * All ops which must be re-run, as they have at least one output tensor
    * which is not checkpointed and is needed, either directly or indirectly,
@@ -88,13 +92,6 @@ public:
 
   void append(std::ostream &) const;
 
-private:
-  /**
-   * All the traversals of ops from tensors for which a gradient is required,
-   * to tensors with a known gradients, where the backpropagation begins.
-   * */
-  const OpTraversals &traversals() const { return traversals_; }
-
   /**
    * The Tensors required to perform differentiation. As an example, suppose
    * there's a 'sin' op which is differentiated, with 'b = sin(a)'. to compute
@@ -106,6 +103,14 @@ private:
   const std::set<TensorId> &nonGradsForAutodiff() const {
     return nonGradsForAutodiff_;
   }
+
+private:
+  /**
+   * All the traversals of ops from tensors for which a gradient is required,
+   * to tensors with a known gradients, where the backpropagation begins.
+   * */
+  const OpTraversals &traversals() const { return traversals_; }
+
   static std::set<OpId> getOps(const OpTraversals &);
 
 private:

@@ -29,7 +29,8 @@ private:
   // insert a clone of id into c
   OpId clone(OpId id, const TensorIds &ins) final;
 
-  TensorId add(const TensorId &t0, const TensorId &t1) final;
+  TensorId sum(const TensorIds &) final;
+  // add(const TensorId &t0, const TensorId &t1) final;
 
   void setName(OpId id, const std::string &n) final { c.op(id).name = n; }
 

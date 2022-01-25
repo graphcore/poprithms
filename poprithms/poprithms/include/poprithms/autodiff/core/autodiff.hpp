@@ -61,20 +61,27 @@ private:
 
   // The steps for doing autodifferentiation.
   void setNonGrads();
-  void initGrads();
+  void initPartialGradsToBeSummed();
   void setGradsIn();
   void addGradsInToGrads();
   void backpropagate();
 
   Summary summary_;
 
-  // Maps from tensors in the non-gradient graph to tensors in the gradient
-  // graph.
   std::map<TensorId, TensorId> nonGrads;
+  std::map<TensorId, TensorIds> partialGradsToBeSummed;
+
+  // The final summations of the vectors in partialGradsToBeSummed:
   std::map<TensorId, TensorId> grads;
   std::map<TensorId, TensorId> gradsIn;
 
-  TensorId &getGradIdRef(const TensorId &);
+  // insert 'grad' into the vector of partial tensors of 'nonGrad' in
+  // partialGradsToBeSummed.
+  void registerPartialGrad(const TensorId &nonGrad, const TensorId &grad);
+
+  // insert a gradient into 'grads', which is the sum of partial gradients in
+  // 'partialGradsToBeSummed'.
+  void setGradFromPartials(const TensorId &nonGrad);
 
 public:
   // Methods for creating debug name strings. These are not used in any logic,

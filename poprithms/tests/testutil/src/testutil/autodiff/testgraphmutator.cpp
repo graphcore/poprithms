@@ -22,11 +22,19 @@ OpId TestGraphMutator::clone(OpId id, const TensorIds &ins) {
                      "clone of " + std::to_string(id.get()),
                      toClone.type));
 }
-TensorId TestGraphMutator::add(const TensorId &t0, const TensorId &t1) {
-  return {c.insert(Op(
-              {t0, t1}, 1, {}, {}, {{1, 0}, {0, 0}}, "Add", Op::Type::Add)),
+TensorId TestGraphMutator::sum(const TensorIds &tIds) {
+  if (tIds.empty()) {
+    throw poprithms::test::error("autodiff project guarantees that sum will "
+                                 "not be called with an empty vector");
+  }
 
-          0};
+  auto s = tIds[0];
+  for (uint64_t i = 1; i < tIds.size(); ++i) {
+    auto x = c.insert(
+        Op({s, tIds[i]}, 1, {}, {}, {{1, 0}, {0, 0}}, "Add", Op::Type::Add));
+    s = {x, 0};
+  }
+  return s;
 }
 
 OptionalTensorIds

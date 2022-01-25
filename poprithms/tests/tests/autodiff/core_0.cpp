@@ -101,6 +101,8 @@ public:
       throw poprithms::test::error(oss.str());
     }
   }
+
+  void assertNone(Op::Type t) { assertCount(t, 0); }
 };
 
 void testMatmul0() {
@@ -131,21 +133,16 @@ void testMatmul0() {
   }();
 
   std::cout << testGraph << std::endl;
-  //  Id Type       Ins                    nOut  name
-  //  -- ----       ---                    ----  ----
-  //  0  Unknown    ()                     1     v0
-  //  1  Unknown    ()                     1     v1
-  //  2  Matmul     ((op=0),(op=1))        1     mm0
-  //  3  Variable   ()                     1     checkpoint/(op=0)
-  //  4  Variable   ()                     1     checkpoint/(op=1)
-  //  5  Zero       ((op=0))               1     init-grad-of/(op=0)
-  //  6  Zero       ((op=1))               1     init-grad-of/(op=1)
-  //  7  Zero       ((op=2))               1     init-grad-of/(op=2)
-  //  8  Variable   ()                     1     grad-in-of/(op=2)
-  //  9  Add        ((op=7),(op=8))        1     Add
-  //  10 MatmulGrad ((op=9),(op=3),(op=4)) 2     grad-of-op-2-inputs-(0,1)
-  //  11 Add        ((op=5),(op=10))       1     Add
-  //  12 Add        ((op=6),(op=10,out=1)) 1     Add
+
+  // Id Type       Ins                    nOut  name
+  // -- ----       ---                    ----  ----
+  // 0  Variable   ()                     1     v0
+  // 1  Variable   ()                     1     v1
+  // 2  Matmul     ((op=0),(op=1))        1     mm0
+  // 3  Variable   ()                     1     checkpoint/(op=0)
+  // 4  Variable   ()                     1     checkpoint/(op=1)
+  // 5  Variable   ()                     1     grad-in-of/(op=2)
+  // 6  MatmulGrad ((op=5),(op=3),(op=4)) 2     grad-of-op-2-inputs-(0,1)
 
   Getter get0(testGraph);
 
@@ -156,25 +153,19 @@ void testMatmul0() {
   auto cp1 =
       get0({}, true, Op::Type::Variable, Autodiff::genCheckpointName({1, 0}));
 
-  // 3 zeros,
-  auto z0 = get0({}, true, Op::Type::Zero, Autodiff::genInitGradName({0, 0}));
-  auto z1 = get0({}, true, Op::Type::Zero, Autodiff::genInitGradName({1, 0}));
-  auto zmm =
-      get0({}, true, Op::Type::Zero, Autodiff::genInitGradName({2, 0}));
+  // no zeros,
+  get0.assertNone(Autodiff::genInitGradName({0, 0}));
+  get0.assertNone(Autodiff::genInitGradName({1, 0}));
+  get0.assertNone(Op::Type::Zero);
 
   // 1 variable, "grad in of"
   auto gIn =
       get0({}, true, Op::Type::Variable, Autodiff::genInGradName({2, 0}));
 
-  // 1 add, of gIn and zmm
-  auto gmm = get0({{gIn, 0}, {zmm, 0}}, false, Op::Type::Add, "");
-
   // 1 matmul grad, with 3 inputs.
-  gmm = get0({{gmm, 0}, {cp0, 0}, {cp1, 0}}, false, Op::Type::MatmulGrad, "");
-
-  // 2 adds to get the final gradients.
-  get0({{z0, 0}, {gmm, 0}}, false, Op::Type::Add, "");
-  get0({{gmm, 1}, {z1, 0}}, false, Op::Type::Add, "");
+  auto gmm =
+      get0({{gIn, 0}, {cp0, 0}, {cp1, 0}}, false, Op::Type::MatmulGrad, "");
+  (void)gmm;
 }
 
 // basic recompute.
@@ -188,23 +179,17 @@ void testRecompute0() {
   //    x1 <--- grad input
   //
   //
-  //  Id Type        Ins               outsRequired flows    name
-  //  -- ----        ---               ------------ -----    ----
-  //  0  Variable    ()                ()           ()       v0
-  //  1  Unknown     ((op=0))          (0)          (0<-0)   x0
-  //  2  Unknown     ((op=1))          (0)          (0<-0)   x1
-  //  3  Variable    ()                                      v0 checkpoint
-  //  4  Unknown     ((op=3))                                x0 rerun
-  //  5  Unknown     ((op=4))                                x1 rerun
-  //  6  Zero        ()                                      ettestGraph.
-  //  7  Zero        ()
-  //  8  Zero        ()
-  //  9  Variable    ()
-  //  10 Add         ((op=8),(op=9))
-  //  11 UnknownGrad ((op=10),(op=5))
-  //  12 Add         ((op=7),(op=11))
-  //  13 UnknownGrad ((op=12),(op=4))
-  //  14 Add         ((op=6),(op=13))
+  //  Type        Ins             outsRequired flows  name
+  //  ----        ---             ------------ -----  ----
+  //  Variable    ()              ()           ()     v0
+  //  Unknown     ((op=0))        (0)          (0<-0) x0
+  //  Unknown     ((op=1))        (0)          (0<-0) x1
+  //  Variable    ()              ()           ()     checkpoint/(op=0)
+  //  Unknown     ((op=3))        (0)          (0<-0) rerun/1
+  //  Unknown     ((op=4))        (0)          (0<-0) rerun/2
+  //  Variable    ()              ()           ()     grad-in-of/(op=2)
+  //  UnknownGrad ((op=6),(op=5)) ()           ()     grad-of-op-2-inputs-(0)
+  //  UnknownGrad ((op=7),(op=4)) ()           ()     grad-of-op-1-inputs-(0)
 
   TestGraphInfo testGraph;
   auto v0 = testGraph.insertNoFlow({}, "v0", Op::Type::Variable);
@@ -235,24 +220,18 @@ void testRecompute0() {
                    0);
 
   // initial (zero) grads
-  TensorId zv0(x({}, true, Op::Type::Zero, Autodiff::genInitGradName(v0)), 0);
-  TensorId zx0(x({}, true, Op::Type::Zero, Autodiff::genInitGradName(x0)), 0);
-  TensorId zx1(x({}, true, Op::Type::Zero, Autodiff::genInitGradName(x1)), 0);
+  x.assertNone(Op::Type::Zero);
 
   // grad in:
   TensorId gIn(x({}, true, Op::Type::Variable, Autodiff::genInGradName(x1)),
                0);
 
-  // gradient of x1:
-  TensorId dx1(x({gIn, zx1}, false, Op::Type::Add, ""), 0);
-
   // gradient of x0:
-  TensorId ingrad1(x({dx1, recomp1}, false, Op::Type::UnknownGrad, ""), 0);
-  TensorId dx0(x({ingrad1, zx0}, false, Op::Type::Add, ""), 0);
+  TensorId ingrad1(x({gIn, recomp1}, false, Op::Type::UnknownGrad, ""), 0);
 
   // gradient of the traget, v0:
-  TensorId ingrad0(x({dx0, recomp0}, false, Op::Type::UnknownGrad, ""), 0);
-  TensorId dv0(x({ingrad0, zv0}, false, Op::Type::Add, ""), 0);
+  TensorId ingrad0(x({ingrad1, recomp0}, false, Op::Type::UnknownGrad, ""),
+                   0);
 }
 
 // basic recompute, second test. In this test, the grad ops don't require
@@ -270,9 +249,12 @@ void testNoRecomputeWithAffine0() {
   TensorId x0(testGraph.insert(Op({v0}, 1, {}, {}, {{0, 0}}, "x0")), 0);
   TensorId x1(testGraph.insert(Op({x0}, 1, {}, {}, {{0, 0}}, "x1")), 0);
   const auto g = guide::Objective::outOfGraph({x1}, {v0}, {v0});
+
   TestGraphMutator a(testGraph);
   Autodiff(g, testGraph, a);
   Getter getter(testGraph);
+
+  std::cout << testGraph << std::endl;
   getter.assertNone(Autodiff::genRerunName(v0.opId()));
   getter.assertNone(Autodiff::genRerunName(x0.opId()));
   getter.assertNone(Autodiff::genCheckpointName(x0));
@@ -282,8 +264,11 @@ void testNoRecomputeWithAffine0() {
 void testNoFlow0() {
   TestGraphInfo testGraph;
   auto v0 = testGraph.insertNoFlow({}, "v0", Op::Type::Variable);
+
+  // something like out(x) = (random(), largestFactor(int(x)))
   auto x0 = testGraph.insert(
       Op({v0}, 2, {0}, {0, 1}, /* no gradient flows: */ {}, "x0"));
+
   const auto g =
       guide::Objective::outOfGraph({{x0, 0}}, {v0, {x0, 0}, {x0, 1}}, {v0});
   TestGraphMutator a(testGraph);
@@ -293,26 +278,23 @@ void testNoFlow0() {
 
   // clang-format off
   //
-  //   Id Type     Ins             nOut insRequired outsRequired flows       name
-  //   -- ----     ---             ---- ----------- ------------ -----       ----
-  //   0  Variable ()              1    ()          ()           ()          v0
-  //   1  Unknown  ((op=0))        2    (0)         (0,1)        ()          x0
-  //   2  Variable ()              1    ()          ()           ()          checkpoint/(op=0)
-  //   3  Variable ()              1    ()          ()           ()          checkpoint/(op=1)
-  //   4  Variable ()              1    ()          ()           ()          checkpoint/(op=1,out=1)
-  //   5  Zero     ()              1    ()          ()           ()          init-grad-of/(op=0)
-  //   6  Zero     ()              1    ()          ()           ()          init-grad-of/(op=1)
-  //   7  Variable ()              1    ()          ()           ()          grad-in-of/(op=1)
-  //   8  Add      ((op=6),(op=7)) 1    ()          ()           (0<-1,0<-0) Add
+  //  Id Type     Ins      nOut insRequired outsRequired name
+  //  -- ----     ---      ---- ----------- ------------ ----
+  //  0  Variable ()       1    ()          ()           v0
+  //  1  Unknown  ((op=0)) 2    (0)         (0,1)        x0
+  //  2  Variable ()       1    ()          ()           checkpoint/(op=0)
+  //  3  Variable ()       1    ()          ()           checkpoint/(op=1)
+  //  4  Variable ()       1    ()          ()           checkpoint/(op=1,out=1)
+  //  5  Variable ()       1    ()          ()           grad-in-of/(op=1)
+  //  6  Zero     ()       1    ()          ()           
   //
   // clang-format on
   //
-  getter.assertCount(Op::Type::Add, 1);
+  getter.assertCount(Op::Type::Add, 0);
   getter.assertCount(Op::Type::UnknownGrad, 0);
 
-  // Still expect the machinery for the gradient of x0, a it's input
-  // gradient is provided.
-  getter.assertCount(Op::Type::Zero, 2);
+  // The gradient of v0.
+  getter.assertCount(Op::Type::Zero, 1);
 }
 
 void testComplexOp0() {
@@ -321,7 +303,7 @@ void testComplexOp0() {
 
   //      +---- flow ---------> .... < gradient in
   //      |
-  // x0 --+---- flow   ------->  ... < no gradient in
+  // x0 --+---- flow   ------->  ... < gradient in
   //      |
   //      +---- no flow   ----> ... < no gradient in
 
@@ -345,26 +327,23 @@ void testComplexOp0() {
   const auto g = guide::Objective::outOfGraph({{x10, 0}}, {x0}, {x0});
 
   // clang-format off
-  //  Id Type        Ins                                                nOut outsRequired flows       name
-  //  -- ----        ---                                                ---- ------------ -----       ----
-  //  0  Variable    ()                                                 1    ()           ()          v0
-  //  1  Unknown     ((op=0))                                           3    (0,1,2)      (0<-1,0<-0) x1
-  //  2  Unknown     ((op=1))                                           1    (0)          (0<-0)      x10
-  //  3  Unknown     ((op=1,out=1))                                     1    (0)          (0<-0)      x11
-  //  4  Unknown     ((op=1,out=2))                                     1    (0)          (0<-0)      x12
-  //  5  Variable    ()                                                 1    ()           ()          checkpoint/(op=0)
-  //  6  Unknown     ((op=5))                                           3    (0,1,2)      (0<-1,0<-0) rerun/1
-  //  7  Unknown     ((op=6))                                           1    (0)          (0<-0)      rerun/2
-  //  8  Zero        ()                                                 1    ()           ()          init-grad-of/(op=0)
-  //  9  Zero        ()                                                 1    ()           ()          init-grad-of/(op=1)
-  //  10 Zero        ()                                                 1    ()           ()          init-grad-of/(op=1,out=1)
-  //  11 Zero        ()                                                 1    ()           ()          init-grad-of/(op=2)
-  //  12 Variable    ()                                                 1    ()           ()          grad-in-of/(op=2)
-  //  13 Add         ((op=11),(op=12))                                  1    ()           (0<-1,0<-0) Add
-  //  14 UnknownGrad ((op=13),(op=7))                                   1    ()           ()          grad-of-op-2-inputs-(0)
-  //  15 Add         ((op=9),(op=14))                                   1    ()           (0<-1,0<-0) Add
-  //  16 UnknownGrad ((op=15),(op=10),(op=6),(op=6,out=1),(op=6,out=2)) 1    ()           ()          grad-of-op-1-inputs-(0)
-  //  17 Add         ((op=8),(op=16))                                   1    ()           (0<-1,0<-0) Add
+  //
+  //  Id Type        Ins              nOut outsReq flows       name
+  //  -- ----        ---              ---- ------- -----       ----
+  //  0  Variable    ()               1    ()      ()          v0
+  //  1  Unknown     ((op=0))         3    (0,1,2) (0<-1,0<-0) x1
+  //  2  Unknown     ((op=1))         1    (0)     (0<-0)      x10
+  //  3  Unknown     ((op=1,out=1))   1    (0)     (0<-0)      x11
+  //  4  Unknown     ((op=1,out=2))   1    (0)     (0<-0)      x12
+  //  5  Variable    ()               1    ()      ()          checkpoint/(op=0)
+  //  6  Unknown     ((op=5))         3    (0,1,2) (0<-1,0<-0) rerun/1
+  //  7  Unknown     ((op=6))         1    (0)     (0<-0)      rerun/2
+  //  8  Variable    ()               1    ()      ()          grad-in-of/(op=2)
+  //  9  UnknownGrad ((op=8),(op=7))  1    ()      ()          grad-of-op-2-inputs-(0)
+  //  10 Zero        ()               1    ()      ()          init-grad-of(op=1,out=1)
+  //  11 UnknownGrad ((op=9),(op=10), 1    ()      ()          grad-of-op-1-inputs-(0)
+  //                  (op=6),(op=6,out=1),
+  //                  (op=6,out=2))
   //
   // clang-format on
 
@@ -372,16 +351,23 @@ void testComplexOp0() {
   Autodiff(g, testGraph, a);
   Getter getter(testGraph);
 
-  // we expect exactly 4 initialization of zero ops, 1 for each of the
-  // tensor which require a gradient. These are: 1) x0 : the target 2) op2,
-  // which is where the input gradient flows from 3) op1 (the complex op) at
-  // outputs #0 and #1. None for #2 as there is no flow from this output
-  // index.
-  getter.assertCount(Op::Type::Zero, 4);
-  getter({}, true, Op::Type::Zero, Autodiff::genInitGradName(x0));
-  getter({}, true, Op::Type::Zero, Autodiff::genInitGradName({x1, 0}));
+  std::cout << testGraph << std::endl;
+
+  // we expect exactly 1 initialization (zero) op, for the gradient of the
+  // output 1 of op 1.
+  getter.assertCount(Op::Type::Zero, 1);
   getter({}, true, Op::Type::Zero, Autodiff::genInitGradName({x1, 1}));
-  getter({}, true, Op::Type::Zero, Autodiff::genInitGradName({x10, 0}));
+
+  // Checks for recompute:
+  TensorId cp{
+      getter({}, true, Op::Type::Variable, Autodiff::genCheckpointName(x0)),
+      0};
+  TensorId recomp0{
+      getter({cp}, true, Op::Type::Unknown, Autodiff::genRerunName(x1)), 0};
+  getter({recomp0}, true, Op::Type::Unknown, Autodiff::genRerunName(x10));
+
+  // 2 gradients, 1 for x0 and 1 for the 0'th output of x1.
+  getter.assertCount(Op::Type::UnknownGrad, 2);
 }
 
 void testComplexOp1() {
@@ -390,14 +376,14 @@ void testComplexOp1() {
   //
   //                       "multi" op
   //                  . . . . . . . . .
-  //           +----0 .  <---+----    . -------+
+  //           +--> 0 .  <---+----    . -------+
   //           |      .      |        .        |
-  //           +----1 .      +----    . ---+   |
+  //           +--> 1 .      +----    . ---+   |
   //           |      . . . . . . . . .    |   |
   // input  ---+                           v   v
-  //           |                           0   1
+  //           |                           1   2
   //           |       . . . . . . . . . . .  . . .
-  //           +---> 2 . <---+             ^   ^  .
+  //           +---> 0 . <---+             ^   ^  .
   //           |       .     |             |   |  .
   //           +---> 3 .     +-------------+---+  . ---> loss tensor
   //                   .                          .
@@ -411,12 +397,12 @@ void testComplexOp1() {
                                          2,
                                          {},
                                          {0, 1},
-                                         // no gradients flow to to input 1.
+                                         // no gradients flow to input 1.
                                          {{OutIndex{0}, 0}, {1, 0}},
                                          "multi"));
 
   const auto loss =
-      testGraph.insert(Op({input, input, {multi, 0}, {multi, 1}},
+      testGraph.insert(Op({input, {multi, 0}, {multi, 1}, input},
                           1,
                           {},
                           {0},
@@ -428,20 +414,87 @@ void testComplexOp1() {
   TestGraphMutator a(testGraph);
   Autodiff(g, testGraph, a);
   Getter getter(testGraph);
+  //
+  // clang-format off
+//
+// Id Type        Ins                                             nOut insRequired outsRequired flows            name
+// -- ----        ---                                             ---- ----------- ------------ -----            ----
+// 0  Variable    ()                                              1    ()          ()           ()               input
+// 1  Unknown     ((op=0),(op=0))                                 2    ()          (0,1)        (0<-0,0<-1)      multi
+// 2  Unknown     ((op=0),(op=1),(op=1,out=1),(op=0))             1    ()          (0)          (0<-0,1<-0,2<-0) loss
+// 3  Variable    ()                                              1    ()          ()           ()               checkpoint/(op=0)
+// 4  Variable    ()                                              1    ()          ()           ()               checkpoint/(op=2)
+// 5  Unknown     ((op=3),(op=3))                                 2    ()          (0,1)        (0<-0,0<-1)      rerun/1
+// 6  Variable    ()                                              1    ()          ()           ()               grad-in-of/(op=2)
+// 7  UnknownGrad ((op=6),(op=4))                                 3    ()          ()           ()               grad-of-op-2-inputs-(0,1,2)
+// 8  UnknownGrad ((op=7,out=1),(op=7,out=2),(op=5),(op=5,out=1)) 1    ()          ()           ()               grad-of-op-1-inputs-(0)
+// 9  Add         ((op=7),(op=8))                                 1    ()          ()           (0<-1,0<-0)      Add              
+//
+  // clang-format on
+  //
 
   std::cout << testGraph << std::endl;
 
-  // all 4 tensors have gradients.
-  getter.assertCount(Op::Type::Zero, 4);
+  // no zero gradients required:
+  getter.assertCount(Op::Type::Zero, 0);
 
-  // 5 adds.
-  getter.assertCount(Op::Type::Add, 5);
+  // One Add at the end to create the gradient of the input from the 2 paths.
+  getter.assertCount(Op::Type::Add, 1);
+
+  // Complete rerun:
+
+  auto cp0 = getter(
+      {}, true, Op::Type::Variable, Autodiff::genCheckpointName(input));
+  auto cp1 = getter(
+      {}, true, Op::Type::Variable, Autodiff::genCheckpointName({loss, 0}));
+  // must rerun multi, as its outputs are needed to compute gradients.
+  auto r0 = getter({{cp0, 0}, {cp0, 0}},
+                   true,
+                   Op::Type::Unknown,
+                   Autodiff::genRerunName(multi));
+  // the promised gradient in:
+  auto gIn = getter(
+      {}, true, Op::Type::Variable, Autodiff::genInGradName({loss, 0}));
+  // run the loss grad using the output and the input gradient. {0,1,2}
+  // because these are the indices which the loss propagates gradient to.
+  auto lGrad = getter({{gIn, 0}, {cp1, 0}},
+                      false,
+                      Op::Type::UnknownGrad,
+                      Autodiff::genGradInsName(loss, {0, 1, 2}));
+  // run the multi op grad.  use both of the outputs and both of the output
+  // grads. The outputs grads were created by loss grad (no summing required,
+  // as they're singleton sums).
+  auto mGrad = getter({{r0, 0}, {r0, 1}, {lGrad, 1}, {lGrad, 2}},
+                      false,
+                      Op::Type::UnknownGrad,
+                      Autodiff::genGradInsName(multi, {0}));
+  // and finally, the sum to get the gradient of input.
+  getter({{lGrad, 0}, {mGrad, 0}}, false, Op::Type::Add, "Add");
 }
 
 // Like complexOp1, but
 // 1) flows through complex are modified.
 // 2) input order to multi changed.
 void testComplexOp2() {
+
+  // How gradients flow in thie example (lines within dotted squares).
+  //
+  //                       "multi" op
+  //                  . . . . . . . . .
+  //           +----0 .  <---+----    . -------+
+  //           |      .      |        .        |
+  //           +----1 .  <---+        . ---+   |
+  //           |      . . . . . . . . .    |   |
+  // input  ---+                           v   v
+  //           |                           0   1
+  //           |       . . . . . . . . . . .  . . .
+  //           +---> 2 .                   ^   ^  .
+  //           |       .                   |   |  .
+  //           +---> 3 . <---+-------------+---+  . ---> loss tensor
+  //                   .                          .
+  //                   . . . . . . . . . . .  . . .
+  //                          "loss" op
+  //
 
   TestGraphInfo testGraph;
   const auto input = testGraph.insertNoFlow({}, "input", Op::Type::Variable);
@@ -460,7 +513,7 @@ void testComplexOp2() {
                           1,
                           {},
                           {0},
-                          {{OutIndex(0), 0}, {0, 1}, {0, 2}},
+                          {{OutIndex(0), 0}, {0, 1}, {0, 3}},
                           "loss"));
 
   const auto g =
@@ -468,24 +521,71 @@ void testComplexOp2() {
   TestGraphMutator a(testGraph);
   Autodiff(g, testGraph, a);
   Getter getter(testGraph);
+
+  //
+  // clang-format off
+//
+// 0  Variable    ()                                  1    ()          ()           ()               input
+// 1  Unknown     ((op=0),(op=0))                     2    ()          (0,1)        (0<-0,1<-0)      multi
+// 2  Unknown     ((op=1),(op=1,out=1),(op=0),(op=0)) 1    ()          (0)          (0<-0,1<-0,2<-0) loss
+// 3  Variable    ()                                  1    ()          ()           ()               checkpoint/(op=0)
+// 4  Variable    ()                                  1    ()          ()           ()               checkpoint/(op=2)
+// 5  Unknown     ((op=3),(op=3))                     2    ()          (0,1)        (0<-0,1<-0)      rerun/1
+// 6  Variable    ()                                  1    ()          ()           ()               grad-in-of/(op=2)
+// 7  UnknownGrad ((op=6),(op=4))                     3    ()          ()           ()               grad-of-op-2-inputs-(0,1,3)
+// 8  UnknownGrad ((op=7),(op=5),(op=5,out=1))        2    ()          ()           ()               grad-of-op-1-inputs-(0,1)
+// 9  Add         ((op=7,out=2),(op=8))               1    ()          ()           (0<-1,0<-0)      Add
+// 10 Add         ((op=9),(op=8,out=1))               1    ()          ()           (0<-1,0<-0)      Add
+//
+  // clang-format on
+  //
+
   std::cout << testGraph << std::endl;
 
-  // expect no initialized gradient for output 1 of multi.
-  getter.assertCount(Op::Type::Zero, 3);
+  getter.assertCount(Op::Type::Zero, 0);
 
-  // expect 5 adds.
-  getter.assertCount(Op::Type::Add, 5);
+  // expect 2 adds: as there are 3 paths from input to loss.
+  getter.assertCount(Op::Type::Add, 2);
+
+  // complete rerun. The first 4 checks are exactly as before (in ComplexOp1)
+  auto cp0 = getter(
+      {}, true, Op::Type::Variable, Autodiff::genCheckpointName(input));
+  auto cp1 = getter(
+      {}, true, Op::Type::Variable, Autodiff::genCheckpointName({loss, 0}));
+  auto r0  = getter({{cp0, 0}, {cp0, 0}},
+                   true,
+                   Op::Type::Unknown,
+                   Autodiff::genRerunName(multi));
+  auto gIn = getter(
+      {}, true, Op::Type::Variable, Autodiff::genInGradName({loss, 0}));
+
+  // lGrad and mGrad are different:
+  auto lGrad = getter({{gIn, 0}, {cp1, 0}},
+                      false,
+                      Op::Type::UnknownGrad,
+                      Autodiff::genGradInsName(loss, {0, 1, 3}));
+  getter({{r0, 0}, {lGrad, 0}, {r0, 1}},
+         false,
+         Op::Type::UnknownGrad,
+         Autodiff::genGradInsName(multi, {1, 0}));
 }
 
 } // namespace
 
 int main() {
+  std::cout << "testMatMul0" << std::endl;
   testMatmul0();
+  std::cout << "testRecompute0" << std::endl;
   testRecompute0();
+  std::cout << "testNoRecomputeWithAffine0" << std::endl;
   testNoRecomputeWithAffine0();
+  std::cout << "testNoFlow0" << std::endl;
   testNoFlow0();
+  std::cout << "testComplexOp0" << std::endl;
   testComplexOp0();
+  std::cout << "testComplexOp1" << std::endl;
   testComplexOp1();
+  std::cout << "testComplexOp2" << std::endl;
   testComplexOp2();
   return 0;
 }

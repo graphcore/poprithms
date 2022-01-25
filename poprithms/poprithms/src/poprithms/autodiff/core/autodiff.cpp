@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <autodiff/autodiff/error.hpp>
 #include <map>
+#include <sstream>
 
 #include <poprithms/autodiff/core/autodiff.hpp>
 #include <poprithms/common/multiout/tensormap.hpp>
@@ -54,33 +55,41 @@ void Autodiff::setNonGrads() {
 }
 
 /**
- * Initialize the gradient Tensors. The object 'gradients' maps from
- * TensorIds in the forward graph, to gradient tensors in the backward
- * graph. The tensors will be created and updated as autodiff is run
- * (below).
+ * Initialize the partial gradient Tensor vectors.
+ *
+ * For all the non-gradient tensors which require a gradient at some point
+ * during differentiation, a vector is kept to store the partial gradients.
+ * This method initializes all these vectors as empty vectors. At some point
+ * when the vector is fully populated, that is when all the partial gradients
+ * required to compute a final gradient have been obtained, a final gradient
+ * is computed (using the user implemented 'sum' method if the vector is
+ * non-empty, or the user's implemented 'zero' method od the vector is empty).
+ * This is done in the method 'setGradFromPartials'
  * */
-void Autodiff::initGrads() {
+void Autodiff::initPartialGradsToBeSummed() {
   for (const auto &tId : guide.nonGradsWithGrads()) {
-    auto zeroed = graphMutator.createZero(tId);
-    graphMutator.setName(zeroed.opId(), genInitGradName(tId));
-    grads.insert({tId, zeroed});
+    partialGradsToBeSummed.insert({tId, {}});
   }
 }
 
 TensorId Autodiff::getGrad(const TensorId &nonGrad) const {
   const auto found = grads.find(nonGrad);
   if (found == grads.cend()) {
-    throw error("No grad for " + nonGrad.str() + " found, in getGrad. ");
+    throw error("No grad for " + nonGrad.str() + " found, in getGradIdRef. ");
   }
   return found->second;
 }
 
-TensorId &Autodiff::getGradIdRef(const TensorId &nonGrad) {
-  const auto found = grads.find(nonGrad);
-  if (found == grads.cend()) {
-    throw error("No grad for " + nonGrad.str() + " found, in getGradIdRef. ");
+void Autodiff::registerPartialGrad(const TensorId &nonGrad,
+                                   const TensorId &grad) {
+  const auto found = partialGradsToBeSummed.find(nonGrad);
+  if (found == partialGradsToBeSummed.cend()) {
+    throw error(std::string("No vector of partial gradients initialized ") +
+                "for the non-gradient tensor " + nonGrad.str() +
+                ". Are you sure this non-gradient " +
+                "tensor requires a gradient at any point?");
   }
-  return found->second;
+  found->second.push_back(grad);
 }
 
 TensorId Autodiff::getNonGrad(const TensorId &nonGrad) const {
@@ -98,7 +107,7 @@ TensorId Autodiff::getNonGrad(const TensorId &nonGrad) const {
  * */
 void Autodiff::setGradsIn() {
 
-  const auto getGrad = [this](uint64_t i) {
+  const auto getGrad_ = [this](uint64_t i) {
     if (objective.isInGraph()) {
       return objective.gradsProvided()[i];
     }
@@ -110,15 +119,37 @@ void Autodiff::setGradsIn() {
 
   for (uint64_t i = 0; i < objective.nInGrads(); ++i) {
     const auto id = objective.gradsProvidedFor()[i];
-    gradsIn.insert({id, getGrad(i)});
+    gradsIn.insert({id, getGrad_(i)});
   }
 }
 
 // Add input gradients to gradients.
 void Autodiff::addGradsInToGrads() {
   for (const auto &[gradProvidedFor, gradIn] : gradsIn) {
-    auto &t = getGradIdRef(gradProvidedFor);
-    t       = graphMutator.add(t, gradIn);
+    registerPartialGrad(gradProvidedFor, gradIn);
+  }
+}
+
+void Autodiff::setGradFromPartials(const TensorId &outId) {
+  auto found = partialGradsToBeSummed.find(outId);
+  if (found == partialGradsToBeSummed.cend()) {
+    std::ostringstream oss;
+    oss << "Failed to find an initialised (even empty!) "
+        << "vector of partial gradients for the non-grad tensor, "
+        << outId.str()
+        << ". Can therefore not create a final gradient for this tensor "
+        << "(are you sure it needs a gradient at some point?)";
+    throw error(oss.str());
+  }
+
+  // The sum of zero tensors is the zero tensor:
+  if (found->second.size() == 0) {
+    auto tId = graphMutator.createZero(outId);
+    graphMutator.setName(tId.opId(), genInitGradName(outId));
+    grads.insert({outId, tId});
+  } else {
+    const auto sumTensorId = graphMutator.sum(found->second);
+    grads.insert({outId, sumTensorId});
   }
 }
 
@@ -147,6 +178,12 @@ void Autodiff::backpropagate() {
     auto nxt = ready.back();
     ready.pop_back();
 
+    for (auto outId : graphInfo.outTensorIds(nxt)) {
+      if (guide.isNonGradWithGrad(outId)) {
+        setGradFromPartials(outId);
+      }
+    }
+
     // To populate: the gradients of each of the inputs of 'nxt':
     const OptionalTensorIds inGrads = graphMutator.getInGrads(nxt, *this);
 
@@ -156,9 +193,8 @@ void Autodiff::backpropagate() {
       if (inGrads[i].has_value()) {
         creates[inGrads[i].value().opId()].push_back(i);
         const auto inId = graphInfo.inTensorId(nxt, InIndex(i));
-        if (grads.count(inId) != 0) {
-          auto &t = grads.at(inId);
-          t       = graphMutator.add(t, inGrads[i].value());
+        if (partialGradsToBeSummed.count(inId) != 0) {
+          registerPartialGrad(inId, inGrads[i].value());
         }
       }
     }
@@ -173,10 +209,19 @@ void Autodiff::backpropagate() {
       }
     }
   }
+
   summary_.setGradsIn(util::getValues<TensorIds, TensorId>(
       objective.gradsProvidedFor(), gradsIn));
   summary_.setCheckpointsIn(util::getValues<TensorIds, TensorId>(
       objective.checkpoints(), nonGrads));
+
+  for (const auto &[tId, ts] : partialGradsToBeSummed) {
+    (void)ts;
+    if (grads.find(tId) == grads.cend()) {
+      setGradFromPartials(tId);
+    }
+  }
+
   summary_.setTargetGrads(
       util::getValues<TensorIds, TensorId>(objective.targets(), grads));
 }
@@ -187,7 +232,7 @@ Autodiff::Autodiff(const guide::Objective &objective_,
     : objective(objective_), graphInfo(gi_), graphMutator(gm_),
       guide(objective, gi_) {
   setNonGrads();
-  initGrads();
+  initPartialGradsToBeSummed();
   setGradsIn();
   addGradsInToGrads();
   backpropagate();
@@ -195,9 +240,11 @@ Autodiff::Autodiff(const guide::Objective &objective_,
 
 std::string Autodiff::genGradInsName(OpId opId,
                                      const std::vector<InIndex> &is) {
+  auto sortedIs = is;
+  std::sort(sortedIs.begin(), sortedIs.end());
   std::ostringstream oss;
   oss << "grad-of-op-" << opId << "-inputs-";
-  poprithms::util::append(oss, is);
+  poprithms::util::append(oss, sortedIs);
   return oss.str();
 }
 

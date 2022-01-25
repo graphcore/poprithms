@@ -38,9 +38,18 @@ public:
   virtual OpId clone(OpId opId, const TensorIds &ins) = 0;
 
   /**
-   * Add the tensors #t0 and #t1.
+   * Sum a (non-empty) set of tensors. This an be implemented using a single
+   * sum op, or as a tree of adds. The output tensor may alias an input
+   * tensor.
+   *
+   * \param toSum The gradient tensors to sum.
+   *
+   * When called by the Autodiff class, #toSum will
+   * (1) always be at least one tensor.
+   * (2) be ordered from first created (earliest in the backpropagation) to
+   *     last created.
    * */
-  virtual TensorId add(const TensorId &t0, const TensorId &t1) = 0;
+  virtual TensorId sum(const TensorIds &toSum) = 0;
 
   // TODO(T50868) the user of this project (popart) might prefer the gradients
   // to be accumulated in a sum op, as opposed to in a tree of add ops.
