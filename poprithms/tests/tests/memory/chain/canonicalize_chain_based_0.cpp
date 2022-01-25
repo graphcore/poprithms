@@ -239,6 +239,26 @@ void testExpandReshape0() {
   }
 }
 
+void testLongerChain0() {
+
+  Chain c0({20, 100, 100});
+  c0.slice({0, 0, 0}, {1, 1, 1});
+  c0.reshape({});
+  c0.expand({1, 100, 100});
+  c0.reshape({100, 100});
+  c0.slice({0, 0}, {1, 1});
+  c0.reshape({});
+  c0.expand({100, 100});
+
+  Chain c1({20, 100, 100});
+  c1.slice({0, 0, 0}, {1, 1, 1});
+  c1.reshape({1, 1});
+  c1.expand({100, 100});
+
+  // TODO(T53918) currently not canonicalized to target.
+  // c0.canonicalized().confirmEqual(c1.canonicalized());
+}
+
 } // namespace
 
 int main() {
@@ -252,5 +272,6 @@ int main() {
   testExpandReverse0();
   testExpandSettSample0();
   testExpandReshape0();
+  testLongerChain0();
   return 0;
 }

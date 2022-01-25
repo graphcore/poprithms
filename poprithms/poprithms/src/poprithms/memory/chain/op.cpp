@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 #include <numeric>
 #include <sstream>
 #include <variant>
@@ -88,9 +88,9 @@ bool Op::bubbleDimShuffleBack(const Shape &inShape0, Op &op0, Op &op1) {
   //
   // Example 1:
   //    (2,3,5) -> reshape    -> (2,3,1,5)
-  //            -> dimshuffle -> (5,1,3,2)
+  //            -> dimShuffle -> (5,1,3,2)
   //  becomes
-  //    (2,3,5) -> dimshuffle -> (5,3,2)
+  //    (2,3,5) -> dimShuffle -> (5,3,2)
   //            -> reshape    -> (5,1,3,2).
   //
   //
@@ -104,14 +104,14 @@ bool Op::bubbleDimShuffleBack(const Shape &inShape0, Op &op0, Op &op1) {
   //
   // Example 3:
   //   (2,3,35,11) -> reshape    -> (6,5,7,11)
-  //               -> dimshuffle -> (11,6,5,7)
+  //               -> dimShuffle -> (11,6,5,7)
   // becomes
   //   (2,3,35,11) -> dimShuffle -> (11,2,3,35)
   //               -> reshape    -> (11,6,5,7)
   //
   //
   case Type::Reshape: {
-    auto x = inShape0.moveDimShuffleFirst(outShape0, p);
+    auto x = inShape0.moveDimShuffleBeforeReshape(outShape0, p);
     if (!x.first) {
       return false;
     }
@@ -227,8 +227,8 @@ bool Op::bubbleExpandBack(const Shape &inShape0, Op &op0, Op &op1) {
     //              --- 8                --- 8
     // 3)
     //
-    // We will check the products between all pairs in edges. We use the fact
-    // that reshape preservese number of elements to skip the check of the
+    // We will check the products between all pairs in edges. We use the
+    // fact that reshape preserves number of elements to skip the check of the
     // range [0, expInds[0]).
     //
     auto edges = expInds;
@@ -337,22 +337,74 @@ bool Op::bubbleReduceBack(const Shape &inShape0, Op &op0, Op &op1) {
 }
 
 bool Op::bubbleReshapeBack(const Shape &inShape0, Op &op0, Op &op1) {
-
-  (void)inShape0;
   if (op1.type() != Type::Reshape) {
-    throw error("Calling bubbleReshape with op1 of incorrect type");
+    throw error("Calling bubbleReshapeBack with op1 of incorrect type");
   }
+  const auto outShape0 = op0.outShape();
+  const auto outShape1 = op1.outShape();
+
+  std::vector<uint64_t> sampleDims;
+  for (uint64_t i = 0; i < inShape0.rank_u64(); ++i) {
+    if (inShape0.dim(i) != outShape0.dim(i)) {
+      // sampleMask[i] = true;
+      sampleDims.push_back(i);
+    }
+  }
+
   const auto t0 = op0.type();
   switch (t0) {
   case Type::DimShuffle:
     return false;
+  case Type::Expand:
+    return false;
   case Type::Reduce:
     return false;
-  case Type::Reshape:
-    return false;
+  case Type::SettSample: {
+
+    //
+    // Can you replace
+    //      inShape0 -> settSample -> outShape0 -> reshape -> outShape1
+    // with,
+    //      inShape -> reshape -> X -> settSample -> Y ?
+    //
+    // The logic for settSample and slice is identical, we can ask the Shape
+    // class if it is possible for slice:
+    auto summary = inShape0.moveReshapeBeforeSlice(outShape0, outShape1);
+
+    if (!std::get<0>(summary)) {
+      // Not possible.
+      return false;
+    }
+
+    // the shape of the output of the reshape, after it has been bubbled back
+    // to before the settSample ('X' above).
+    const Shape interShape = std::get<1>(summary);
+
+    // the dimensions which are sliced *after* the reshape:;
+    const Dimensions finalSampleDims = std::get<2>(summary);
+
+    // the Region of sampling, *after* the reshape:
+    std::vector<nest::Sett> setts(outShape1.rank_u64(),
+                                  nest::Sett::createAlwaysOn());
+    for (uint64_t index = 0; index < sampleDims.size(); ++index) {
+      setts[finalSampleDims.at(index).get()] =
+          op0.attr().region().sett(sampleDims[index]);
+    }
+
+    Region permutedRegion = [&]() {
+      if (interShape.rank_u64() == 0) {
+        return Region::createFull({});
+      }
+      return Region(interShape, setts);
+    }();
+
+    op0 = {Type::Reshape, interShape, interShape};
+    op1 = {Type::SettSample, outShape1, permutedRegion};
+
+    return true;
+  }
+
   case Type::Reverse:
-    return false;
-  case Type::SettSample:
     return false;
   case Type::SettFillInto:
     return false;
@@ -414,10 +466,11 @@ bool Op::bubbleReverseBack(const Shape &inShape0, Op &op0, Op &op1) {
 }
 
 bool Op::bubbleSettSampleBack(const Shape &inShape0, Op &op0, Op &op1) {
-  if (op1.type() != Type::SettSample) {
-    throw error("Calling bubbleSettSample with op1 of incorrect type");
-  }
+
   (void)inShape0;
+  if (op1.type() != Type::SettSample) {
+    throw error("Calling bubbleSettSampleBack with op1 of incorrect type");
+  }
   const auto t0 = op0.type();
   switch (t0) {
   case Type::DimShuffle:

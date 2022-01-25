@@ -4,6 +4,7 @@
 
 #include <array>
 #include <ostream>
+#include <tuple>
 #include <vector>
 
 #include <poprithms/ndarray/accessors.hpp>
@@ -1174,8 +1175,48 @@ public:
    *
    * */
   std::pair<bool, Permutation>
-  moveDimShuffleFirst(const Shape &shapePreDimShuffle,
-                      const Permutation &tailPerm) const;
+  moveDimShuffleBeforeReshape(const Shape &shapePreDimShuffle,
+                              const Permutation &tailPerm) const;
+
+  /**
+   * Is it possible replace
+   *     tensor.slice(l0, u0).reshape(s0)
+   * with,
+   *    tensor.reshape(zs11).slice(l1, u1) ?
+   *
+   * That is, instead of slicing then reshaping a tensor, can you reshape and
+   * then slice the tensor, but end up with the same final result?
+   *
+   * Suppose the tensor being sliced has this Shape as its shape.
+   *
+   * \param slicedShape the shape of the sliced tensor,
+   * \param finalShape the shape of the reshaped (after both slice and reshape
+   *                   operations) tensor.
+   *
+   * \return a tuple with values at indices
+   *        (0) true if it possible to perform the reordering, false otherwise
+   *        (1) the shape of the reshaped tensor, before being sliced,
+   *        (2) the dimensions of the reshaped tensor to slice.
+   *
+   * Some examples (where (x,y) denotes a tensor of shape (x,y)).
+   *    (5,6) -> slice -> (2,6) -> reshape -> (2,3,2)
+   * becomes
+   *    (5,6) -> reshape -> (5,3,2) -> slice -> (2,3,2).
+   * and returns (true, (5,3,2), (0))
+   *
+   *    (5,6) -> slice -> (2,6) -> reshape(4,3)
+   * is not not possible to change (returns (false, {}, {})).
+   *
+   *    (3) -> slice -> (1) -> reshape -> (1,1)
+   * might become
+   *    (3) -> reshape(3,1) -> slice -> (1,1)
+   * and return (true, (3,1), (0)), although this is not a unique solution and
+   * (true, (1,3), (1)) might be returned instead.
+   * */
+
+  std::tuple<bool, Shape, Dimensions>
+  moveReshapeBeforeSlice(const Shape &slicedShape,
+                         const Shape &finalShape) const;
 
   /**
    * \return The number of dimensions of this Shape of size s.

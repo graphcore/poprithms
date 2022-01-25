@@ -690,6 +690,10 @@ Region Region::fromBounds(const Shape &sh,
     slices.push_back(Sett{{{u[i] - l[i], sh.dim(i) + l[i] - u[i], l[i]}}});
   }
 
+  if (sh.rank_u64() == 0) {
+    return Region::createFull({});
+  }
+
   return Region(sh, slices);
 }
 

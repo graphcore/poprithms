@@ -1759,8 +1759,8 @@ bool Shape::isSqueezed() const {
 }
 
 std::pair<bool, Permutation>
-Shape::moveDimShuffleFirst(const Shape &reshape,
-                           const Permutation &perm) const {
+Shape::moveDimShuffleBeforeReshape(const Shape &reshape,
+                                   const Permutation &perm) const {
 
   // If the reshape is not orthogonal, it is impossible to change the order.
   // Example (3,4).reshape(4,3).dimShuffle(1,0) is NOT equivalent to
@@ -1997,6 +1997,134 @@ Dimensions Shape::reductionDimensions(const Shape &to) const {
 
 uint64_t Shape::nDimsOfSize(int64_t s) const {
   return std::count(shp.cbegin(), shp.cend(), s);
+}
+
+/**
+ *
+ * Some (more) examples:
+ *
+ * (1,5,5) -> slice (1,3,3) -> reshape (3,3) becomes
+ * (1,5,5) -> reshape (5,5) -> slice (3,3).
+ *
+ * (5,7,6) -> slice (2,7,6) -> reshape (2,42) becomes
+ * (5,7,6) -> reshape (5,42) -> slice (2,42).
+ *
+ * (5,7) -> slice (3,5) -> reshape -> (1,3,1,5) becomes
+ * (5,7) -> reshape (1,5,1,7) -> slice -> (1,3,1,5).
+ *
+ *
+ * (3,4,5,6,7,8)  -> slice -> (3,2,5,6,1,8)
+ *    =     =                    =     =
+ *                -> reshape -> (1,3,2,10,3,1,1,4,1,2)
+ *                                   =      =
+ * becomes
+ *
+ * (3,4,5,6,7,8) -> reshape -> (1,3,4,10,3,7,1,4,1,2)
+ *    =     =                       =      =
+ *            -> slice -> (1,3,2,10,3,1,1,4,1,2)
+ *                             =      =
+ *
+ *
+ * (3) -> slice (1) -> reshape (1,1,1)
+ * becomes
+ *
+ * (3) -> reshape (3,1,1) -> slice (1,1,1), or
+ * (3) -> reshape (1,3,1) -> slice (1,1,1)
+ *
+ * As with other reorders, no "mass" movement is allowed. Examples where
+ * it's not possible:
+ *
+ * (5,7) -> slice (4,7) -> reshape (2,2,7)
+ * (4,6) -> slice (2,3) -> reshape (1,6)
+ * (3,8) -> slice (3,4) -> reshape (3,2,2)
+ *
+ * Algorithm:
+ *
+ *  1: find the indices which are sliced.
+ *  2: compute the masses in the intervals separated by slice indices.
+ *  3: check that the output of the reshape is of the form
+ *     ("interval mass", "slice size", "interval mass", "slice size")
+ **/
+std::tuple<bool, Shape, Dimensions>
+Shape::moveReshapeBeforeSlice(const Shape &slicedShape,
+                              const Shape &finalShape) const {
+
+  const std::tuple<bool, Shape, Dimensions> notPossible{false, {}, {}};
+
+  // The dimensions which are sliced.
+  std::vector<uint64_t> sliceDims;
+  for (uint64_t i = 0; i < rank_u64(); ++i) {
+    if (dim(i) != slicedShape.dim(i)) {
+      sliceDims.push_back(i);
+    }
+  }
+
+  // The masses separated by the slice dimensions. Example, if the slice is
+  // (3,14,5,6,17,7) -> (3,2,5,6,1,7) then the masses are (3, 5*6=30)
+  //    ==     ==          =     =
+  //
+  // There are as many masses as there are slice indices.
+  //
+  std::vector<uint64_t> massEdges = sliceDims;
+  massEdges.push_back(slicedShape.rank_u64());
+  std::vector<int64_t> masses{dimProduct(0, massEdges[0])};
+  for (uint64_t i = 1; i < sliceDims.size(); ++i) {
+    masses.push_back(
+        slicedShape.dimProduct(sliceDims[i - 1] + 1, sliceDims[i]));
+  }
+
+  // incrementally try to construct the set of dimensions which are sliced
+  // *after* the reshape and slice ops have been permuted.
+  std::vector<uint64_t> permutedSliceDims;
+
+  uint64_t permutedSliceDim{0};
+  uint64_t sliceIndex{0};
+  while (sliceIndex < sliceDims.size()) {
+    // The dimension size we're looking for in finalShape.
+    // This is the size of the sliceIndex'th sliced dimension.
+    // We'll interate until we find a dimension in finalShape which
+    // is of this size.
+    const auto sliceSize  = slicedShape.dim(sliceDims[sliceIndex]);
+    const auto targetMass = masses[sliceIndex];
+    int64_t currentMass{1};
+    while ((permutedSliceDim < finalShape.rank_u64()) &&
+           (finalShape.dim(permutedSliceDim) != sliceSize ||
+            currentMass < targetMass)) {
+      currentMass *= finalShape.dim(permutedSliceDim);
+      ++permutedSliceDim;
+    }
+
+    if (permutedSliceDim >= finalShape.rank_u64()) {
+      return notPossible;
+    }
+
+    if (currentMass == targetMass &&
+        finalShape.dim(permutedSliceDim) == sliceSize) {
+      permutedSliceDims.push_back(permutedSliceDim);
+      ++permutedSliceDim;
+      ++sliceIndex;
+    }
+
+    else {
+      return notPossible;
+    }
+  }
+
+  if (permutedSliceDims.size() != sliceDims.size()) {
+    return notPossible;
+  }
+
+  // At this point, we know it is possible to switch the reshape and the
+  // slice. We have mapped the all of the slice dimensions to corresponding
+  // dimensions after a reshape.
+
+  // Construct shape of the output of the reshape *before* the slice
+  auto vPermutedShape = finalShape.get();
+  for (uint64_t index = 0; index < sliceDims.size(); ++index) {
+    vPermutedShape[permutedSliceDims[index]] = dim(sliceDims[index]);
+  }
+
+  return {true, Shape(vPermutedShape), Dimensions(permutedSliceDims)};
 }
 
 } // namespace ndarray

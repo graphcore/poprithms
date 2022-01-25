@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 #include <poprithms/error/error.hpp>
@@ -16,7 +17,7 @@ void assertPermutation(const Shape &inshape,
                        const Shape &outshape,
                        const Permutation &perm,
                        const Permutation &expected) {
-  const auto observed = inshape.moveDimShuffleFirst(outshape, perm);
+  const auto observed = inshape.moveDimShuffleBeforeReshape(outshape, perm);
 
   if (observed.second != expected) {
     std::ostringstream oss;
@@ -83,8 +84,7 @@ void test0() {
 void assertNotPossible(const Shape &inShape,
                        const Shape &reshape,
                        const Permutation &perm) {
-  std::cout << "with inShape = " << inShape << std::endl;
-  const auto x = inShape.moveDimShuffleFirst(reshape, perm);
+  const auto x = inShape.moveDimShuffleBeforeReshape(reshape, perm);
   if (x.first) {
     std::ostringstream oss;
     oss << "Attempt to move Permutation " << perm
@@ -116,14 +116,14 @@ void testWithInOnes(const Shape &inShape,
                     const Permutation &perm0,
                     const std::vector<uint64_t> &expectedSub) {
 
-  const auto observed = inShape.moveDimShuffleFirst(outShape, perm0);
+  const auto observed = inShape.moveDimShuffleBeforeReshape(outShape, perm0);
 
   // solution must have ..4..5..2..3 in that order. It doesn't matter where 0
   // and 3 go.
   if (observed.second.size() != inShape.rank_u64() ||
       !observed.second.subPermutation(expectedSub).isIdentity()) {
     std::ostringstream oss;
-    oss << "Test of moveDimShuffleFirst where inShape has 1's. "
+    oss << "Test of moveDimShuffleBeforeReshape where inShape has 1's. "
         << "Expected solution to of size " << inShape.rank_u64()
         << " and contain ";
     poprithms::util::append(oss, expectedSub);
@@ -153,11 +153,50 @@ void testWithInOnes0() {
                  {3, 5, 1});
 }
 
+void baseSliceReshapeReorder(const Shape &in0,
+                             const Shape &sliced,
+                             const Shape &reshaped,
+                             bool expected) {
+  auto result = std::get<0>(in0.moveReshapeBeforeSlice(sliced, reshaped));
+  if (result != expected) {
+    std::ostringstream oss;
+    oss << "Failure in testing whether slice->reshape "
+        << "can be replaced by reshape->slice. "
+        << "input shape is " << in0 << ", sliced shape is " << sliced
+        << " and output (final) shape is " << reshaped
+        << ". The expectation was that this this could " <<
+        [expected]() { return expected ? "" : "not "; }() << "be reordered. ";
+    throw poprithms::test::error(oss.str());
+  }
+}
+
+void testSliceReshape0() {
+  // -> 2,2,5
+  baseSliceReshapeReorder({4, 5}, {4, 1}, {2, 2, 1}, true);
+
+  // -> 2,1,2,5
+  baseSliceReshapeReorder({4, 5}, {4, 1}, {2, 1, 2, 1}, true);
+  baseSliceReshapeReorder({10}, {1}, {}, false);
+
+  // -> 1,2,3,2,2,6
+  baseSliceReshapeReorder(
+      {1, 2, 3, 4, 5}, {1, 2, 1, 4, 1}, {1, 2, 1, 2, 2, 1}, true);
+
+  baseSliceReshapeReorder({10, 20}, {1, 10}, {10}, false);
+
+  baseSliceReshapeReorder({}, {}, {}, true);
+
+  baseSliceReshapeReorder({2, 3, 4}, {2, 1, 4}, {4, 1, 2}, false);
+
+  // (this is also tested indirectly by the chain class).
+}
+
 } // namespace
 
 int main() {
   test0();
   test1();
   testWithInOnes0();
+  testSliceReshape0();
   return 0;
 }

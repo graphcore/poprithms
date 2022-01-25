@@ -6,10 +6,13 @@
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/chain/chain.hpp>
+#include <poprithms/memory/nest/region.hpp>
+#include <poprithms/util/stringutil.hpp>
 
 namespace {
 
 using namespace poprithms::memory::chain;
+using namespace poprithms::memory;
 
 void testBubbleDimShuffleReverse0() {
 

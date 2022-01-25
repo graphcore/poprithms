@@ -34,6 +34,9 @@ add_memory_chain_test(memory_chain_canonicalize_chain_based_0
 add_memory_chain_test(memory_chain_canonicalize_op_based_0
                                    canonicalize_op_based_0.cpp)
 
+add_memory_chain_test(memory_chain_canonicalize_reshape_op_0
+                                   canonicalize_reshape_op_0.cpp)
+
 add_memory_chain_test(memory_chain_hosttensor_0  
                                    hosttensor_0.cpp)
 
