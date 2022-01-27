@@ -8,6 +8,7 @@
 #include <poprithms/memory/alias/usings.hpp>
 #include <poprithms/memory/nest/region.hpp>
 #include <poprithms/ndarray/shape.hpp>
+#include <poprithms/util/interval.hpp>
 #include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
@@ -20,7 +21,9 @@ using ndarray::Shape;
 using util::Permutation;
 using Lower = poprithms::ndarray::Shape::Lower;
 using poprithms::ndarray::Dimension;
-using Upper = poprithms::ndarray::Shape::Upper;
+using Upper     = poprithms::ndarray::Shape::Upper;
+using Interval  = poprithms::util::Interval;
+using Intervals = std::vector<Interval>;
 
 class Graph;
 
@@ -74,6 +77,20 @@ public:
 
   /** \return All Tensors which intersect with this Tensor. */
   Tensors getNonDisjoint() const;
+
+  /**
+   * \return All Subtensors in the intervals \a intervals within dimension \a
+   *         dim.
+   */
+  Tensors slices(const Intervals &intervals, uint64_t dim) const;
+
+  /**
+   * \return All Subtensors, concatenated using multiple slices (i.e.
+   *         intervals). In other words, each sequence of intervals is
+   *         concatenated into a single subtensor.
+   */
+  Tensors slices(const std::vector<Intervals> &intervals,
+                 uint64_t dim) const;
 
   /** \return true if this Tensor intersects with `rhs'. */
   bool intersectsWith(const Tensor &rhs) const;

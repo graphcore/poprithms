@@ -12,6 +12,40 @@ namespace poprithms {
 namespace memory {
 namespace alias {
 
+namespace {
+
+TensorIds getIds(const Tensors &tensors) {
+  TensorIds tensorIds;
+  tensorIds.reserve(tensors.size());
+  for (const auto &tensor : tensors) {
+    tensorIds.push_back(tensor.id());
+  }
+  return tensorIds;
+}
+
+std::vector<TensorId>
+getAllIds(const Tensors &tensors_, const Tensor &toInsert, uint64_t index) {
+  if (index > tensors_.size()) {
+    std::ostringstream oss;
+    oss << "Failure in \n    getAllIds(tensors_ of size " << tensors_.size()
+        << ", index = " << index
+        << "): argument 'index' cannot exceed the size of tensors_. ";
+    throw error(oss.str());
+  }
+  std::vector<TensorId> allIds;
+  const auto insertionIter = std::next(tensors_.cbegin(), index);
+  allIds.reserve(tensors_.size() + 1);
+  for (auto iter = tensors_.cbegin(); iter != insertionIter; ++iter) {
+    allIds.push_back(iter->id());
+  }
+  allIds.push_back(toInsert.id());
+  for (auto iter = insertionIter; iter != tensors_.cend(); ++iter) {
+    allIds.push_back(iter->id());
+  }
+  return allIds;
+}
+} // namespace
+
 std::ostream &operator<<(std::ostream &oss, const Tensor &x) {
   oss << "tensor:" << x.id();
   return oss;
@@ -34,6 +68,27 @@ Tensor Tensor::slice(uint64_t start, uint64_t end, Dimension sliceDim) const {
   Upper u           = shape().get();
   u[sliceDim.get()] = end;
   return slice(l, u);
+}
+
+Tensors Tensor::slices(const Intervals &intervals, uint64_t dim) const {
+  Tensors tensors;
+  tensors.reserve(intervals.size());
+  for (const auto &interval : intervals) {
+    tensors.push_back(slice(interval.l(), interval.u(), Dimension(dim)));
+  }
+  return tensors;
+}
+
+Tensors Tensor::slices(const std::vector<Intervals> &intervals,
+                       uint64_t dim) const {
+  Tensors tensors;
+  tensors.reserve(intervals.size());
+
+  for (const auto &intervalSeq : intervals) {
+    auto seqTensors = slices(intervalSeq, dim);
+    tensors.push_back({pgraph->concat(getIds(seqTensors), dim), pgraph});
+  }
+  return tensors;
 }
 
 Tensor concat(Tensors &&tensors, uint64_t axis) {
@@ -73,31 +128,6 @@ void Tensor::toIdentityFrom(Tensor src) {
   }
   pgraph->toIdentity(src.id(), id());
 }
-
-namespace {
-
-std::vector<TensorId>
-getAllIds(const Tensors &tensors_, const Tensor &toInsert, uint64_t index) {
-  if (index > tensors_.size()) {
-    std::ostringstream oss;
-    oss << "Failure in \n    getAllIds(tensors_ of size " << tensors_.size()
-        << ", index = " << index
-        << "): argument 'index' cannot exceed the size of tensors_. ";
-    throw error(oss.str());
-  }
-  std::vector<TensorId> allIds;
-  const auto insertionIter = std::next(tensors_.cbegin(), index);
-  allIds.reserve(tensors_.size() + 1);
-  for (auto iter = tensors_.cbegin(); iter != insertionIter; ++iter) {
-    allIds.push_back(iter->id());
-  }
-  allIds.push_back(toInsert.id());
-  for (auto iter = insertionIter; iter != tensors_.cend(); ++iter) {
-    allIds.push_back(iter->id());
-  }
-  return allIds;
-}
-} // namespace
 
 Tensor
 Tensor::concat(const Tensors &tensors_, uint64_t index, uint64_t axis) const {
