@@ -108,6 +108,62 @@ Permutation Permutation::dimRoll(uint64_t rnk, DimRollPair p) {
   return Permutation(perm);
 }
 
+Permutation Permutation::dimShufflePartial(uint64_t rnk,
+                                           const std::vector<uint64_t> &src,
+                                           const std::vector<uint64_t> &dst) {
+  if (src.size() != dst.size()) {
+    std::ostringstream oss;
+    oss << "Sizes of src and dst must be the same for dimShufflePartial. "
+           "size(src) == "
+        << src.size() << " and size(dst) == " << dst.size() << ".";
+    throw error(oss.str());
+  }
+
+  auto invalid = std::numeric_limits<uint64_t>::max();
+  std::vector<bool> usedIdx(rnk, false);
+  std::vector<uint64_t> perm(rnk, invalid);
+  for (unsigned i = 0; i < src.size(); ++i) {
+    auto source      = src[i];
+    auto destination = dst[i];
+    if (source >= rnk) {
+      std::ostringstream oss;
+      oss << "Dimension src[" << i << "] = " << source
+          << " which exceeds rank = " << rnk << ".";
+      throw error(oss.str());
+    }
+    if (destination >= rnk) {
+      std::ostringstream oss;
+      oss << "Dimension dst[" << i << "] = " << destination
+          << " which exceeds rank = " << rnk << ".";
+      throw error(oss.str());
+    }
+    if (usedIdx[source]) {
+      std::ostringstream oss;
+      oss << "Dimension for src[" << i << "] = " << source
+          << " was previously already used.";
+      throw error(oss.str());
+    }
+    if (perm[destination] != invalid) {
+      std::ostringstream oss;
+      oss << "Dimension for dst[" << i << "] = " << destination
+          << " was previously already used.";
+      throw error(oss.str());
+    }
+    usedIdx[source]   = true;
+    perm[destination] = source;
+  }
+  unsigned curDim = 0;
+  for (auto &dim : perm) {
+    if (dim != invalid)
+      continue;
+    while (usedIdx[curDim])
+      curDim++;
+    dim = curDim++;
+  }
+
+  return Permutation(perm);
+}
+
 Permutation Permutation::identity(uint64_t rnk) {
   std::vector<uint64_t> p(rnk, 0);
   std::iota(p.begin(), p.end(), 0);

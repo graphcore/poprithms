@@ -72,6 +72,58 @@ void testDimRoll0() {
   testDimRoll(3, 1, 0, {{1, 0, 2}});
 }
 
+void testDimShufflePartial(uint64_t rnk,
+                           const std::vector<uint64_t> &src,
+                           const std::vector<uint64_t> &dst,
+                           const Permutation &expected) {
+  const auto p = Permutation::dimShufflePartial(rnk, src, dst);
+  if (p != expected) {
+    std::ostringstream oss;
+    oss << "Failed in test of Permutation's dimShufflePartial. With src = "
+        << src << ", dst = " << dst << ", resulting in permutation = " << p
+        << ", while expected = " << expected << ".";
+    throw poprithms::test::error(oss.str());
+  }
+}
+
+void testDimShufflePartial0() {
+  testDimShufflePartial(5, {3, 4}, {1, 3}, {{0, 3, 1, 4, 2}});
+  testDimShufflePartial(5, {4, 3}, {3, 1}, {{0, 3, 1, 4, 2}});
+  testDimShufflePartial(
+      5, {0, 1, 2, 3, 4}, {0, 1, 2, 3, 4}, {{0, 1, 2, 3, 4}});
+  testDimShufflePartial(5, {0, 4}, {4, 0}, {{4, 1, 2, 3, 0}});
+
+  testDimShufflePartial(3, {0, 1, 2}, {2, 1, 0}, {{2, 1, 0}});
+  testDimShufflePartial(3, {0, 2}, {2, 1}, {{1, 2, 0}});
+  testDimShufflePartial(0, {}, {}, {{}});
+  testDimShufflePartial(1, {}, {}, {{0}});
+}
+
+void testDimShufflePartialError(const uint64_t rnk,
+                                const std::vector<uint64_t> &src,
+                                const std::vector<uint64_t> &dst) {
+  bool caught{false};
+  try {
+    Permutation::dimShufflePartial(rnk, src, dst);
+  } catch (poprithms::error::error &e) {
+    caught = true;
+  }
+  if (!caught) {
+    throw poprithms::test::error(
+        "Test succeeded unexpectedly with bad dimShufflePartial args.");
+  }
+}
+
+void testDimShufflePartial1() {
+  testDimShufflePartialError(5, {1, 2}, {4, 3, 2});
+  testDimShufflePartialError(5, {1, 2, 3}, {3, 2});
+  testDimShufflePartialError(3, {0, 1, 5}, {0, 1, 2});
+  testDimShufflePartialError(3, {0, 1, 2}, {0, 5, 1});
+  testDimShufflePartialError(3, {0, 0, 1}, {0, 1, 2});
+  testDimShufflePartialError(3, {0, 1, 2}, {0, 1, 1});
+  testDimShufflePartialError(3, {1, 2, 3, 4}, {5, 6, 7, 8});
+}
+
 void runSubsequenceBase(const Permutation &p,
                         const std::vector<uint64_t> &where,
                         const Permutation &expected) {
@@ -148,6 +200,8 @@ int main() {
   test0();
   testProd0();
   testDimRoll0();
+  testDimShufflePartial0();
+  testDimShufflePartial1();
   testSubsequence();
   testContainsSubsequence0();
   return 0;

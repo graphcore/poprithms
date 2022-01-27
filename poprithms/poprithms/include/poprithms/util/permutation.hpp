@@ -47,6 +47,16 @@ public:
   static Permutation dimRoll(uint64_t rnk, DimRollPair p);
 
   /**
+   * Similar to dimRoll where dimensions in \a src migrate to positions in \a
+   * dst and the remaining dimensions are filled in order.
+   *
+   * \return The permutation converted from \a src and \a dst
+   * */
+  static Permutation dimShufflePartial(uint64_t rnk,
+                                       const std::vector<uint64_t> &src,
+                                       const std::vector<uint64_t> &dst);
+
+  /**
    * Return a permutation which, when applied to #vs, results in a vector
    * whose 1's all appear before its other values. Example,
    * <code>
