@@ -147,6 +147,15 @@ public:
   /** Example {4,6}.reshape((3,8))->{3,8}. */
   Tensor reshape(const Shape &) const;
 
+  /** Take a slice of width 1 of this tensor in dimension-0, then squeeze the
+   *  singleton dimension-0 out.
+   *  Example {4,5,6}.subscript(1)->{5,6}. */
+  Tensor subscript(uint64_t index) const;
+
+  /** Consecutively index the sub-tensor.
+   *  Example {2,3,4,5}.index({0,1})->{4,5}. */
+  Tensor index(const std::vector<uint64_t> &indices) const;
+
   /**
    * A generalization of the subsample and slice operators. See region.hpp for
    * details.

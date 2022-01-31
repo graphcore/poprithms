@@ -169,6 +169,29 @@ Tensor Tensor::reshape(const Shape &to) const {
   return {pgraph->reshape(id(), to), pgraph};
 }
 
+Tensor Tensor::subscript(uint64_t index) const {
+  auto slicedTensor = slice(index, index + 1, Dimension(0));
+  return slicedTensor.reshape(slicedTensor.shape().squeeze({0}));
+}
+
+Tensor Tensor::index(const std::vector<uint64_t> &indices) const {
+  uint64_t rank = shape().rank_u64();
+  if (indices.size() > rank) {
+    std::ostringstream oss;
+    oss << "Number of indices (= " << indices.size()
+        << ") exceeds rank (= " << rank << ").";
+    throw error(oss.str());
+  }
+
+  Lower begin(rank, 0);
+  Upper end = shape().get();
+  for (uint64_t dim = 0; dim < indices.size(); ++dim) {
+    begin[dim] = indices[dim];
+    end[dim]   = indices[dim] + 1;
+  }
+  return slice(begin, end).reshape(shape().fromDim(indices.size()));
+}
+
 Tensor Tensor::expand(const Shape &to) const {
   return {pgraph->expand(id(), to), pgraph};
 }
