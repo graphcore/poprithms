@@ -169,6 +169,12 @@ Tensor Tensor::reshape(const Shape &to) const {
   return {pgraph->reshape(id(), to), pgraph};
 }
 
+Tensor Tensor::upsample(uint64_t scale, uint64_t dim) const {
+  auto broadcasted =
+      reshape(shape().unsqueeze({dim + 1})).broadcast(scale, dim + 1);
+  return broadcasted.reshape(broadcasted.shape().flatten(dim, dim + 2));
+}
+
 Tensor Tensor::subscript(uint64_t index) const {
   auto slicedTensor = slice(index, index + 1, Dimension(0));
   return slicedTensor.reshape(slicedTensor.shape().squeeze({0}));

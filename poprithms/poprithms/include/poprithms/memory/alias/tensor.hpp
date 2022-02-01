@@ -147,6 +147,22 @@ public:
   /** Example {4,6}.reshape((3,8))->{3,8}. */
   Tensor reshape(const Shape &) const;
 
+  /**
+   * Example: {2,3}.upsample(2,1)->{2,6}.
+   *
+   * If the tensor in this example with shape {2,3} has values (addresses)
+   * ```
+   * abc
+   * def
+   * ```
+   * then the upsampled tensor has values
+   * ```
+   * aabbcc
+   * ddeeff
+   * ```
+   * */
+  Tensor upsample(uint64_t scale, uint64_t dim) const;
+
   /** Take a slice of width 1 of this tensor in dimension-0, then squeeze the
    *  singleton dimension-0 out.
    *  Example {4,5,6}.subscript(1)->{5,6}. */
