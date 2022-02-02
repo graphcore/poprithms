@@ -171,7 +171,7 @@ Tensor Tensor::reshape(const Shape &to) const {
 
 Tensor Tensor::upsample(uint64_t scale, uint64_t dim) const {
   auto broadcasted =
-      reshape(shape().unsqueeze({dim + 1})).broadcast(scale, dim + 1);
+      reshape(shape().unsqueeze(dim + 1)).broadcast(scale, dim + 1);
   return broadcasted.reshape(broadcasted.shape().flatten(dim, dim + 2));
 }
 

@@ -13,7 +13,7 @@ void testSlices0() {
   auto tensor = g.tensor(g.allocate({50}));
 
   std::vector<Interval> slices;
-  for (int64_t i = 0; i < 10; ++i) {
+  for (uint64_t i = 0; i < 10; ++i) {
     slices.push_back({5 * i, 5 * (i + 1)});
   }
 
