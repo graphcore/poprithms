@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <sstream>
+#include <type_traits>
 
 namespace poprithms {
 namespace util {
@@ -35,7 +36,9 @@ namespace util {
 // Note that TensorId b(a.get()); will still work.
 //
 
-template <char T, typename INT> class TypedInteger {
+class TypedIntegerBase {};
+
+template <char T, typename INT> class TypedInteger : public TypedIntegerBase {
 public:
   TypedInteger()                      = default;
   TypedInteger(TypedInteger &&x)      = default;
@@ -83,6 +86,46 @@ std::string operator+(const std::string &s, TypedInteger<T, INT> id) {
   return s + std::to_string(id.get());
 }
 
+/**
+ *
+ * When implementing template methods with a template parameter Q which is
+ * EITHER a TypedIntegers OR a C++ integral types, we sometimes need get a
+ * uint64_t from Q. For C++ integral types this just involves a
+ * static_cast<uint64_t>(q), for TypedIntegers it requires calling the get()
+ * method first  (static_cast<uint64_t>(q.get()). We don't want to implement
+ * an implicit cast for TypedIntegers (unint64_t operator()) because the
+ * purpose of that class is to get compiler errors when types are incorrectly
+ * used.
+ *
+ * This helper class removes this indirection, so that for both TypedIntegers
+ * and C++ integral types, a call to IntValGetter<Q>::get_u64(q) returns the
+ * desired uint64_t.
+ * */
+template <typename Q, class Enable = void> class IntValGetter {};
+
+/**
+ * The typed integer case:
+ * */
+template <typename Q>
+class IntValGetter<
+    Q,
+    typename std::enable_if<
+        std::is_base_of<poprithms::util::TypedIntegerBase, Q>::value>::type> {
+public:
+  static uint64_t get_u64(Q q) { return static_cast<uint64_t>(q.get()); }
+};
+
+/**
+ * The C++ native integer case:
+ * */
+template <typename Q>
+class IntValGetter<
+    Q,
+    typename std::enable_if<std::is_integral<Q>::value>::type> {
+public:
+  static uint64_t get_u64(Q q) { return static_cast<uint64_t>(q); }
+};
+
 } // namespace util
 } // namespace poprithms
 
@@ -97,6 +140,7 @@ struct hash<poprithms::util::TypedInteger<T, INT>> {
     return std::hash<INT>{}(s.get());
   }
 };
+
 } // namespace std
 
 #endif

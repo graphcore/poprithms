@@ -89,8 +89,7 @@ public:
    *         intervals). In other words, each sequence of intervals is
    *         concatenated into a single subtensor.
    */
-  Tensors slices(const std::vector<Intervals> &intervals,
-                 uint64_t dim) const;
+  Tensors slices(const std::vector<Intervals> &intervals, uint64_t dim) const;
 
   /** \return true if this Tensor intersects with `rhs'. */
   bool intersectsWith(const Tensor &rhs) const;

@@ -23,7 +23,7 @@ void testIndexError(const std::vector<int64_t> &shape,
   Graph g;
   bool caught(false);
   try {
-    auto tensor = g.tensor(g.allocate(Shape(shape))).index(indices);
+    g.tensor(g.allocate(Shape(shape))).index(indices);
   } catch (const poprithms::error::error &e) {
     caught = true;
   }
