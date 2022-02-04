@@ -13,7 +13,7 @@ Create a build directory:
 mkdir build; cd build;
 ```
 
-Configure cmake. If boost is installed in a standard location, 
+Configure cmake. If boost is installed in a standard location, from the build directory,
 ```
 cmake /path/to/poprithms/root/dir
 ```
@@ -23,7 +23,7 @@ If boost is installed somewhere unusual,
 cmake /path/to/poprithms/root/dir -DBOOST_ROOT=/path/to/boost/install 
 ```
 
-By default, the C++ compiler flag `-Werror` is enabled. To disable `-Werror`, use 
+By default, the C++ compiler flag `-Werror` is enabled. This escalates warnings to errors. To disable `-Werror`, use 
 ```
 cmake /path/to/poprithms/root/dir  -DPOPRITHMS_WERROR=OFF
 ```
@@ -34,8 +34,8 @@ cmake /path/to/poprithms/root/dir  -DPOPRITHMS_USE_STACKTRACE=OFF
 ```
 
 
-The usual CMake flags can be used to set the install directory `CMAKE_INSTALL_PREFIX` 
-and the generator `CMAKE_GENERATOR`. A complete configuration command might be:
+The usual CMake flags can be used to set the poprithms install directory `CMAKE_INSTALL_PREFIX` 
+, and the generator `CMAKE_GENERATOR`. A complete configuration command might be:
 
 ```
 cmake /path/to/poprithms/root/dir  -DPOPRITHMS_WERROR=OFF -BOOST_ROOT=/path/to/boost/install -DCMAKE_INSTALL_PREFIX=/my/install/dir -DCMAKE_GENERATOR="Ninja"
@@ -43,18 +43,18 @@ cmake /path/to/poprithms/root/dir  -DPOPRITHMS_WERROR=OFF -BOOST_ROOT=/path/to/b
 
 ### Build the library
 
-The library can be built from the build directory. If the generator is Ninja and you have an install directory set, then 
+Once configured, the library can be built from the build directory. If the generator is Ninja and you have an install directory set, then 
 ```
 ninja install
 ```
 
-will build and copy the poprithms shared library, header and configuration files into the install directory. 
+will build and copy the poprithms shared library (no static library is built), header, and configuration files into the install directory. 
 
 ### Build the documentation 
 
-Currently poprithms does not build documentation. 
+Currently poprithms does not build documentation.
 
-### Examples 
+### Examples
 
 Currently the test directory serves as examples. 
 
@@ -67,16 +67,9 @@ find_package(poprithms CONFIG REQUIRED)
 target_link_libraries(my_library PRIVATE poprithms)
 ```
 
-Alternatively, for the static poprithms library
-
-```
-find_package(poprithms-static CONFIG REQUIRED)
-target_link_libraries(my_library PRIVATE poprithms-static)
-```
-
 
 ### Formatting the C++ code
-The project uses clang-format version 13.
+The project uses clang-format version 14.
 
 ### Troubleshooting
 
