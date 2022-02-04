@@ -12,6 +12,8 @@
 namespace poprithms {
 namespace unwindtoy {
 
+using poprithms::common::multiout::InIndices;
+
 class FullState;
 
 /**
@@ -101,12 +103,18 @@ public:
   void schedulableTypeSpecificVerifyValidOutputSubstitute(
       const TensorId &,
       const TensorId &) const final {
-    {}
+    unimplemented();
   }
 
   void schedulableTypeSpecificRemoveOp(
       OpId,
-      const poprithms::common::multiout::OptionalTensorIds &) final {}
+      const poprithms::common::multiout::OptionalTensorIds &) final {
+    unimplemented();
+  }
+
+  void schedulableTypeSpecificRemoveInputs(OpId, const InIndices &) final {
+    unimplemented();
+  }
 };
 
 std::ostream &operator<<(std::ostream &ost, const Graph &g);

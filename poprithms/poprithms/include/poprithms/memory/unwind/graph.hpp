@@ -23,6 +23,7 @@ namespace poprithms {
 namespace memory {
 namespace unwind {
 
+using common::multiout::InIndices;
 using common::multiout::OpIds;
 using common::multiout::OptionalTensorIds;
 using common::multiout::TensorIds;
@@ -1056,13 +1057,22 @@ private:
     return true;
   }
 
-  void multiOutTypeSpecificRemoveOp(
-      OpId opToRemove,
-      const OptionalTensorIds &outputSubstitutes) final;
+  void multiOutTypeSpecificRemoveOp(OpId, const OptionalTensorIds &) final {
+    // TODO(T49502)
+    unimplemented();
+  }
+
+  void multiOutTypeSpecificRemoveInputs(OpId, const InIndices &) final {
+    // TODO(T49502)
+    unimplemented();
+  }
 
   void multiOutTypeSpecificVerifyValidOutputSubstitute(
-      const TensorId &before,
-      const TensorId &after) const final;
+      const TensorId &,
+      const TensorId &) const final {
+    // TODO(T49502)
+    unimplemented();
+  }
 
   Op &op(OpId);
   const Op &op(OpId) const;

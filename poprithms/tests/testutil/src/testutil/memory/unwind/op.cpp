@@ -10,6 +10,11 @@
 namespace poprithms {
 namespace unwindtoy {
 
+void Op::removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) {
+  throw poprithms::test::error(
+      "this test class does not support any transformations");
+}
+
 [[noreturn]] void invalid(const std::string &e = {}) {
   throw poprithms::test::error("Unimplemented method called. Context:" + e);
 }

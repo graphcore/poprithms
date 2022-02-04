@@ -1,6 +1,4 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
-#include "poprithms/logging/logging.hpp"
-
 #include <algorithm>
 #include <iostream>
 #include <numeric>
@@ -11,6 +9,7 @@
 #include <testutil/memory/nest/randomsett.hpp>
 
 #include <poprithms/error/error.hpp>
+#include <poprithms/logging/logging.hpp>
 #include <poprithms/memory/nest/logging.hpp>
 #include <poprithms/memory/nest/sett.hpp>
 #include <poprithms/util/printiter.hpp>

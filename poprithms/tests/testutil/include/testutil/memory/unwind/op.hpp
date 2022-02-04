@@ -3,6 +3,7 @@
 #ifndef POPRITHMS_TESTUTIL_UNWIND_TOY_OP_HPP
 #define POPRITHMS_TESTUTIL_UNWIND_TOY_OP_HPP
 
+#include <poprithms/common/multiout/op.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/op.hpp>
 #include <poprithms/memory/unwind/matmulattractions.hpp>
@@ -34,6 +35,7 @@ using HTensors      = std::vector<HTensor>;
 using SchedulableOp = poprithms::common::schedulable::Op;
 using poprithms::memory::unwind::Path;
 using State = SchedulableOp::State;
+using poprithms::common::multiout::ContiguousOutIndexSubset;
 
 HTensor getMatMulOut(const Shape &s0, const Shape &s1);
 
@@ -42,6 +44,9 @@ public:
   Op(const State &st) : SchedulableOp(st) {}
   bool schedulableTypeSpecificEqualTo(const SchedulableOp &) const final;
   void growUnwind(FullState &u) const;
+
+  void
+  removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) final;
 
   // Create the host Tensors of the output of this op.
   virtual void fwd(FullState &) const = 0;

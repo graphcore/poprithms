@@ -677,8 +677,8 @@ void Graph::Workspace::clear(const TensorIds &sched) {
 }
 
 // This implementation works by performing a depth-first search for all
-// Tensors preceding the Tensor clone, and creating a clone of all of them.
-// Example:
+// Tensors preceding the Tensor being cloned, and creating a clone of all of
+// them. Example:
 //
 //     allocate - reverse -|- concat - slice (toClone)
 //     allocate - permute -|

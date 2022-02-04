@@ -13,6 +13,7 @@
 #include <poprithms/common/multiout/ioindices.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/ndarray/shape.hpp>
+#include <poprithms/util/contiguoussubset.hpp>
 
 namespace poprithms {
 namespace common {
@@ -20,8 +21,9 @@ namespace multiout {
 
 class Graph;
 
-using Shape  = ndarray::Shape;
-using Shapes = ndarray::Shapes;
+using ContiguousOutIndexSubset = poprithms::util::ContiguousSubset<OutIndex>;
+using Shape                    = ndarray::Shape;
+using Shapes                   = ndarray::Shapes;
 
 /**
  * Abstract base class of nodes in a multiout::Graph.
@@ -121,6 +123,20 @@ public:
     return consumptionIds_;
   }
 
+  /** The number of consumption ids of each output tensor.  */
+  std::vector<uint64_t> nConsumptionIds() const;
+
+  /** The total number of conumption ids, of all output tensors. */
+  uint64_t totalConsumptionIds() const;
+
+  uint64_t nConsumptionIds(OutIndex o) const {
+    return consumptionIds(o).size();
+  }
+
+  bool hasConsumptionIds() const { return totalConsumptionIds() != 0; }
+
+  bool hasConsumptionIds(OutIndex o) const { return nConsumptionIds(o) != 0; }
+
   /** The places where the #o'th Tensor created by this Op is consumed. */
   const ConsumptionIds &consumptionIds(OutIndex o) const {
     return consumptionIds_[o.get()];
@@ -149,6 +165,12 @@ public:
   /** The #i'th Tensor which this Op consumes. */
   const TensorId &inTensorId(InIndex i) const { return inIds_[i.get()]; }
 
+  /** The inputs at a subset of the input indices */
+  TensorIds inTensorIds(const InIndices &) const;
+
+  /** The inputs at all input indices except those in #exclude. */
+  TensorIds inTensorIdsExcluding(const InIndices &exclude) const;
+
   uint64_t nInTensors() const { return inIds_.size(); }
 
   /**
@@ -169,6 +191,11 @@ public:
    * consuming Op.
    * */
   std::vector<OutIndex> outIndicesConsumed() const;
+
+  void removeOutputs(const ContiguousOutIndexSubset &);
+
+  virtual void
+  removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) = 0;
 
   /**
    * \sa multiOutTypeSpecificEqualTo. */
@@ -191,6 +218,18 @@ public:
    */
   void verify(InIndex, OutIndex, const std::string &context) const;
 
+  /**
+   * Verify that the input indices are all less than the total number of
+   * inputs, and are distinct from each other.
+   * */
+  void verifyDistinct(const InIndices &indices) const;
+
+  /**
+   * Verify that the output indices are all less than the total number of
+   * outputs, and are distinct from each other.
+   * */
+  void verifyDistinct(const OutIndices &indices) const;
+
 private:
   OpId id_;
   TensorIds inIds_;
@@ -199,6 +238,7 @@ private:
   std::string name_;
   const Graph *multioutGraph_;
   void setGraph(const Graph &);
+  void resetInTensorIds(const TensorIds &ids) { inIds_ = ids; }
 
 protected:
   const Graph &multioutGraph() const { return *multioutGraph_; }
@@ -222,9 +262,12 @@ private:
    * */
   void removeConsumptionId(OutIndex o, const ConsumptionId &toRemove);
 
-  void resetInTensor(InIndex i, const TensorId &id) { inIds_[i.get()] = id; }
+  void resetInTensorId(InIndex i, const TensorId &id);
 
   friend class multiout::Graph;
+
+protected:
+  [[noreturn]] void unimplemented() const;
 };
 
 std::ostream &operator<<(std::ostream &, const Op &);

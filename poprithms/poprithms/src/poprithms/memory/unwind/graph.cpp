@@ -506,30 +506,6 @@ std::array<Shape, 2> Graph::matmulBarrierShapes(const TensorId &id) const {
   return {mmp->lhs(), mmp->rhs()};
 }
 
-void Graph::multiOutTypeSpecificRemoveOp(
-    OpId opToRemove,
-    const OptionalTensorIds &outputSubstitutes) {
-  // TODO(T49502)
-  std::ostringstream oss;
-  oss << "Must implement multiOutTypeSpecificRemoveOp. Called with "
-         "opToRemove = "
-      << opToRemove << " and outputSubstitutes = " << outputSubstitutes
-      << ".";
-  throw error(oss.str());
-}
-
-void Graph::multiOutTypeSpecificVerifyValidOutputSubstitute(
-    const TensorId &before,
-    const TensorId &after) const {
-  // TODO(T49502)
-
-  std::ostringstream oss;
-  oss << "Must implement multiOutTypeSpecificVerifyValidOutputSubstitute. "
-      << "Called with before = " << before << " and after = " << after
-      << ". ";
-  throw error(oss.str());
-}
-
 } // namespace unwind
 } // namespace memory
 } // namespace poprithms

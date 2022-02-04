@@ -6,10 +6,13 @@
 #include <ostream>
 #include <random>
 #include <sstream>
+#include <string>
 #include <unordered_set>
 
 #include <poprithms/common/multiout/consumptionid.hpp>
 #include <poprithms/common/multiout/graph.hpp>
+#include <poprithms/common/multiout/ioindices.hpp>
+#include <poprithms/common/multiout/op.hpp>
 #include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/optraversal.hpp>
 #include <poprithms/common/multiout/traversal.hpp>
@@ -20,6 +23,9 @@
 namespace {
 using namespace poprithms::common;
 using Shape = poprithms::ndarray::Shape;
+using poprithms::common::multiout::ContiguousOutIndexSubset;
+using poprithms::common::multiout::InIndex;
+using poprithms::common::multiout::InIndices;
 using poprithms::common::multiout::OpId;
 using poprithms::common::multiout::OpIds;
 using poprithms::common::multiout::OptionalTensorId;
@@ -42,6 +48,8 @@ private:
   bool multiOutTypeSpecificEqualTo(const multiout::Op &) const final {
     return true;
   };
+
+  void removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) final {}
 };
 
 class Graph : public multiout::Graph {
@@ -52,6 +60,9 @@ public:
     const multiout::Op::State s(nOps(), inIds, consOut, outShapes, "", *this);
     return insertMultioutOp(std::make_unique<test::Op>(s));
   }
+
+  using multiout::Graph::removeInputs;
+  using multiout::Graph::removeOutputs;
   virtual ~Graph() override = default;
   void appendOpColumns(std::ostream &, const OpIds &) const final;
 
@@ -59,6 +70,8 @@ private:
   bool multiOutTypeSpecificEqualTo(const multiout::Graph &) const final {
     return true;
   }
+
+  void multiOutTypeSpecificRemoveInputs(OpId, const InIndices &) final {}
 
   void multiOutTypeSpecificRemoveOp(OpId, const OptionalTensorIds &) final {}
 
@@ -283,6 +296,238 @@ void testTraversal1() {
   }
 }
 
+void verifyEdges(const test::Graph &g, const std::map<OpId, TensorIds> &ins) {
+
+  // verify that consumers and outputs and inputs all agree.
+  g.assertMultioutGraphCorrectness();
+
+  for (const auto &[op, inTensors] : ins) {
+    if (g.nInTensors(op) != inTensors.size()) {
+      std::ostringstream oss;
+      oss << "Error verify graph after input/output removals. "
+          << "Expected the number of inputs of " << op << " to be "
+          << inTensors.size() << " but it is " << g.nInTensors(op);
+      throw poprithms::test::error(oss.str());
+    }
+    for (InIndex inIndex = 0; inIndex < inTensors.size(); ++inIndex) {
+      if (g.inTensorId(op, inIndex) != inTensors[inIndex.get()]) {
+        std::ostringstream oss;
+        oss << "Error verify graph after input/output removals. "
+            << "Expected the input #" << inIndex << " of op " << op
+            << " to be " << inTensors[inIndex.get()] << " but it is "
+            << g.inTensorId(op, inIndex);
+        throw poprithms::test::error(oss.str());
+      }
+    }
+  }
+}
+
+void testRemoveEdges0() {
+  {
+    test::Graph g;
+
+    /**
+     * a ---+
+     *      + ---> c
+     * b ---+
+     * */
+    auto a = g.insert({}, 1);
+    auto b = g.insert({}, 1);
+    auto c = g.insert({{a, 0}, {b, 0}}, 1);
+
+    /**
+     * a
+     *      + ---> c
+     * b ---+
+     * */
+    g.removeInputs(c, {0});
+    verifyEdges(g, {{a, {}}, {b, {}}, {c, {{b, 0}}}});
+
+    /**
+     * a ---+
+     *      + ---> c
+     * b
+     * */
+    g.removeOutputs(b, {0}, {TensorId{a, 0}});
+    verifyEdges(g, {{a, {}}, {b, {}}, {c, {{a, 0}}}});
+  }
+
+  {
+    test::Graph g;
+    auto a  = g.insert({}, /* n-outputs */ 4);
+    auto b  = g.insert({{a, 0}, {a, 2}}, 1);
+    auto c  = g.insert({{a, 0}, {a, 1}}, 1);
+    auto ar = g.insert({}, 2);
+
+    g.removeOutputs(a, {0, 2}, {TensorId{ar, 1}, TensorId{ar, 0}});
+    /**
+     * b got outputs 0 and 2 of a, but they're both removed so now must get
+     * outputs of ar.
+     *
+     *  c got outputs 0 and 1 of a, but output 0 is removed, so now gets one
+     * output of ar instead. The output index of a for its second input
+     * changes from 1 to 0.
+     * */
+    verifyEdges(
+        g,
+        {{a, {}}, {ar, {}}, {b, {{ar, 1}, {ar, 0}}}, {c, {{ar, 1}, {a, 0}}}});
+  }
+
+  {
+
+    test::Graph g;
+
+    /**
+     *
+     *   0+--     +
+     *    |       +--- c (gets 0 and 1)
+     *    |       +
+     *    |
+     *   1+---    +
+     * a -+       +--- b (gets 0 and 2)
+     *   2+---    +
+     *    |
+     *   3+---
+     *
+     *
+     * Then outputs 0 and 2 are removed, and must be replaced by 1 and 3.
+     *
+     * So c gets 1 and 1 and b gets 1 and 3.
+     *
+     * Which when shifted down to fill in the gaps means
+     * c gets 0 and 0 and b gets 0 and 1.
+     *
+     *  */
+
+    auto a = g.insert({}, 4);
+    auto b = g.insert({{a, 0}, {a, 2}}, 1);
+    auto c = g.insert({{a, 0}, {a, 1}}, 1);
+    (void)b;
+    (void)c;
+    g.removeOutputs(a, {0, 2}, {TensorId{a, 1}, TensorId{a, 3}});
+    verifyEdges(g, {});
+  }
+
+  {
+    // Longer example.
+    test::Graph g;
+    auto a = g.insert({}, 1);
+    auto b = g.insert({{a, 0}, {a, 0}, {a, 0}}, 2);
+    auto c = g.insert({{b, 0}, {b, 1}, {b, 0}}, 3);
+    auto d = g.insert({{b, 1}, {c, 1}}, 0);
+    g.removeOutputs(b, {0, 1}, {TensorId(a, 0), TensorId(a, 0)});
+    verifyEdges(g,
+                {{a, {}},
+                 {b, {{a, 0}, {a, 0}, {a, 0}}},
+                 {c, {{a, 0}, {a, 0}, {a, 0}}},
+                 {d, {{a, 0}, {c, 1}}}});
+
+    g.removeInputs(c, {1});
+    g.removeInputs(d, {0});
+
+    verifyEdges(g,
+                {{a, {}},
+                 {b, {{a, 0}, {a, 0}, {a, 0}}},
+                 {c, {{a, 0}, {a, 0}}},
+                 {d, {{c, 1}}}});
+
+    auto e = g.insert({}, 2);
+    g.removeOutputs(a, {0}, {TensorId(e, 0)});
+    verifyEdges(g,
+                {{a, {}},
+                 {b, {{e, 0}, {e, 0}, {e, 0}}},
+                 {c, {{e, 0}, {e, 0}}},
+                 {d, {{c, 1}}}});
+
+    g.removeOutputs(e, {0}, {TensorId(e, 1)});
+    verifyEdges(g,
+                {{a, {}},
+                 {b, {{e, 0}, {e, 0}, {e, 0}}},
+                 {c, {{e, 0}, {e, 0}}},
+                 {d, {{c, 1}}}});
+
+    bool caught{false};
+    try {
+      g.removeOutputs(e, {0}, {TensorId(b, 0)});
+    } catch (const poprithms::error::error &e) {
+      caught = true;
+    }
+    if (!caught) {
+      throw poprithms::test::error(
+          "failed to catch error where output is used to replace input");
+    }
+  }
+}
+
+void testRemoveEdges1() {
+
+  auto verifyMessage = [](const poprithms::error::error &e,
+                          const std::vector<std::string> &frags) {
+    std::string w{e.what()};
+    for (const auto &f : frags) {
+      if (w.find(f) == std::string::npos) {
+        // if (std::find(w.cbegin(), w.cend(), f) == w.cend()) {
+        throw poprithms::test::error("Looking for sub-string " + f + " in " +
+                                     w + " but failed. ");
+      }
+    }
+  };
+
+  {
+    test::Graph g;
+    auto a = g.insert({}, 1);
+    auto b = g.insert({}, 1);
+    g.insert({{a, 0}, {b, 0}}, 1);
+    bool caught{false};
+    try {
+      g.removeOutputs(a, {0}, {TensorId{a, 0}});
+    } catch (const poprithms::error::error &e) {
+      verifyMessage(e, {"Cannot use an output which is about to be removed"});
+      caught = true;
+    }
+    if (!caught) {
+      throw poprithms::test::error(
+          "Failed to catch error of using about-to-be-deleted tensor as "
+          "replacement for deleted tensor");
+    }
+  }
+
+  {
+    test::Graph g;
+    auto a = g.insert({}, 1);
+    auto b = g.insert({}, 1);
+    g.insert({{a, 0}, {b, 0}}, 1);
+    bool caught{false};
+    try {
+      g.removeOutputs(a, {1}, {TensorId{a, 0}});
+    } catch (const poprithms::error::error &e) {
+      verifyMessage(e, {"Invalid OutIndex"});
+      caught = true;
+    }
+    if (!caught) {
+      throw poprithms::test::error(
+          "Failed to catch non-existant replacement tensor");
+    }
+  }
+
+  {
+    test::Graph g;
+    auto a = g.insert({}, 1);
+    auto b = g.insert({}, 1);
+    g.insert({{a, 0}, {b, 0}}, 1);
+    bool caught{false};
+    try {
+      g.removeOutputs(a, {0}, {OptionalTensorId{}});
+    } catch (const poprithms::error::error &e) {
+      caught = true;
+    }
+    if (!caught) {
+      throw poprithms::test::error("Failed to catch error of not providing a "
+                                   "real replacement (Optional not set)");
+    }
+  }
+}
+
 void testTraversal2() {
 
   //                       +-- x1 --------------------+
@@ -412,5 +657,7 @@ int main() {
   testMovesAndCopies();
   testOutConsumers0();
   testOptionalTensorIds0();
+  testRemoveEdges0();
+  testRemoveEdges1();
   return 0;
 }

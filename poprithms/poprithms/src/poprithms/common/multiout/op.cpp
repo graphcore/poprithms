@@ -9,11 +9,92 @@
 
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/op.hpp>
+#include <poprithms/util/contiguoussubset.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
 namespace common {
 namespace multiout {
+
+void Op::unimplemented() const {
+  std::ostringstream oss;
+  oss << "This method for this class derived from multiout::Op "
+      << "is not implemented. "
+      << "Called on graph with name '" << getName()
+      << "'. typeid of class (typeid(*this).name) is " << typeid(*this).name()
+      << '.';
+  throw error(oss.str());
+}
+
+void Op::removeOutputs(
+    const poprithms::util::ContiguousSubset<OutIndex> &indexMapper) {
+
+  removeMultioutDerivedOutputs(indexMapper);
+
+  // take only the outShapes_ and consumptionIds_ at the retained indices.
+  indexMapper.reduce(outShapes_);
+  indexMapper.reduce(consumptionIds_);
+}
+
+TensorIds Op::inTensorIds(const InIndices &indices) const {
+  TensorIds ids;
+  ids.reserve(indices.size());
+  for (auto i : indices) {
+    ids.push_back(inTensorId(i));
+  }
+  return ids;
+}
+
+TensorIds Op::inTensorIdsExcluding(const InIndices &indices) const {
+  TensorIds ids;
+  for (InIndex i = 0; i < nInTensors(); ++i) {
+    if (std::find(indices.cbegin(), indices.cend(), i) == indices.cend()) {
+      ids.push_back(inTensorId(i));
+    }
+  }
+  return ids;
+}
+
+namespace {
+
+template <typename T>
+void tVerifyDistinct(uint64_t N,
+                     const std::vector<T> &vs,
+                     const Op &op,
+                     bool isIn) {
+
+  auto low = [isIn]() { return isIn ? "in" : "out"; };
+  auto upp = [isIn]() { return isIn ? "In" : "Out"; };
+
+  std::vector<bool> removalMask(N, false);
+  for (auto i : vs) {
+    if (i.get() >= N) {
+      std::ostringstream oss;
+      oss << "Invalid " << upp() << "Index " << i << " for " << op
+          << ", which only has " << N << " " << low() << "puts.";
+      throw error(oss.str());
+    }
+    if (removalMask[i.get()]) {
+      std::ostringstream oss;
+      oss << "Duplicate " << upp() << "Index " << i
+          << " in verifyDistinct for " << op << ", with " << upp()
+          << "Indices ";
+      util::append(oss, vs);
+      oss << '.';
+      throw error(oss.str());
+    }
+    removalMask[i.get()] = true;
+  }
+}
+} // namespace
+
+void Op::verifyDistinct(const InIndices &inIndices) const {
+  tVerifyDistinct<InIndex>(nInTensors(), inIndices, *this, true);
+}
+
+void Op::verifyDistinct(const OutIndices &outIndices) const {
+  tVerifyDistinct<OutIndex>(nOutTensors(), outIndices, *this, false);
+}
 
 Shapes Op::inShapes() const {
   Shapes shapes;
@@ -169,11 +250,37 @@ void Op::removeConsumptionId(OutIndex o, const ConsumptionId &toRemove) {
   ids.erase(found);
 }
 
+std::vector<uint64_t> Op::nConsumptionIds() const {
+  std::vector<uint64_t> ns;
+  ns.reserve(nOutTensors());
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    ns.push_back(nConsumptionIds(o));
+  }
+  return ns;
+}
+
+uint64_t Op::totalConsumptionIds() const {
+  auto ns = nConsumptionIds();
+  return std::accumulate(ns.cbegin(), ns.cend(), 0ull);
+}
+
 TensorIds Op::inAndOutTensorIds() const {
   TensorIds outs       = outTensorIds();
   TensorIds insAndOuts = inTensorIds();
   insAndOuts.insert(insAndOuts.end(), outs.cbegin(), outs.cend());
   return insAndOuts;
+}
+
+void Op::resetInTensorId(InIndex i, const TensorId &repl) {
+  if (repl.opId() == id()) {
+    std::ostringstream oss;
+    oss << "Cannot replace input " << i << " of op " << id()
+        << " with tensor " << repl << " as this is an output of op " << id()
+        << '.';
+    throw error(oss.str());
+  }
+
+  inIds_[i.get()] = repl;
 }
 
 } // namespace multiout

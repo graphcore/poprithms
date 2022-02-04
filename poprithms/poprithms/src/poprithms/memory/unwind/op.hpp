@@ -21,6 +21,7 @@ namespace unwind {
 
 class Graph;
 
+using ContiguousOutIndexSubset = poprithms::util::ContiguousSubset<OutIndex>;
 using chain::Chain;
 using common::multiout::ConsumptionIds;
 using common::multiout::TensorIds;
@@ -112,6 +113,11 @@ private:
 
   bool
   multiOutTypeSpecificEqualTo(const common::multiout::Op &other) const final;
+
+  virtual void
+  removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) final {
+    unimplemented();
+  }
 };
 
 std::ostream &operator<<(std::ostream &, const Op &);

@@ -12,6 +12,7 @@
 
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/op.hpp>
+#include <poprithms/util/contiguoussubset.hpp>
 #include <poprithms/util/copybyclone_impl.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
@@ -137,6 +138,21 @@ void Graph::verifyValidOutputSubstitutes(
   }
 }
 
+void Graph::removeConsumptionId(OpId opId, InIndex inIndex) {
+  const auto inTensor = inTensorId(opId, inIndex);
+  const auto inOp     = inTensor.opId();
+  const auto outIndex = inTensor.outIndex();
+  op(inOp).removeConsumptionId(outIndex, ConsumptionId(opId, inIndex));
+}
+
+void Graph::resetConsumption(OpId opId, InIndex oldIndex, InIndex newIndex) {
+  const auto inTensor = inTensorId(opId, oldIndex);
+  const auto inOp     = inTensor.opId();
+  const auto outIndex = inTensor.outIndex();
+  op(inOp).removeConsumptionId(outIndex, ConsumptionId(opId, oldIndex));
+  op(inOp).insertConsumptionId(outIndex, ConsumptionId(opId, newIndex));
+}
+
 void Graph::removeOp(OpId opId,
                      const OptionalTensorIds &substitutes,
                      const std::string &context) {
@@ -160,18 +176,26 @@ void Graph::removeOp(OpId opId,
   // 1) when opId is removed, it no longer consumes its inputs. Register this
   //    fact with the producers of opId's inputs.
   for (uint64_t inIndex = 0; inIndex < nInTensors(opId); ++inIndex) {
-    const auto inTensor = inTensorId(opId, inIndex);
-    const auto inOp     = inTensor.opId();
-    const auto outIndex = inTensor.outIndex();
-    op(inOp).removeConsumptionId(outIndex, ConsumptionId(opId, inIndex));
+    removeConsumptionId(opId, inIndex);
   }
 
   // 2) wire up the substitutes. That is, all consumers of outputs of opId
-  //    must change to consume the corresponding substitue.
+  //    must change to consume the corresponding substitute.
   for (auto outIndex : outIndicesConsumed(opId)) {
-    const TensorId substitute = substitutes.at(outIndex.get()).value();
+    const auto substitute = substitutes.at(outIndex.get()).value();
+    if (substitute.opId() == opId) {
+      std::ostringstream oss;
+      oss << "In multiout::Graph::removeOp, removing " << opId
+          << ". The proposed substitute for the output at index " << outIndex
+          << " is the tensor " << substitute
+          << ", which is created by op being removed. "
+          << "This is not allowed, as it will be an invalid substitute when "
+          << opId << " is removed. ";
+      throw error(oss.str());
+    }
+
     for (auto c : consumptionIds({opId, outIndex})) {
-      op(c.opId()).resetInTensor(c.inIndex(), substitute);
+      op(c.opId()).resetInTensorId(c.inIndex(), substitute);
       op(substitute.opId()).insertConsumptionId(substitute.outIndex(), c);
     }
   }
@@ -180,6 +204,92 @@ void Graph::removeOp(OpId opId,
   atts.removals_.insert({opId, op(opId).getName(), ops().size(), context});
   ops()[opId.get()].uptr.reset();
   atts.live_.erase(opId);
+}
+
+void Graph::removeInputs(OpId opToPrune, const InIndices &toRemove) {
+
+  const auto nIn = nInTensors(opToPrune);
+  auto &op_      = op(opToPrune);
+  op_.verifyDistinct(toRemove);
+  auto nxtInIds = op_.inTensorIdsExcluding(toRemove);
+
+  // An object to map between the old input indices, and the new (shifted
+  // towards 0) indices after some indices are removed.
+  poprithms::util::ContiguousSubset<InIndex> indexMapper(nIn, toRemove);
+
+  // Derived graph class does work:
+  multiOutTypeSpecificRemoveInputs(opToPrune, toRemove);
+
+  // The creators of the inputs of this op store the fact that their outputs
+  // are consumed by this op. For the inputs of this op which are removed,
+  // tell the op which creates the input that this op no longer consumes their
+  // output. For the other inputs, the ones which shift their input indices
+  // downwards, tell the op which creates the intput that the consumption
+  // index changes.
+  for (InIndex oldIndex = 0; oldIndex < nIn; ++oldIndex) {
+    if (indexMapper.isRemoved(oldIndex)) {
+      removeConsumptionId(opToPrune, oldIndex);
+    } else {
+      resetConsumption(opToPrune, oldIndex, indexMapper.inSubset(oldIndex));
+    }
+  }
+
+  // reset inIds_
+  op_.resetInTensorIds(nxtInIds);
+}
+
+void Graph::removeOutputs(OpId opToPrune,
+                          const OutIndices &toRemove,
+                          const OptionalTensorIds &outputSubstitutes) {
+
+  const auto nOuts = nOutTensors(opToPrune);
+  const auto &op_  = op(opToPrune);
+  op_.verifyDistinct(toRemove);
+
+  if (toRemove.size() != outputSubstitutes.size()) {
+    std::ostringstream oss;
+    oss << "Failure in removeOutputs for op " << opToPrune << ". There are "
+        << toRemove.size() << " indices which will removed, but "
+        << outputSubstitutes.size() << " substitute tensors provided. ";
+    throw error(oss.str());
+  }
+
+  // 1) Reconnect all the consumers.
+  poprithms::util::ContiguousSubset<OutIndex> indexMapper(nOuts, toRemove);
+
+  // For all of the (old) outputs of opToPrune, if it has a consumer, what
+  // should its consumer's new input be?
+  OptionalTensorIds complete;
+  for (OutIndex o = 0; o < nOuts; ++o) {
+    complete.push_back(TensorId{opToPrune, o});
+  }
+  for (uint64_t i = 0; i < outputSubstitutes.size(); ++i) {
+    complete[toRemove.at(i).get()] = outputSubstitutes[i];
+  }
+
+  for (auto outIndex : outIndicesConsumed(opToPrune)) {
+    const auto substitute  = complete.at(outIndex.get()).value();
+    auto downshifted       = substitute;
+    auto unshiftedOutIndex = substitute.outIndex();
+    if (substitute.opId() == opToPrune) {
+      if (indexMapper.isRemoved(unshiftedOutIndex)) {
+        throw error("Cannot use an output which is about to be removed as "
+                    "a replacement");
+      }
+      downshifted =
+          TensorId{opToPrune, indexMapper.inSubset(unshiftedOutIndex)};
+    }
+
+    for (auto c : consumptionIds({opToPrune, outIndex})) {
+      op(c.opId()).resetInTensorId(c.inIndex(), downshifted);
+      op(substitute.opId()).insertConsumptionId(substitute.outIndex(), c);
+    }
+  }
+
+  // 2)  Put op in its final state. This calls virtual methods on the op class
+  // to perform derived class work. Before this point, op should not have
+  // changed.
+  op(opToPrune).removeOutputs(indexMapper);
 }
 
 void Graph::assertMultioutGraphCorrectness() const {
@@ -195,7 +305,7 @@ void Graph::assertMultioutGraphCorrectness() const {
     }
   }
 
-  // for every, for every input, check that there's agreement with the
+  // for every op, for every input, check that there's agreement with the
   // producer of the input:
   for (auto op_ : opIds()) {
     for (uint64_t i = 0; i < nInTensors(op_); ++i) {
@@ -214,6 +324,23 @@ void Graph::assertMultioutGraphCorrectness() const {
             << in_.outIndex() << " does agree with input shape of " << op_
             << " at index. " << i;
         throw error(oss.str());
+      }
+    }
+  }
+
+  // for every op, every output, check that there's agreement with the
+  // consumers.
+  for (auto op_ : opIds()) {
+    for (OutIndex o = 0; o < nOutTensors(op_); ++o) {
+      for (auto c : consumptionIds({op_, o})) {
+        if (inTensorId(c.opId(), c.inIndex()) != TensorId{op_, o}) {
+          std::ostringstream oss;
+          oss << "Op " << op_ << " has consumer " << c << " at output index "
+              << o << ", but the input to " << c.opId() << " at index "
+              << c.inIndex() << " is " << inTensorId(c.opId(), c.inIndex())
+              << '.';
+          throw error(oss.str());
+        }
       }
     }
   }
@@ -520,7 +647,12 @@ Graph::getMultioutColumns(const OpIds &opIds) const {
   }
 
   cols.push_back({"OpType", opType});
-  cols.push_back({"InTensors", inTensors});
+  cols.push_back(
+      util::StringColumn("InTensors",
+                         inTensors,
+                         '-',
+                         poprithms::util::StringColumn::Align::Left,
+                         50));
 
   if (std::any_of(outIndex.cbegin(), outIndex.cend(), [](const auto &x) {
         return (!x.empty() && x[0] != '0');
@@ -531,6 +663,16 @@ Graph::getMultioutColumns(const OpIds &opIds) const {
   cols.push_back({"Shape", tensorShape});
 
   return cols;
+}
+
+void Graph::unimplemented() const {
+  std::ostringstream oss;
+  oss << "This method for this class derived from multiout::Graph "
+      << "is not implemented. "
+      << "Called on graph with name '" << getName()
+      << "'. typeid of class (typeid(*this).name) is " << typeid(*this).name()
+      << '.';
+  throw error(oss.str());
 }
 
 } // namespace multiout

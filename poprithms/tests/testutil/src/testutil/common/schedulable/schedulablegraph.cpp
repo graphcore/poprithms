@@ -2,18 +2,16 @@
 
 #include <testutil/common/schedulable/schedulablegraph.hpp>
 
+#include <poprithms/error/error.hpp>
+
 namespace poprithms {
 namespace common {
 namespace schedulable_test {
 
 Op::Op(const schedulable::Op::State &s) : schedulable::Op(s) {}
-std::string Op::typeString() const { return "ScazooOp"; }
+std::string Op::typeString() const { return "ASchedulableTestOp"; }
 std::unique_ptr<multiout::Op> Op::cloneMultioutOp() const {
   return std::make_unique<Op>(*this);
-}
-
-bool Op::schedulableTypeSpecificEqualTo(const schedulable::Op &) const {
-  return true;
 }
 
 OpId Graph::insert(const TensorIds &ins,
@@ -50,10 +48,6 @@ void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
 
 OpId Graph::insertBinBoundary(schedulable::SubGraphId sgId) {
   return insert({}, 0, sgId, "binBoundary");
-}
-
-bool Graph::multiOutTypeSpecificEqualTo(const multiout::Graph &) const {
-  return true;
 }
 
 std::ostream &operator<<(std::ostream &ost, const Graph &g) {

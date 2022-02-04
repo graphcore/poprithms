@@ -10,6 +10,7 @@ namespace poprithms {
 namespace common {
 namespace schedulable {
 
+using multiout::ContiguousOutIndexSubset;
 using multiout::OpId;
 using multiout::OpIds;
 using multiout::TensorIds;
@@ -114,6 +115,19 @@ private:
 
   /** Remove an output control dependency, if it exists (else do nothing). */
   void removeControlDependencyOut(OpId);
+
+  virtual void
+  removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) = 0;
+
+  void
+  removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &coin) final {
+    // There's no schedulable op specific work, as there are no output
+    // specific attributes in this class:
+    {}
+
+    // call into derived class method
+    removeSchedulableDerivedOutputs(coin);
+  }
 
   // only the schedulable::Graph can modify an op after it's constructed, no
   // class which inherits from it.

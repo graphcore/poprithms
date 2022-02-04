@@ -851,29 +851,6 @@ ConsumptionIds Graph::readingConsumers(const TensorId &tId) const {
   return readers;
 }
 
-void Graph::multiOutTypeSpecificRemoveOp(
-    OpId opToRemove,
-    const OptionalTensorIds &outputSubstitutes) {
-  // TODO(T49501)
-  std::ostringstream oss;
-  oss << "Must implement multiOutTypeSpecificRemoveOp. Called with "
-         "opToRemove = "
-      << opToRemove << " and outputSubstitutes = " << outputSubstitutes
-      << ".";
-  throw error(oss.str());
-}
-
-void Graph::multiOutTypeSpecificVerifyValidOutputSubstitute(
-    const TensorId &before,
-    const TensorId &after) const {
-  // TODO(T49501)
-  std::ostringstream oss;
-  oss << "Must implement multiOutTypeSpecificVerifyValidOutputSubstitute. "
-      << "Called with before = " << before << " and after = " << after
-      << ". ";
-  throw error(oss.str());
-}
-
 Graph::AmbiguityStatus::AmbiguityStatus(const Graph &g,
                                         OpId modifier__,
                                         TensorId modified__,

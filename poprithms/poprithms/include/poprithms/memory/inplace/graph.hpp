@@ -45,6 +45,7 @@ using Upper = ndarray::Shape::Upper;
 using common::multiout::ConsumptionId;
 using common::multiout::ConsumptionIds;
 using common::multiout::InIndex;
+using common::multiout::InIndices;
 using common::multiout::OpId;
 using common::multiout::OpIds;
 using common::multiout::OutIndex;
@@ -449,13 +450,22 @@ private:
   bool
   multiOutTypeSpecificEqualTo(const common::multiout::Graph &) const final;
 
-  void multiOutTypeSpecificRemoveOp(
-      OpId opToRemove,
-      const OptionalTensorIds &outputSubstitutes) final;
+  void multiOutTypeSpecificRemoveOp(OpId, const OptionalTensorIds &) final {
+    // TODO(T49501)
+    unimplemented();
+  }
+
+  void multiOutTypeSpecificRemoveInputs(OpId, const InIndices &) final {
+    // TODO(T49502)
+    unimplemented();
+  }
 
   void multiOutTypeSpecificVerifyValidOutputSubstitute(
-      const TensorId &before,
-      const TensorId &after) const final;
+      const TensorId &,
+      const TensorId &) const final {
+    // TODO(T49501)
+    unimplemented();
+  }
 
   Op &op(OpId);
   const Op &op(OpId) const;

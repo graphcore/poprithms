@@ -20,6 +20,8 @@ namespace poprithms {
 namespace memory {
 namespace inplace {
 
+using ContiguousOutIndexSubset =
+    poprithms::util::ContiguousSubset<common::multiout::OutIndex>;
 using common::multiout::ConsumptionId;
 using common::multiout::ConsumptionIds;
 using common::multiout::InIndex;
@@ -153,6 +155,11 @@ private:
 
   bool
   multiOutTypeSpecificEqualTo(const common::multiout::Op &other) const final;
+
+  virtual void
+  removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) final {
+    unimplemented();
+  }
 };
 
 std::ostream &operator<<(std::ostream &, const Op &);

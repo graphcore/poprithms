@@ -91,6 +91,13 @@ public:
    * */
   uint64_t nConsumptionIds(const TensorId &id) const;
 
+  /**
+   * Return true if the Tensor #id is the input to any Op.
+   * */
+  bool hasConsumptionIds(const TensorId &id) const {
+    return nConsumptionIds(id) != 0;
+  }
+
   /** Set the name of this Graph. */
   void setName(const std::string &n) { atts.name_ = n; }
 
@@ -296,6 +303,8 @@ protected:
     return insertMultioutOp(op.cloneMultioutOp());
   }
 
+  [[noreturn]] void unimplemented() const;
+
   /**
    * Remove the Op #opToRemove from this Graph.
    *
@@ -312,16 +321,67 @@ protected:
    * record is particularly useful if there is an attempted access of
    * #opToRemove after it has been removed. Such an attempt will result in a
    * descriptive error, including the #removalContext string.
+   *
+   * This method calls into the virtual method #multiOutTypeSpecificRemoveOp
+   * to perform the changes required for derived classes.
    * */
   void removeOp(OpId opToRemove,
                 const OptionalTensorIds &outputSubstitutes,
                 const std::string &removalContext);
 
+  /**
+   * Remove the inputs at indices #toRemove from the Op #toPrune. The
+   * remaining inputs are shifted to lower indices so as to occupy vacated
+   * input indices, resulting in contiguous inputs from index 0.
+   *
+   * This method calls into #multiOutTypeSpecificRemoveInputs to perform the
+   * required changes for derived Graph classes.
+   * */
+  void removeInputs(OpId toPrune, const InIndices &toRemove);
+
+  /**
+   * Remove the outputs at indices #toRemove from the Op #toPrune.
+   *
+   * \param outputSubstitutes the Tensors to be used inplace of the removed
+   *        output Tensors. Specifically, ops which consume the outputs at
+   *        indices #toRemove should consume #outputSubstitutes instead. See
+   *        #removeOp for more information on how substitutes work.
+   *
+   * The outputs at retained output indices are shifted down to fill the gaps
+   * created. For example, if output 0 is removed, then output 1 becomes the
+   * new output at index 0. This change is propagated to all consumers.
+   * */
+  void removeOutputs(OpId toPrune,
+                     const OutIndices &toRemove,
+                     const OptionalTensorIds &outputSubstitutes);
+
+private:
+  /**
+   * The creator of the input #index of #op stores the fact that #op consumes
+   * its output. This method removes this consumption id. #op is left
+   * unchanged.
+   * */
+  void removeConsumptionId(OpId op, InIndex index);
+
+  /**
+   * This method is used when an input of #op moves from #oldIndex to
+   * #newIndex. The creator of the input at old index has its consumption ids
+   * updated from (op, oldIndex) to (op, newIndex). #op is left unchanged.
+   */
+  void resetConsumption(OpId op, InIndex oldIndex, InIndex newIndex);
+
+public:
   // Classes which inherit from multiout::Graph might have some additional
   // steps when removing an op. These are performed in this method.
   virtual void multiOutTypeSpecificRemoveOp(
       OpId opToRemove,
       const OptionalTensorIds &outputSubstitutes) = 0;
+
+  // Classes which inherit from multiout::Graph might have some additional
+  // steps when removing an op's inputs. These are performed in this method.
+  virtual void
+  multiOutTypeSpecificRemoveInputs(OpId opToPrune,
+                                   const InIndices &toRemove) = 0;
 
   /**
    * Verify that 'after' is a valid replacement for 'before'. For example,

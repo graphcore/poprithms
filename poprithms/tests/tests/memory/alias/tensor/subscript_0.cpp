@@ -22,7 +22,7 @@ void testSubscriptError(const Shape &shape, uint64_t index) {
   Graph g;
   bool caught(false);
   try {
-    auto tensor = g.tensor(g.allocate(shape)).subscript(index);
+    g.tensor(g.allocate(shape)).subscript(index);
   } catch (const poprithms::error::error &e) {
     caught = true;
   }

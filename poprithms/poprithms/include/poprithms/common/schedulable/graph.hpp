@@ -23,6 +23,7 @@ namespace schedulable {
 class Op;
 
 using common::multiout::FwdEdgeMap;
+using common::multiout::InIndices;
 using common::multiout::OpId;
 using common::multiout::OpIds;
 using common::multiout::OptionalTensorId;
@@ -357,6 +358,9 @@ protected:
       OpId opToRemove,
       const OptionalTensorIds &outputSubstitutes) = 0;
 
+  virtual void schedulableTypeSpecificRemoveInputs(OpId opToPrune,
+                                                   const InIndices &) = 0;
+
   // replacements must be in the same sub-graph.
   virtual void schedulableTypeSpecificVerifyValidOutputSubstitute(
       const TensorId &before,
@@ -370,6 +374,16 @@ private:
   void multiOutTypeSpecificRemoveOp(
       OpId opToRemove,
       const OptionalTensorIds &outputSubstitutes) final;
+
+  void multiOutTypeSpecificRemoveInputs(OpId opId,
+                                        const InIndices &inds) final {
+    // no schedulable specific work, as there are no
+    // input-specific properties of ops:
+    {}
+
+    // So call straight into the next function down:
+    schedulableTypeSpecificRemoveInputs(opId, inds);
+  }
 
   // This method will remove
   void multiOutTypeSpecificVerifyValidOutputSubstitute(
