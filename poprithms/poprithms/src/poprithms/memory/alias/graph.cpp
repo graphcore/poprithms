@@ -3,6 +3,7 @@
 #include <array>
 #include <memory>
 #include <numeric>
+#include <set>
 #include <sstream>
 #include <unordered_map>
 
@@ -499,6 +500,18 @@ bool Graph::containsAliases(TensorId id) const {
   return node(id).containsAliases();
 }
 
+Colors Graph::colors(TensorId id) const {
+  // Using set, not unordered_set, so the the returned vector is ordered.
+  std::set<Color> colors;
+  const auto allocIds = node(id).getAllocIds();
+  for (auto allocId : allocIds) {
+    const auto &allo       = node(allocId.get());
+    const auto &asAllocate = dynamic_cast<const Allocate &>(allo);
+    colors.insert(asAllocate.color());
+  }
+  return Colors(colors.cbegin(), colors.cend());
+}
+
 bool Graph::containsColor(TensorId id, Color c) const {
   const auto allocIds = node(id).getAllocIds();
   for (auto allocId : allocIds) {
@@ -695,7 +708,7 @@ void Graph::Workspace::clear(const TensorIds &sched) {
 //  pruned. Note that replacing depthFirstBackAll with depthFirstBackAliases
 //  is not enough, as that would leave concat with a "dangling" input.
 //
-TensorId Graph::clone(TensorId toCloneId) {
+TensorId Graph::clone(TensorId toCloneId, CloneColorMethod cloneColorMethod) {
   const TensorIds oldsToClone = depthFirstBwdAll(toCloneId);
 
   auto &oldToNew = wspace.wsUint64_;
@@ -715,7 +728,35 @@ TensorId Graph::clone(TensorId toCloneId) {
     Node::State newState(
         newIns, {}, toClone.inShapes(), newId, toClone.shape());
 
-    auto newNode = toClone.clone(newState, toClone.origins().remap(oldToNew));
+    auto newNode = [&toClone, &newState, &oldToNew, cloneColorMethod]() {
+      const auto remappedOrigins = toClone.origins().remap(oldToNew);
+
+      // For nodes which do not allocate:
+      if (!toClone.allocates()) {
+        return toClone.clone(newState, remappedOrigins);
+      }
+
+      // For Allocate nodes:
+      // We check if the clone is Monochrome or Preserving (in poplar,
+      // Monochrome corresponds to always non-constant).
+      if (auto asAllocate = dynamic_cast<const Allocate *>(&toClone)) {
+
+        const auto cloneColor = cloneColorMethod.isMonochrome()
+                                    ? cloneColorMethod.monochromeColor()
+                                    : asAllocate->color();
+
+        return asAllocate->cloneWithColor(
+            newState, remappedOrigins, cloneColor);
+      }
+
+      // A node which allocates but is not an Allocate node? Something must
+      // have changed, is there are new kind of node which allocates?
+      std::ostringstream oss;
+      oss << "The node " << toClone.str()
+          << " allocates, but it not of type Allocate. "
+          << "This needs to be handled in Graph::clone.";
+      throw error(oss.str());
+    }();
 
     for (auto inId : newIns) {
       node(inId).insertOut(newId);

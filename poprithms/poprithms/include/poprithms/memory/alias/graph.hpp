@@ -31,6 +31,34 @@ enum class BroadcastPadding {
 std::ostream &operator<<(std::ostream &, BroadcastPadding);
 
 /**
+ * When cloning a tensor, what color should the new allocation(s) be? This
+ * class controls this, and has 2 factory constructors:
+ *
+ * (1) Monochrome. Create all the new allocations of the same color. The
+ *                 color is an argument to the factory function.
+ *
+ * (2) Preserve. Create the new allocations to exactly match the colors of
+ *               the allocations in the tensor being cloned.
+ * */
+class CloneColorMethod {
+public:
+  static CloneColorMethod Monochrome(Color c) {
+    return CloneColorMethod(true, c);
+  }
+  static CloneColorMethod Preserve() {
+    return CloneColorMethod(false, /* A bogus color */ Color(-1));
+  }
+
+  bool isMonochrome() const { return isMonochrome_; }
+  Color monochromeColor() const { return color_; }
+
+private:
+  CloneColorMethod(bool b, Color c) : isMonochrome_(b), color_(c) {}
+  bool isMonochrome_{false};
+  Color color_;
+};
+
+/**
  * A directed acyclic graph (DAG) where the nodes represent Tensors, and the
  * edges represent transformations (concats, slices, dimshuffles, etc.).
  * */
@@ -137,7 +165,7 @@ public:
    *         In poplar-terms, it is always `order-reserving' and corresponds
    *         to PRESERVE_ALIAS.
    * */
-  TensorId clone(TensorId);
+  TensorId clone(TensorId, CloneColorMethod = CloneColorMethod::Preserve());
 
   /**
    * Pad a Tensor.
@@ -188,6 +216,11 @@ public:
    *          non-const elements.
    */
   bool containsColor(TensorId, Color c) const;
+
+  /**
+   * \return The set of colors of the allocations that #tId is a view into.
+   */
+  Colors colors(TensorId) const;
 
   /** \return Ids of all Tensors which are aliased to the argument Tensor. */
   TensorIds allAliases(TensorId) const;

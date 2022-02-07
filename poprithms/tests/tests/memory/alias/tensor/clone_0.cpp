@@ -1,9 +1,11 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
+#include <poprithms/util/stringutil.hpp>
 
 namespace {
 using namespace poprithms::memory::alias;
@@ -74,12 +76,52 @@ void test1() {
   }
 }
 
+void testCloneColorMethod0() {
+
+  Graph g;
+  const auto t0 = g.tensor(g.allocate({3, 2}, Color(2)));
+  const auto t1 = g.tensor(g.allocate({4, 2}, Color(3)));
+  const auto t2 = g.tensor(g.allocate({5, 2}, Color(5)));
+  const auto out =
+      g.reverse(g.concat({t0.id(), t1.id(), t2.id()}, 0), {0ull, 1ull});
+  const auto c0 = g.clone(out, CloneColorMethod::Preserve());
+  const auto c1 = g.clone(out, CloneColorMethod::Monochrome(7));
+
+  const auto c0slice0 = g.tensor(c0).reverse({0, 1}).slice({0, 0}, {3, 2});
+
+  if (c0slice0.colors() != Colors{Color(2)}) {
+    std::ostringstream oss;
+    oss << "This slice of c0 corresponds exactly to t0 in out. "
+        << "With clone method Preserve, expect it to have the same "
+        << "color as t0 (Color=2). It has colors: ";
+    poprithms::util::append(oss, c0slice0.colors());
+    throw poprithms::test::error(oss.str());
+  }
+
+  if (g.tensor(c0).colors() != Colors{2, 3, 5}) {
+    std::ostringstream oss;
+    oss << "The tensor c0 is cloned with the Preserve method. "
+        << "Expect it therefore to only have Colors={2,3,5}, not ";
+    poprithms::util::append(oss, g.tensor(c0).colors());
+    throw poprithms::test::error(oss.str());
+  }
+
+  if (g.tensor(c1).colors() != Colors{Color(7)}) {
+    std::ostringstream oss;
+    oss << "The tensor c1 is cloned with the Monochrome method, with "
+        << "Color=7. Expect it therefore to only have Color=7, not ";
+    poprithms::util::append(oss, g.tensor(c1).colors());
+    throw poprithms::test::error(oss.str());
+  }
+}
+
 } // namespace
 
 int main() {
 
   test0();
   test1();
+  testCloneColorMethod0();
 
   return 0;
 }

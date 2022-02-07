@@ -66,9 +66,15 @@ std::unique_ptr<Node> Identity::clone(const State &state,
   return std::make_unique<Identity>(state, oris);
 }
 
-std::unique_ptr<Node> Allocate::clone(const State &state,
+std::unique_ptr<Node> Allocate::cloneWithColor(const State &state,
+                                               const Origins &oris,
+                                               Color c) const {
+  return std::make_unique<Allocate>(state, oris, c);
+}
+
+std::unique_ptr<Node> Allocate::clone(const State &s,
                                       const Origins &oris) const {
-  return std::make_unique<Allocate>(state, oris, color());
+  return cloneWithColor(s, oris, color());
 }
 
 std::unique_ptr<Node> SettSample::clone(const State &state,

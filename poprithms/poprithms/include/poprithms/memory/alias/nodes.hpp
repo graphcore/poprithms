@@ -104,6 +104,11 @@ public:
   Allocate(const State &ob, const Origins &oris, Color color)
       : Node(ob, oris), color_(color) {}
   std::string typeString() const final;
+  /** Create a clone of this Allocate Node but with optionally different
+   * State, Origins, and Color. */
+  std::unique_ptr<Node>
+  cloneWithColor(const State &, const Origins &, Color) const;
+  /** Create a clone this Allocate Node, whith the same Color as this. */
   std::unique_ptr<Node> clone(const State &, const Origins &) const final;
   DisjointRegions getInRegions(InIndex, const DisjointRegions &) const final;
   bool samples() const final { return false; }

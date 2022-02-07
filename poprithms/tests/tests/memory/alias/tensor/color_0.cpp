@@ -1,9 +1,11 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
+#include <poprithms/util/stringutil.hpp>
 
 namespace {
 using namespace poprithms::memory::alias;
@@ -27,10 +29,36 @@ void test0() {
   }
 }
 
+void test1() {
+
+  Graph g;
+
+  auto alloc0 = g.allocate({1}, Color(7));
+  auto alloc1 = g.allocate({1}, Color(1));
+  auto alloc2 = g.allocate({1}, Color(2));
+  auto alloc3 = g.allocate({1}, Color(8));
+  auto alloc4 = g.allocate({1}, Color(9));
+  auto alloc5 = g.allocate({1}, Color(8)); // <- repeated color.
+  auto alloc6 = g.allocate({1}, Color(1)); // <- repeated color.
+
+  auto c = g.concat(
+      {alloc0, alloc1, alloc2, alloc3, alloc4, alloc4, alloc5, alloc6}, 0);
+
+  Colors expected{1, 2, 7, 8, 9};
+  if (g.colors(c) != expected) {
+    std::ostringstream oss;
+    oss << "Expected colors to be unique and in "
+        << "ascending order (1,2,7,8,9) not ";
+    poprithms::util::append(oss, g.colors(c));
+    throw poprithms::test::error(oss.str());
+  }
+}
+
 } // namespace
 
 int main() {
 
   test0();
+  test1();
   return 0;
 }

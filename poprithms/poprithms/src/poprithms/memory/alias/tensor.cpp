@@ -269,6 +269,8 @@ Tensor Tensor::dimShuffle(const Permutation &perm) const {
   return {pgraph->dimShuffle(id(), perm), pgraph};
 }
 
+Colors Tensor::colors() const { return pgraph->colors(id()); }
+
 Tensor Tensor::clone() const { return {pgraph->clone(id()), pgraph}; }
 
 Tensor Tensor::concatFinalDim(const Tensors &tensors_, uint64_t index) const {

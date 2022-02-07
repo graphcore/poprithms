@@ -105,6 +105,13 @@ public:
   bool containsColor(Color c) const;
 
   /**
+   * \return All of the Colors of the the allocation(s) which this Tensor is
+   *        composed of. The Colors in the returned vector are unique, and in
+   *        ascending order.
+   * */
+  Colors colors() const;
+
+  /**
    * \return Cloned Tensor, which has allocation(s) which mirror this
    *         Tensor's, but are distinct. In poplar terms, it corresponds to
    *         PRESERVE_ALIAS.
