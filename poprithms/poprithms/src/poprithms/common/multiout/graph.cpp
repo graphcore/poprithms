@@ -211,14 +211,10 @@ void Graph::removeInputs(OpId opToPrune, const InIndices &toRemove) {
   const auto nIn = nInTensors(opToPrune);
   auto &op_      = op(opToPrune);
   op_.verifyDistinct(toRemove);
-  auto nxtInIds = op_.inTensorIdsExcluding(toRemove);
 
   // An object to map between the old input indices, and the new (shifted
   // towards 0) indices after some indices are removed.
   poprithms::util::ContiguousSubset<InIndex> indexMapper(nIn, toRemove);
-
-  // Derived graph class does work:
-  multiOutTypeSpecificRemoveInputs(opToPrune, toRemove);
 
   // The creators of the inputs of this op store the fact that their outputs
   // are consumed by this op. For the inputs of this op which are removed,
@@ -235,7 +231,7 @@ void Graph::removeInputs(OpId opToPrune, const InIndices &toRemove) {
   }
 
   // reset inIds_
-  op_.resetInTensorIds(nxtInIds);
+  op_.removeInputs(indexMapper);
 }
 
 void Graph::removeOutputs(OpId opToPrune,

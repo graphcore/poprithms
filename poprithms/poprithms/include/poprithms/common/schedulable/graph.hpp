@@ -104,6 +104,11 @@ public:
   OpIds opIds(SubGraphId subGraphId) const;
 
   /**
+   * Ids of all live ops.
+   * */
+  OpIds opIdsAllSubGraphs() const { return multiout::Graph::opIds(); }
+
+  /**
    * Get all Tensors in the Graph which have SubGraphId #subGraphId.
    * */
   TensorIds tensorIds(SubGraphId subGraphId) const;
@@ -358,9 +363,6 @@ protected:
       OpId opToRemove,
       const OptionalTensorIds &outputSubstitutes) = 0;
 
-  virtual void schedulableTypeSpecificRemoveInputs(OpId opToPrune,
-                                                   const InIndices &) = 0;
-
   // replacements must be in the same sub-graph.
   virtual void schedulableTypeSpecificVerifyValidOutputSubstitute(
       const TensorId &before,
@@ -374,16 +376,6 @@ private:
   void multiOutTypeSpecificRemoveOp(
       OpId opToRemove,
       const OptionalTensorIds &outputSubstitutes) final;
-
-  void multiOutTypeSpecificRemoveInputs(OpId opId,
-                                        const InIndices &inds) final {
-    // no schedulable specific work, as there are no
-    // input-specific properties of ops:
-    {}
-
-    // So call straight into the next function down:
-    schedulableTypeSpecificRemoveInputs(opId, inds);
-  }
 
   // This method will remove
   void multiOutTypeSpecificVerifyValidOutputSubstitute(

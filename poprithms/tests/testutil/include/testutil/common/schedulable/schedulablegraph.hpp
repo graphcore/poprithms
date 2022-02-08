@@ -17,6 +17,7 @@ namespace schedulable_test {
 using namespace poprithms::common;
 using Shape  = poprithms::ndarray::Shape;
 using Shapes = poprithms::ndarray::Shapes;
+using multiout::ContiguousInIndexSubset;
 using multiout::ContiguousOutIndexSubset;
 using multiout::InIndices;
 using multiout::OpId;
@@ -33,6 +34,10 @@ public:
   std::unique_ptr<multiout::Op> cloneMultioutOp() const final;
   void
   removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) final {
+    // nothing to do: no new attributes.
+  }
+
+  void removeSchedulableDerivedInputs(const ContiguousInIndexSubset &) final {
     // nothing to do: no new attributes.
   }
 
@@ -72,10 +77,6 @@ private:
   void schedulableTypeSpecificVerifyValidOutputSubstitute(
       const TensorId &,
       const TensorId &) const final {
-    // nothing to do.
-  }
-
-  void schedulableTypeSpecificRemoveInputs(OpId, const InIndices &) final {
     // nothing to do.
   }
 };

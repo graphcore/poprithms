@@ -20,8 +20,6 @@ namespace poprithms {
 namespace memory {
 namespace inplace {
 
-using ContiguousOutIndexSubset =
-    poprithms::util::ContiguousSubset<common::multiout::OutIndex>;
 using common::multiout::ConsumptionId;
 using common::multiout::ConsumptionIds;
 using common::multiout::InIndex;
@@ -32,6 +30,8 @@ using common::multiout::TensorId;
 using common::multiout::TensorIds;
 using ndarray::Shape;
 using ndarray::Shapes;
+using poprithms::common::multiout::ContiguousInIndexSubset;
+using poprithms::common::multiout::ContiguousOutIndexSubset;
 class Graph;
 
 /** A node in an inplace::Graph, with directed edges (control dependencies /
@@ -156,8 +156,11 @@ private:
   bool
   multiOutTypeSpecificEqualTo(const common::multiout::Op &other) const final;
 
-  virtual void
-  removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) final {
+  void removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) final {
+    unimplemented();
+  }
+
+  void removeMultioutDerivedInputs(const ContiguousInIndexSubset &) final {
     unimplemented();
   }
 };

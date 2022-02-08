@@ -377,12 +377,6 @@ public:
       OpId opToRemove,
       const OptionalTensorIds &outputSubstitutes) = 0;
 
-  // Classes which inherit from multiout::Graph might have some additional
-  // steps when removing an op's inputs. These are performed in this method.
-  virtual void
-  multiOutTypeSpecificRemoveInputs(OpId opToPrune,
-                                   const InIndices &toRemove) = 0;
-
   /**
    * Verify that 'after' is a valid replacement for 'before'. For example,
    * 'before' and 'after' must have the same Shape. Derived classes might have

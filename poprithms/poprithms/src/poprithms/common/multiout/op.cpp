@@ -26,8 +26,12 @@ void Op::unimplemented() const {
   throw error(oss.str());
 }
 
-void Op::removeOutputs(
-    const poprithms::util::ContiguousSubset<OutIndex> &indexMapper) {
+void Op::removeInputs(const ContiguousInIndexSubset &indexMapper) {
+  removeMultioutDerivedInputs(indexMapper);
+  indexMapper.reduce(inIds_);
+}
+
+void Op::removeOutputs(const ContiguousOutIndexSubset &indexMapper) {
 
   removeMultioutDerivedOutputs(indexMapper);
 

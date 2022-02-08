@@ -10,23 +10,7 @@
 namespace poprithms {
 namespace unwindtoy {
 
-void Op::removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) {
-  throw poprithms::test::error(
-      "this test class does not support any transformations");
-}
-
-[[noreturn]] void invalid(const std::string &e = {}) {
-  throw poprithms::test::error("Unimplemented method called. Context:" + e);
-}
-
 using State = poprithms::common::schedulable::Op::State;
-
-// This class is just for testing, so we're not going to support Graph or Op
-// comparison.
-bool Op::schedulableTypeSpecificEqualTo(
-    const poprithms::common::schedulable::Op &) const {
-  invalid("schedulableTypeSpecificEqualTo");
-}
 
 void Op::growUnwind(FullState &u) const {
 

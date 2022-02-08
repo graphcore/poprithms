@@ -22,6 +22,7 @@ namespace multiout {
 class Graph;
 
 using ContiguousOutIndexSubset = poprithms::util::ContiguousSubset<OutIndex>;
+using ContiguousInIndexSubset  = poprithms::util::ContiguousSubset<InIndex>;
 using Shape                    = ndarray::Shape;
 using Shapes                   = ndarray::Shapes;
 
@@ -192,10 +193,23 @@ public:
    * */
   std::vector<OutIndex> outIndicesConsumed() const;
 
-  void removeOutputs(const ContiguousOutIndexSubset &);
+  /**
+   * Remove the inputs described by #indMapper. See Graph::removeInputs for
+   * more information.
+   * */
+  void removeInputs(const ContiguousInIndexSubset &indMapper);
+
+  /**
+   * Remove the outputs described by #indMapper. See Graph::removeOutputs for
+   * more information.
+   * */
+  void removeOutputs(const ContiguousOutIndexSubset &indMapper);
 
   virtual void
   removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) = 0;
+
+  virtual void
+  removeMultioutDerivedInputs(const ContiguousInIndexSubset &) = 0;
 
   /**
    * \sa multiOutTypeSpecificEqualTo. */
@@ -238,7 +252,6 @@ private:
   std::string name_;
   const Graph *multioutGraph_;
   void setGraph(const Graph &);
-  void resetInTensorIds(const TensorIds &ids) { inIds_ = ids; }
 
 protected:
   const Graph &multioutGraph() const { return *multioutGraph_; }

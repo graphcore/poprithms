@@ -1062,11 +1062,6 @@ private:
     unimplemented();
   }
 
-  void multiOutTypeSpecificRemoveInputs(OpId, const InIndices &) final {
-    // TODO(T49502)
-    unimplemented();
-  }
-
   void multiOutTypeSpecificVerifyValidOutputSubstitute(
       const TensorId &,
       const TensorId &) const final {

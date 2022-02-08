@@ -15,38 +15,51 @@ namespace unwindtoy {
 class FullState;
 
 using MatMulAttractions = poprithms::memory::unwind::MatMulAttractions;
-using poprithms::common::multiout::ConsumptionId;
-using poprithms::common::multiout::ConsumptionIds;
-using poprithms::common::multiout::InIndex;
-using poprithms::common::multiout::OpId;
-using poprithms::common::multiout::OpIds;
-using poprithms::common::multiout::OutIndex;
-using poprithms::common::multiout::TensorId;
-using poprithms::common::multiout::TensorIds;
-using poprithms::memory::unwind::ScheduledSolution;
-using poprithms::ndarray::Shape;
-using poprithms::ndarray::Shapes;
-using poprithms::util::Permutation;
-using Lower         = poprithms::ndarray::Shape::Lower;
-using MultioutOp    = poprithms::common::multiout::Op;
-using Upper         = poprithms::ndarray::Shape::Upper;
-using HTensor       = poprithms::compute::host::Tensor;
+using common::multiout::ConsumptionId;
+using common::multiout::ConsumptionIds;
+using common::multiout::InIndex;
+using common::multiout::OpId;
+using common::multiout::OpIds;
+using common::multiout::OutIndex;
+using common::multiout::TensorId;
+using common::multiout::TensorIds;
+using memory::unwind::ScheduledSolution;
+using ndarray::Shape;
+using ndarray::Shapes;
+using util::Permutation;
+using Lower         = ndarray::Shape::Lower;
+using MultioutOp    = common::multiout::Op;
+using Upper         = ndarray::Shape::Upper;
+using HTensor       = compute::host::Tensor;
 using HTensors      = std::vector<HTensor>;
-using SchedulableOp = poprithms::common::schedulable::Op;
-using poprithms::memory::unwind::Path;
+using SchedulableOp = common::schedulable::Op;
+using memory::unwind::Path;
 using State = SchedulableOp::State;
-using poprithms::common::multiout::ContiguousOutIndexSubset;
+using common::multiout::ContiguousInIndexSubset;
+using common::multiout::ContiguousOutIndexSubset;
 
 HTensor getMatMulOut(const Shape &s0, const Shape &s1);
 
 class Op : public SchedulableOp {
 public:
   Op(const State &st) : SchedulableOp(st) {}
-  bool schedulableTypeSpecificEqualTo(const SchedulableOp &) const final;
+
+  // This class is just for testing, so we're not going to support Graph or Op
+  // comparison.
+  bool schedulableTypeSpecificEqualTo(const SchedulableOp &) const final {
+    unimplemented();
+  }
+
   void growUnwind(FullState &u) const;
 
   void
-  removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) final;
+  removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) final {
+    unimplemented();
+  }
+
+  void removeSchedulableDerivedInputs(const ContiguousInIndexSubset &) final {
+    unimplemented();
+  }
 
   // Create the host Tensors of the output of this op.
   virtual void fwd(FullState &) const = 0;

@@ -23,6 +23,7 @@
 namespace {
 using namespace poprithms::common;
 using Shape = poprithms::ndarray::Shape;
+using poprithms::common::multiout::ContiguousInIndexSubset;
 using poprithms::common::multiout::ContiguousOutIndexSubset;
 using poprithms::common::multiout::InIndex;
 using poprithms::common::multiout::InIndices;
@@ -50,6 +51,7 @@ private:
   };
 
   void removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) final {}
+  void removeMultioutDerivedInputs(const ContiguousInIndexSubset &) final {}
 };
 
 class Graph : public multiout::Graph {
@@ -70,8 +72,6 @@ private:
   bool multiOutTypeSpecificEqualTo(const multiout::Graph &) const final {
     return true;
   }
-
-  void multiOutTypeSpecificRemoveInputs(OpId, const InIndices &) final {}
 
   void multiOutTypeSpecificRemoveOp(OpId, const OptionalTensorIds &) final {}
 

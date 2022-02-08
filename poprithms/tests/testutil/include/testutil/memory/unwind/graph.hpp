@@ -111,10 +111,6 @@ public:
       const poprithms::common::multiout::OptionalTensorIds &) final {
     unimplemented();
   }
-
-  void schedulableTypeSpecificRemoveInputs(OpId, const InIndices &) final {
-    unimplemented();
-  }
 };
 
 std::ostream &operator<<(std::ostream &ost, const Graph &g);
