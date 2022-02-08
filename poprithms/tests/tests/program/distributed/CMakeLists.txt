@@ -1,6 +1,6 @@
 function(add_program_test_executable name source)
   add_executable(${name} ${source})
-  target_link_libraries(${name} poprithms-program-distributed) 
+  target_link_libraries(${name} poprithms-program)
 endfunction()
 
 function(add_program_test name source)

@@ -233,17 +233,23 @@ add_library(poprithms-compute-host SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
+# we can decompose program into constituent level-2 projects if/when it gets large. 
 set (program_src_dir ${src_dir}/program)
-set (program_distributed_sources
+set (program_sources
    ${program_src_dir}/distributed/codelocation.cpp
    ${program_src_dir}/distributed/error.cpp
    ${program_src_dir}/distributed/helper.cpp
    ${program_src_dir}/distributed/program.cpp
+   ${program_src_dir}/callstack/callstack.cpp
+   ${program_src_dir}/callstack/error.cpp
 )
 
-add_library(poprithms-program-distributed-objlib OBJECT ${program_distributed_sources})
-add_library(poprithms-program-distributed SHARED
-  $<TARGET_OBJECTS:poprithms-program-distributed-objlib>
+add_library(poprithms-program-objlib OBJECT ${program_sources})
+add_library(poprithms-program SHARED
+  $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
+  $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
+  $<TARGET_OBJECTS:poprithms-program-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -362,7 +368,7 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-memory-chain-objlib>
   $<TARGET_OBJECTS:poprithms-memory-inplace-objlib>
   $<TARGET_OBJECTS:poprithms-memory-unwind-objlib>
-  $<TARGET_OBJECTS:poprithms-program-distributed-objlib>
+  $<TARGET_OBJECTS:poprithms-program-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -392,8 +398,8 @@ foreach(tgt IN ITEMS
   poprithms-memory-inplace
   poprithms-memory-unwind-objlib
   poprithms-memory-unwind
-  poprithms-program-distributed-objlib
-  poprithms-program-distributed
+  poprithms-program-objlib
+  poprithms-program
   poprithms-util
   poprithms-util-objlib
   poprithms)
