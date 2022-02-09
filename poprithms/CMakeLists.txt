@@ -62,5 +62,10 @@ if (${POPRITHMS_USE_STACKTRACE})
 endif()
 
 add_subdirectory(poprithms)
-add_subdirectory(tests)
+
+# The cmake BUILD_TESTING option is automatically created when 
+# CTest is included, and defaults to TRUE.
+if (BUILD_TESTING)
+  add_subdirectory(tests)
+endif()
 
