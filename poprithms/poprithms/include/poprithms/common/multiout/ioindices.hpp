@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include <poprithms/util/contiguoussubset.hpp>
 #include <poprithms/util/typedinteger.hpp>
 
 namespace poprithms {
@@ -15,6 +16,9 @@ using OutIndex = poprithms::util::TypedInteger<'o', uint64_t>;
 
 using OutIndices = std::vector<OutIndex>;
 using InIndices  = std::vector<InIndex>;
+
+using ContiguousOutIndexSubset = poprithms::util::ContiguousSubset<OutIndex>;
+using ContiguousInIndexSubset  = poprithms::util::ContiguousSubset<InIndex>;
 
 } // namespace multiout
 } // namespace common
