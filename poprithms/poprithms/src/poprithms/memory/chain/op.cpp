@@ -343,14 +343,6 @@ bool Op::bubbleReshapeBack(const Shape &inShape0, Op &op0, Op &op1) {
   const auto outShape0 = op0.outShape();
   const auto outShape1 = op1.outShape();
 
-  std::vector<uint64_t> sampleDims;
-  for (uint64_t i = 0; i < inShape0.rank_u64(); ++i) {
-    if (inShape0.dim(i) != outShape0.dim(i)) {
-      // sampleMask[i] = true;
-      sampleDims.push_back(i);
-    }
-  }
-
   const auto t0 = op0.type();
   switch (t0) {
   case Type::DimShuffle:
@@ -360,6 +352,14 @@ bool Op::bubbleReshapeBack(const Shape &inShape0, Op &op0, Op &op1) {
   case Type::Reduce:
     return false;
   case Type::SettSample: {
+
+    std::vector<uint64_t> sampleDims;
+    for (uint64_t i = 0; i < inShape0.rank_u64(); ++i) {
+      if (inShape0.dim(i) != outShape0.dim(i)) {
+        // sampleMask[i] = true;
+        sampleDims.push_back(i);
+      }
+    }
 
     //
     // Can you replace
@@ -380,22 +380,15 @@ bool Op::bubbleReshapeBack(const Shape &inShape0, Op &op0, Op &op1) {
     // to before the settSample ('X' above).
     const Shape interShape = std::get<1>(summary);
 
-    // the dimensions which are sliced *after* the reshape:;
+    // the dimensions which are sliced *after* the reshape:
     const Dimensions finalSampleDims = std::get<2>(summary);
-
-    // the Region of sampling, *after* the reshape:
-    std::vector<nest::Sett> setts(outShape1.rank_u64(),
-                                  nest::Sett::createAlwaysOn());
-    for (uint64_t index = 0; index < sampleDims.size(); ++index) {
-      setts[finalSampleDims.at(index).get()] =
-          op0.attr().region().sett(sampleDims[index]);
-    }
 
     Region permutedRegion = [&]() {
       if (interShape.rank_u64() == 0) {
         return Region::createFull({});
       }
-      return Region(interShape, setts);
+      return op0.attr().region().sampleAtPermutedDims(
+          interShape, Dimensions(sampleDims), finalSampleDims);
     }();
 
     op0 = {Type::Reshape, interShape, interShape};
@@ -471,7 +464,18 @@ bool Op::bubbleSettSampleBack(const Shape &inShape0, Op &op0, Op &op1) {
   if (op1.type() != Type::SettSample) {
     throw error("Calling bubbleSettSampleBack with op1 of incorrect type");
   }
-  const auto t0 = op0.type();
+
+  const auto outShape0 = op0.outShape();
+  const auto outShape1 = op1.outShape();
+  const auto t0        = op0.type();
+
+  std::vector<uint64_t> sampleDims;
+  for (uint64_t i = 0; i < outShape0.rank_u64(); ++i) {
+    if (outShape1.dim(i) != outShape0.dim(i)) {
+      sampleDims.push_back(i);
+    }
+  }
+
   switch (t0) {
   case Type::DimShuffle:
     return false;
@@ -479,8 +483,30 @@ bool Op::bubbleSettSampleBack(const Shape &inShape0, Op &op0, Op &op1) {
     return false;
   case Type::Reduce:
     return false;
-  case Type::Reshape:
-    return false;
+  case Type::Reshape: {
+
+    auto summary = inShape0.moveSliceBeforeReshape(outShape0, outShape1);
+
+    if (!std::get<0>(summary)) {
+      // Not possible to permute the 2 ops.
+      return false;
+    }
+    const Shape interShape     = std::get<1>(summary);
+    const Dimensions finalDims = std::get<2>(summary);
+
+    Region permutedRegion = [&]() {
+      if (interShape.rank_u64() == 0) {
+        return Region::createFull({});
+      }
+      return op1.attr().region().sampleAtPermutedDims(
+          inShape0, Dimensions(sampleDims), finalDims);
+    }();
+
+    op0 = {Type::SettSample, interShape, permutedRegion};
+    op1 = {Type::Reshape, interShape, outShape1};
+    return true;
+  }
+
   case Type::Reverse:
     return false;
   case Type::SettFillInto:

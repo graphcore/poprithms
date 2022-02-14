@@ -239,6 +239,17 @@ void testExpandReshape0() {
   }
 }
 
+void testSliceExpand2x() {
+  Chain c0({100, 100});
+  c0.slice({0, 0}, {1, 1});
+  c0.expand({100, 100});
+  auto expected = c0.canonicalized();
+  c0.slice({0, 0}, {1, 1});
+  c0.expand({100, 100});
+  c0.canonicalized().confirmEqual(expected);
+}
+
+// Proof that T53918 is solved.
 void testLongerChain0() {
 
   Chain c0({20, 100, 100});
@@ -255,8 +266,76 @@ void testLongerChain0() {
   c1.reshape({1, 1});
   c1.expand({100, 100});
 
-  // TODO(T53918) currently not canonicalized to target.
-  // c0.canonicalized().confirmEqual(c1.canonicalized());
+  c0.canonicalized().confirmEqual(c1.canonicalized());
+}
+
+void testReshapeSlice0() {
+
+  {
+    Chain c0({5, 4, 3, 2, 4});
+    c0.reshape({20, 3, 8});          //  ^
+    c0.slice({0, 1, 0}, {20, 2, 8}); //  v
+    c0.reshape({160});
+    c0.canonicalize(TypeOrders::reverseAlphabetical());
+
+    Chain c1({5, 4, 3, 2, 4});
+    c1.slice({0, 0, 1, 0, 0}, {5, 4, 2, 2, 4});
+    c1.reshape({160});
+
+    c0.confirmEqual(c1);
+  }
+  {
+    Chain c0({1, 4, 1, 1, 6});
+    c0.reshape({4, 6, 1});          //     ^
+    c0.slice({0, 0, 0}, {2, 2, 1}); //     v
+    c0.reshape({4});
+
+    Chain c1({1, 4, 1, 1, 6});
+    c1.slice({0, 0, 0, 0, 0}, {1, 2, 1, 1, 2});
+    c1.reshape({4});
+
+    c0.canonicalized(TypeOrders::reverseAlphabetical()).confirmEqual(c1);
+  }
+
+  {
+    // cannot change as mass shift across pivots.
+    Chain c0({4, 4, 6});
+    c0.reshape({6, 4, 4});
+    c0.slice({0, 0, 0}, {6, 1, 4});
+    c0.reshape({4, 1, 6});
+    c0.canonicalized().confirmEqual(c0);
+  }
+}
+
+void testCombined0() {
+
+  // Base chain:
+
+  Chain c0({8, 6, 4});
+  c0.reshape({8, 3, 2, 4});
+  c0.reshape({8, 3, 1, 2, 4});
+
+  // fill and slice which cancel
+  c0.settFillInto(Stride(3), Dimension(2));
+  c0.slice({0, 0, 0, 0, 0}, {8, 3, 1, 2, 4});
+
+  // dim shuffles which cancel
+  c0.dimShuffle({{2, 3, 4, 0, 1}});
+  c0.dimShuffle({{1, 2, 3, 4, 0}});
+  c0.dimShuffle({{2, 3, 4, 0, 1}});
+
+  // expand and slice which cancel:
+  c0.expand({8, 3, 5, 2, 4});
+  c0.slice({0, 0, 2, 0, 0}, {8, 3, 3, 2, 4});
+
+  // reverses which cancel
+  c0.reverse(Dimensions{3, 4});
+  c0.reverse(Dimensions{2, 3});
+  c0.reverse(Dimensions{2, 4});
+
+  c0.reshape({8, 6, 4});
+
+  c0.canonicalized().confirmEqual(Chain({8, 6, 4}));
 }
 
 } // namespace
@@ -272,6 +351,9 @@ int main() {
   testExpandReverse0();
   testExpandSettSample0();
   testExpandReshape0();
+  testSliceExpand2x();
   testLongerChain0();
+  testReshapeSlice0();
+  testCombined0();
   return 0;
 }

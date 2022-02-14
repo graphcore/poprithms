@@ -3,6 +3,7 @@
 #define POPRITHMS_MEMORY_CHAIN_TYPE_HPP
 
 #include <ostream>
+#include <vector>
 
 namespace poprithms {
 namespace memory {
@@ -53,8 +54,16 @@ enum class Type {
                ///< output to which the input is scattered.
 };
 
+using Types = std::vector<Type>;
+
 std::ostream &operator<<(std::ostream &, Type);
 std::string getTypeString(Type);
+
+class TypeOrders {
+public:
+  static Types alphabetical();
+  static Types reverseAlphabetical();
+};
 
 } // namespace chain
 } // namespace memory

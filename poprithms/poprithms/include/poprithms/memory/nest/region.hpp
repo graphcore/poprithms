@@ -15,6 +15,7 @@ namespace memory {
 namespace nest {
 
 using poprithms::ndarray::Dimension;
+using poprithms::ndarray::Dimensions;
 using poprithms::ndarray::Shape;
 using poprithms::ndarray::Shapes;
 using poprithms::ndarray::Stride;
@@ -126,6 +127,25 @@ public:
 
   /** Slice in a single dimension. */
   static Region fromBounds(const Shape &, Dimension, uint64_t l, uint64_t u);
+
+  /**
+   * Create a new Region based on the Setts of this Region. The new Region
+   * has Shape #outShape, and it has Setts at #dimsTo corresponding to the
+   * setts in this Region at #dimsFrom. Any dimension not in #dimsTo has the
+   * always-on Sett (i.e. no sampling/slicing in those dimensions).
+   *
+   * outShape[dimsTo[i]] must equal shape(dimsFrom[i]). That is, Setts must
+   * migrate to dimensions of the same size.
+   *
+   * Example: If this region is
+   *     (shape=(4,3), setts=(dim0:(1,2,0),dim2:(1,1,0)))
+   *
+   * Then sampleAtPermutedDims(outShape=(3,7,2), dimsFrom=(1), dimsTo=(0)) is
+   *     ((3,7,2), setts=(dim0:(1,1,0),dim1:always-on,dim2:always-on))
+   */
+  Region sampleAtPermutedDims(const Shape &outShape,
+                              const Dimensions &dimsFrom,
+                              const Dimensions &dimsTo) const;
 
   /**
    * Construct a Region with always-on Setts in all dimensions, except in

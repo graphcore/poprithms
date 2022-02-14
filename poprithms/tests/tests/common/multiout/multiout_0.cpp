@@ -449,7 +449,7 @@ void testRemoveEdges0() {
     bool caught{false};
     try {
       g.removeOutputs(e, {0}, {TensorId(b, 0)});
-    } catch (const poprithms::error::error &e) {
+    } catch (const poprithms::error::error &) {
       caught = true;
     }
     if (!caught) {
@@ -518,7 +518,7 @@ void testRemoveEdges1() {
     bool caught{false};
     try {
       g.removeOutputs(a, {0}, {OptionalTensorId{}});
-    } catch (const poprithms::error::error &e) {
+    } catch (const poprithms::error::error &) {
       caught = true;
     }
     if (!caught) {

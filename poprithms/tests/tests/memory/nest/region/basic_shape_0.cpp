@@ -1,4 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <iostream>
+
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/nest/region.hpp>
 
@@ -49,9 +51,27 @@ void nelmsTest() {
   assertNelms(Region({10, 10}, {{{{1, 2, 0}}}, {{{1, 2, 1}}}}), 12);
 }
 
+void testSampleAtPermutedDims0() {
+  Region r0(Shape{4, 3},
+            Setts{Sett{{Stripe{1, 2, 0}}}, Sett{{Stripe{1, 1, 0}}}});
+  std::cout << r0 << std::endl;
+  auto s0 = r0.sampleAtPermutedDims({3, 7, 2}, Dimensions{1}, Dimensions{0});
+  if (s0.shape() != Shape{3, 7, 2}) {
+    throw poprithms::test::error("Incorrect shape of sample region");
+  }
+  if (!s0.equivalent(Region{{3, 7, 2},
+                            Setts{Sett{{Stripe{1, 1, 0}}},
+                                  Sett::createAlwaysOn(),
+                                  Sett::createAlwaysOn()}})) {
+    std::cout << s0 << std::endl;
+    throw poprithms::test::error("Incorrect setts of sample region");
+  }
+}
+
 } // namespace
 
 int main() {
   rankTest();
   nelmsTest();
+  testSampleAtPermutedDims0();
 }

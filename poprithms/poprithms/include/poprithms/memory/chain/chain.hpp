@@ -165,11 +165,11 @@ public:
   void append(std::ostream &) const;
   void appendCompact(std::ostream &) const;
 
-  /** Perform a sequence of passes on this Chain to simplify and canonicalize
+  /** Perform a sequence of passes on this Chain to simplify/canonicalize
    *  it. These passes include:
    *
    *  - remove no-op operators, such as DimShuffle with the Identity
-   *    Permutation.
+   *    Permutation, Reshapes which retain their shape, etc.
    *
    *  - merge contiguous operations of the same type. For example,
    *    DimShuffle(perm0) followed by DimShuffle(perm1) becomes
@@ -178,16 +178,48 @@ public:
    *  - remove SettFillInto(r0) followed by SettSample(r0), as these combined
    *    make a no-op.
    *
-   *  - try and order the operations in alphabetical order by bubble sorting.
-   *    When 2 contiguous operations are swapped, they may change slightly to
-   *    preserve the Chain's behaviour.
+   *  - try and order the operations so that their Types are ordered to match
+   *    #targetOrder. This is done by bubble sorting. When 2 contiguous
+   *    operations are swapped, they may change slightly to preserve the
+   *    Chain's behaviour.
    *
    * These passes are repeated until the Chain is unchanged.
    *
    *  For more information see Chain.md
    **/
-  void canonicalize();
+  void canonicalize(const Types &targetOrder);
+  Chain canonicalized(const Types &targetOrder) const;
 
+  /**
+   * Run full canonicalization/simplifcation.
+   *
+   * Canonicalization to only a single order of Types (see the
+   * canonicalization method which takes a #Types argument) can miss
+   * opportunities to remove Ops.
+   *
+   * For example, if we're canonicalizing
+   *  (1,1)->expand->(100,100)->reshape->(1,100,100)->slice(1,1,1)
+   *
+   * and the target order is (expand < reshape < slice), then it will not be
+   * simplified at all.
+   *
+   * If however the target order is (expand < slice < reshape), it
+   * becomes (1,1)->expand->(100,100)->slice->(1,1)->reshape->(1,1,1),
+   *
+   * which can then be simplified to (1,1)->reshape(1,1,1) as the expand
+   * and slice cancel each other out.
+   *
+   * So the target order matters: Different  target orders allow for different
+   * simplifications. Thus by targeting multiple orders in sequence, we will
+   * be more likely to benefit from canonicalization.
+   *
+   * This method currently runs canonicalization with 2 orders: alphabetically
+   * last to first (SettSample < SettFillInto < Reverse < ....) and then
+   * alphabetically first to last (DimShuffle < Expand < Reduce < ....). This
+   * may change in the future.
+   * */
+
+  void canonicalize();
   Chain canonicalized() const;
 
   /**
@@ -206,10 +238,6 @@ public:
   void confirmNotEqual(const Chain &) const;
 
 private:
-  /** This method is used in canonicalization. It tries to merge or remove the
-   * final 2 Ops in this Chain. */
-  bool tryMergeLastTwo();
-
   /** \return true if the #n'th Op is a no-Op, such as a Reshape to the same
    *          Shape.  */
   bool isIdentity(uint64_t n) const;
@@ -261,6 +289,7 @@ private:
 
   Type backType() const { return type(nOps() - 1); }
 
+private:
   /**
    * Consider \a x0 and \a x1, contiguous Ops in a Chain, [a b c x0 x1 d ]
    *
@@ -277,7 +306,12 @@ private:
    * */
   bool tryBubbleBack(uint64_t i);
 
-private:
+  /**
+   * Try and rewrite Ops at indices n and n-1 so that one or both of them are
+   * identity ops.
+   * */
+  bool tryMakeIdentitiesWithPrevious(uint64_t n);
+
   const Op &op(uint64_t) const;
   Op &op(uint64_t);
   void popBack();

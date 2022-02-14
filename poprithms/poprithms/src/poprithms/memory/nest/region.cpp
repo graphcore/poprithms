@@ -1100,6 +1100,43 @@ DisjointRegions::createUnion(const std::vector<DisjointRegions> &regs) {
   return uni;
 }
 
+Region Region::sampleAtPermutedDims(const Shape &outShape,
+                                    const Dimensions &dimsFrom,
+                                    const Dimensions &dimsTo) const {
+
+  if (dimsFrom.size() != dimsTo.size()) {
+    std::ostringstream oss;
+    oss << "Invalid call to Region::sampleAtPermutedDims, "
+        << "expected dimsFrom (of size " << dimsFrom.size()
+        << ") to be of the same size as dimsTo (of size " << dimsTo.size()
+        << ").";
+    throw error(oss.str());
+  }
+
+  shape().assertValidDimensions(dimsFrom.get());
+  outShape.assertValidDimensions(dimsTo.get());
+
+  for (uint64_t i = 0; i < dimsFrom.size(); ++i) {
+    if (shape().dim_u64(dimsFrom.at(i).get()) !=
+        outShape.dim_u64(dimsTo.at(i).get())) {
+      std::ostringstream oss;
+      oss << "Incompatible shapes in sampleAtPermutedDims. "
+          << "The dimensions in the target shape must agree "
+          << "with those in this Region. ";
+      throw error(oss.str());
+    }
+  }
+
+  // The new Setts. always-on, except in #dimsTo.
+  std::vector<nest::Sett> nSetts(outShape.rank_u64(),
+                                 nest::Sett::createAlwaysOn());
+  for (uint64_t index = 0; index < dimsFrom.size(); ++index) {
+    nSetts[dimsTo.at(index).get()] = sett(dimsFrom.at(index).get());
+  }
+
+  return Region(outShape, nSetts);
+}
+
 static_assert(std::is_nothrow_move_constructible<DisjointRegions>::value,
               "Expect DisjointRegions to be nothrow move constructible");
 

@@ -74,7 +74,7 @@ public:
   // to
   //     [in0] -> (DimShuffle) -> [?] -> (op0's type) -> [out1].
   //
-  // by changing op0 inplace to be of type DimShuffle, and ds inplace
+  // by changing op0 inplace to be of type DimShuffle, and changing ds inplace
   // to be op0's type. If the swap is not possible, then return false and
   // leave op0 and ds unchanged.
   //

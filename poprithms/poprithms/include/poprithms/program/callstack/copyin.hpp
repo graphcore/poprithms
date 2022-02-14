@@ -183,7 +183,6 @@ private:
 std::ostream &operator<<(std::ostream &, const CopyIn &);
 std::ostream &operator<<(std::ostream &, const CopyIns &);
 
-
 } // namespace callstack
 } // namespace program
 } // namespace poprithms

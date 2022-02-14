@@ -5,6 +5,7 @@
 #include <numeric>
 #include <ostream>
 #include <sstream>
+#include <tuple>
 #include <type_traits>
 
 #include <poprithms/ndarray/accessors.hpp>
@@ -223,6 +224,26 @@ void Shape::assertValidDimension(uint64_t d) const {
     oss << "Failure in assertValidDimension for shape=" << *this
         << ", failure with invalid dimension=" << d
         << ". Expected dimension>=rank (" << rank_u64() << ").";
+    throw error(oss.str());
+  }
+}
+
+void Shape::assertValidDimensions(const std::vector<uint64_t> &dims) const {
+
+  if (dims.empty()) {
+    return;
+  }
+
+  const auto maximum_ =
+      std::accumulate(dims.cbegin(), dims.cend(), 0ull, [](auto a, auto b) {
+        return std::max<uint64_t>(a, b);
+      });
+
+  if (maximum_ >= rank_u64()) {
+    std::ostringstream oss;
+    oss << "The largest dimension passed in is " << maximum_
+        << ", which is larger than the rank of thos Shape, " << rank_u64()
+        << ".";
     throw error(oss.str());
   }
 }
@@ -1397,10 +1418,10 @@ namespace {
 //
 // In [11]: X[-1:100:1]
 //
-// Map \a v to [low, high), pivoting on pivot
-int64_t normalize(int64_t v, uint64_t pivot, int64_t low, int64_t high) {
+// Map \a v to [low, high), sliceing on slice
+int64_t normalize(int64_t v, uint64_t slice, int64_t low, int64_t high) {
   if (v < 0) {
-    v += pivot;
+    v += slice;
   }
   if (v < low) {
     v = low;
@@ -1999,6 +2020,91 @@ uint64_t Shape::nDimsOfSize(int64_t s) const {
   return std::count(shp.cbegin(), shp.cend(), s);
 }
 
+namespace {
+
+// #dims0 are dimensions in s0, and s1 is a reshape of s0. Is it possible to
+// map dims0 to s1? That is, can we dind dimensions dims1 in s1 such that
+// s0.dim(dims0[i]) == s1.dim(dims1[i]) for all i, and the intermediate masses
+// are the same? Intermediate mass: product of dimensions between dims  in
+// dims0 (in s0).
+
+std::pair<bool, std::vector<uint64_t>>
+getPermutedPivotDims(const Shape &s0,
+                     const Shape &s1,
+                     const std::vector<uint64_t> &dims0) {
+
+  if (s0.nelms_u64() != s1.nelms_u64()) {
+    throw error("Expected shapes with same nelms in getPermutedPivotDims");
+  }
+  s0.assertValidDimensions(dims0);
+
+  if (dims0.empty()) {
+    return {true, {}};
+  }
+
+  const std::pair<bool, std::vector<uint64_t>> notPossible{false, {}};
+
+  // Start by computing the intermediate masses in s0: prods separated by the
+  // dimensions #dims0. Example, if s0 = (3,14,5,6,17,7) and dims0 = (1,4):
+  //
+  //       (3,14,5,6,17,7)
+  //          ==     ==
+  //          1      4
+  //
+  // then the masses are (3, 5*6=30). There is one mass per element of dims0
+  // (the final mass, from the final dimension in dims0 to the end, is not
+  // computed).
+  //
+  std::vector<int64_t> masses{s0.dimProduct(0, dims0[0])};
+  for (uint64_t i = 1; i < dims0.size(); ++i) {
+    masses.push_back(s0.dimProduct(dims0[i - 1] + 1, dims0[i]));
+  }
+
+  // incrementally try to construct the set of dimensions in s1 corresponding
+  // to dims0. We call them "pivot" dimensions.
+  std::vector<uint64_t> permutedPivotDims;
+
+  uint64_t permutedPivotDim{0};
+  uint64_t pivotIndex{0};
+  while (pivotIndex < dims0.size()) {
+    // The dimension size we're looking for in s1.
+    // This is the size of the pivotIndex'th pivotd dimension.
+    // We'll interate until we find a dimension in s1 which
+    // is of this size.
+    const auto pivotSize  = s0.dim(dims0[pivotIndex]);
+    const auto targetMass = masses[pivotIndex];
+    int64_t currentMass{1};
+    while (
+        (permutedPivotDim < s1.rank_u64()) &&
+        (s1.dim(permutedPivotDim) != pivotSize || currentMass < targetMass)) {
+      currentMass *= s1.dim(permutedPivotDim);
+      ++permutedPivotDim;
+    }
+
+    if (permutedPivotDim >= s1.rank_u64()) {
+      return notPossible;
+    }
+
+    if (currentMass == targetMass && s1.dim(permutedPivotDim) == pivotSize) {
+      permutedPivotDims.push_back(permutedPivotDim);
+      ++permutedPivotDim;
+      ++pivotIndex;
+    }
+
+    else {
+      return notPossible;
+    }
+  }
+
+  if (permutedPivotDims.size() != dims0.size()) {
+    return notPossible;
+  }
+
+  return {true, permutedPivotDims};
+}
+
+} // namespace
+
 /**
  *
  * Some (more) examples:
@@ -2045,11 +2151,10 @@ uint64_t Shape::nDimsOfSize(int64_t s) const {
  *  3: check that the output of the reshape is of the form
  *     ("interval mass", "slice size", "interval mass", "slice size")
  **/
+
 std::tuple<bool, Shape, Dimensions>
 Shape::moveReshapeBeforeSlice(const Shape &slicedShape,
                               const Shape &finalShape) const {
-
-  const std::tuple<bool, Shape, Dimensions> notPossible{false, {}, {}};
 
   // The dimensions which are sliced.
   std::vector<uint64_t> sliceDims;
@@ -2059,63 +2164,16 @@ Shape::moveReshapeBeforeSlice(const Shape &slicedShape,
     }
   }
 
-  // The masses separated by the slice dimensions. Example, if the slice is
-  // (3,14,5,6,17,7) -> (3,2,5,6,1,7) then the masses are (3, 5*6=30)
-  //    ==     ==          =     =
-  //
-  // There are as many masses as there are slice indices.
-  //
-  std::vector<uint64_t> massEdges = sliceDims;
-  massEdges.push_back(slicedShape.rank_u64());
-  std::vector<int64_t> masses{dimProduct(0, massEdges[0])};
-  for (uint64_t i = 1; i < sliceDims.size(); ++i) {
-    masses.push_back(
-        slicedShape.dimProduct(sliceDims[i - 1] + 1, sliceDims[i]));
-  }
+  const std::tuple<bool, Shape, Dimensions> notPossible{false, {}, {}};
 
-  // incrementally try to construct the set of dimensions which are sliced
-  // *after* the reshape and slice ops have been permuted.
-  std::vector<uint64_t> permutedSliceDims;
-
-  uint64_t permutedSliceDim{0};
-  uint64_t sliceIndex{0};
-  while (sliceIndex < sliceDims.size()) {
-    // The dimension size we're looking for in finalShape.
-    // This is the size of the sliceIndex'th sliced dimension.
-    // We'll interate until we find a dimension in finalShape which
-    // is of this size.
-    const auto sliceSize  = slicedShape.dim(sliceDims[sliceIndex]);
-    const auto targetMass = masses[sliceIndex];
-    int64_t currentMass{1};
-    while ((permutedSliceDim < finalShape.rank_u64()) &&
-           (finalShape.dim(permutedSliceDim) != sliceSize ||
-            currentMass < targetMass)) {
-      currentMass *= finalShape.dim(permutedSliceDim);
-      ++permutedSliceDim;
-    }
-
-    if (permutedSliceDim >= finalShape.rank_u64()) {
-      return notPossible;
-    }
-
-    if (currentMass == targetMass &&
-        finalShape.dim(permutedSliceDim) == sliceSize) {
-      permutedSliceDims.push_back(permutedSliceDim);
-      ++permutedSliceDim;
-      ++sliceIndex;
-    }
-
-    else {
-      return notPossible;
-    }
-  }
-
-  if (permutedSliceDims.size() != sliceDims.size()) {
+  auto x = getPermutedPivotDims(slicedShape, finalShape, sliceDims);
+  if (std::get<0>(x) == false) {
     return notPossible;
   }
+  const auto permutedSliceDims = std::get<1>(x);
 
   // At this point, we know it is possible to switch the reshape and the
-  // slice. We have mapped the all of the slice dimensions to corresponding
+  // slice. We have mapped all of the slice dimensions to corresponding
   // dimensions after a reshape.
 
   // Construct shape of the output of the reshape *before* the slice
@@ -2125,6 +2183,31 @@ Shape::moveReshapeBeforeSlice(const Shape &slicedShape,
   }
 
   return {true, Shape(vPermutedShape), Dimensions(permutedSliceDims)};
+}
+
+std::tuple<bool, Shape, Dimensions>
+Shape::moveSliceBeforeReshape(const Shape &reshape,
+                              const Shape &sliced0) const {
+
+  // The dimensions which are sliced.
+  std::vector<uint64_t> dims0;
+  for (uint64_t i = 0; i < reshape.rank_u64(); ++i) {
+    if (reshape.dim(i) != sliced0.dim(i)) {
+      dims0.push_back(i);
+    }
+  }
+
+  auto x = getPermutedPivotDims(reshape, *this, dims0);
+  if (!std::get<0>(x)) {
+    return {false, {}, Dimensions({})};
+  }
+
+  const auto &dims1 = std::get<1>(x);
+  auto inter1       = get();
+  for (uint64_t index = 0; index < dims0.size(); ++index) {
+    inter1.at(dims1[index]) = sliced0.dim(dims0[index]);
+  }
+  return {true, Shape(inter1), Dimensions(std::get<1>(x))};
 }
 
 } // namespace ndarray

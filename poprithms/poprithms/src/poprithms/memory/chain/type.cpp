@@ -1,4 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <algorithm>
+#include <vector>
+
 #include <memory/chain/error.hpp>
 
 #include <poprithms/memory/chain/type.hpp>
@@ -30,6 +33,22 @@ std::string getTypeString(Type t) {
 std::ostream &operator<<(std::ostream &ost, Type t) {
   ost << getTypeString(t);
   return ost;
+}
+
+Types TypeOrders::alphabetical() {
+  return std::vector<Type>{Type::DimShuffle,
+                           Type::Expand,
+                           Type::Reduce,
+                           Type::Reshape,
+                           Type::Reverse,
+                           Type::SettFillInto,
+                           Type::SettSample};
+}
+
+Types TypeOrders::reverseAlphabetical() {
+  auto x = alphabetical();
+  std::reverse(x.begin(), x.end());
+  return x;
 }
 
 } // namespace chain

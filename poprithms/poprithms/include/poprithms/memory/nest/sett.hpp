@@ -19,6 +19,7 @@ namespace nest {
 //  >  prevailing in technical senses.
 
 class Sett;
+using Setts = std::vector<Sett>;
 class DisjointSetts;
 using OptionalSett1 = OptionalSet<1, Sett>;
 using OptionalSett2 = OptionalSet<2, Sett>;

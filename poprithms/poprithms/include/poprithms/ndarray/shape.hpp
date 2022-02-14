@@ -1049,6 +1049,8 @@ public:
 
   void assertValidDimension(uint64_t d) const;
 
+  void assertValidDimensions(const std::vector<uint64_t> &) const;
+
   void assertSameNumberOfElements(const Shape &) const;
 
   void validateGatherIndices(uint64_t d,
@@ -1217,6 +1219,25 @@ public:
   std::tuple<bool, Shape, Dimensions>
   moveReshapeBeforeSlice(const Shape &slicedShape,
                          const Shape &finalShape) const;
+
+  /**
+   * Similar to #moveReshapeBeforeSlice, this this method attempts to change
+   * reshape->slice to slice->reshape. The implementation logic overlaps with
+   * #moveReshapeBeforeSlice, as one reordering is possible if and only if the
+   * other is.
+   *
+   * Returns a tuple where
+   * 0) the bool says if the rearrangement (to slice->reshape) is possible.
+   *
+   * 1) the Shape is that of the slice before the reshape (if possible,
+   *    otherwise undefined).
+   *
+   * 2) the Dimensions are the new slice dimensions (if possible, otherwise
+   *    undefined).
+   * */
+  std::tuple<bool, Shape, Dimensions>
+  moveSliceBeforeReshape(const Shape &reshape,
+                         const Shape &finalSlicedShape) const;
 
   /**
    * \return The number of dimensions of this Shape of size s.

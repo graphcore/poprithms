@@ -2,6 +2,7 @@
 
 #include <numeric>
 #include <sstream>
+#include <unordered_set>
 #include <variant>
 
 #include <memory/chain/disjointregionsmapper.hpp>
@@ -12,6 +13,7 @@
 #include <poprithms/memory/chain/chain.hpp>
 #include <poprithms/memory/chain/type.hpp>
 #include <poprithms/util/copybyclone_impl.hpp>
+#include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -230,10 +232,37 @@ void Chain::dimShuffle(const Permutation &p) {
   return append(Type::DimShuffle, outShape().dimShuffle(p), p);
 }
 
-bool Chain::tryMergeLastTwo() {
-  if (nOps() < 2) {
-    return false;
+bool Chain::tryMakeIdentitiesWithPrevious(uint64_t indexSecond) {
+
+  if (indexSecond == 0) {
+    throw error("The second index in the pair cannot be 0 (as the first "
+                "would then be -1). ");
   }
+
+  if (indexSecond >= nOps()) {
+    throw error(
+        "The second index in the pair exceeds or equals the chain length");
+  }
+
+  auto indexFirst = indexSecond - 1;
+  auto &op0       = op(indexFirst);
+  auto &op1       = op(indexSecond);
+
+  const auto inShape0  = inShape(indexFirst);
+  const auto outShape0 = inShape(indexSecond);
+  const auto outShape1 = outShape(indexSecond);
+
+  auto makeTwoIdentities = [&inShape0, &outShape0, &outShape1, &op0, &op1]() {
+    (void)outShape0;
+    if (inShape0 != outShape1) {
+      throw error("To create 2 identities, the first input shape must equal "
+                  "the final output shape");
+    }
+
+    // reshape to same shape is an identity op
+    op0 = {Type::Reshape, inShape0, inShape0};
+    op1 = {Type::Reshape, inShape0, inShape0};
+  };
 
   /**
    * A SettFill followed by a SettSample of the exact same Region results in
@@ -253,11 +282,17 @@ bool Chain::tryMergeLastTwo() {
    *
    */
 
-  if (type(nOps() - 2) == Type::SettFillInto &&
-      type(nOps() - 1) == Type::SettSample &&
-      region(nOps() - 1).equivalent(region(nOps() - 2))) {
-    popBack();
-    popBack();
+  if (type(indexFirst) == Type::SettFillInto &&
+      type(indexSecond) == Type::SettSample &&
+      region(indexSecond).equivalent(region(indexFirst))) {
+    makeTwoIdentities();
+    return true;
+  }
+
+  // as above, but Expand instead of SettFillInto.
+  if (type(indexFirst) == Type::Expand &&
+      type(indexSecond) == Type::SettSample && inShape0 == outShape1) {
+    makeTwoIdentities();
     return true;
   }
 
@@ -265,29 +300,28 @@ bool Chain::tryMergeLastTwo() {
    * A SettSample followed by a SettFillInto of the same Region results in
    * the initial region, if the filtering Region contains the full input.
    * */
-  if (type(nOps() - 2) == Type::SettSample &&
-      type(nOps() - 1) == Type::SettFillInto) {
+  if (type(indexFirst) == Type::SettSample &&
+      type(indexSecond) == Type::SettFillInto) {
 
-    if (region(nOps() - 2).equivalent(region(nOps() - 1))) {
+    if (region(indexFirst).equivalent(region(indexSecond))) {
 
       // Apply all but last 2 Ops to the full input:
-      const auto regs = apply(Region::createFull(inShape(0)), nOps() - 2);
+      const auto regs = apply(Region::createFull(inShape(0)), indexFirst);
 
       // If the sampling region contains 'regs', then it will contain all
       // inputs.
-      if (DisjointRegions({region(nOps() - 2)}).contains(regs)) {
-        popBack();
-        popBack();
+      if (DisjointRegions({region(indexFirst)}).contains(regs)) {
+        makeTwoIdentities();
         return true;
       }
     }
   }
 
   // Case of 2 contiguous Ops of the same type. They can sometimes be merged.
-  if (type(nOps() - 1) == type(nOps() - 2)) {
+  if (type(indexSecond) == type(indexFirst)) {
 
-    const auto t     = type(nOps() - 1);
-    const auto shape = outShape(nOps() - 1);
+    const auto t     = type(indexSecond);
+    const auto shape = outShape(indexSecond);
     switch (t) {
 
     // Merging a sub-Chain of Reshapes, or of Expands, or of Reduces is
@@ -295,29 +329,27 @@ bool Chain::tryMergeLastTwo() {
     case Type::Reshape:
     case Type::Expand:
     case Type::Reduce: {
-      popBack();
-      popBack();
-      append(t, shape, shape);
+      op0 = {Type::Reshape, inShape0, inShape0};
+      op1 = {t, shape, shape};
       return true;
     }
 
     // Merging DimShuffles consists of composing (multiplying) all of the
     // Permutations together.
     case Type::DimShuffle: {
-      const auto p = permutation(nOps() - 2).mul(permutation(nOps() - 1));
-      popBack();
-      popBack();
-      dimShuffle(p);
+      const auto p = permutation(indexFirst).mul(permutation(indexSecond));
+      op0          = {Type::Reshape, inShape0, inShape0};
+      op1          = {Type::DimShuffle, shape, p};
       return true;
     }
 
     // Merging Reverses consists of simply concatenating the Dimensions of
     // reversal.
     case Type::Reverse: {
-      const auto dims = dimensions(nOps() - 2).append(dimensions(nOps() - 1));
-      popBack();
-      popBack();
-      reverse(dims);
+      auto dims = dimensions(indexFirst).append(dimensions(indexSecond));
+      dims      = Dimensions(shape.getCanonicalReverseIndices(dims.get()));
+      op0       = {Type::Reshape, inShape0, inShape0};
+      op1       = {Type::Reverse, shape, dims};
       return true;
     }
 
@@ -325,30 +357,29 @@ bool Chain::tryMergeLastTwo() {
     // Starting at the end of the sub-Chain, fill the sampling Region into
     // the preceding SettSample's Region.
     case Type::SettSample: {
-      auto merged = region(nOps() - 1).settFillInto(region(nOps() - 2));
+      auto merged = region(indexSecond).settFillInto(region(indexFirst));
 
       if (merged.size() > 1) {
         // It's not possible to merge these SettSamples, their Regions are
         // not compatible for merging (they are "co-prime").
         break;
       }
-      popBack();
-      popBack();
-      settSample(merged.at(0));
+
+      op0 = {Type::Reshape, inShape0, inShape0};
+      op1 = {Type::SettSample, shape, merged.at(0)};
       return true;
     }
 
     // Merging SettFillInto:
     case Type::SettFillInto: {
-      auto merged = region(nOps() - 2).settFillInto(region(nOps() - 1));
+      auto merged = region(indexFirst).settFillInto(region(indexSecond));
       if (merged.size() > 1) {
         // It's not possible to merge these SettFillIntos, their Regions are
         // not compatible for merging (they are "co-prime").
         break;
       }
-      popBack();
-      popBack();
-      settFillInto(merged.at(0));
+      op0 = {Type::Reshape, inShape0, inShape0};
+      op1 = {Type::SettFillInto, shape, merged.at(0)};
       return true;
     }
     }
@@ -383,9 +414,43 @@ bool Chain::isIdentity(uint64_t opIndex) const {
 //   bool Chain::randomRegionMappingEquivalent(const Chain &rhs,
 //                                      uint64_t nRandomRegions) const;
 
-void Chain::canonicalize() {
+void Chain::canonicalize(const Types &targetOrder) {
 
-  // Check if the full Region gets mapped to the empty Region, if it does,
+  // assert that #targetOrder has no duplicates and is not missing any Types
+  // in this Chain.
+  {
+    std::unordered_set<Type> targetOrderSet(targetOrder.cbegin(),
+                                            targetOrder.cend());
+    for (const auto &op : ops_.uptr->ops) {
+      if (targetOrderSet.count(op.type()) == 0) {
+        std::ostringstream oss;
+        oss << "The op type " << op.type()
+            << " is present in this chain, but is missing from the target "
+               "list.";
+        poprithms::util::append(oss, targetOrder);
+        throw error(oss.str());
+      }
+    }
+
+    if (targetOrderSet.size() != targetOrder.size()) {
+      std::ostringstream oss;
+      oss << "There is duplication in the target order vector ";
+      util::append(oss, targetOrder);
+      oss << '.';
+      throw error(oss.str());
+    }
+  }
+
+  auto getOrderPosition = [&targetOrder](Type t) -> uint64_t {
+    for (uint64_t i = 0; i < targetOrder.size(); ++i) {
+      if (targetOrder[i] == t) {
+        return i;
+      }
+    }
+    throw error("Unexpected, should have found the type");
+  };
+
+  // Check if the full Region gets mapped to the empty Region. If it does,
   // it can be represented as a simple mask.
   if (apply(DisjointRegions::createFull(inShape())).empty()) {
     ops_.uptr->ops.clear();
@@ -395,10 +460,10 @@ void Chain::canonicalize() {
 
   bool changed{true};
 
-  // Iteratively try canonicalization passes, until the Chain is unchanged.
+  // Iteratively try canonicalization passes, until the Chain is unchanging.
   // It is guaranteed that this does terminate, as there are no circular
   // sequences of passes: they all either reduce the number of Ops, or move
-  // the Chain towards alphabetical order.
+  // the Chain towards the specified lexicographic order.
   //
 
   while (changed) {
@@ -420,31 +485,43 @@ void Chain::canonicalize() {
         changed = true;
       }
 
-      // merge or remove the back 2 Ops.
-      bool blocked = false;
-      while (!blocked) {
-        auto merged = tryMergeLastTwo();
-        if (merged) {
-          changed = true;
-        } else {
-          blocked = true;
-        }
-      }
-
       // try bubbling the Op backwards, towards the front of the Chain.
-      // we try and keep Ops in alphabetical order. This makes the pass
+      // We try and keep Ops in the specified order. This makes the pass
       // which merges compatible Ops more likely to succeed, so that even
       // though this pass does not reduce the number of Ops in this Chain,
       // it makes it more likely for other Op-reducing passes to succeed.
 
-      if (nOps() > 1) {
+      auto processBack = [this, &getOrderPosition]() -> bool {
         uint64_t current = nOps() - 1;
-        bool bubbled{true};
-        while (bubbled) {
-          bubbled = tryBubbleBack(current);
-          changed = changed || bubbled;
-          current -= 1;
+        bool keepBubbling{true};
+        bool changed_{false};
+        while (keepBubbling && current != 0) {
+
+          auto madeToIdentity = tryMakeIdentitiesWithPrevious(current);
+          if (madeToIdentity) {
+            return true;
+          }
+
+          else {
+
+            // Only back if (op0, op1) are not in specified type order
+            if (getOrderPosition(type(current - 1)) <=
+                getOrderPosition(type(current))) {
+              keepBubbling = false;
+            }
+
+            else {
+              keepBubbling = tryBubbleBack(current);
+            }
+            changed_ = changed_ || keepBubbling;
+            current -= 1;
+          }
         }
+        return changed_;
+      };
+
+      if (nOps() > 1) {
+        changed = changed || processBack();
       }
     }
   }
@@ -467,15 +544,7 @@ bool Chain::tryBubbleBack(uint64_t i1) {
   auto &op1 = op(i1);
 
   const auto inShape0 = inShape(i0);
-
-  const auto t0 = op0.type();
-  const auto t1 = op1.type();
-
-  // Only back if (op0, op1) are not lexicographically sorted.
-  // TODO(T53918): make this a chain attribute, which the user can set.
-  if (static_cast<uint64_t>(t0) <= static_cast<uint64_t>(t1)) {
-    return false;
-  }
+  const auto t1       = op1.type();
 
   switch (t1) {
 
@@ -685,10 +754,21 @@ void Chain::mask(const Region &r) {
   settFillInto(r);
 }
 
+Chain Chain::canonicalized(const Types &targetOrder) const {
+  auto c = *this;
+  c.canonicalize(targetOrder);
+  return c;
+}
+
 Chain Chain::canonicalized() const {
   auto c = *this;
   c.canonicalize();
   return c;
+}
+
+void Chain::canonicalize() {
+  canonicalize(TypeOrders::reverseAlphabetical());
+  canonicalize(TypeOrders::alphabetical());
 }
 
 void Chain::popBack() { ops_.uptr->ops.pop_back(); }
