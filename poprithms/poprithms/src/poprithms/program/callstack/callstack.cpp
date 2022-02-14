@@ -4,13 +4,15 @@
 
 #include <poprithms/common/multiout/opid.hpp>
 #include <poprithms/program/callstack/callstack.hpp>
+#include <poprithms/program/callstack/copymap.hpp>
 #include <poprithms/program/callstack/stacktensorid.hpp>
 #include <poprithms/program/callstack/stackutil.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
-// Why multiple headers : one source file? Trying to avoid tiny .cpp files for
-// better compile times.
+// Why do we have multiple headers using a single source file (single
+// translation unit for classes in different headers)? Because I'm trying to
+// avoid tiny .cpp files, for better clang/gcc compile times.
 
 namespace poprithms {
 namespace program {
@@ -97,6 +99,24 @@ std::ostream &operator<<(std::ostream &ost, const CallEvent &cse) {
 std::ostream &operator<<(std::ostream &ost, const CallStack &cse) {
   poprithms::util::append(ost, cse);
   return ost;
+}
+
+const std::vector<std::pair<CallEvent, OutIndex>> &
+CopyOutMap::get(const TensorId &tId) const {
+  auto found = m_.find(tId);
+  if (found != m_.cend()) {
+    return found->second;
+  }
+  return empty_;
+}
+
+const std::vector<std::pair<CallEvent, InIndex>> &
+CopyInMap::get(const TensorId &tId) const {
+  auto found = m_.find(tId);
+  if (found != m_.cend()) {
+    return found->second;
+  }
+  return empty_;
 }
 
 } // namespace callstack

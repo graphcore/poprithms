@@ -241,6 +241,7 @@ set (program_sources
    ${program_src_dir}/distributed/helper.cpp
    ${program_src_dir}/distributed/program.cpp
    ${program_src_dir}/callstack/callstack.cpp
+   ${program_src_dir}/callstack/querier.cpp
    ${program_src_dir}/callstack/error.cpp
    ${program_src_dir}/callstack/copyin.cpp
    ${program_src_dir}/callstack/copyout.cpp

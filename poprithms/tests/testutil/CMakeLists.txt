@@ -32,7 +32,7 @@ target_link_libraries(memory-nest-test-util poprithms-memory-nest)
 
 set(memory-unwind-test-util-sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/memory/unwind/op.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/memory/unwind/graph.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/memory/unwind/graph.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/memory/unwind/fullstate.cpp
 )
 add_library(memory-unwind-test-util SHARED ${memory-unwind-test-util-sources})
@@ -40,9 +40,8 @@ target_include_directories(memory-unwind-test-util PUBLIC "${CMAKE_CURRENT_SOURC
 target_link_libraries(memory-unwind-test-util poprithms-memory-unwind poprithms-common-schedulable)
 
 
-
 set(common-schedulable-test-util-sources
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/common/schedulable/schedulablegraph.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/common/schedulable/graph.cpp
 )
 add_library(common-schedulable-test-util SHARED ${common-schedulable-test-util-sources})
 target_include_directories(common-schedulable-test-util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -57,3 +56,12 @@ set(autodiff-test-util-sources
 add_library(autodiff-test-util SHARED ${autodiff-test-util-sources})
 target_include_directories(autodiff-test-util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(autodiff-test-util poprithms-autodiff poprithms-common-multiout)
+
+set(program-test-util-sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/program/callstack/graph.cpp
+)
+add_library(program-test-util SHARED ${program-test-util-sources})
+target_include_directories(program-test-util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(program-test-util poprithms-program poprithms-common-multiout)
+
+

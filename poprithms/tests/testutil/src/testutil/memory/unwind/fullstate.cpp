@@ -1,6 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
-#include <iostream>
 #include <memory>
 #include <sstream>
 #include <vector>

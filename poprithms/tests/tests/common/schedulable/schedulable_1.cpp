@@ -3,7 +3,7 @@
 #include <sstream>
 #include <vector>
 
-#include <testutil/common/schedulable/schedulablegraph.hpp>
+#include <testutil/common/schedulable/graph.hpp>
 
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/op.hpp>

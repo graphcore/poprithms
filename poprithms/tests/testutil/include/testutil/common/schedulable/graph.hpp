@@ -1,6 +1,6 @@
-// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
-#ifndef TESTUTIL_COMMON_SCHEDULABLE_SCHEDULABLEGRAPH_HPP
-#define TESTUTIL_COMMON_SCHEDULABLE_SCHEDULABLEGRAPH_HPP
+// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#ifndef TESTUTIL_COMMON_SCHEDULABLE_GRAPH_HPP
+#define TESTUTIL_COMMON_SCHEDULABLE_GRAPH_HPP
 
 #include <vector>
 
@@ -11,6 +11,10 @@
 
 namespace poprithms {
 namespace common {
+
+/**
+ * A minimal completion of the abstract schedulable::Graph class.
+ * */
 namespace schedulable_test {
 
 using namespace poprithms::common;
@@ -24,6 +28,8 @@ using multiout::OpIds;
 using multiout::OptionalTensorIds;
 using multiout::TensorId;
 using multiout::TensorIds;
+using poprithms::ndarray::Shape;
+using poprithms::ndarray::Shapes;
 using schedulable::SubGraphId;
 
 class Op : public schedulable::Op {
@@ -31,6 +37,7 @@ public:
   Op(const schedulable::Op::State &s);
   std::string typeString() const final;
   std::unique_ptr<multiout::Op> cloneMultioutOp() const final;
+
   void
   removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) final {
     // nothing to do: no new attributes.
@@ -55,7 +62,7 @@ public:
   OpId insert(const TensorIds &ins,
               uint64_t nOut,
               SubGraphId sgId,
-              std::string name);
+              const std::string &name);
 
   virtual ~Graph() override;
   void appendOpColumns(std::ostream &, const OpIds &) const final;
@@ -64,19 +71,19 @@ public:
 
 private:
   bool multiOutTypeSpecificEqualTo(const multiout::Graph &) const final {
-    // nothing to do: no new attributes.
+    // no new attributes (nothing == nothing).
     return true;
   }
 
   void schedulableTypeSpecificRemoveOp(OpId,
                                        const OptionalTensorIds &) final {
-    // nothing to do.
+    // nothing to do: no new attributes.
   }
 
   void schedulableTypeSpecificVerifyValidOutputSubstitute(
       const TensorId &,
       const TensorId &) const final {
-    // nothing to do.
+    // nothing to do: no new attributes.
   }
 };
 
