@@ -189,6 +189,11 @@ public:
 
   Tensor tensor(TensorId id) { return {id, this}; }
 
+  /**
+   * \return Tensors, one for each of the ids in #tIds.
+   * */
+  Tensors tensors(const TensorIds &tIds);
+
   /** \return The Shape of a Tensor in this Graph */
   const Shape &shape(TensorId id) const;
 
@@ -433,6 +438,8 @@ public:
 
   /** Return true iff Tensor \a id is an allocation */
   bool allocates(TensorId id) const;
+
+  static TensorIds ids(const Tensors &);
 
 private:
   Node &node(TensorId);

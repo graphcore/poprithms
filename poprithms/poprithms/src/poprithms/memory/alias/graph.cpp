@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <array>
+#include <iterator>
 #include <memory>
 #include <numeric>
 #include <set>
@@ -19,6 +20,25 @@
 namespace poprithms {
 namespace memory {
 namespace alias {
+
+TensorIds Graph::ids(const Tensors &ts) {
+  TensorIds ids;
+  ids.reserve(ts.size());
+  std::transform(ts.cbegin(),
+                 ts.cend(),
+                 std::back_inserter(ids),
+                 [](Tensor t) { return t.id(); });
+  return ids;
+}
+
+Tensors Graph::tensors(const TensorIds &tIds) {
+  Tensors ts;
+  ts.reserve(tIds.size());
+  for (const auto &id : tIds) {
+    ts.push_back(tensor(id));
+  }
+  return ts;
+}
 
 Graph::~Graph() = default;
 

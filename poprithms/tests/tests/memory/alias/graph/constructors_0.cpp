@@ -4,10 +4,78 @@
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/memory/alias/graph.hpp>
+#include <poprithms/memory/alias/mapper.hpp>
 
-int main() {
-  using namespace poprithms::memory::alias;
-  using namespace poprithms::util;
+namespace {
+using namespace poprithms::memory::alias;
+using namespace poprithms::util;
+
+void testMapper() {
+
+  class StringMapper : public Mapper<std::string> {
+    std::string external() const final { return "Stringy"; }
+  };
+
+  StringMapper mapper;
+  auto foo = mapper.graph().allocate({2}, Color(0));
+  auto bar = mapper.graph().allocate({2}, Color(1));
+  mapper.insert({foo, bar}, {"foo", "bar"});
+  auto bla = mapper.tensors({"foo", "foo", "bar"});
+
+  if (mapper.id("foo") != foo) {
+    throw poprithms::test::error("Failed to retrieve alias TensorId foo for "
+                                 "Stringy tensor id \"foo\".");
+  }
+
+  if (mapper.ids({"bar", "foo"}) != TensorIds{bar, foo}) {
+    throw poprithms::test::error(
+        "Failed to retrieve alias TensorIds (foo,bar) for "
+        "Stringy tensor ids (\"foo\",\"bar\").");
+  }
+
+  if (mapper.idFromAliasId(foo) != "foo") {
+    throw poprithms::test::error("Failed to retrieve Stringy tensor id "
+                                 "\"foo\" for alias TensorId foo");
+  }
+  if (mapper.idsFromAliasIds({foo, bar}) !=
+      std::vector<std::string>{"foo", "bar"}) {
+    throw poprithms::test::error(
+        "Failed to retrieve Stringy tensors id (\"foo\",\"bar\") for alias "
+        "TensorIds (foo,bar)");
+  }
+
+  if (mapper.tensor("foo").id() != foo) {
+    throw poprithms::test::error("Failed in tensor(ExternTensorId)");
+  }
+  if (Graph::ids(mapper.tensors({"foo", "bar"})) != TensorIds{foo, bar}) {
+    throw poprithms::test::error("Failed in tensors(ExternTensorIds)");
+  }
+
+  if (mapper.tensorFromAliasId(foo).id() != foo) {
+    throw poprithms::test::error("Failed in tensorFromAliasId");
+  }
+  if (Graph::ids(mapper.tensorsFromAliasIds({foo, bar})) !=
+      TensorIds{foo, bar}) {
+    throw poprithms::test::error("Failed in tensorsFromAliasIds");
+  }
+
+  bool caught0{false};
+  try {
+    mapper.insert({foo}, {"another foo"});
+  } catch (const poprithms::error::error &e) {
+    caught0       = true;
+    std::string w = e.what();
+    if (w.find("Stringy") == std::string::npos) {
+      throw poprithms::test::error(
+          "Failed to find custom name in error string");
+    }
+  }
+  if (!caught0) {
+    throw poprithms::test::error("Failed to catch bad insert");
+  }
+}
+
+void testConstrutors0() {
 
   Graph g;
 
@@ -59,6 +127,13 @@ int main() {
   if (g6 == g2) {
     throw poprithms::test::error("g6 is different, failed in comparison");
   }
+}
+} // namespace
+
+int main() {
+
+  testMapper();
+  testConstrutors0();
 
   return 0;
 }
