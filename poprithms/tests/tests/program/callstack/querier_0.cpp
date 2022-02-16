@@ -160,8 +160,8 @@ void testNestedFullStack0() {
 
 void assertOnMultiGraph(const StackTensorIds &observed,
                         const StackTensorIds &expected) {
-  std::set sObserved(observed.cbegin(), observed.cend());
-  std::set sExpected(expected.cbegin(), expected.cend());
+  std::set<StackTensorId> sObserved(observed.cbegin(), observed.cend());
+  std::set<StackTensorId> sExpected(expected.cbegin(), expected.cend());
   if (sObserved != sExpected) {
     std::ostringstream oss;
     oss << "Expected the StackTensorIds on the multi-graph path to be "
