@@ -182,6 +182,39 @@ uint64_t Shape::pool1d(uint64_t data,
   return x0;
 }
 
+Shape Shape::insertOnesAt(const std::vector<uint64_t> &dims) const {
+
+  // the number of ones to insert for every dimension in [0, rank].
+  std::vector<uint32_t> nOnesToInsert(rank_u64() + 1, 0);
+  for (auto d : dims) {
+    if (d > rank_u64()) {
+      std::ostringstream oss;
+      oss << "Invalid dimension " << d << " in Shape::insertOnesAt. "
+          << "All dimensions must be less than or "
+          << "equal to the rank of this Shape, " << rank_u64();
+      throw error(oss.str());
+    }
+    ++nOnesToInsert[d];
+  }
+
+  std::vector<int64_t> outShape;
+  outShape.reserve(dims.size() + rank_u64());
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+    // insert ones before the dimension:
+    for (uint64_t o = 0; o < nOnesToInsert[d]; ++o) {
+      outShape.push_back(1);
+    }
+    outShape.push_back(dim(d));
+  }
+
+  // the ones at the very end.
+  for (uint64_t o = 0; o < nOnesToInsert.back(); ++o) {
+    outShape.push_back(1ll);
+  }
+
+  return Shape(std::move(outShape));
+}
+
 Shape Shape::unsqueeze(const std::vector<uint64_t> &dims) const {
   const auto R0 = dims.size() + rank_u64();
   std::vector<int64_t> outShape(R0, -1);

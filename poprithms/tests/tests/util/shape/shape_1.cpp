@@ -74,6 +74,41 @@ void testFlatten1() {
   }
 }
 
+void validateInsertOnesAt(const Shape &inShape,
+                          const std::vector<uint64_t> &dims,
+                          const Shape &expected) {
+  if (inShape.insertOnesAt(dims) != expected) {
+    std::ostringstream oss;
+    oss << "Expected " << expected << " with " << inShape << ".insertOnesAt(";
+    poprithms::util::append(oss, dims);
+    oss << ") but observed " << inShape.insertOnesAt(dims) << '.';
+    throw poprithms::test::error(oss.str());
+  }
+}
+void testInsertOnesAt0() {
+  validateInsertOnesAt(
+      Shape{}, /* dims */ {0, 0}, /* expected */ Shape{1, 1});
+
+  validateInsertOnesAt({}, {}, {});
+  validateInsertOnesAt({2, 3, 5}, {}, {2, 3, 5});
+  validateInsertOnesAt({2, 4, 5}, {}, {2, 4, 5});
+  validateInsertOnesAt({3, 4}, {0, 0}, {1, 1, 3, 4});
+  validateInsertOnesAt({3, 4}, {1, 1}, {3, 1, 1, 4});
+  validateInsertOnesAt({3, 4}, {2, 2}, {3, 4, 1, 1});
+  validateInsertOnesAt({3, 4}, {2, 1, 0}, {1, 3, 1, 4, 1});
+
+  bool caught{false};
+  try {
+    Shape({}).insertOnesAt({1});
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw poprithms::test::error(
+        "Failed to catch invalid dimension in insertOnesAt");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -81,6 +116,7 @@ int main() {
 
   testFlatten0();
   testFlatten1();
+  testInsertOnesAt0();
 
   return 0;
 }

@@ -244,6 +244,21 @@ public:
   Shape unsqueeze(const std::vector<uint64_t> &dims) const;
 
   /**
+   * Insert 1's into this Shape. Unlike #unsqueeze, the dimensions #dims are
+   * the dimensions in the Shape before it is reshaped. This method
+   * corresponds to poplar's expand.
+   *
+   * Examples:
+   *  Shape({2}).expand({0}) == Shape({1,2})
+   *  Shape({2}).expand({1}) == Shape({2,1})
+   *  Shape({3,4}).expand({0,1,1}) == Shape({1,3,1,1,4});
+   *
+   * Duplicates are allowed, and all dimensions must be in the range [0,
+   * rank].
+   * */
+  Shape insertOnesAt(const std::vector<uint64_t> &dims) const;
+
+  /**
    * \return A copy of this Shape but with \a dim0 prepended.
    *
    * Example: if this is (3,4), then calling prepend(2) returns (2,3,4).
