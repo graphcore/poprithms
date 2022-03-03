@@ -1,3 +1,4 @@
 {
-  "dependencies" : [ "boost"]
+  "dependencies" : [ "boost" ],
+  "optional_dependencies" : [ "googletest" ]
 }

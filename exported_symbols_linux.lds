@@ -10,6 +10,16 @@ V0 {
     _ZTIN??pop*;
     _ZTVN?pop*;
     _ZTVN??pop*;
+    _ZN?mock*;
+    _ZN??mock*;
+    _ZNK?mock*;
+    _ZNK??mock*;
+    _ZTSN?mock*;
+    _ZTSN??mock*;
+    _ZTIN?mock*;
+    _ZTIN??mock*;
+    _ZTVN?mock*;
+    _ZTVN??mock*;
   local:
     *;
 };

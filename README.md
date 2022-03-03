@@ -33,6 +33,10 @@ By default, Boost Stacktrace is used to improve error messages. To disable it,
 cmake /path/to/poprithms/root/dir  -DPOPRITHMS_USE_STACKTRACE=OFF
 ```
 
+By default, building the google mock library for poprithms is enabled. When enabled, cmake will try to find the GTest package to use in the poprithm google mocks. To disable it,
+```
+cmake /path/to/poprithms/root/dir -DPOPRITHMS_BUILD_MOCKS=OFF
+```
 
 The usual CMake flags can be used to set the poprithms install directory `CMAKE_INSTALL_PREFIX` 
 , and the generator `CMAKE_GENERATOR`. A complete configuration command might be:

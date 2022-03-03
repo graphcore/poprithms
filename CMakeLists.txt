@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(poprithms)
+
 include(CTest)
 
 # Add an explicit exported symbols file (a linker flag)
@@ -13,6 +14,7 @@ else()
          "${CMAKE_CURRENT_SOURCE_DIR}/exported_symbols_linux.lds")
 endif()
 
+option(POPRITHMS_BUILD_MOCKS "Build the poprithms mocks library" ON)
 option(POPRITHMS_USE_STACKTRACE "Enable boost stacktrace reports in error messages" ON)
 if (${POPRITHMS_USE_STACKTRACE})
     # Building with Boost Stacktrace using the default header only implementation

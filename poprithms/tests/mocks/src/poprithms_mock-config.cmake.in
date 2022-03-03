@@ -1,0 +1,4 @@
+include("${CMAKE_CURRENT_LIST_DIR}/poprithms_mock-targets.cmake")
+
+find_package(poprithms REQUIRED)
+find_package(GTest REQUIRED CONFIG)
