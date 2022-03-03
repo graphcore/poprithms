@@ -1,0 +1,37 @@
+Release notes (March 2022)
+
+New projects:
+
+[autodiff]
+ Automatic differentiation (T51909, T50868)
+ The goal with this is to have re-usable and generic layers of abstraction for 
+ automatic differention. At 1 layer, a user provides an 'objective' listing which 
+ tensors to target (to get gradients for), which tensors to start from (gradients 
+ provided) and which tensors are checkpointed (do not require recomputation). At 
+ another, the user completes an abstract base class for constructing ops in a 
+ graph in their project. This project does not do any 'calculus', that level of 
+ abstraction is handled by the external project using poprithms. 
+
+[program] 
+  Basic classes for analysis of call stacks (T55765, T55929, T55941, T56371)
+  Currently there is (1) support for determing which ops are run, and in which 
+  call scopes, and (2) for decomposing programs by device (or any other field). 
+
+
+Projects with extensions/improvements:
+
+[memory::alias] 
+  Changes to the alias graph and tensor classes to support external projects
+  requiring alias analysis without poplar. (T55482, T53969, T53969, T53969, T56243)
+
+[memory::inplace] 
+  More refined ambiguity detection (under-constrained order of operation 
+  execution, resulting in undefined numerical behaviour). (T47848, T56597)
+
+[memory::chain] 
+  Improved chain simplification. (T52316, T53079, T53919, T54574, T53918)
+
+[memory::unwind] 
+  Ability to unwind through expand ops (T53025) and to specify the order in 
+  which unwind paths should be unwound (T53086)
+
