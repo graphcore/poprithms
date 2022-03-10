@@ -46,10 +46,10 @@ void TransitiveClosureOptimizer::initializeTransitiveClosure() {
     oss << "Not all Ops were scheduled while "
         << "initializing the transitive closure, "
         << "there is a cycle in the Graph."
-        << " The non-singleton strongly connected components, "
+        << " The strongly connected components with cycles, "
         << "in topological order, are:"
         << scc::getSummary(
-               g.getFwdEdges_u64(), dbs, scc::IncludeSingletons::No);
+               g.getFwdEdges_u64(), dbs, scc::IncludeCyclelessComponents::No);
 
     const auto fwdLinks = g.getFwdLinks();
     if (fwdLinks.size() == 0) {

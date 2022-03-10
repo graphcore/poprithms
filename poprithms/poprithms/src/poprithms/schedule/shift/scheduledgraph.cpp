@@ -129,10 +129,11 @@ kahn(const Graph &graph, const KahnDecider &kd, const uint32_t seed) {
     std::ostringstream oss;
     oss << "Only " << sch.size() << " of " << graph.nOps()
         << " were scheduled, there is a cycle in the Graph."
-        << " The non-singleton strongly connected components, "
+        << " The strongly connected components with cycles, "
         << "in topological order, are:"
-        << scc::getSummary(
-               graph.getFwdEdges_u64(), dbs, scc::IncludeSingletons::No);
+        << scc::getSummary(graph.getFwdEdges_u64(),
+                           dbs,
+                           scc::IncludeCyclelessComponents::No);
 
     throw error(oss.str());
   }

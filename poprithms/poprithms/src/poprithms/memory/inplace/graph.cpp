@@ -404,7 +404,7 @@ OpeningResult Graph::tryOpeningPartial(const Proposal &p,
       poprithms::schedule::scc::getSummary_i64(
           fwdEdges,
           getOpNames(),
-          poprithms::schedule::scc::IncludeSingletons::No);
+          poprithms::schedule::scc::IncludeCyclelessComponents::No);
       throw error(oss.str());
     }
     scheduleIsValid = true;

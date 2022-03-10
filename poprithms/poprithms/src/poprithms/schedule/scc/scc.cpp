@@ -186,7 +186,7 @@ std::vector<std::vector<uint64_t>> getCycles(const SCCs &sccs,
     }
 
     // In the case of singleton component without a edge to itself, there is
-    // not cycle.
+    // no cycle.
     return std::vector<uint64_t>{};
   };
 
@@ -213,7 +213,7 @@ std::vector<std::vector<uint64_t>> getCycles(const SCCs &sccs,
 //
 std::string getSummary(const FwdEdges &edges,
                        const std::vector<std::string> &dbs,
-                       IncludeSingletons singletons) {
+                       IncludeCyclelessComponents includeCycleless) {
   if (dbs.size() != edges.size()) {
     std::ostringstream oss;
     oss << "Bad input to getSummary. "
@@ -230,8 +230,31 @@ std::string getSummary(const FwdEdges &edges,
 
   using util::StringColumn;
 
+  auto logIt = [includeCycleless, &components, &edges](uint64_t ci) {
+    if (includeCycleless == IncludeCyclelessComponents::Yes) {
+      return true;
+    }
+    if (components[ci].size() > 1) {
+      return true;
+    }
+
+    // if the component is a singleton, with n self-edge on its single
+    // element, then include in the summary.
+    if (components[ci].size() == 1) {
+      auto n           = components[ci][0];
+      const auto &dsts = edges[n];
+      if (std::find(dsts.cbegin(), dsts.cend(), n) != dsts.cend()) {
+        return true;
+      }
+    }
+
+    // singleton without self-edge.
+    return false;
+  };
+
   for (uint64_t ci = 0; ci < components.size(); ++ci) {
-    if (singletons == IncludeSingletons::Yes || components[ci].size() > 1) {
+    if (logIt(ci)) {
+
       oss << "\n\nStrongly Connected Component #" << ci << ": " << '\n';
 
       // We map all nodes in components to a contiguous set starting from 0.
@@ -317,8 +340,9 @@ std::vector<std::vector<T>> translate(const std::vector<std::vector<F>> &f) {
 
 std::string getSummary_i64(const FwdEdges_i64 &edges_i64,
                            const std::vector<std::string> &dbs,
-                           IncludeSingletons singletons) {
-  return getSummary(translate<int64_t, uint64_t>(edges_i64), dbs, singletons);
+                           IncludeCyclelessComponents includeCycleless) {
+  return getSummary(
+      translate<int64_t, uint64_t>(edges_i64), dbs, includeCycleless);
 }
 
 } // namespace scc

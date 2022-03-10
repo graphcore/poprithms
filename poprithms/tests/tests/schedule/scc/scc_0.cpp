@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iostream>
 #include <random>
+#include <sstream>
 #include <vector>
 
 #include <poprithms/error/error.hpp>
@@ -87,6 +88,26 @@ int count(const std::string &s, const std::string &sub) {
   return n;
 }
 
+void testSummarySingletonLoop() {
+
+  // 0 -> {0}
+  // 1 -> {}
+  FwdEdges edges({{0}, {}});
+  std::string opName0{"loopyElm"};
+  std::string opName1{"looplessElm"};
+  const auto summary =
+      getSummary(edges, {opName0, opName1}, IncludeCyclelessComponents::No);
+  if (count(summary, opName0) != 1) {
+    throw poprithms::test::error(
+        "Failed to include singleton loopy node in summary");
+  }
+
+  if (count(summary, opName1) != 0) {
+    throw poprithms::test::error(
+        "Incorrectly included singleton loopless node in summary");
+  }
+}
+
 void testSummary0() {
 
   /**
@@ -109,7 +130,7 @@ void testSummary0() {
 
   const auto summary = getSummary(edges,
                                   {"a", "b", "c", "d", "e", "fragilistic"},
-                                  IncludeSingletons::Yes);
+                                  IncludeCyclelessComponents::Yes);
 
   if (count(summary, "in this Strongly Connected Component:  (0->1->2->0)") !=
       2) {
@@ -134,8 +155,9 @@ void assertCycles(const FwdEdges &edges,
     throw poprithms::test::error(oss.str());
   }
 
-  const auto summary = getSummary(
-      edges, std::vector<std::string>(edges.size()), IncludeSingletons::Yes);
+  const auto summary = getSummary(edges,
+                                  std::vector<std::string>(edges.size()),
+                                  IncludeCyclelessComponents::Yes);
 
   if (count(summary, "One cycle (out of potentially many)") !=
       std::count_if(expected.cbegin(), expected.cend(), [](const auto &x) {
@@ -270,8 +292,9 @@ void testPerformance0() {
   }
 
   auto components = getStronglyConnectedComponents(edges);
-  auto summary    = getSummary(
-      edges, std::vector<std::string>(nOps, "x"), IncludeSingletons::Yes);
+  auto summary    = getSummary(edges,
+                            std::vector<std::string>(nOps, "x"),
+                            IncludeCyclelessComponents::Yes);
 }
 
 } // namespace
@@ -288,5 +311,6 @@ int main() {
   testCycles3();
   testSummary0();
   testPerformance0();
+  testSummarySingletonLoop();
   return 0;
 }

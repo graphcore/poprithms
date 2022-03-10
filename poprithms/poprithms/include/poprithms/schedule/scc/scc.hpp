@@ -26,7 +26,10 @@ using FwdEdges = std::vector<std::vector<uint64_t>>;
  * */
 SCCs getStronglyConnectedComponents(const FwdEdges &edges);
 
-enum class IncludeSingletons { No = 0, Yes };
+enum class IncludeCyclelessComponents { No = 0, Yes };
+
+/// \deprecated {on 10 March 2022. Please use IncludeCyclelessComponents.}
+using IncludeSingletons = IncludeCyclelessComponents;
 
 /**
  * Summarize the Connected Components of a graph.
@@ -42,7 +45,7 @@ enum class IncludeSingletons { No = 0, Yes };
  * */
 std::string getSummary(const FwdEdges &edges,
                        const std::vector<std::string> &debugStrings,
-                       IncludeSingletons sings);
+                       IncludeCyclelessComponents sings);
 
 /**
  * Same as getSummary, but the node ids are int64_t.
@@ -52,7 +55,7 @@ std::string getSummary(const FwdEdges &edges,
 using FwdEdges_i64 = std::vector<std::vector<int64_t>>;
 std::string getSummary_i64(const FwdEdges_i64 &,
                            const std::vector<std::string> &debugStrings,
-                           IncludeSingletons);
+                           IncludeCyclelessComponents);
 
 /**
  * Return one cycle from every strongly connected component.
