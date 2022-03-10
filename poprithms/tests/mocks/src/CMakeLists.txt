@@ -1,6 +1,7 @@
 # Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 add_library(poprithms_mock SHARED
   memory/alias/mocktensor.cpp
+  memory/alias/mockgraph.cpp
   util/mockpermutation.cpp
 )
 

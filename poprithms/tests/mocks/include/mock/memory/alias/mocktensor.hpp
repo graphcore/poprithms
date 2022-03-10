@@ -10,13 +10,57 @@ namespace mock::poprithms::memory::alias {
 
 class MockTensor {
 public:
+  MOCK_METHOD(const ::poprithms::ndarray::Shape &, shape, (), (const));
   MOCK_METHOD(::poprithms::memory::alias::Tensor,
               reshape,
-              (::poprithms::ndarray::Shape),
+              (const ::poprithms::ndarray::Shape &),
               (const));
   MOCK_METHOD(::poprithms::memory::alias::Tensor,
               dimShuffle,
               (const ::poprithms::util::Permutation &),
+              (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor,
+              slice,
+              (uint64_t, uint64_t, ::poprithms::ndarray::Dimension),
+              (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor,
+              slice,
+              (const ::poprithms::memory::alias::Lower &,
+               const ::poprithms::memory::alias::Upper &),
+              (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor,
+              subscript,
+              (uint64_t),
+              (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor,
+              expand,
+              (const ::poprithms::ndarray::Shape &),
+              (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor, flatten, (), (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor,
+              reverse,
+              (uint64_t),
+              (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor,
+              reverse,
+              (const std::vector<uint64_t> &),
+              (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor, squeeze, (), (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor,
+              broadcast,
+              (int64_t, uint64_t),
+              (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor,
+              subsample,
+              (int64_t, uint64_t),
+              (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor,
+              upsample,
+              (uint64_t, uint64_t),
+              (const));
+  MOCK_METHOD(::poprithms::memory::alias::Tensor,
+              index,
+              (const std::vector<uint64_t> &),
               (const));
 };
 
