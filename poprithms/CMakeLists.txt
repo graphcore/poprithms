@@ -69,3 +69,7 @@ if (BUILD_TESTING)
   add_subdirectory(tests)
 endif()
 
+if(${POPRITHMS_BUILD_MOCKS})
+  add_subdirectory(tests/mocks)
+endif()
+
