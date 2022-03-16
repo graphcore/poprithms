@@ -29,7 +29,7 @@ install(TARGETS poprithms_mock
 )
 
 install(EXPORT poprithms_mock
-        DESTINATION lib/cmake/poprithms_mock
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms_mock
         FILE poprithms_mock-targets.cmake
         COMPONENT poprithms_mock)
 
@@ -37,7 +37,7 @@ configure_file(poprithms_mock-config.cmake.in poprithms_mock-config.cmake @ONLY)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/poprithms_mock-config.cmake
         COMPONENT poprithms_mock
-        DESTINATION lib/cmake/poprithms_mock)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/poprithms_mock)
 
 install(DIRECTORY ${MOCK_INCLUDE_DIR}/mock
         COMPONENT poprithms_mock
