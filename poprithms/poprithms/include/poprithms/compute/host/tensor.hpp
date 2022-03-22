@@ -145,6 +145,22 @@ public:
   static Tensor float64(const Shape &shape, std::vector<double> &&values);
 
   /**
+   * Create a Tensor, inferring its type from the template type T.
+   * */
+  template <typename T>
+  static Tensor tensor(const Shape &s, std::vector<T> &&values) {
+    return tMoveVector<T>(s, std::move(values));
+  }
+
+  /**
+   * Create a Tensor, inferring its type from the template type T.
+   * */
+  template <typename T>
+  static Tensor tensor(const Shape &s, const std::vector<T> &values) {
+    return tCopyVector<T>(s, values);
+  }
+
+  /**
    * Create a scalar Tensor of type Float64, with numerical value \a v.
    * */
   static Tensor float64(double v);
@@ -1215,6 +1231,14 @@ public:
    *         have the same addresses.
    */
   bool identicalTo(const Tensor &rhs) const;
+
+  /**
+   * \return true iff rhs has the same shape, same type, and same values as
+   *         this Tensor. This is a weaker equivalence condition than
+   *         #identicalTo, where the data addresses must be the same, not just
+   *         the values.
+   * */
+  bool numericallyIdenticalTo(const Tensor &rhs) const;
 
   /**
    * Throw an error with a descriptive message if the DType argument differs

@@ -1136,9 +1136,29 @@ Tensor Tensor::concat_(const Tensors &tIns, uint64_t axis) {
   return {Shape::concat(shapes, axis), tIns[0].dtype(), tDataConcat};
 }
 
+bool Tensor::numericallyIdenticalTo(const Tensor &rhs) const {
+  if (identicalTo(rhs)) {
+    return true;
+  }
+  if (shape() != rhs.shape() || dtype() != rhs.dtype()) {
+    return false;
+  }
+  if (!allEquivalent(rhs)) {
+    return false;
+  }
+  return true;
+}
+
 // return true if absolute(a - b) <= (atol + rtol * absolute(b)) for all a in
 // this Tensor, b in rhs (this is exactly the numpy definition).
 bool Tensor::allClose(const Tensor &b, double relTol, double absTol) const {
+
+  // This is a very fast check for early exit. No numerical values are
+  // compared, only tensor pointers are. Can save time when a Tensor is
+  // compared to itself.
+  if (relTol >= 0 && absTol >= 0 && identicalTo(b)) {
+    return true;
+  }
 
   const auto diffShape = shape().numpyBinary(b.shape());
   if ((diffShape != shape()) && (diffShape != b.shape())) {

@@ -1,5 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <array>
+#include <cassert>
 #include <iostream>
 #include <numeric>
 
@@ -150,6 +151,14 @@ void testCheckErrors1() {
   }
 }
 
+void testTemplateConstructors0() {
+
+  auto d = Tensor::tensor<uint64_t>({2}, {199, 8001});
+  auto e = Tensor::unsigned64({2}, {199, 8001});
+  assert(d.dtype() == e.dtype());
+  d.assertAllEquivalent(e);
+}
+
 } // namespace
 
 int main() {
@@ -161,5 +170,6 @@ int main() {
   testInitializerListConstructors0();
   testCheckErrors0();
   testCheckErrors1();
+  testTemplateConstructors0();
   return 0;
 }
