@@ -192,6 +192,7 @@ add_library(poprithms-outline SHARED
 set(autodiff_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/autodiff)
 set(autodiff_sources
   ${autodiff_src_dir}/core/autodiff.cpp
+  ${autodiff_src_dir}/core/gradinfo.cpp
   ${autodiff_src_dir}/core/summary.cpp
   ${autodiff_src_dir}/guide/graphinfo.cpp
   ${autodiff_src_dir}/guide/guide.cpp
