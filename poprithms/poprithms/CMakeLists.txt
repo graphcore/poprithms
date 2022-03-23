@@ -195,6 +195,7 @@ set(autodiff_sources
   ${autodiff_src_dir}/core/summary.cpp
   ${autodiff_src_dir}/guide/graphinfo.cpp
   ${autodiff_src_dir}/guide/guide.cpp
+  ${autodiff_src_dir}/guide/traversals.cpp
   ${autodiff_src_dir}/guide/objective.cpp
   ${autodiff_src_dir}/autodiff/error.cpp
 )

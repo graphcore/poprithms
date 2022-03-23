@@ -88,6 +88,11 @@ struct Objective {
   void append(std::ostream &) const;
   std::string str() const;
 
+  bool operator==(const Objective &r) const { return t() == r.t(); }
+  bool operator<(const Objective &r) const { return t() < r.t(); }
+
+  TensorIds allTensorIds() const;
+
 private:
   TensorIds gradsProvidedFor_;
   TensorIds checkpoints_;
@@ -95,6 +100,11 @@ private:
 
   enum class InGraph { No, Yes } inGraph_;
   TensorIds gradsProvided_;
+
+  std::tuple<TensorIds, TensorIds, TensorIds, InGraph, TensorIds> t() const {
+    return {
+        gradsProvidedFor_, checkpoints_, targets_, inGraph_, gradsProvided_};
+  }
 
   Objective(const TensorIds &gradsProvidedFor,
             const TensorIds &checkpoints,

@@ -5,7 +5,6 @@
 #include <poprithms/autodiff/guide/graphinfo.hpp>
 #include <poprithms/autodiff/guide/guide.hpp>
 #include <poprithms/autodiff/guide/objective.hpp>
-#include <poprithms/common/multiout/traversal.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace poprithms {
@@ -20,11 +19,8 @@ std::ostream &operator<<(std::ostream &ost, const std::set<TensorId> &t) {
 } // namespace
 
 Guide::Guide(const Objective &g, const GraphInfo &p)
-    : generator(g), graphInfo(p) {
+    : generator(g), graphInfo(p), traversals_(g, p) {
 
-  verifyConstructorArgs();
-  setTraversals();
-  setFwdEdges();
   setNonGradsForAutodiff();
   setNonGradsWithGrads();
   setNonGradsToRecompute();
@@ -39,7 +35,7 @@ std::ostream &operator<<(std::ostream &ost, const Guide &d) {
 
 std::map<OpId, int64_t> Guide::getFwdEdgeDependencyCount() const {
   std::map<OpId, int64_t> nAwaiting;
-  for (const auto &[k, vs] : fwdEdges_) {
+  for (const auto &[k, vs] : fwdEdges()) {
     auto found = nAwaiting.find(k);
     if (found == nAwaiting.cend()) {
       nAwaiting.insert({k, 0});
@@ -57,14 +53,8 @@ std::map<OpId, int64_t> Guide::getFwdEdgeDependencyCount() const {
 }
 
 void Guide::append(std::ostream &ost) const {
-  ost << "\n    traversals=";
-  poprithms::util::append(ost, traversals_);
-  ost << "\n    forward edges=";
-  for (const auto &[k, vals] : fwdEdges_) {
-    ost << "\n        " << k << "->";
-    auto opIds = std::vector<OpId>(vals.cbegin(), vals.cend());
-    poprithms::util::append(ost, opIds);
-  }
+
+  ost << "\n    autodiff traversals:\n" << traversals_;
   ost << "\n    non gradient tensors for autodiff   = "
       << nonGradsForAutodiff_;
   ost << "\n    non gradient tensors with gradients = " << nonGradsWithGrads_;
@@ -72,31 +62,6 @@ void Guide::append(std::ostream &ost) const {
       << nonGradsToRecompute_;
   ost << "\n    ops to recompute=";
   poprithms::util::append(ost, opsToRerun_);
-}
-
-void Guide::verifyConstructorArgs() {
-  for (auto tId : generator.gradsProvidedFor()) {
-    graphInfo.assertCanHaveGrad(tId);
-  }
-  graphInfo.assertValidPaths(generator.targets(),
-                             generator.gradsProvidedFor());
-}
-
-void Guide::setTraversals() {
-  using namespace poprithms::common::multiout;
-
-  auto dp = [this](const OpTraversal &ot) {
-    return graphInfo.gradientPropagates(ot);
-  };
-
-  auto fromTarget = depthFirstForward(graphInfo, generator.targets(), dp);
-  auto toInGrads =
-      depthFirstBackward(graphInfo, generator.gradsProvidedFor(), dp);
-  std::set_intersection(fromTarget.cbegin(),
-                        fromTarget.cend(),
-                        toInGrads.cbegin(),
-                        toInGrads.cend(),
-                        std::back_inserter(traversals_));
 }
 
 void Guide::setNonGradsWithGrads() {
@@ -111,7 +76,7 @@ void Guide::setNonGradsWithGrads() {
     nonGradsWithGrads_.insert(t);
   }
 
-  for (auto traversal : traversals_) {
+  for (auto traversal : opTraversals()) {
 
     // all tensors on a differentiable path from a targeted tensor to a tensor
     // with a gradient provided.
@@ -132,27 +97,12 @@ void Guide::setNonGradsWithGrads() {
   }
 }
 
-void Guide::setFwdEdges() {
-  for (auto traversal : traversals_) {
-
-    // producer of the input to the traversal, in the non-grad graph. The
-    // constraint we insert now is traversal.opId() -> out_.
-    const auto out_ = graphInfo.inTensorId(traversal).opId();
-    auto found      = fwdEdges_.find(traversal.opId());
-    if (found == fwdEdges_.cend()) {
-      fwdEdges_.insert({traversal.opId(), {out_}});
-    } else {
-      found->second.insert(out_);
-    }
-  }
-}
-
 void Guide::setNonGradsForAutodiff() {
 
   // For each of the Ops which needs to be differentiated, append a minimal
   // set of non-grad-tensors to a global set, so as to ensure that the
   // autodiff can be performed.
-  for (auto opId : getOps(traversals_)) {
+  for (auto opId : getOps(opTraversals())) {
     graphInfo.extendAutodiffRequiredTensors(opId, nonGradsForAutodiff_);
   }
 }

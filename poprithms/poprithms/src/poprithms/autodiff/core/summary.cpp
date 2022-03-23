@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
 #include <poprithms/autodiff/core/summary.hpp>
 
@@ -6,9 +6,12 @@ namespace poprithms {
 namespace autodiff {
 namespace core {
 
-void Summary::setGradsIn(const TensorIds &ids) { gradsIn_ = ids; }
-void Summary::setCheckpointsIn(const TensorIds &ids) { checkpointsIn_ = ids; }
-void Summary::setTargetGrads(const TensorIds &ids) { targetGrads_ = ids; }
+TensorIds Summary::allTensorIds() const {
+  TensorIds x = gradsIn_;
+  x.insert(x.end(), checkpointsIn_.cbegin(), checkpointsIn_.cend());
+  x.insert(x.end(), targetGrads_.cbegin(), targetGrads_.cend());
+  return x;
+}
 
 } // namespace core
 

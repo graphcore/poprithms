@@ -9,11 +9,18 @@
 
 #include <poprithms/autodiff/guide/graphinfo.hpp>
 #include <poprithms/autodiff/guide/objective.hpp>
+#include <poprithms/autodiff/guide/traversals.hpp>
 #include <poprithms/autodiff/ids/ids.hpp>
+#include <poprithms/common/multiout/ioindices.hpp>
 
 namespace poprithms {
 namespace autodiff {
 namespace guide {
+
+using poprithms::common::multiout::InIndex;
+using poprithms::common::multiout::InIndices;
+using poprithms::common::multiout::OutIndex;
+using poprithms::common::multiout::OutIndices;
 
 /**
  * A class which creates and stores a high-level (calculus-free) description
@@ -82,7 +89,9 @@ public:
    * differentiation before the corresponding values are. This is the reverse
    * of the order in which the ops appear in the forward (non-gradient) graph.
    * */
-  const std::map<OpId, std::set<OpId>> &fwdEdges() const { return fwdEdges_; }
+  const std::map<OpId, std::set<OpId>> &fwdEdges() const {
+    return traversals_.fwdEdges();
+  }
 
   /**
    * The number of ops in #fwdEdges which must be differentiated before
@@ -104,12 +113,16 @@ public:
     return nonGradsForAutodiff_;
   }
 
+  const Traversals &traversals() const { return traversals_; }
+
 private:
   /**
    * All the traversals of ops from tensors for which a gradient is required,
    * to tensors with a known gradients, where the backpropagation begins.
    * */
-  const OpTraversals &traversals() const { return traversals_; }
+  const OpTraversals &opTraversals() const {
+    return traversals_.opTraversals();
+  }
 
   static std::set<OpId> getOps(const OpTraversals &);
 
@@ -119,8 +132,7 @@ private:
 
   // All of these member variables are set in the constructor, and do not
   // change thereafter:
-  OpTraversals traversals_;
-  std::map<OpId, std::set<OpId>> fwdEdges_;
+  Traversals traversals_;
   std::set<TensorId> nonGradsForAutodiff_;
   std::set<TensorId> nonGradsWithGrads_;
   std::set<TensorId> nonGradsToRecompute_;
@@ -128,9 +140,6 @@ private:
 
   // The steps to constructing the information, all run in the constructor.
   // Information in the implementations.
-  void verifyConstructorArgs();
-  void setTraversals();
-  void setFwdEdges();
   void setNonGradsForAutodiff();
   void setNonGradsWithGrads();
   void setNonGradsToRecompute();

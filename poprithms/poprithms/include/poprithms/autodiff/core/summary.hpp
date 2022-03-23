@@ -24,7 +24,7 @@ public:
   /**
    * The input gradient tensors for backpropagation. These gradient tensors
    * correspond 1:1 with the 'gradsProvidedFor' tensors in the corresponding
-   * Objective
+   * Objective, in order.
    * */
   const TensorIds &gradsIn() const { return gradsIn_; }
 
@@ -43,15 +43,23 @@ public:
    * */
   const TensorIds &targetGrads() const { return targetGrads_; }
 
+  Summary(const TensorIds &gradsIn,
+          const TensorIds &checkpointsIn,
+          const TensorIds &targetGrads)
+      : gradsIn_(gradsIn), checkpointsIn_(checkpointsIn),
+        targetGrads_(targetGrads) {}
+
+  Summary() = default;
+
+  /**
+   * \return All tensors: checkpoints in, target gradients, and tensors with
+   *         gradients provided. */
+  TensorIds allTensorIds() const;
+
 private:
-  void setGradsIn(const TensorIds &);
-  void setCheckpointsIn(const TensorIds &);
-  void setTargetGrads(const TensorIds &);
   TensorIds gradsIn_;
   TensorIds checkpointsIn_;
   TensorIds targetGrads_;
-
-  friend class Autodiff;
 };
 
 std::ostream &operator<<(std::ostream &, const Summary &);

@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
+#include <algorithm>
 #include <autodiff/autodiff/error.hpp>
 #include <sstream>
 
@@ -9,6 +10,14 @@
 namespace poprithms {
 namespace autodiff {
 namespace guide {
+
+TensorIds Objective::allTensorIds() const {
+  TensorIds x = gradsProvided_;
+  x.insert(x.end(), checkpoints_.cbegin(), checkpoints_.cend());
+  x.insert(x.end(), targets_.cbegin(), targets_.cend());
+  x.insert(x.end(), gradsProvidedFor_.cbegin(), gradsProvidedFor_.cend());
+  return x;
+}
 
 bool Objective::isCheckpoint(const TensorId &inNonGrad) const {
   return std::find(checkpoints_.cbegin(), checkpoints_.cend(), inNonGrad) !=
@@ -33,6 +42,11 @@ Objective::Objective(const TensorIds &gradsProvidedFor,
                      const TensorIds &gradsProvided)
     : gradsProvidedFor_(gradsProvidedFor), checkpoints_(checkpoints),
       targets_(targets), inGraph_(inGraph), gradsProvided_(gradsProvided) {
+
+  std::sort(targets_.begin(), targets_.end());
+  std::sort(checkpoints_.begin(), checkpoints_.end());
+  std::sort(gradsProvidedFor_.begin(), gradsProvidedFor_.end());
+  std::sort(gradsProvided_.begin(), gradsProvided_.end());
 
   if (inGraph_ == InGraph::Yes) {
     if (gradsProvidedFor.size() != gradsProvided.size()) {

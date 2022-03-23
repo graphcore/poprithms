@@ -190,8 +190,8 @@ void Autodiff::backpropagate() {
     std::map<OpId, std::vector<InIndex>> creates;
 
     for (uint64_t i = 0; i < graphInfo.nInTensors(nxt); ++i) {
-      if (inGrads[i].has_value()) {
-        creates[inGrads[i].value().opId()].push_back(i);
+      if (inGrads.at(i).has_value()) {
+        creates[inGrads.at(i).value().opId()].push_back(i);
         const auto inId = graphInfo.inTensorId(nxt, InIndex(i));
         if (partialGradsToBeSummed.count(inId) != 0) {
           registerPartialGrad(inId, inGrads[i].value());
@@ -210,11 +210,6 @@ void Autodiff::backpropagate() {
     }
   }
 
-  summary_.setGradsIn(util::getValues<TensorIds, TensorId>(
-      objective.gradsProvidedFor(), gradsIn));
-  summary_.setCheckpointsIn(util::getValues<TensorIds, TensorId>(
-      objective.checkpoints(), nonGrads));
-
   for (const auto &[tId, ts] : partialGradsToBeSummed) {
     (void)ts;
     if (grads.find(tId) == grads.cend()) {
@@ -222,7 +217,10 @@ void Autodiff::backpropagate() {
     }
   }
 
-  summary_.setTargetGrads(
+  summary_ = Summary(
+      util::getValues<TensorIds, TensorId>(objective.gradsProvidedFor(),
+                                           gradsIn),
+      util::getValues<TensorIds, TensorId>(objective.checkpoints(), nonGrads),
       util::getValues<TensorIds, TensorId>(objective.targets(), grads));
 }
 
