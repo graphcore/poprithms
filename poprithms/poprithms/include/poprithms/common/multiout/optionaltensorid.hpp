@@ -27,10 +27,42 @@ public:
     if (rhs.has_value() && id != rhs.id) {
       return false;
     }
+    // neither has a value.
     return true;
   }
+
+  bool operator<(const OptionalTensorId &rhs) const {
+
+    // neither has a value: they're equal.
+    if (!has_value() && !rhs.has_value()) {
+      return false;
+    }
+
+    // both have a value: compare values.
+    if (has_value() && rhs.has_value()) {
+      return id < rhs.id;
+    }
+
+    // no-value is always less than value.
+    if (!has_value()) {
+      return true;
+    }
+
+    // value is always greater than no-value.
+    return false;
+  }
+
   bool operator!=(const OptionalTensorId &rhs) const {
     return !operator==(rhs);
+  }
+  bool operator>=(const OptionalTensorId &rhs) const {
+    return !operator<(rhs);
+  }
+  bool operator>(const OptionalTensorId &rhs) const {
+    return !operator==(rhs) && !operator<(rhs);
+  }
+  bool operator<=(const OptionalTensorId &rhs) const {
+    return !operator>(rhs);
   }
 
 private:
