@@ -15,6 +15,7 @@
 #include <poprithms/common/multiout/op.hpp>
 #include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/optraversal.hpp>
+#include <poprithms/common/multiout/skiptraversal.hpp>
 #include <poprithms/common/multiout/traversal.hpp>
 #include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
@@ -644,6 +645,177 @@ void testOptionalTensorIds0() {
   }
 }
 
+class SkipEdges {
+public:
+  using Skips = std::vector<std::pair<TensorId, TensorId>>;
+  SkipEdges(const Skips &skips_) : skips(skips_) {}
+
+  bool isCarriedTo(const TensorId &tId) const {
+    for (const auto &p : skips) {
+      if (p.second == tId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool isCarriedFrom(const TensorId &tId) const {
+    for (const auto &p : skips) {
+      if (p.first == tId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  TensorId carriedTo(const TensorId &tId) const {
+    for (const auto &p : skips) {
+      if (p.first == tId) {
+        return p.second;
+      }
+    }
+    throw poprithms::test::error("not carried from");
+  }
+
+  TensorId carriedFrom(const TensorId &tId) const {
+    for (const auto &p : skips) {
+      if (p.second == tId) {
+        return p.first;
+      }
+    }
+    throw poprithms::test::error("not carried to");
+  }
+
+private:
+  Skips skips;
+};
+
+void testSkipTraverse0() {
+
+  //
+  //       start
+  //         |
+  //  x0 --> x1 --> x2
+  //
+  //     <---------
+  //     carry back
+  //
+  // so for
+  // 0 iterations : nothing visited
+  // 1 iteration  : x1 and x2 visited
+  // >1 iterations :  x1 and x2 and x0 visited.
+  //
+  test::Graph g;
+  auto x0 = g.insert({}, 1);
+  auto x1 = g.insert({{x0, 0}}, 1);
+  auto x2 = g.insert({{x1, 0}}, 1);
+  SkipEdges se({{{x2, 0}, {x0, 0}}});
+  TensorIds starts{{x1, 0}};
+  const auto accept = [](const auto &) { return true; };
+  {
+    auto outs0 = depthFirstFwdWithSkips(se, g, starts, accept, 2);
+    if (outs0.size() != 3) {
+      throw poprithms::test::error(
+          "loop back should go back to x0: x1 -> x2 -> (skip) -> x3");
+    }
+  }
+
+  {
+    auto outs0 = depthFirstFwdWithSkips(se, g, starts, accept, 0);
+    if (outs0.size() != 0) {
+      throw poprithms::test::error(
+          "rpt is 0, so shouldn't visit any tensors");
+    }
+  }
+
+  {
+    auto outs0 = depthFirstFwdWithSkips(se, g, starts, accept, 1);
+    if (outs0.size() != 2) {
+      throw poprithms::test::error(
+          "rpt is 1, so shouldn't visit the loop back tensor");
+    }
+  }
+}
+
+void testSkipTraverse1() {
+
+  // graph with no forward edges, only back carries.
+  // x0  x1  x2
+  //  <---
+  //     <----
+
+  test::Graph g;
+  auto x0 = g.insert({}, 1);
+  auto x1 = g.insert({}, 1);
+  auto x2 = g.insert({}, 1);
+  SkipEdges se({{{x2, 0}, {x1, 0}}, {{x1, 0}, {x0, 0}}});
+  TensorIds starts{{x2, 0}};
+  const auto accept = [](const auto &) { return true; };
+
+  for (uint64_t i = 0; i < 3; ++i) {
+    auto outs0 = depthFirstFwdWithSkips(se, g, starts, accept, i);
+    if (outs0.size() != i) {
+      std::ostringstream oss;
+      oss << "At rptCount=" << i << ", expected " << i
+          << " tensors to be visited, not " << outs0.size();
+      throw poprithms::test::error(oss.str());
+    }
+  }
+}
+
+void testSkipTraverse2() {
+
+  // Test of (1) backwards traversal with skips, and (2) a really large repeat
+  // count (does the search terminate once all tensors visited?)
+
+  test::Graph g;
+
+  // lhs[i] --+
+  //          +--=======-- outs[i]
+  // rhs[i] --+               |
+  //                          |
+  //                          |
+  // carries to rhs[i+1] <----+
+  //
+  OpIds lhs;
+  OpIds rhs;
+  OpIds adds;
+  OpIds deadends;
+  for (uint64_t i = 0; i < 10; ++i) {
+    lhs.push_back(g.insert({}, 1));
+    rhs.push_back(g.insert({}, 1));
+    deadends.push_back(g.insert({{lhs.back(), 0}}, 1));
+    deadends.push_back(g.insert({{rhs.back(), 0}}, 1));
+    adds.push_back(g.insert({{lhs.back(), 0}, {rhs.back(), 0}}, 1));
+  }
+
+  std::vector<std::pair<TensorId, TensorId>> ses;
+  for (uint64_t i = 0; i < 9; ++i) {
+    ses.push_back({{adds[i], 0}, {rhs[i + 1], 0}});
+  }
+
+  TensorIds starts{{adds.back(), 0}};
+  const auto accept = [](const auto &) { return true; };
+  uint32_t n        = -1;
+
+  auto outs = depthFirstBwdWithSkips(SkipEdges(ses), g, starts, accept, n);
+  for (auto s : {lhs, rhs, adds}) {
+    for (auto x : s) {
+      if (outs.count({x, 0}) != 1) {
+        std::ostringstream oss;
+        oss << "Expected all outputs of lhs, rhs, and adds to be visited";
+        throw poprithms::test::error(oss.str());
+      }
+    }
+  }
+  for (auto x : deadends) {
+    if (outs.count({x, 0}) != 0) {
+      throw poprithms::test::error(
+          "Expected no deadend tensors to be visited");
+    }
+  }
+}
+
 } // namespace
 
 int main() {
@@ -659,5 +831,8 @@ int main() {
   testOptionalTensorIds0();
   testRemoveEdges0();
   testRemoveEdges1();
+  testSkipTraverse0();
+  testSkipTraverse1();
+  testSkipTraverse2();
   return 0;
 }
