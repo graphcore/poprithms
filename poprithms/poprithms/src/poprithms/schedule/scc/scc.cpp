@@ -1,10 +1,13 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <cstring>
 #include <limits>
 #include <numeric>
 #include <set>
 #include <sstream>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <schedule/scc/error.hpp>
 
@@ -210,7 +213,19 @@ std::vector<std::vector<uint64_t>> getCycles(const SCCs &sccs,
 // >    30_gamma   2     (3)
 // >    31_delta   3     (4)
 // >    32_epsilon 4     (2)
-//
+
+class NodeInfoGetterFromStrings final : public NodeInfoGetter {
+private:
+  const std::vector<std::string> &dbs;
+
+public:
+  NodeInfoGetterFromStrings(const std::vector<std::string> &dbs_)
+      : dbs(dbs_) {}
+  std::string nodeString(uint64_t n) const final { return dbs.at(n); }
+  bool providesEdgeStrings() const final { return false; }
+  std::string edgeString(uint64_t, uint64_t) const final { return {}; }
+};
+
 std::string getSummary(const FwdEdges &edges,
                        const std::vector<std::string> &dbs,
                        IncludeCyclelessComponents includeCycleless) {
@@ -222,6 +237,14 @@ std::string getSummary(const FwdEdges &edges,
         << ". They must be equal. ";
     throw error(oss.str());
   }
+
+  NodeInfoGetterFromStrings infoGetter(dbs);
+  return getSummary(edges, infoGetter, includeCycleless);
+}
+
+std::string getSummary(const FwdEdges &edges,
+                       const NodeInfoGetter &infoGetter,
+                       IncludeSingletons includeCycleless) {
 
   const auto components = getStronglyConnectedComponents(edges);
   const auto cycles     = getCycles(components, edges);
@@ -288,7 +311,7 @@ std::string getSummary(const FwdEdges &edges,
       std::vector<std::string> componentDbs;
       std::vector<std::vector<uint64_t>> componentTo;
       for (auto opAddress : components[ci]) {
-        componentDbs.push_back(dbs[opAddress]);
+        componentDbs.push_back(infoGetter.nodeString(opAddress));
         componentTo.push_back(getLocal(edges[opAddress]));
       }
       const auto componentFrom = getLocal(components[ci]);
@@ -297,22 +320,40 @@ std::string getSummary(const FwdEdges &edges,
       // The maximum column width in the summary string.
       constexpr uint64_t maxColWidth{120};
 
-      oss << util::alignedColumns(
-          {{"Op (debug name)",
-            componentDbs,
-            '-',
-            StringColumn::Align::Left,
-            maxColWidth},
-           {"Op (local id)",
-            StringColumn::entriesFromInts(componentFrom),
-            '-',
-            StringColumn::Align::Left,
-            maxColWidth},
-           {"Edge ends (local ids)",
-            StringColumn::entriesFromVectors(componentTo),
-            '-',
-            StringColumn::Align::Left,
-            maxColWidth}});
+      std::vector<util::StringColumn> cols{
+          {"Op (debug name)",
+           componentDbs,
+           '-',
+           StringColumn::Align::Left,
+           maxColWidth},
+          {"Op (local id)",
+           StringColumn::entriesFromInts(componentFrom),
+           '-',
+           StringColumn::Align::Left,
+           maxColWidth},
+          {"Edge ends (local ids)",
+           StringColumn::entriesFromVectors(componentTo),
+           '-',
+           StringColumn::Align::Left,
+           maxColWidth}};
+
+      if (infoGetter.providesEdgeStrings()) {
+        std::vector<std::vector<std::string>> edgeInfos;
+        for (auto from : components[ci]) {
+          edgeInfos.push_back({});
+          auto tos = edges[from];
+          for (auto to_ : tos) {
+            edgeInfos.back().push_back(infoGetter.edgeString(from, to_));
+          }
+        }
+        cols.push_back({"Edge types",
+                        StringColumn::entriesFromVectors(edgeInfos),
+                        '-',
+                        StringColumn::Align::Left,
+                        maxColWidth});
+      }
+
+      oss << util::alignedColumns(cols);
 
       if (!sp.empty()) {
         oss << "\nOne cycle (out of potentially many) in this Strongly "

@@ -48,6 +48,34 @@ std::string getSummary(const FwdEdges &edges,
                        IncludeCyclelessComponents sings);
 
 /**
+ * For a customized summary which includes edge information (is an edge a data
+ * dependency, a control dependency, or something else?), complete the
+ * following abstract base class and use it in the method getSummary which
+ * follows.
+ * */
+class NodeInfoGetter {
+public:
+  /**
+   * A debug string for the n'th node.
+   * */
+  virtual std::string nodeString(uint64_t n) const = 0;
+
+  /**
+   * \return true if the summary should include edge information.
+   * */
+  virtual bool providesEdgeStrings() const = 0;
+
+  /**
+   * A debug string for the edge from node #f to node #t. This method is only
+   * used if #providesEdgeStrings returns true.
+   * */
+  virtual std::string edgeString(uint64_t f, uint64_t t) const = 0;
+};
+std::string getSummary(const FwdEdges &edges,
+                       const NodeInfoGetter &,
+                       IncludeSingletons sings);
+
+/**
  * Same as getSummary, but the node ids are int64_t.
  *
  * \sa getSummary

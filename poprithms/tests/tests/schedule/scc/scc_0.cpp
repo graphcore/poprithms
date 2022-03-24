@@ -132,12 +132,45 @@ void testSummary0() {
                                   {"a", "b", "c", "d", "e", "fragilistic"},
                                   IncludeCyclelessComponents::Yes);
 
+  std::cout << summary << std::endl;
+
   if (count(summary, "in this Strongly Connected Component:  (0->1->2->0)") !=
       2) {
     throw poprithms::test::error(
         "With local co-ordinates, both of the cycles should be 0->1->2->0. "
         "Error message was \n" +
         summary);
+  }
+}
+
+template <bool doesEdges> class TestNodeInfoGetter : public NodeInfoGetter {
+public:
+  std::string nodeString(uint64_t n) const final {
+    return "n--" + std::to_string(n);
+  }
+  bool providesEdgeStrings() const final { return doesEdges; }
+  std::string edgeString(uint64_t f, uint64_t t) const final {
+    return "scadoople" + std::to_string(f + t);
+  }
+};
+
+void testCustomSummary0() {
+
+  FwdEdges edges({{1}, {2}, {3}, {0}});
+  {
+    const auto summary = getSummary(
+        edges, TestNodeInfoGetter<true>(), IncludeCyclelessComponents::Yes);
+    if (count(summary, "scadoople5") != 1) {
+      throw poprithms::test::error(
+          "edge 2->3 should have edge type scadoople5");
+    }
+  }
+  {
+    const auto summary = getSummary(
+        edges, TestNodeInfoGetter<false>(), IncludeCyclelessComponents::Yes);
+    if (count(summary, "scadoople5") != 0) {
+      throw poprithms::test::error("should be no edge types in this case");
+    }
   }
 }
 
@@ -312,5 +345,6 @@ int main() {
   testSummary0();
   testPerformance0();
   testSummarySingletonLoop();
+  testCustomSummary0();
   return 0;
 }
