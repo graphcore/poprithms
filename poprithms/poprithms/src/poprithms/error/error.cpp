@@ -17,7 +17,7 @@ std::string withStackTrace(const std::string &prefix) {
 #ifdef POPRITHMS_USE_STACKTRACE
   // Configure Boost Stacktrace
   static constexpr size_t numFramesToSkip = 3;
-  static constexpr size_t maxDepth        = 8;
+  static constexpr size_t maxDepth        = 16;
   boost::stacktrace::stacktrace st(numFramesToSkip, maxDepth);
   oss << "\n\n";
 
