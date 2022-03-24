@@ -1,9 +1,12 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <map>
 #include <random>
+#include <string>
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
+#include <poprithms/schedule/vanilla/vanillamap.hpp>
 #include <poprithms/util/printiter.hpp>
 
 namespace {
@@ -88,6 +91,49 @@ void testUnique2() {
   }
 }
 
+void testMap0() {
+
+  //   a
+  //   |
+  //   v
+  //   |
+  // +-+-+
+  // |   |
+  // b-->d
+  // |
+  // c-->e.
+
+  std::map<std::string, std::vector<std::string>> m;
+  m["a"]     = {"b", "d"};
+  m["b"]     = {"c", "d"};
+  m["c"]     = {"e"};
+  auto sched = getSchedule(m, ErrorIfCycle::Yes, VerifyEdges::Yes);
+  if (sched.size() != 5) {
+    throw poprithms::test::error("Should be 5 strings in schedule");
+  }
+  if (sched[0] != "a" || sched[1] != "b") {
+    throw poprithms::test::error("schedule must start a->b");
+  }
+
+  if (sched[2] == "d") {
+    if (sched[3] != "c" || sched[4] != "e") {
+      throw poprithms::test::error("if sched[2] is d, the tail must be c->e");
+    }
+  } else {
+    if (sched[2] != "c") {
+      throw poprithms::test::error("sched[2] must be c or d");
+    }
+  }
+}
+
+void testMap1() {
+  std::unordered_map<int, std::vector<int>> m{{101, {}}};
+  auto sched = getSchedule(m, ErrorIfCycle::Yes, VerifyEdges::Yes);
+  if (sched != std::vector<int>{101}) {
+    throw poprithms::test::error("Singleton edge map");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -98,5 +144,7 @@ int main() {
   testUnique1();
   testUnique2();
   testRepeatedEdge();
+  testMap0();
+  testMap1();
   return 0;
 }
