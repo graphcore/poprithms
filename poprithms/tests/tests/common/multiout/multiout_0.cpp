@@ -721,6 +721,7 @@ void testSkipTraverse0() {
   }
 
   {
+
     auto outs0 = depthFirstFwdWithSkips(se, g, starts, accept, 0);
     if (outs0.size() != 0) {
       throw poprithms::test::error(
@@ -816,6 +817,75 @@ void testSkipTraverse2() {
   }
 }
 
+void testForwardEdgeMap0() {
+
+  test::Graph g;
+
+  // x0 --+
+  //      +-- x5
+  // x1 --+
+  //      +-- x6
+  // x2 --+
+  //      +-- x7
+  // x3 --+
+  //      +-- x8
+  // x4 --+
+  //
+
+  OpIds allIds;
+  for (uint64_t i = 0; i < 5; ++i) {
+    allIds.push_back(g.insert({}, 1));
+  }
+  for (uint64_t i = 0; i < 4; ++i) {
+    allIds.push_back(g.insert({{allIds[i], 0}, {allIds[i + 1], 0}}, 2));
+  }
+
+  // forms a single connected component:
+  {
+    auto fm = g.getMultioutForwardEdgeMap_u64({4});
+    if (fm.nOps() != 9) {
+      throw poprithms::test::error(
+          "Expected all 9 ops to in edge map (connected)");
+    }
+  }
+  {
+    {
+      auto fm = g.getMultioutForwardEdgeMap_u64({4, 5});
+      if (fm.nOps() != 9) {
+        throw poprithms::test::error(
+            "Expected all 9 ops to in edge map (connected)");
+      }
+    }
+  }
+}
+
+void testForwardEdgeMap1() {
+
+  test::Graph g;
+
+  // component 0
+  auto x0 = g.insert({}, 2);
+  auto x1 = g.insert({{x0, 1}}, 3);
+
+  // component 1
+  auto x2 = g.insert({}, 1);
+  auto x3 = g.insert({{x2, 0}}, 1);
+
+  if (g.getMultioutForwardEdgeMap_u64({0}).nOps() != 2) {
+    throw poprithms::test::error("Expected only 2 ops (component 0)");
+  }
+  if (g.getMultioutForwardEdgeMap_u64({0, 3}).nOps() != 4) {
+    throw poprithms::test::error("Expected 5 ops (components 0 and 1)");
+  }
+
+  // bridge components 0 and 1
+  g.insert({{x1, 0}, {x3, 0}}, 1);
+  if (g.getMultioutForwardEdgeMap_u64({0}).nOps() != 5) {
+    throw poprithms::test::error(
+        "Components 0 and 1 are connected now, expected 5 ops here");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -834,5 +904,7 @@ int main() {
   testSkipTraverse0();
   testSkipTraverse1();
   testSkipTraverse2();
+  testForwardEdgeMap0();
+  testForwardEdgeMap1();
   return 0;
 }

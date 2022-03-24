@@ -81,6 +81,15 @@ public:
   FwdEdgeMap getMultioutForwardEdgeMap_u64() const;
 
   /**
+   * DAG of a subset of the (data) edges in this Graph. This is equivalent
+   * to, but more efficient than, finding the complete edge map for all ops,
+   * and removing all entries whose keys are not in a data-connected component
+   * of an op in #mustInclude. Or in other words, it is the DAG of all ops in
+   * the connected components of #mustInclude.
+   * */
+  FwdEdgeMap getMultioutForwardEdgeMap_u64(const OpIds &mustInclude) const;
+
+  /**
    * The number of ConsumptionIds that the Tensor #id has. This is not
    * necessarily the number of Ops which consume Tensor #id, but is an upper
    * bound of that number. This is because Ops can consume the same Tensor at
@@ -305,6 +314,7 @@ protected:
 
   [[noreturn]] void unimplemented() const;
 
+public:
   /**
    * Remove the Op #opToRemove from this Graph.
    *
@@ -322,8 +332,8 @@ protected:
    * #opToRemove after it has been removed. Such an attempt will result in a
    * descriptive error, including the #removalContext string.
    *
-   * This method calls into the virtual method #multiOutTypeSpecificRemoveOp
-   * to perform the changes required for derived classes.
+   * This method calls into a virtual method of the Op class to perform the
+   * changes required for derived classes.
    * */
   void removeOp(OpId opToRemove,
                 const OptionalTensorIds &outputSubstitutes,

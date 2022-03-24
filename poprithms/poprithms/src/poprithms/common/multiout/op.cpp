@@ -194,6 +194,15 @@ TensorIds Op::outTensorIds() const {
   return outIds;
 }
 
+TensorIds Op::outTensorIds(const OutIndices &os) const {
+  TensorIds outIds;
+  outIds.reserve(os.size());
+  for (auto o : os) {
+    outIds.push_back(TensorId{id(), OutIndex(o)});
+  }
+  return outIds;
+}
+
 std::ostream &operator<<(std::ostream &os, const Op &op) {
   os << op.str();
   if (!op.getName().empty()) {
@@ -286,6 +295,19 @@ void Op::resetInTensorId(InIndex i, const TensorId &repl) {
 
   inIds_[i.get()] = repl;
 }
+
+Shape Op::shape(Port p, uint64_t i) const {
+  return (p == Port::In ? inShape(InIndex(i)) : outShape(OutIndex(i)));
+}
+
+TensorId Op::tensorId(Port p, uint64_t i) const {
+  return (p == Port::In ? inTensorId(InIndex(i)) : outTensorId(OutIndex(i)));
+}
+
+uint64_t Op::nTensors(Port p) const {
+  return (p == Port::In ? nInTensors() : nOutTensors());
+}
+std::string Op::lowercase(Port p) { return (p == Port::In ? "in" : "out"); }
 
 } // namespace multiout
 } // namespace common

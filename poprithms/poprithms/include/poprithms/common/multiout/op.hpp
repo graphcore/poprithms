@@ -180,12 +180,13 @@ public:
   TensorIds inAndOutTensorIds() const;
 
   /**
-   * Ops must have outputs at contiguous indices, which means optional outputs
+   * Ops have outputs at contiguous indices, which means optional outputs
    * are not supported in this Graph/Op.
    * */
   TensorIds outTensorIds() const;
   TensorId outTensorId(OutIndex o) const { return {id(), o}; }
   uint64_t nOutTensors() const { return outShapes().size(); }
+  TensorIds outTensorIds(const OutIndices &) const;
 
   /**
    * The output indices of all the output Tensors which have at least one
@@ -243,6 +244,32 @@ public:
    * outputs, and are distinct from each other.
    * */
   void verifyDistinct(const OutIndices &indices) const;
+
+  /**
+   * Sometimes identical code patterns are used for input and output tensors.
+   * The use of this enum class can reduce code duplication.
+   * */
+  enum class Port { In, Out };
+
+  /**
+   * returns "in" for Port::In and "out" for Port::Out.
+   * */
+  static std::string lowercase(Port);
+
+  /**
+   * The number of input/output tensors.
+   * */
+  uint64_t nTensors(Port) const;
+
+  /**
+   * The shape of the tensor at input/output index #i.
+   * */
+  Shape shape(Port, uint64_t i) const;
+
+  /**
+   * The id of the tensor at input/output index #i.
+   * */
+  TensorId tensorId(Port, uint64_t i) const;
 
 private:
   OpId id_;

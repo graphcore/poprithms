@@ -6,6 +6,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <poprithms/common/multiout/optraversal.hpp>
@@ -39,9 +40,9 @@ namespace multiout {
  *
  * */
 template <class G, class AcceptanceCondition>
-std::vector<OpTraversal> depthFirstForward(const G &g,
-                                           const TensorIds &starts,
-                                           AcceptanceCondition &&accept) {
+OpTraversals depthFirstForward(const G &g,
+                               const TensorIds &starts,
+                               AcceptanceCondition &&accept) {
 
   // The stack of Tensors from which we still need to traverse forwards from,
   // through all consumers:
@@ -52,7 +53,7 @@ std::vector<OpTraversal> depthFirstForward(const G &g,
   std::set<TensorId> visited{starts.cbegin(), starts.cend()};
 
   // The set of all traversals taken.
-  std::vector<OpTraversal> traversals;
+  OpTraversals traversals;
 
   while (!toProcess.empty()) {
     auto nxt = toProcess.back();
@@ -142,9 +143,9 @@ bool isFwdReachable(const G &g,
  * \sa depthFirstForward.
  * */
 template <class G, class AcceptanceCondition>
-std::vector<OpTraversal> depthFirstBackward(const G &g,
-                                            const TensorIds &starts,
-                                            AcceptanceCondition &&accept) {
+OpTraversals depthFirstBackward(const G &g,
+                                const TensorIds &starts,
+                                AcceptanceCondition &&accept) {
 
   // unlike depthFirstForward, there is only 1 for loop nested insode the
   // while loop. This asymmetry arises from the fact that Tensors only have 1
@@ -153,7 +154,7 @@ std::vector<OpTraversal> depthFirstBackward(const G &g,
 
   TensorIds toProcess = starts;
   std::set<TensorId> visited{starts.cbegin(), starts.cend()};
-  std::vector<OpTraversal> routes;
+  OpTraversals routes;
 
   while (!toProcess.empty()) {
     auto nxt = toProcess.back();
@@ -277,6 +278,38 @@ TensorIds depthFirstForwardTensors(G &&g,
     }
   }
   return ts.accepted;
+}
+
+template <class G> class BiDirGetter {
+private:
+  const G &g_;
+
+public:
+  BiDirGetter(const G &g) : g_(g) {}
+  TensorIds neighbors(const TensorId &id) {
+    TensorIds ids = g_.inTensorIds(id.opId());
+    for (const auto c : g_.consumptionIds(id)) {
+      for (auto o : g_.outTensorIds(c.opId())) {
+        ids.push_back(o);
+      }
+    }
+    return ids;
+  }
+};
+
+template <class G, class AcceptanceCondition>
+TensorIds depthFirstBiDirTensors(const G &g,
+                                 const TensorIds &starts,
+                                 AcceptanceCondition &&accept) {
+  return depthFirst<BiDirGetter<G>, TensorId, AcceptanceCondition>(
+      BiDirGetter<G>(g), starts, std::forward<AcceptanceCondition>(accept));
+}
+
+template <class G>
+TensorIds depthFirstBiDirTensors(const G &g, const TensorIds &starts) {
+
+  return depthFirst<BiDirGetter<G>, TensorId>(
+      BiDirGetter<G>(g), starts, [](const TensorId &) { return true; });
 }
 
 } // namespace multiout

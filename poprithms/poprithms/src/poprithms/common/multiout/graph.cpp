@@ -12,6 +12,7 @@
 
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/op.hpp>
+#include <poprithms/common/multiout/traversal.hpp>
 #include <poprithms/util/contiguoussubset.hpp>
 #include <poprithms/util/copybyclone_impl.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -20,6 +21,44 @@
 namespace poprithms {
 namespace common {
 namespace multiout {
+
+FwdEdgeMap
+Graph::getMultioutForwardEdgeMap_u64(const OpIds &mustInclude) const {
+
+  // all outputs of #mustInclude:
+  std::vector<TensorId> init;
+  for (auto opId : mustInclude) {
+    for (auto o : outTensorIds(opId)) {
+      init.push_back(o);
+    }
+  }
+
+  // depth first search in both directions, to obtain the (data) connected
+  // components containing #mustInclude.
+  auto tIds = depthFirstBiDirTensors<Graph>(*this, init);
+
+  // get all creators of tensors found in the depth dirst bi-directional
+  // search:
+  std::set<OpId> opIdsSet;
+  for (const auto &tId : tIds) {
+    opIdsSet.insert(tId.opId());
+  }
+
+  // construct the FwdEdgeMap for the connected components found:
+  OpIds opIds(opIdsSet.cbegin(), opIdsSet.cend());
+  FwdEdgeMap fem(opIds);
+  for (auto op : opIds) {
+    std::set<OpId> processed;
+    for (auto o : inTensorIds(op)) {
+      if (processed.count(o.opId()) == 0) {
+        fem.insertEdge(o.opId(), op);
+        processed.insert(o.opId());
+      }
+    }
+  }
+
+  return fem;
+}
 
 FwdEdgeMap Graph::getMultioutForwardEdgeMap_u64() const {
 
