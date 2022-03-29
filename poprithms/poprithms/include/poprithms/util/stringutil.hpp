@@ -48,27 +48,34 @@ struct StringColumn {
    * \param delimiter The character which is used to fill the line between the
    *                  title and the entries
    *
-   * \param a How the column should be aligned
+   * \param alignType How the column should be aligned
    *
-   * \param abridgeThresholdWidth The maximum width that an entry in the
-   *                              column can have. Entries which exceed this
-   *                              length will be abridged (the center
-   *                              charactres will be removed)
+   * \param thresholdWidth The maximum width that an entry in the column can
+   *                       have. Entries which exceed this length will be
+   *                       abridged (the center characters will be removed) if
+   *                       #abridegeToSingleRow is true, else they will run
+   *                       over mutiple lines.
    *
+   * \param abridgeToSingleRow If an entry exceeds #thresholdWidth, then it
+   *                           will either be abridged (center removed) or it
+   *                           will run over multiple rows.
    * */
   StringColumn(const std::string &title,
                const std::vector<std::string> &entries,
-               char delimiter                 = '-',
-               Align a                        = Align::Left,
-               uint64_t abridgeThresholdWidth = 160);
+               char delimiter          = '-',
+               Align alignType         = Align::Left,
+               uint64_t thresholdWidth = 160,
+               bool abridgeToSingleRow = false);
 
   const std::string &title() const { return title_; }
   std::string entry(uint64_t i) const { return entries_[i]; }
   const std::vector<std::string> &entries() const { return entries_; }
   char delimiter() const { return delimiter_; }
 
-  /** The maximum width, over title and all entries. This will never exceed
-   * abrideThresholdWidth . */
+  /**
+   * The maximum width, over title and all entries. This will never exceed the
+   * constructor argument, #thresholdWidth.
+   * */
   uint64_t width() const { return width_; }
   uint64_t nEntries() const { return entries_.size(); }
   Align align() const { return align_; }

@@ -1,6 +1,7 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
 #include <iostream>
+#include <sstream>
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/util/stringutil.hpp>
@@ -8,8 +9,8 @@
 namespace {
 using namespace poprithms::util;
 
-int count(const std::string &s, const std::string &sub) {
-  int n{0};
+uint64_t count(const std::string &s, const std::string &sub) {
+  uint64_t n{0};
   auto found = s.find(sub);
   while (found != std::string::npos) {
     ++n;
@@ -36,7 +37,9 @@ void test0() {
                     {"a", "b", "0123456789", "abcde", "d", "e"},
                     '-',
                     StringColumn::Align::Right,
-                    abridgeThresholdWidth});
+                    abridgeThresholdWidth,
+                    /* abridge to single row: */
+                    true});
   }
 
   auto x = alignedColumns(cols);
@@ -46,15 +49,15 @@ void test0() {
   //          .    ..   ...  0...  0...9  01...9  01...89  012...89  012...789
   //
   // which is the one with abbreviated columns.
-  //
+
   if (count(x, "  .    ..   ...  ") == 0) {
     throw poprithms::test::error(
-        "Failed in test of abridgeThresholdWidth, with low thresholds");
+        "Failed in test of abridgeThresholdWidth, with low thresholds (1)");
   }
 
   if (count(x, "0...  0...9  01...9  01...89  012...89  012...789") != 1) {
     throw poprithms::test::error(
-        "Failed in test of abridgeThresholdWidth, with high thresholds");
+        "Failed in test of abridgeThresholdWidth, with high thresholds (2)");
   }
 }
 
@@ -62,9 +65,47 @@ void test1() {
 
   auto x =
       alignedColumns({{"col0", {"asdf", "f"}}, {"col1", {"a", "bumble"}}});
+
   if (count(x, " \n") != 0) {
     throw poprithms::test::error(
         "space before new line, should have been removed");
+  }
+}
+
+void testSplitRows0() {
+
+  StringColumn col0("col0",
+                    {"short", "0123456789abcdefghijkABCDEF"},
+                    '+',
+                    StringColumn::Align::Left,
+                    10,
+                    false);
+
+  StringColumn col1("col1",
+                    {"0123456789", "beep"},
+                    '*',
+                    StringColumn::Align::Left,
+                    5,
+                    false);
+
+  auto ally = alignedColumns({col0, col1});
+  std::cout << ally << std::endl;
+
+  std::vector<std::string> lines{"col0        col1",
+                                 "++++        ****",
+                                 "short       01234",
+                                 "            56789",
+                                 "0123456789  beep",
+                                 "abcdefghij",
+                                 "kABCDEF"};
+
+  for (uint64_t l = 0; l < lines.size(); ++l) {
+    if (count(ally, lines[l]) != 1) {
+      std::ostringstream oss;
+      oss << "expected to find the line " << lines[l]
+          << " in the summary string, but did not. ";
+      throw poprithms::test::error(oss.str());
+    }
   }
 }
 
@@ -73,5 +114,6 @@ void test1() {
 int main() {
   test0();
   test1();
+  testSplitRows0();
   return 0;
 }
