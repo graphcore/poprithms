@@ -69,7 +69,7 @@ public:
   }
 
   TensorId srcInCallee(const CallEvent &cse, OutIndex o) const final {
-    return g().op(cse.caller()).outCopies().src(cse.index(), o);
+    return g().op(cse.caller()).outCopies().outSource(o, cse.index());
   }
 
   ConsumptionIds consumptionIds(const TensorId &tId) const final {

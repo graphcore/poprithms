@@ -103,7 +103,7 @@ public:
         auto cot = g.outCopies(opId);
         for (CalleeIndex c = 0; c < callees.size(); ++c) {
           for (OutIndex o = 0; o < cot.nOutTensors(); ++o) {
-            auto src = cot.src(c, o);
+            auto src = cot.outSource(o, c);
             CallEvent ce(opId, callees.at(c.get()), c);
             std::pair<CallEvent, OutIndex> p(ce, o);
             auto found = m_.find(src);

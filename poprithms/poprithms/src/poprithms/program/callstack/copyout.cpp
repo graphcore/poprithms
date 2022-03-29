@@ -28,20 +28,47 @@ void CopyOuts::append(std::ostream &ost) const {
   }
 }
 
+TensorIds CopyOuts::outSources(OutIndex o) const {
+  TensorIds outs_;
+  for (auto ot : outs.at(o.get())) {
+    if (!ot.has_value()) {
+      throw error("An optional tensor for output index #" +
+                  std::to_string(o.get()) + "  is not set. ");
+    }
+    outs_.push_back(ot.value());
+  }
+  return outs_;
+}
+
 std::ostream &operator<<(std::ostream &ost, const CopyOuts &co) {
+  OptionalTensorId foo;
   co.append(ost);
   return ost;
 }
 
-// [outIndex][calleeIndex].
-CopyOuts::CopyOuts(const std::vector<TensorIds> &outs_) : outs(outs_) {
-  if (!outs.empty()) {
-    for (const auto &o : outs) {
-      if (o.size() != outs[0].size()) {
+namespace {
+std::vector<OptionalTensorIds>
+getOptionals(const std::vector<TensorIds> &outs_) {
+  std::vector<OptionalTensorIds> outs;
+  outs.reserve(outs_.size());
+  for (const auto &x : outs_) {
+    outs.push_back({});
+    for (const auto &y : x) {
+      outs.back().push_back(y);
+    }
+  }
+  return outs;
+}
+
+template <typename T>
+void verifyRectangle(const std::vector<std::vector<T>> &outs_) {
+  if (!outs_.empty()) {
+    for (const auto &o : outs_) {
+      if (o.size() != outs_[0].size()) {
         std::ostringstream oss;
         oss << "Invalid CopyOuts. "
             << "Must have the same number of callees at each OutIndex. "
-            << "At OutIndex=0, there are " << outs[0].size()
+            << "At OutIndex=0, there are " << outs_[0].size()
             << " callees, while at the current OutIndex there are "
             << o.size() << '.';
         throw error(oss.str());
@@ -49,6 +76,23 @@ CopyOuts::CopyOuts(const std::vector<TensorIds> &outs_) : outs(outs_) {
     }
   }
 }
+} // namespace
+
+CopyOuts::CopyOuts(const std::vector<OptionalTensorIds> &otis,
+                   bool checkRectangle) {
+  if (checkRectangle) {
+    verifyRectangle(otis);
+  }
+  outs = otis;
+}
+
+CopyOuts CopyOuts::fromOptionals(const std::vector<OptionalTensorIds> &otis) {
+  return CopyOuts(otis, true);
+}
+
+// [outIndex][calleeIndex].
+CopyOuts::CopyOuts(const std::vector<TensorIds> &outs_)
+    : CopyOuts(getOptionals(outs_), true) {}
 
 //  [calleeIndex][outIndex]
 CopyOuts::CopyOuts(const std::map<CalleeIndex, TensorIds> &m) {
@@ -90,30 +134,88 @@ CopyOuts::CopyOuts(const std::map<CalleeIndex, TensorIds> &m) {
   }
 }
 
-TensorId CopyOuts::outSource(OutIndex o, CalleeIndex c) const {
+void CopyOuts::assertValidOutIndex(OutIndex o) const {
   if (o.get() >= nOutTensors()) {
     std::ostringstream oss;
     oss << "Invalid OutIndex=" << o << " with only " << nOutTensors()
         << " outputs.";
     throw error(oss.str());
   }
+}
 
+void CopyOuts::assertValidCalleeIndex(CalleeIndex c) const {
   if (c.get() >= nCallees()) {
     std::ostringstream oss;
     oss << "Invalid CalleeIndex=" << c << " with only " << nCallees()
         << " callees.";
     throw error(oss.str());
   }
-  return outs.at(o.get()).at(c.get());
+}
+
+bool CopyOuts::hasValue(OutIndex o, CalleeIndex ci) const {
+  assertValidOutIndex(o);
+  assertValidCalleeIndex(ci);
+  return outs.at(o.get()).at(ci.get()).has_value();
+}
+
+TensorId CopyOuts::outSource(OutIndex o, CalleeIndex c) const {
+
+  assertValidOutIndex(o);
+  assertValidCalleeIndex(c);
+
+  auto opt = outs.at(o.get()).at(c.get());
+
+  if (!opt.has_value()) {
+    throw error("The optional output at index #" + std::to_string(o.get()) +
+                " for callee #" + std::to_string(c.get()) + " is not set.");
+  }
+  return opt.value();
 }
 
 TensorIds CopyOuts::outSources(CalleeIndex c) const {
   TensorIds ts;
-  ts.reserve(nCallees());
+  ts.reserve(nOutTensors());
   for (const auto &x : outs) {
-    ts.push_back(x.at(c.get()));
+    auto opt = x.at(c.get());
+    if (!opt.has_value()) {
+      std::ostringstream oss;
+      oss << "The optional output at this output index for callee #" << c
+          << " is not set.";
+      throw error(oss.str());
+    }
+    ts.push_back(opt.value());
   }
   return ts;
+}
+
+TensorIds CopyOuts::outSources(CalleeIndex c, const OutIndices &ois) const {
+  TensorIds ts;
+  ts.reserve(ois.size());
+  for (auto o : ois) {
+    ts.push_back(outSource(o, c));
+  }
+  return ts;
+}
+
+bool CopyOuts::isSource(CalleeIndex calleeIndex, const TensorId &tId) const {
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    if (outs[o.get()].at(calleeIndex.get()) == tId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+OutIndex CopyOuts::outIndex(CalleeIndex calleeIndex,
+                            const TensorId &tId) const {
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    if (outs[o.get()].at(calleeIndex.get()) == tId) {
+      return o;
+    }
+  }
+
+  throw error("No output " + tId.str() + " for callee index " +
+              std::to_string(calleeIndex.get()));
 }
 
 uint64_t CopyOuts::nCallees() const {
