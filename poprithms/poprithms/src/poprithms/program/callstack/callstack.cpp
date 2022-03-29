@@ -3,6 +3,7 @@
 #include <set>
 
 #include <poprithms/common/multiout/opid.hpp>
+#include <poprithms/program/callstack/calleetensorid.hpp>
 #include <poprithms/program/callstack/callstack.hpp>
 #include <poprithms/program/callstack/copymap.hpp>
 #include <poprithms/program/callstack/stacktensorid.hpp>
@@ -17,6 +18,10 @@
 namespace poprithms {
 namespace program {
 namespace callstack {
+
+void CalleeTensorId::append(std::ostream &ost) const {
+  ost << tId().str() << ':' << calleeIndex();
+}
 
 void StackTensorId::append(std::ostream &ost) const {
   ost << tId().str() << ':';
@@ -37,8 +42,18 @@ StackUtil::getCounts(const StackTensorIds &stids) {
   return m;
 }
 
+std::ostream &operator<<(std::ostream &ost, const CalleeTensorId &id) {
+  id.append(ost);
+  return ost;
+}
+
 std::ostream &operator<<(std::ostream &ost, const StackTensorId &id) {
   id.append(ost);
+  return ost;
+}
+
+std::ostream &operator<<(std::ostream &ost, const CalleeTensorIds &ids) {
+  poprithms::util::append(ost, ids);
   return ost;
 }
 

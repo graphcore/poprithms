@@ -4,6 +4,7 @@
 
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/program/callstack/callstack.hpp>
+#include <poprithms/util/valuedtuple.hpp>
 
 namespace poprithms {
 namespace program {
@@ -12,31 +13,17 @@ namespace callstack {
 /**
  * A Tensor within a CallStack.
  * */
-class StackTensorId {
+class StackTensorId
+    : public util::ValuedTuple<std::tuple<TensorId, CallStack>> {
 public:
   StackTensorId(const TensorId &id, const CallStack &st)
-      : id_(id), callStack_(st) {}
-
-  const TensorId tId() const { return id_; }
-  const CallStack &callStack() const { return callStack_; }
-
-  bool operator!=(const StackTensorId &rhs) const { return t() != rhs.t(); }
-  bool operator<(const StackTensorId &rhs) const { return t() < rhs.t(); }
-  bool operator<=(const StackTensorId &rhs) const { return t() <= rhs.t(); }
-  bool operator==(const StackTensorId &rhs) const { return t() == rhs.t(); }
-  bool operator>=(const StackTensorId &rhs) const { return t() >= rhs.t(); }
-  bool operator>(const StackTensorId &rhs) const { return t() > rhs.t(); }
-
+      : ValuedTuple({id, st}) {}
+  TensorId tId() const { return get<0, TensorId>(); }
+  const CallStack &callStack() const { return get<1, CallStack>(); }
   void append(std::ostream &) const;
-
-private:
-  TensorId id_;
-  CallStack callStack_;
-  std::tuple<TensorId, CallStack> t() const { return {id_, callStack_}; }
 };
 
 using StackTensorIds = std::vector<StackTensorId>;
-
 std::ostream &operator<<(std::ostream &, const StackTensorId &);
 std::ostream &operator<<(std::ostream &, const StackTensorIds &);
 

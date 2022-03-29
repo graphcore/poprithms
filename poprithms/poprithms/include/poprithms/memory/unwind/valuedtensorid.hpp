@@ -4,6 +4,7 @@
 
 #include <poprithms/common/multiout/opid.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
+#include <poprithms/util/valuedtuple.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -13,37 +14,9 @@ using common::multiout::OpId;
 using common::multiout::OutIndex;
 using common::multiout::TensorId;
 
-/**
- * Design pattern: Wrap a tuple, and inherit from the wrapping. This means
- * comparison methods don't need multiple re-implementations.
- * */
-template <typename Tup> struct ValuedTuple {
-public:
-  ValuedTuple(const Tup &tup) : tup_(tup) {}
-
-  template <uint64_t i, typename T> const T &get() const {
-    return std::get<i>(tup_);
-  }
-
-  template <uint64_t i, typename T> void setVal(T t) {
-    std::get<i>(tup_) = t;
-  }
-
-  bool operator==(const ValuedTuple &r) const { return tup() == r.tup(); }
-  bool operator<(const ValuedTuple &r) const { return tup() < r.tup(); }
-  bool operator>(const ValuedTuple &r) const { return tup() > r.tup(); }
-  bool operator!=(const ValuedTuple &r) const { return !operator==(r); }
-  bool operator<=(const ValuedTuple &rhs) const { return !operator>(rhs); }
-  bool operator>=(const ValuedTuple &rhs) const { return !operator<(rhs); }
-
-  const Tup &tup() const { return tup_; }
-
-private:
-  Tup tup_;
-};
-
 /** A TensorId and a double. */
-struct ValuedTensorId : public ValuedTuple<std::tuple<TensorId, double>> {
+struct ValuedTensorId
+    : public util::ValuedTuple<std::tuple<TensorId, double>> {
 public:
   ValuedTensorId(const TensorId &tensorId, double v)
       : ValuedTuple({tensorId, v}) {}
@@ -64,7 +37,7 @@ std::ostream &operator<<(std::ostream &, const ValuedTensorIds &);
  * corresponding elements in the 2 tensors.
  * */
 struct ValuedPair
-    : public ValuedTuple<std::tuple<double, TensorId, TensorId>> {
+    : public util::ValuedTuple<std::tuple<double, TensorId, TensorId>> {
 
 public:
   ValuedPair(const TensorId &id0, const TensorId &id1, double v)
@@ -86,7 +59,8 @@ using ValuedPairs = std::vector<ValuedPair>;
  * info).
  * */
 struct ExtendedValuedPair
-    : public ValuedTuple<std::tuple<double, uint64_t, TensorId, TensorId>> {
+    : public util::ValuedTuple<
+          std::tuple<double, uint64_t, TensorId, TensorId>> {
 
 public:
   ExtendedValuedPair(const TensorId &id0,
