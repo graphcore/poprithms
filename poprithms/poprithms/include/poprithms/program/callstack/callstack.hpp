@@ -22,8 +22,6 @@ using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
 using poprithms::common::schedulable::SubGraphId;
 
-using CalleeIndex = poprithms::util::TypedInteger<'C', uint32_t>;
-
 /**
  * A triplet representing a op's call into a sub-graph, consisting of:
  *

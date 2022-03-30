@@ -13,6 +13,85 @@ namespace poprithms {
 namespace program {
 namespace callstack {
 
+InIndex CopyIns::inIndex(CalleeIndex ci, const TensorId &inCallee) const {
+
+  for (uint64_t i = 0; i < copyIns_.size(); ++i) {
+    if (copyIns_[i].index() == ci) {
+      if (copyIns_[i].dst() == inCallee) {
+        return i;
+      }
+    }
+  }
+
+  std::ostringstream oss;
+  oss << "Failed to find an index for CalleeIndex=" << ci << " for which "
+      << inCallee << " is the destination. ";
+  throw error(oss.str());
+}
+
+CalleeTensorIds CopyIns::indexedDsts(const InIndices &inIndices) const {
+  CalleeTensorIds indexedTensors;
+  indexedTensors.reserve(inIndices.size());
+  for (auto i : inIndices) {
+    const auto &copyIn_ = copyIns_.at(i.get());
+    indexedTensors.push_back({copyIn_.dst(), copyIn_.index()});
+  }
+  return indexedTensors;
+}
+
+TensorIds CopyIns::dsts(const InIndices &inIndices) const {
+  TensorIds ts;
+  ts.reserve(inIndices.size());
+  for (auto i : inIndices) {
+    const auto &copyIn_ = copyIns_.at(i.get());
+    ts.push_back(copyIn_.dst());
+  }
+  return ts;
+}
+
+TensorIds CopyIns::dsts(CalleeIndex ci, const TensorId &inCaller) const {
+  TensorIds dsts_;
+  for (auto &&cIn : copyIns()) {
+    if (cIn.index() == ci && cIn.src() == inCaller) {
+      dsts_.push_back(cIn.dst());
+    }
+  }
+
+  return dsts_;
+}
+
+TensorIds CopyIns::srcs(CalleeIndex ci) const {
+  TensorIds ids;
+  for (const auto &copyIn : copyIns_) {
+    if (copyIn.index() == ci) {
+      ids.push_back(copyIn.src());
+    }
+  }
+  return ids;
+}
+
+TensorIds CopyIns::dsts(CalleeIndex ci) const {
+  TensorIds ids;
+  for (const auto &copyIn : copyIns_) {
+    if (copyIn.index() == ci) {
+      ids.push_back(copyIn.dst());
+    }
+  }
+  return ids;
+}
+
+InIndices CopyIns::indicesOfSrc(CalleeIndex ci,
+                                const TensorId &inCaller) const {
+  InIndices is;
+  for (InIndex i = 0; i < nInTensors(); ++i) {
+    if (calleeIndex(i) == ci && src(i) == inCaller) {
+      is.push_back(i);
+    }
+  }
+
+  return is;
+}
+
 std::string CopyIns::str() const {
   std::ostringstream oss;
   append(oss);
@@ -58,15 +137,15 @@ std::ostream &operator<<(std::ostream &ost, const CopyIns &copyIns) {
   return ost;
 }
 
-CopyIns CopyIns::zip(const TensorIds &srcs,
-                     const TensorIds &dsts,
-                     const CalleeIndex index) {
+std::vector<CopyIn> CopyIns::zip(const TensorIds &srcs,
+                                 const TensorIds &dsts,
+                                 const CalleeIndex index) {
   return zip(srcs, dsts, CalleeIndices(srcs.size(), index));
 }
 
-CopyIns CopyIns::zip(const TensorIds &srcs,
-                     const TensorIds &dsts,
-                     const CalleeIndices &indices) {
+std::vector<CopyIn> CopyIns::zip(const TensorIds &srcs,
+                                 const TensorIds &dsts,
+                                 const CalleeIndices &indices) {
   if (srcs.size() != dsts.size()) {
     std::ostringstream oss;
     oss << "'srcs' and 'dsts' are not the same size in CopyIns::zip: "
@@ -84,30 +163,16 @@ CopyIns CopyIns::zip(const TensorIds &srcs,
   for (uint64_t i = 0; i < srcs.size(); ++i) {
     cins.push_back({srcs[i], dsts[i], indices[i]});
   }
-  return CopyIns(std::move(cins));
+
+  return cins;
 }
 
 bool CopyIns::destinationsUniqueAtAllIndices() const {
-  std::set<std::pair<TensorId, CalleeIndex>> dests;
+  std::set<CalleeTensorId> dests;
   for (const auto &x : copyIns_) {
-    dests.insert(std::pair<TensorId, CalleeIndex>(x.dst(), x.index()));
+    dests.insert(CalleeTensorId(x.dst(), x.index()));
   }
   return dests.size() == copyIns_.size();
-}
-
-void CopyIns::assertDestinationsUniqueAtAllIndices() const {
-  if (!destinationsUniqueAtAllIndices()) {
-    throw error("Cannot have a destination in the callee graph with multiple "
-                "copy sources");
-  }
-}
-
-bool CopyIns::sourcesUniqueAtAllIndices() const {
-  std::set<std::pair<TensorId, CalleeIndex>> srcs;
-  for (const auto &x : copyIns_) {
-    srcs.insert(std::pair<TensorId, CalleeIndex>(x.src(), x.index()));
-  }
-  return srcs.size() == copyIns_.size();
 }
 
 bool CopyIns::isDst(CalleeIndex ci, const TensorId &tId) const {
@@ -140,15 +205,12 @@ TensorId CopyIns::src(CalleeIndex ci, const TensorId &tId) const {
   return found[0];
 }
 
-CopyIns::CopyIns(const std::vector<CopyIn> &cis) {
+CopyIns::CopyIns(const std::vector<CopyIn> &cis) : copyIns_(cis) {
 
-  // 1) remove duplicates and make nicely ordered:
-  std::set<CopyIn> cis_(cis.cbegin(), cis.cend());
-  copyIns_ = std::vector<CopyIn>(cis_.cbegin(), cis_.cend());
-
-  // If there is a tensor in a callee graph which has 2 sources, that's a
-  // problem as it's probably ambiguous which one gets copied first.
-  assertDestinationsUniqueAtAllIndices();
+  if (!destinationsUniqueAtAllIndices()) {
+    throw error("Cannot have a destination in the callee graph with multiple "
+                "copy sources");
+  }
 }
 
 } // namespace callstack

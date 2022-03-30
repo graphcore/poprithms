@@ -6,6 +6,7 @@
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/program/callstack/copyin.hpp>
+#include <poprithms/program/callstack/copymap.hpp>
 #include <poprithms/program/callstack/copyout.hpp>
 
 namespace {
@@ -55,7 +56,7 @@ void testIn0() {
 
   dsts.push_back({5, 0});
 
-  if (CopyIns::zip(srcs, dsts, CalleeIndex(2)).srcIds() != srcs) {
+  if (CopyIns(CopyIns::zip(srcs, dsts, CalleeIndex(2))).srcIds() != srcs) {
     throw poprithms::test::error("Sources changed in zipping");
   }
 }
@@ -93,10 +94,48 @@ void testOut0() {
                                  "callees have different number of outputs");
   }
 }
+
+class CopyOutTestGraph {
+
+public:
+  OpIds opIds() const { return {0, 1, 2, 3}; }
+  std::vector<SubGraphId> callees(OpId opId) const {
+    if (opId == 0) {
+      return {SubGraphId::createSubGraphId(1),
+              SubGraphId::createSubGraphId(2)};
+    }
+    return {};
+  }
+  CopyOuts outCopies(OpId opId) const {
+    if (opId == 0) {
+      OptionalTensorIds opts0{OptionalTensorId{}, TensorId(1, 0)};
+      OptionalTensorIds opts1{TensorId(2, 0), TensorId(1, 0)};
+      return CopyOuts::fromOptionals({opts0, opts1});
+    }
+    throw poprithms::test::error("Should not be reached");
+  }
+};
+
+void testCopyOutMap0() {
+  CopyOutTestGraph g;
+  CopyOutMap cmp(g);
+  if (cmp.n({1, 0}) != 2) {
+    throw poprithms::test::error("output of callee 1 at 2 output indices");
+  }
+
+  if (cmp.n({2, 0}) != 1) {
+    throw poprithms::test::error("output of callee 0 at 2 output index 0");
+  }
+  if (cmp.n({3, 0}) != 0) {
+    throw poprithms::test::error("not an output");
+  }
+}
+
 } // namespace
 
 int main() {
   testIn0();
   testOut0();
+  testCopyOutMap0();
   return 0;
 }
