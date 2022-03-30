@@ -30,6 +30,11 @@ public:
                              const TensorIds &inIds,
                              const Shapes &outShapes);
 
+  std::map<OpId, OpIds>
+  schedulableDerivedSpecificConstraints(const OpIds &) const final {
+    return {};
+  }
+
   OpId insertOp(std::unique_ptr<Op> createdOp);
 
   poprithms::common::schedulable::SubGraphId singleGraph;

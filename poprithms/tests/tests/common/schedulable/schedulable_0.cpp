@@ -13,6 +13,7 @@
 namespace {
 
 using namespace poprithms::common::schedulable_test;
+using poprithms::common::schedulable::NoAdditionalFwdEdges;
 
 template <typename t>
 std::ostream &operator<<(std::ostream &ost, const std::vector<t> &opids) {
@@ -48,21 +49,24 @@ void basic0() {
     Graph g0 = g;
     g0.constraint(in0, in1);
     g0.constraint(add, mul);
-    confirmSame(g0, g0.vanillaSchedule(), {in0, in1, add, mul});
+    confirmSame(
+        g0, g0.vanillaSchedule(NoAdditionalFwdEdges()), {in0, in1, add, mul});
   }
 
   {
     Graph g0 = g;
     g0.constraint(in1, in0);
     g0.constraint(mul, add);
-    confirmSame(g0, g0.vanillaSchedule(), {in1, in0, mul, add});
+    confirmSame(
+        g0, g0.vanillaSchedule(NoAdditionalFwdEdges()), {in1, in0, mul, add});
   }
 
   // using the variadic template
   {
     Graph g0 = g;
     g0.constraint(in1, in0, add, mul);
-    confirmSame(g0, g0.vanillaSchedule(), {in1, in0, add, mul});
+    confirmSame(
+        g0, g0.vanillaSchedule(NoAdditionalFwdEdges()), {in1, in0, add, mul});
   }
 }
 
@@ -77,8 +81,12 @@ void basic1() {
   auto opId1 = g.insert({}, 0, gId1, "");
   g.insert({}, 0, gId0, "");
   g.constraint(opId0, opId1);
-  confirmSame(g, g.vanillaSchedule(gId1), {opId0, opId1});
-  confirmSame(g, g.vanillaSchedules().at(gId1.get_u64()), {opId0, opId1});
+  confirmSame(g,
+              g.vanillaSubGraphSchedule(gId1, NoAdditionalFwdEdges()),
+              {opId0, opId1});
+  confirmSame(g,
+              g.vanillaSchedules(NoAdditionalFwdEdges()).at(gId1.get_u64()),
+              {opId0, opId1});
 }
 
 void binConstraints0(uint64_t nBins, uint64_t nOps) {
@@ -96,7 +104,7 @@ void binConstraints0(uint64_t nBins, uint64_t nOps) {
     opToBin[i] = binId;
   }
   g.binConstraint(bins);
-  auto schedule = g.vanillaSchedule();
+  auto schedule = g.vanillaSchedule(NoAdditionalFwdEdges());
 
   std::vector<uint64_t> scheduleToBin;
   for (auto opId : schedule) {
@@ -168,7 +176,7 @@ void toggleEager0() {
 
   {
     auto schedule = getGraph(30, {/* on */ 10, /* off */ 15, /* on */ 20})
-                        .randomSchedule(1011);
+                        .randomSchedule(1011, NoAdditionalFwdEdges());
     assertInOrder(10, 15, schedule);
     assertInOrder(20, 30, schedule);
   }
@@ -182,7 +190,7 @@ void toggleEager0() {
                                        15,
                                        19 // off
                                    })
-                              .randomSchedule(1053);
+                              .randomSchedule(1053, NoAdditionalFwdEdges());
     assertInOrder(0, 3, schedule);
     assertInOrder(6, 11, schedule);
     assertInOrder(15, 19, schedule);
@@ -198,7 +206,7 @@ void ensureLastOf0() {
     g.insert({}, 0, gId, "");
   }
   g.ensureLastOfCurrentOps(OpId(5));
-  if (g.randomSchedule(1011).back() != OpId(5)) {
+  if (g.randomSchedule(1011, NoAdditionalFwdEdges()).back() != OpId(5)) {
     throw poprithms::test::error(
         "Op 5 should be at the back, failure of ensureLastOfCurrentOps");
   }
@@ -206,7 +214,7 @@ void ensureLastOf0() {
   bool caught{false};
   try {
     g.ensureLastOfCurrentOps(OpId(3));
-    g.randomSchedule(1053);
+    g.randomSchedule(1053, NoAdditionalFwdEdges());
   } catch (const poprithms::error::error &) {
     caught = true;
   }
@@ -225,7 +233,7 @@ void mayBeFinals0() {
   const auto c = g.insert({{a, 0}}, 0, gId, "");
   const auto d = g.insert({}, 1, gId, "");
   g.constraint(b, d);
-  auto mays = g.mayBeFinals(gId);
+  auto mays = g.mayBeFinals(gId, NoAdditionalFwdEdges());
   std::sort(mays.begin(), mays.end());
   if (mays != OpIds{c, d}) {
     throw poprithms::test::error("c and d are the 2 Ops which have to "

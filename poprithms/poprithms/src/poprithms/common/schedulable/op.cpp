@@ -1,4 +1,8 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include "error.hpp"
+
+#include <sstream>
+
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/schedulable/op.hpp>
 
@@ -66,7 +70,16 @@ bool Op::multiOutTypeSpecificEqualTo(
 Op::Op(const State &ob)
     : common::multiout::Op(ob.baseState), subGraphId_(ob.subGraphId),
       controlDependencyInOps_(ob.controlDependencyInOps),
-      controlDependencyOutOps_(ob.controlDependencyOutOps) {}
+      controlDependencyOutOps_(ob.controlDependencyOutOps) {
+
+  for (auto tId : ob.baseState.inIds) {
+    auto opId = tId.opId();
+    auto x    = ob.controlDependencyInOps;
+    if (std::find(x.cbegin(), x.cend(), opId) != x.cend()) {
+      throw error("Control dependency is already a data dependency.");
+    }
+  }
+}
 
 bool Op::State::operator==(const State &rhs) const {
   return baseState == rhs.baseState &&                           //

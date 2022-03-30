@@ -13,6 +13,7 @@
 #include <poprithms/common/multiout/graph.hpp>
 #include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
+#include <poprithms/common/schedulable/additionalfwdedges.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 
@@ -168,38 +169,55 @@ public:
    *
    * \sa schedule::vanilla
    * */
-  OpIds vanillaSchedule() const;
+  OpIds
+  vanillaSchedule(const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
 
   /**
    * A sub-schedule of a set of ops. This is equivalent to
    * 1) get the schedule for the complete graph, then
    * 2) pull out the entries in #opIds, retaining their relative positions.
    * */
-  OpIds vanillaSubSchedule(const std::set<OpId> &opIds) const;
+  OpIds vanillaSubSchedule(
+      const std::set<OpId> &,
+      const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
 
   /**
    * Return a random scheduling of this Graph
    * */
-  OpIds randomSchedule(uint32_t seed) const;
+  OpIds
+  randomSchedule(uint32_t seed,
+                 const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
 
   /**
    * Return a schedule of this Graph, but partitioned by SubGraphId.
    * */
-  std::vector<OpIds> vanillaSchedules() const;
-  std::vector<OpIds> randomSchedules(uint32_t) const;
+  std::vector<OpIds>
+  vanillaSchedules(const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
+
+  std::vector<OpIds>
+  randomSchedules(uint32_t,
+                  const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
 
   /**
    * Return a schedule of all Ops in a single SubGraphId.
    * */
-  OpIds vanillaSchedule(SubGraphId) const;
-  OpIds randomSchedule(SubGraphId, uint32_t) const;
+  OpIds vanillaSubGraphSchedule(
+      SubGraphId,
+      const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
+
+  OpIds randomSubGraphSchedule(
+      SubGraphId,
+      uint32_t,
+      const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
 
   uint64_t nSubGraphs() const { return subGraphStates.size(); }
 
   /**
    * return true if there is exactly one way to schedule this Graph
    * */
-  bool hasUniqueSchedule(SubGraphId) const;
+  bool hasUniqueSchedule(
+      SubGraphId,
+      const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
 
   /**
    * In some situations, redundant constraints can be removed from a Graph
@@ -215,9 +233,12 @@ public:
    * \return A FwdEdgeMap X, where X[opId] contains all Ops which must be
    *         scheduled after opId.
    * */
-  FwdEdgeMap getForwardEdgeMap_u64() const;
+  FwdEdgeMap getForwardEdgeMap_u64(
+      const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
 
-  FwdEdgeMap getForwardEdgeMap_u64(SubGraphId) const;
+  FwdEdgeMap getSubGraphForwardEdgeMap_u64(
+      SubGraphId,
+      const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
 
   /**
    * Generate a new SubGraphId, with name #graphName.
@@ -278,7 +299,9 @@ public:
    * return all Ops with #subGraphId which can be scheduled last. That is,
    * all Ops which have no out Ops.
    * */
-  OpIds mayBeFinals(SubGraphId subGraphId) const;
+  OpIds
+  mayBeFinals(SubGraphId subGraphId,
+              const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
 
   /**
    * All of the Ops which must be scheduled before #opId due to an explict
@@ -293,12 +316,6 @@ public:
   OpIds dataDependencyInOps(OpId opId) const;
 
   /**
-   * All Ops which must be scheduled before #opId, either because of a data
-   * dependency, or a non-data "control" dependency.
-   * */
-  OpIds allInOps(OpId opId) const;
-
-  /**
    * All of the Ops which must be scheduled after #opId due to an explict
    * non-data dependency constraint.
    * */
@@ -310,12 +327,20 @@ public:
    * */
   OpIds dataDependencyOutOps(OpId opId) const;
 
+private:
+  /**
+   * All Ops which must be scheduled before #opId, either because of a data
+   * dependency, or a non-data "control" dependency.
+   * */
+  OpIds allInOps(OpId opId) const;
+
   /**
    * All Ops which must be scheduled after #opId, either because of a data
    * dependency, or a non-data "control" dependency.
    * */
   OpIds allOutOps(OpId opId) const;
 
+public:
   std::vector<poprithms::util::StringColumn>
   getSchedulableColumns(const OpIds &) const;
 
@@ -328,6 +353,8 @@ public:
    * from base classes.
    * */
   void assertSchedulableGraphCorrectness() const;
+
+  const Op &schedulableOp(OpId opId) const { return op(opId); }
 
   /**
    * How control dependencies should be propagated when graphs are
@@ -404,16 +431,28 @@ private:
   // Note that this method assumes that opIds is a "complete" sub-graph,
   // that is all dependencies are present. There is no check that this is
   // the case.
-  FwdEdgeMap getSparseForwardEdgeMap_u64(const OpIds &) const;
+  FwdEdgeMap getSparseForwardEdgeMap_u64(
+      const OpIds &,
+      const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
+
+  /**
+   * Derived classes can optionally add extra scheduling constraints. These
+   * are in addition to the data and control dependencies. This method returns
+   * a map where, for key:values, for every v in values, there is a constraint
+   * key->v. All keys and values must be in the #opIds passed in as the method
+   * argument.
+   * */
+  virtual std::map<OpId, OpIds>
+  schedulableDerivedSpecificConstraints(const OpIds &opIds) const = 0;
 
   // Separate Ops by SubGraphId
   std::vector<OpIds> subGraphPartitioned(const OpIds &) const;
 
   /**
    * The Graph class is global, in the same way as a poplar::Graph is.
-   * The concept of a sub-graph/program be partially captured by annotating
-   * Ops with SubGraphIds. SubGraphIds all have (user provided) strings
-   * associated with them to help debugging and make logging clearer.
+   * The concept of a sub-graph/program can be partially captured by
+   * annotating Ops with SubGraphIds. SubGraphIds all have (user provided)
+   * strings associated with them to help debugging and make logging clearer.
    */
   class SubGraphState {
   public:

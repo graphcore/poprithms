@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 #ifndef TESTUTIL_COMMON_SCHEDULABLE_GRAPH_HPP
 #define TESTUTIL_COMMON_SCHEDULABLE_GRAPH_HPP
 
@@ -32,9 +32,9 @@ using poprithms::ndarray::Shape;
 using poprithms::ndarray::Shapes;
 using schedulable::SubGraphId;
 
-class Op : public schedulable::Op {
+class Op final : public schedulable::Op {
 public:
-  Op(const schedulable::Op::State &s);
+  Op(const schedulable::Op::State &s, bool phobic);
   std::string typeString() const final;
   std::unique_ptr<multiout::Op> cloneMultioutOp() const final;
 
@@ -43,26 +43,43 @@ public:
     // nothing to do: no new attributes.
   }
 
+  bool isConstraintPhobic() const final { return phobic_; }
+
   void removeSchedulableDerivedInputs(const ContiguousInIndexSubset &) final {
     // nothing to do: no new attributes.
   }
 
 private:
-  bool schedulableTypeSpecificEqualTo(const schedulable::Op &) const final {
-    // nothing to do: no new attributes.
-
-    return true;
+  bool
+  schedulableTypeSpecificEqualTo(const schedulable::Op &rhs) const final {
+    return phobic_ == rhs.isConstraintPhobic();
   }
+
+private:
+  bool phobic_;
 };
 
-class Graph : public schedulable::Graph {
+class Graph final : public schedulable::Graph {
 public:
   using schedulable::Graph::removeOp;
 
   OpId insert(const TensorIds &ins,
               uint64_t nOut,
               SubGraphId sgId,
-              const std::string &name);
+              const std::string &name,
+              bool isPhobic = false);
+
+  OpId insertPhobic(const TensorIds &ins,
+                    uint64_t nOut,
+                    SubGraphId sgId,
+                    const std::string &name) {
+    return insert(ins, nOut, sgId, name, true);
+  }
+
+  std::map<OpId, OpIds>
+  schedulableDerivedSpecificConstraints(const OpIds &) const final {
+    return {};
+  }
 
   virtual ~Graph() override;
   void appendOpColumns(std::ostream &, const OpIds &) const final;

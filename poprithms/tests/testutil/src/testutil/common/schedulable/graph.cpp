@@ -8,7 +8,8 @@ namespace poprithms {
 namespace common {
 namespace schedulable_test {
 
-Op::Op(const schedulable::Op::State &s) : schedulable::Op(s) {}
+Op::Op(const schedulable::Op::State &s, bool phobic)
+    : phobic_(phobic), schedulable::Op(s) {}
 
 std::string Op::typeString() const { return "schedulable_test::Op"; }
 
@@ -19,7 +20,8 @@ std::unique_ptr<multiout::Op> Op::cloneMultioutOp() const {
 OpId Graph::insert(const TensorIds &ins,
                    uint64_t nOut,
                    SubGraphId sgId,
-                   const std::string &name) {
+                   const std::string &name,
+                   bool isPhobic) {
 
   const Shapes outShapes(nOut, Shape({}));
   const Shapes inShapes = shapes(ins);
@@ -34,7 +36,7 @@ OpId Graph::insert(const TensorIds &ins,
   const schedulable::Op::State state(
       baseState, sgId, inNonDataDeps, outNonDataDeps);
 
-  auto opId = insertSchedulableOp(std::make_unique<Op>(state));
+  auto opId = insertSchedulableOp(std::make_unique<Op>(state, isPhobic));
 
   return opId;
 }

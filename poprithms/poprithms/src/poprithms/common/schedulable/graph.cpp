@@ -10,11 +10,13 @@
 #include <unordered_map>
 #include <utility>
 
+#include <common/schedulable/bidiredgemap.hpp>
 #include <common/schedulable/error.hpp>
 
 #include <poprithms/common/multiout/opid.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/op.hpp>
+#include <poprithms/schedule/scc/scc.hpp>
 #include <poprithms/schedule/vanilla/vanilla.hpp>
 #include <poprithms/util/copybyclone_impl.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -36,7 +38,8 @@ void Graph::multiOutTypeSpecificVerifyValidOutputSubstitute(
 }
 
 // something faster TODO(T42434)
-OpIds Graph::vanillaSubSchedule(const std::set<OpId> &opIds) const {
+OpIds Graph::vanillaSubSchedule(const std::set<OpId> &opIds,
+                                const AdditionalFwdEdges &ae) const {
 
   if (opIds.empty()) {
     return {};
@@ -44,14 +47,14 @@ OpIds Graph::vanillaSubSchedule(const std::set<OpId> &opIds) const {
 
   // If all the Ops are in the same sub-graph SG, we use only the schedule of
   // the sub-graph SG.
-  const auto superSchedule = [this, &opIds]() {
+  const auto superSchedule = [this, &opIds, &ae]() {
     const auto sg0 = subGraphId(*opIds.cbegin());
     if (std::all_of(opIds.cbegin(), opIds.cend(), [this, sg0](auto opId) {
           return subGraphId(opId) == sg0;
         })) {
-      return vanillaSchedule(sg0);
+      return vanillaSubGraphSchedule(sg0, ae);
     }
-    return vanillaSchedule();
+    return vanillaSchedule(ae);
   }();
 
   // sort by topological order in fwd graph.
@@ -66,8 +69,7 @@ OpIds Graph::vanillaSubSchedule(const std::set<OpId> &opIds) const {
   if (schedule.size() != opIds.size()) {
     std::ostringstream oss;
     oss << "Failed to obtain a sub-schedule for a set of " << opIds.size()
-        << " ops. "
-        << "The super-schedule contains " << superSchedule.size()
+        << " ops. The super-schedule contains " << superSchedule.size()
         << ", but only " << schedule.size()
         << " of the ops in the provided set are in the super-schedule. ";
 
@@ -76,10 +78,11 @@ OpIds Graph::vanillaSubSchedule(const std::set<OpId> &opIds) const {
   return schedule;
 }
 
-bool Graph::hasUniqueSchedule(SubGraphId sgId) const {
+bool Graph::hasUniqueSchedule(SubGraphId sgId,
+                              const AdditionalFwdEdges &ae) const {
   using namespace schedule;
   return vanilla::Query<uint64_t>::hasUniqueSchedule(
-      getForwardEdgeMap_u64(sgId).fwdEdgesCompact(),
+      getSubGraphForwardEdgeMap_u64(sgId, ae).fwdEdgesCompact(),
       vanilla::VerifyEdges::No);
   return true;
 }
@@ -245,6 +248,16 @@ OpIds Graph::allOutOps(OpId opId) const {
   for (auto x : controlDependencyOutOps(opId)) {
     if (std::find(outs.cbegin(), outs.cend(), x) == outs.cend()) {
       outs.push_back(x);
+    } else {
+      std::ostringstream oss;
+      oss << "Error in allOutOps for " << op(opId)
+          << ", where data dependency outs are ";
+      util::append(oss, dataDependencyOutOps(opId));
+      oss << " and control dependency outs are ";
+      util::append(oss, controlDependencyOutOps(opId));
+      oss << ". Control dependencies should be unique, and distinct from "
+             "data deps. ";
+      throw error(oss.str());
     }
   }
   return outs;
@@ -255,6 +268,16 @@ OpIds Graph::allInOps(OpId opId) const {
   for (auto x : controlDependencyInOps(opId)) {
     if (std::find(ins.cbegin(), ins.cend(), x) == ins.cend()) {
       ins.push_back(x);
+    } else {
+      std::ostringstream oss;
+      oss << "Error in allInOps for " << op(opId)
+          << ", where data dependency ins are ";
+      util::append(oss, dataDependencyInOps(opId));
+      oss << " and control dependency ins are ";
+      util::append(oss, controlDependencyInOps(opId));
+      oss << ". Control dependencies should be unique, and distinct from "
+             "data deps. ";
+      throw error(oss.str());
     }
   }
   return ins;
@@ -319,7 +342,8 @@ void Graph::ensureLastOfCurrentOps(OpId opId) {
     throw error(oss.str());
   }
 
-  for (auto previous : mayBeFinals(subGraphId(opId))) {
+  for (auto previous :
+       mayBeFinals(subGraphId(opId), NoAdditionalFwdEdges())) {
     if (previous != opId) {
       constraint(previous, opId);
     }
@@ -352,6 +376,13 @@ void Graph::constraint(OpId before, OpId after) {
         << ", as this creates a cycle (of size 1). ";
     throw error(oss.str());
   }
+
+  for (auto inId : op(after).inTensorIds()) {
+    if (inId.opId() == before) {
+      // constraint already exists as a data dependency.
+      return;
+    }
+  }
   op(before).insertControlDependencyOut(after);
   op(after).insertControlDependencyIn(before);
 }
@@ -377,20 +408,6 @@ std::string Graph::subGraphName(SubGraphId id) const {
   return subGraphStates[id.get_u64()].name();
 }
 
-std::vector<uint64_t>
-getVanillaSchedule(const std::vector<std::vector<uint64_t>> &fwd) {
-  using namespace schedule::vanilla;
-  return getSchedule_u64(fwd, ErrorIfCycle::Yes, VerifyEdges::Yes);
-}
-
-std::vector<uint64_t>
-getRandomSchedule(const std::vector<std::vector<uint64_t>> &fwd,
-                  uint32_t seed) {
-  using namespace schedule::vanilla;
-  return Scheduler<uint64_t, double>::random(
-      fwd, {}, {}, seed, ErrorIfCycle::Yes, VerifyEdges::Yes);
-}
-
 std::vector<OpIds> Graph::subGraphPartitioned(const OpIds &opIds) const {
   std::vector<OpIds> p(nSubGraphs());
   for (auto id : opIds) {
@@ -399,39 +416,127 @@ std::vector<OpIds> Graph::subGraphPartitioned(const OpIds &opIds) const {
   return p;
 }
 
-OpIds Graph::vanillaSchedule() const {
-  const auto fwdEdgeMap = getForwardEdgeMap_u64();
-  const auto compactSchedule =
-      getVanillaSchedule(fwdEdgeMap.fwdEdgesCompact());
+namespace {
+class InfoGetter : public poprithms::schedule::scc::NodeInfoGetter {
+  const Graph &g_;
+  const AdditionalFwdEdges &afe_;
+  const FwdEdgeMap &fem_;
 
-  return fwdEdgeMap.unpacked(compactSchedule);
+public:
+  InfoGetter(const Graph &g,
+             const FwdEdgeMap &fem,
+             const AdditionalFwdEdges &afe)
+      : g_(g), afe_(afe), fem_(fem) {}
+
+  std::string nodeString(uint64_t n) const {
+    return g_.multioutOp(fem_.opId(n)).str();
+  }
+
+  std::string edgeString(uint64_t f, uint64_t t) const final {
+    OpId from = fem_.opId(f);
+    OpId to_  = fem_.opId(t);
+    if (g_.schedulableOp(from).isControlDependencyOutOp(to_)) {
+      return "control";
+    }
+
+    for (auto o : g_.outTensorIds(f)) {
+      for (auto c : g_.consumptionIds(o)) {
+        if (c.opId() == t) {
+          return "data";
+        }
+      }
+    }
+    if (afe_.isEdge(f, t)) {
+      return "additional";
+    }
+
+    return "derived";
+  }
+
+  bool providesEdgeStrings() const final { return true; }
+};
+
+[[noreturn]] void cycleError(const Graph &g,
+                             const FwdEdgeMap &fem,
+                             const AdditionalFwdEdges &afe) {
+  using namespace poprithms::schedule::scc;
+
+  // TODO(T39536) when there are links, this will need to be handled
+  // differently. See for example the shift scheduler.
+  auto s = getSummary(
+      fem.fwdEdgesCompact(), InfoGetter(g, fem, afe), IncludeSingletons::No);
+  throw error(s);
 }
 
-OpIds Graph::randomSchedule(uint32_t s) const {
-  const auto fwdEdgeMap = getForwardEdgeMap_u64();
-  return fwdEdgeMap.unpacked(
-      getRandomSchedule(fwdEdgeMap.fwdEdgesCompact(), s));
+std::vector<uint64_t> getVanillaSchedule(const Graph &g,
+                                         const FwdEdgeMap &fem,
+                                         const AdditionalFwdEdges &afe) {
+
+  using namespace schedule::vanilla;
+  auto sched = getSchedule_u64(
+      fem.fwdEdgesCompact(), ErrorIfCycle::No, VerifyEdges::Yes);
+
+  if (sched.size() == fem.nOps()) {
+    return sched;
+  }
+
+  cycleError(g, fem, afe);
 }
 
-OpIds Graph::vanillaSchedule(SubGraphId sgId) const {
-  const auto fwdEdgeMap = getForwardEdgeMap_u64(sgId);
-  const auto compactSchedule =
-      getVanillaSchedule(fwdEdgeMap.fwdEdgesCompact());
-  return fwdEdgeMap.unpacked(compactSchedule);
+std::vector<uint64_t> getRandomSchedule(const Graph &g,
+                                        const FwdEdgeMap &fem,
+                                        const AdditionalFwdEdges &afe,
+                                        uint32_t seed) {
+
+  using namespace schedule::vanilla;
+  auto sched = Scheduler<uint64_t, double>::random(fem.fwdEdgesCompact(),
+                                                   {},
+                                                   {},
+                                                   seed,
+                                                   ErrorIfCycle::Yes,
+                                                   VerifyEdges::Yes);
+
+  if (sched.size() == fem.nOps()) {
+    return sched;
+  }
+
+  cycleError(g, fem, afe);
+}
+} // namespace
+
+OpIds Graph::vanillaSchedule(const AdditionalFwdEdges &ae) const {
+  const auto fem = getForwardEdgeMap_u64(ae);
+  auto sched     = getVanillaSchedule(*this, fem, ae);
+  return fem.unpacked(sched);
 }
 
-OpIds Graph::randomSchedule(SubGraphId sgId, uint32_t s) const {
-  const auto fwdEdgeMap = getForwardEdgeMap_u64(sgId);
-  return fwdEdgeMap.unpacked(
-      getRandomSchedule(fwdEdgeMap.fwdEdgesCompact(), s));
+OpIds Graph::vanillaSubGraphSchedule(SubGraphId sgId,
+                                     const AdditionalFwdEdges &ae) const {
+  const auto fem = getSubGraphForwardEdgeMap_u64(sgId, ae);
+  auto sched     = getVanillaSchedule(*this, fem, ae);
+  return fem.unpacked(sched);
 }
 
-std::vector<OpIds> Graph::vanillaSchedules() const {
-  return subGraphPartitioned(vanillaSchedule());
+OpIds Graph::randomSchedule(uint32_t s, const AdditionalFwdEdges &ae) const {
+  const auto fwdEdgeMap = getForwardEdgeMap_u64(ae);
+  return fwdEdgeMap.unpacked(getRandomSchedule(*this, fwdEdgeMap, ae, s));
 }
 
-std::vector<OpIds> Graph::randomSchedules(uint32_t s) const {
-  return subGraphPartitioned(vanillaSchedule(s));
+OpIds Graph::randomSubGraphSchedule(SubGraphId sgId,
+                                    uint32_t s,
+                                    const AdditionalFwdEdges &ae) const {
+  const auto fwdEdgeMap = getSubGraphForwardEdgeMap_u64(sgId, ae);
+  return fwdEdgeMap.unpacked(getRandomSchedule(*this, fwdEdgeMap, ae, s));
+}
+
+std::vector<OpIds>
+Graph::vanillaSchedules(const AdditionalFwdEdges &ae) const {
+  return subGraphPartitioned(vanillaSchedule(ae));
+}
+
+std::vector<OpIds>
+Graph::randomSchedules(uint32_t s, const AdditionalFwdEdges &ae) const {
+  return subGraphPartitioned(randomSchedule(s, ae));
 }
 
 OpIds Graph::controlDependencyInOps(OpId opId) const {
@@ -442,27 +547,117 @@ OpIds Graph::controlDependencyOutOps(OpId opId) const {
   return op(opId).controlDependencyOutOps();
 }
 
-FwdEdgeMap Graph::getSparseForwardEdgeMap_u64(const OpIds &opIds) const {
+FwdEdgeMap
+Graph::getSparseForwardEdgeMap_u64(const OpIds &opIds,
+                                   const AdditionalFwdEdges &ae) const {
+
+  BiDirEdgeMap nonControlEdges;
+
+  // Data dependencies.
+  for (auto id : opIds) {
+    for (auto out : dataDependencyOutOps(id)) {
+      nonControlEdges.insert(id, out);
+    }
+  }
+
+  // Additional dependencies.
+  for (const auto &[f, t] : ae.fwdEdges()) {
+    nonControlEdges.insert(f, t);
+  }
+
+  // Derived graph class dependencies.
+  for (const auto &[from, tos] :
+       schedulableDerivedSpecificConstraints(opIds)) {
+    for (auto to : tos) {
+      nonControlEdges.insert(from, to);
+    }
+  }
+
+  // Control dependencies. The complexity in the following code is for
+  // handling the constraint-phobic ops: we must transfer all the control
+  // dependency constraints which start or end at constraint-phobic ops.
+  //
+  // First, we initialize the control dependency edges from this graph:
+
+  BiDirEdgeMap nxtControlEdges;
+  BiDirEdgeMap allStartEdges = nonControlEdges;
+  for (auto f : opIds) {
+    for (auto t : op(f).controlDependencyOutOps()) {
+      nxtControlEdges.insert(f, t);
+      allStartEdges.insert(f, t);
+    }
+  }
+
+  // Second, while there is a control dependency involving a control
+  // dependency, we transfer it:
+  BiDirEdgeMap controlEdges;
+
+  bool constraintPhobicOpHandled{true};
+  while (constraintPhobicOpHandled) {
+
+    std::swap(controlEdges, nxtControlEdges);
+    nxtControlEdges = BiDirEdgeMap{};
+
+    constraintPhobicOpHandled = false;
+    for (const auto &[f, t] : controlEdges.fwdEdges()) {
+
+      // If the constraint has a starting op which is constraints phobic, then
+      // slide the start back to all inputs. What we're guaranteeing here is
+      // that all indirect constraints registered so far will still be
+      // satisfied after the transfers.
+      if (op(f).isConstraintPhobic()) {
+        constraintPhobicOpHandled = true;
+        if (f != t) {
+          for (auto fPrime : allStartEdges.bwdEdges(f)) {
+            nxtControlEdges.insert(fPrime, t);
+          }
+        }
+      }
+
+      // If the constraint has an ending op which is constraints phobic, then
+      // slide the end forward to all its outputs. What we're guaranteeing
+      // here is that all indirect constraints registered so far will still be
+      // satisfied after the transfers.
+      else if (op(t).isConstraintPhobic()) {
+        constraintPhobicOpHandled = true;
+        for (auto tPrime : allStartEdges.fwdEdges(t)) {
+          nxtControlEdges.insert(f, tPrime);
+        }
+      }
+
+      // what is a control edge is constraint phobic at both start and end?
+      // The end will be transferred in a subsequent iteration of this
+      // while-loop.
+
+      else {
+        nxtControlEdges.insert(f, t);
+      }
+    }
+  }
+
+  // No control dependencies start or end at constraint-phobic ops now. How do
+  // we know this while loop will ever terminate? Because the graph is a dag,
+  // and all transfers from constraint-phobic starts towards the beginning of
+  // the dag and and constraint-phobic ends towards the dag's end.
 
   FwdEdgeMap fwdEdgeMap(opIds);
-
-  for (auto id : opIds) {
-    const auto outs = allOutOps(id);
-    fwdEdgeMap.reserve(id, outs.size());
-    for (auto out : outs) {
-      fwdEdgeMap.insertEdge(id, out);
+  for (const auto &m : {nonControlEdges, controlEdges}) {
+    for (auto [f, t] : m.fwdEdges()) {
+      fwdEdgeMap.insertEdge(f, t);
     }
   }
 
   return fwdEdgeMap;
 }
 
-FwdEdgeMap Graph::getForwardEdgeMap_u64() const {
-  return getSparseForwardEdgeMap_u64(common::multiout::Graph::opIds());
+FwdEdgeMap Graph::getForwardEdgeMap_u64(const AdditionalFwdEdges &ae) const {
+  return getSparseForwardEdgeMap_u64(common::multiout::Graph::opIds(), ae);
 }
 
-FwdEdgeMap Graph::getForwardEdgeMap_u64(SubGraphId sgId) const {
-  return getSparseForwardEdgeMap_u64(opIds(sgId));
+FwdEdgeMap
+Graph::getSubGraphForwardEdgeMap_u64(SubGraphId sgId,
+                                     const AdditionalFwdEdges &ae) const {
+  return getSparseForwardEdgeMap_u64(opIds(sgId), ae);
 }
 
 SubGraphIds Graph::subGraphIds(const TensorIds &ids) const {
@@ -487,11 +682,12 @@ SubGraphId Graph::subGraphId(const TensorId &id) const {
 
 SubGraphId Graph::subGraphId(OpId i) const { return op(i).subGraphId(); }
 
-OpIds Graph::mayBeFinals(SubGraphId subGraphId) const {
+OpIds Graph::mayBeFinals(SubGraphId subGraphId,
+                         const AdditionalFwdEdges &ae) const {
   OpIds tailEnders;
   const auto ids = opIds(subGraphId);
   for (auto id : ids) {
-    if (allOutOps(id).size() == 0) {
+    if (allOutOps(id).size() == 0 && ae.isSource(id) == 0) {
       tailEnders.push_back(id);
     }
   }

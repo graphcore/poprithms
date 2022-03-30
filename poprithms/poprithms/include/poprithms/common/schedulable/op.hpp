@@ -88,12 +88,36 @@ public:
     return controlDependencyOutOps_;
   }
 
+  bool isControlDependencyInOp(OpId opId) const {
+    return std::find(controlDependencyInOps_.cbegin(),
+                     controlDependencyInOps_.cend(),
+                     opId) != controlDependencyInOps_.cend();
+  }
+  bool isControlDependencyOutOp(OpId opId) const {
+    return std::find(controlDependencyOutOps_.cbegin(),
+                     controlDependencyOutOps_.cend(),
+                     opId) != controlDependencyOutOps_.cend();
+  }
+
   SubGraphId subGraphId() const { return subGraphId_; }
+
+  /**
+   * If this op is 'constrant phobic', constraints are transferred to the
+   * nearest non-phobic ops during scheduling. One use case for this is when
+   * making a distinction between ops which do computation, and those which
+   * are are view-changing or initialization only. In this case, it might make
+   * sense to transfer control dependencies from view-changing ops to
+   * surrounding compute ops before scheduling, and so we'd make view-changing
+   * ops 'constraint phobic'. This allows all compute (non-phobic) ops to
+   * still have the same relative constraints to each other, while freeing up
+   * the view-changing ops to be scheduled anywhere.
+   */
+  virtual bool isConstraintPhobic() const = 0;
 
 private:
   SubGraphId subGraphId_;
 
-  // ALL control dependencies, including the data dependencies.
+  // These are no data dependencies here, only control dependencies:
   OpIds controlDependencyInOps_;
   OpIds controlDependencyOutOps_;
   bool

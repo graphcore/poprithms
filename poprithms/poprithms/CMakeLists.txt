@@ -71,6 +71,7 @@ add_library(poprithms-common-multiout SHARED
 
 set(common_schedulable_sources
   ${src_dir}/common/schedulable/op.cpp
+  ${src_dir}/common/schedulable/bidiredgemap.cpp
   ${src_dir}/common/schedulable/error.cpp
   ${src_dir}/common/schedulable/graph.cpp
   ${src_dir}/common/schedulable/subgraphid.cpp

@@ -61,6 +61,8 @@ public:
       : schedulable::Op(s), callees_(callees), inCopies_(inCopies),
         outCopies_(outCopies) {}
 
+  bool isConstraintPhobic() const final { return false; }
+
   std::string typeString() const final;
 
   std::unique_ptr<multiout::Op> cloneMultioutOp() const final;
@@ -113,6 +115,11 @@ public:
 
   const Op &op(OpId id) const {
     return static_cast<const Op &>(multioutOp(id));
+  }
+
+  std::map<OpId, OpIds>
+  schedulableDerivedSpecificConstraints(const OpIds &) const final {
+    return {};
   }
 
   // insert a "normal" op which has no callees.
