@@ -1,11 +1,12 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#include <iostream>
 #include <sstream>
 
 #include <testutil/autodiff/testgraphinfo.hpp>
 
 #include <poprithms/autodiff/guide/guide.hpp>
 #include <poprithms/autodiff/guide/objective.hpp>
+#include <poprithms/autodiff/guide/traversals.hpp>
+#include <poprithms/common/multiout/ioindices.hpp>
 #include <poprithms/error/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -14,12 +15,13 @@ using namespace poprithms;
 using namespace poprithms::autodiff;
 using poprithms::autodiff::test::TestGraphInfo;
 
+using poprithms::common::multiout::InIndices;
+using poprithms::common::multiout::OutIndices;
+
 void baseTest(const TestGraphInfo &testGraph,
               const autodiff::guide::Objective &objective,
               OpIds expectedToRerun,
               TensorIds expectedWithGrads) {
-
-  std::cout << testGraph << std::endl;
 
   guide::Guide guide_(objective, testGraph);
 
@@ -242,13 +244,13 @@ void test3() {
   // no inputs to op0 and op1:
   testGraph.insertNoFlow({}, "op0");
   testGraph.insertNoFlow({}, "op1");
-  //           inputs      n-outs
-  //              |           |  required inputs for autodiff
-  //              |           |  |   required outputs for autodiff
-  //              |           |  |   |        gradient flows
-  //              |           |  |   |              |               name
-  //              |           |  |   |              |                 |
-  //        ===============  ==  ==  ==   ========================   =====
+  //      inputs      n-outs
+  //         |           |  required inputs for autodiff
+  //         |           |  |   required outputs for autodiff
+  //         |           |  |   |        gradient flows
+  //         |           |  |   |              |               name
+  //         |           |  |   |              |                 |
+  //   ===============  ==  ==  ==   ========================   =====
   testGraph.insert(
       {{{0, 0}, {1, 0}}, 1, {}, {}, {{0, InIndex(1)}, {0, 0}}, "op2"});
   testGraph.insert(
@@ -316,6 +318,81 @@ void test3() {
   }
 }
 
+void testTraversals0() {
+
+  TestGraphInfo testGraph;
+  // arguments are:
+  //     inputs
+  //     |  n-outs
+  //     |  |  required inputs for autodiff
+  //     |  |  |  required outputs for autodiff
+  //     |  |  |  |  gradient flows
+  //     |  |  |  |  |  name
+  //     |  |  |  |  |  |
+  auto x0 = testGraph.insert({{}, 1, {}, {}, {}, "x0"});
+  auto x1 = testGraph.insert({{}, 1, {}, {}, {}, "x1"});
+
+  // 2 inputs, 2 outputs, all possible gradient flows
+  auto fullFlow = [&testGraph](TensorId in0, TensorId in1) -> OpId {
+    return testGraph.insert(
+        {{in0, in1},
+         2,
+         {},
+         {},
+         {{OutIndex(0), InIndex(1)}, {0, 0}, {1, 0}, {1, 1}},
+         "x2"});
+  };
+
+  //
+  //  x0 --+   +== x2 --+
+  //       +===+        +--x4
+  //  x1 --+   +== x3 --+
+  //
+
+  auto x2 = fullFlow({x0, 0}, {x1, 0});
+  auto x3 = fullFlow({x0, 0}, {x1, 0});
+  auto x4 = fullFlow({x2, 0}, {x3, 1});
+
+  auto dx4_0 = testGraph.insert({{}, 1, {}, {}, {}, "x0"});
+
+  auto objective =
+      guide::Objective::inGraph({{x4, 0}},          // grads in for
+                                {{x0, 0}, {x1, 0}}, // checkpoints
+                                {{x0, 0}},          // target
+                                {{dx4_0, 0}});      // grad in
+
+  guide::Traversals travs(objective, testGraph);
+
+  // The traversals:
+  // ((in=0,op=2,out=0),
+  //  (in=0,op=3,out=1),
+  //  (in=0,op=4,out=0),
+  //  (in=1,op=4,out=0))
+
+  if (travs.inIndicesTraversed(x4) != InIndices{0, 1}) {
+    throw poprithms::test::error(
+        "x4's 0'th output is the 'loss'. Both of x4's inputs effect x4's "
+        "0'th output, and are on a path from the target of differentation.");
+  }
+
+  if (travs.outIndicesTraversed(x4) != OutIndices{0}) {
+    throw poprithms::test::error("x4's 0'th output is the 'loss', and the "
+                                 "it's 1'st output leads nowhere");
+  }
+
+  if (travs.outIndicesTraversed(x3) != OutIndices{1} ||
+      travs.inIndicesTraversed(x3) != InIndices{0}) {
+    throw poprithms::test::error("x3 is traversed on exacly 1 path from "
+                                 "target to loss: input 0 to output 1");
+  }
+
+  if (travs.outIndicesTraversed(x2) != OutIndices{0} ||
+      travs.inIndicesTraversed(x2) != InIndices{0}) {
+    throw poprithms::test::error("x3 is traversed on exacly 1 path from "
+                                 "target to loss: input 0 to output 0");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -323,5 +400,6 @@ int main() {
   test1();
   test2();
   test3();
+  testTraversals0();
   return 0;
 }
