@@ -12,6 +12,38 @@
 namespace poprithms {
 namespace util {
 
+using Parameters = StringColumn::Parameters;
+
+Parameters &Parameters::delimiter(char c) {
+  delimiter_ = c;
+  return *this;
+}
+
+Parameters &Parameters::alignType(Align a) {
+  alignType_ = a;
+  return *this;
+}
+
+Parameters &Parameters::thresholdWidth(uint64_t t) {
+  thresholdWidth_ = t;
+  return *this;
+}
+
+Parameters &Parameters::abridgeToSingleRow(bool a) {
+  abridgeToSingleRow_ = a;
+  return *this;
+}
+
+StringColumn::StringColumn(const std::string &title,
+                           const std::vector<std::string> &entries,
+                           const Parameters &p)
+    : StringColumn(title,
+                   entries,
+                   p.delimiter(),
+                   p.alignType(),
+                   p.thresholdWidth(),
+                   p.abridgeToSingleRow()) {}
+
 StringColumn::StringColumn(const std::string &t,
                            const std::vector<std::string> &entries,
                            char delimiter,

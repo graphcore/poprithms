@@ -75,6 +75,18 @@ public:
 
   bool isRemoved(T t) const { return !isRetainedMask.at(get_u64(t)); }
 
+  std::vector<T> toRemove() const {
+    std::vector<T> notRetained;
+    notRetained.reserve(isRetainedMask.size() - toFullset.size());
+    for (uint64_t i = 0; i < isRetainedMask.size(); ++i) {
+      if (!isRetainedMask[i]) {
+        notRetained.push_back(i);
+      }
+    }
+
+    return notRetained;
+  }
+
 private:
   std::vector<T> toFullset;
   std::vector<T> toSubset;

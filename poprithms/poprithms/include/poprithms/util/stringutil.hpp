@@ -39,32 +39,68 @@ struct StringColumn {
   enum class Align { Left = 0, Right };
 
   /**
+   * Parameters controlling the geometry of a column.
+   * */
+  class Parameters {
+
+  public:
+    Parameters() = default;
+
+    /**
+     * The character which is used to fill the line between the title and the
+     * entries.
+     * */
+    Parameters &delimiter(char c);
+    char delimiter() const { return delimiter_; }
+
+    /**
+     * How the column should be aligned.
+     * */
+    Parameters &alignType(Align);
+    Align alignType() const { return alignType_; }
+
+    /**
+     * The maximum width that an entry in the column can have. Entries which
+     * exceed this length will be abridged (the center characters will be
+     * removed) if #abridegeToSingleRow is true, else they will run over
+     * mutiple lines.
+     * */
+    Parameters &thresholdWidth(uint64_t t);
+    uint64_t thresholdWidth() const { return thresholdWidth_; }
+
+    /**
+     * If an entry exceeds #thresholdWidth, then it will either be abridged
+     * (center removed) or it will run over multiple rows.
+     * */
+    bool abridgeToSingleRow() const { return abridgeToSingleRow_; }
+    Parameters &abridgeToSingleRow(bool a);
+
+  private:
+    char delimiter_{'-'};
+    Align alignType_{Align::Left};
+    uint64_t thresholdWidth_{100};
+    bool abridgeToSingleRow_{false};
+  };
+
+  /**
    * A column in an aligned table.
    *
    * \param title The title of the column
    *
    * \param entries All of the rows (excluding the title) of the column
    *
-   * \param delimiter The character which is used to fill the line between the
-   *                  title and the entries
-   *
-   * \param alignType How the column should be aligned
-   *
-   * \param thresholdWidth The maximum width that an entry in the column can
-   *                       have. Entries which exceed this length will be
-   *                       abridged (the center characters will be removed) if
-   *                       #abridegeToSingleRow is true, else they will run
-   *                       over mutiple lines.
-   *
-   * \param abridgeToSingleRow If an entry exceeds #thresholdWidth, then it
-   *                           will either be abridged (center removed) or it
-   *                           will run over multiple rows.
+   * \param parameters The geometry of the column
    * */
+
+  StringColumn(const std::string &title,
+               const std::vector<std::string> &entries,
+               const Parameters &);
+
   StringColumn(const std::string &title,
                const std::vector<std::string> &entries,
                char delimiter          = '-',
                Align alignType         = Align::Left,
-               uint64_t thresholdWidth = 160,
+               uint64_t thresholdWidth = 100,
                bool abridgeToSingleRow = false);
 
   const std::string &title() const { return title_; }
