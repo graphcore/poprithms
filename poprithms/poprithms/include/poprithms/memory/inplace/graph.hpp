@@ -40,6 +40,8 @@ using memory::nest::Region;
 using ndarray::Dimension;
 using ndarray::Dimensions;
 using ndarray::Shape;
+using poprithms::common::multiout::ContiguousInIndexSubset;
+using poprithms::common::multiout::ContiguousOutIndexSubset;
 using Lower = ndarray::Shape::Lower;
 using Upper = ndarray::Shape::Upper;
 using common::multiout::ConsumptionId;
@@ -98,6 +100,8 @@ public:
   Graph(const Graph &) = default;
   Graph &operator=(Graph &&) = default;
   Graph &operator=(const Graph &) = default;
+
+  void verifyMultioutDerivedGraphValid() const final {}
 
   /** Subsample a Tensor in a specified Region. \sa Region */
   TensorId settSample(const TensorId &, const Region &);
@@ -455,9 +459,9 @@ private:
     unimplemented();
   }
 
-  void multiOutTypeSpecificVerifyValidOutputSubstitute(
-      const TensorId &,
-      const TensorId &) const final {
+  void
+  multiOutTypeSpecificVerifyValidSubstitute(const TensorId &,
+                                            const TensorId &) const final {
     // TODO(T49501)
     unimplemented();
   }
@@ -519,6 +523,22 @@ private:
   // Dynamically cast to an AliasGate.
   AliasGate &asAliasGate(OpId);
   const AliasGate &asAliasGate(OpId) const;
+
+  void
+  multiOutTypeSpecificRemoveInputs(OpId,
+                                   const ContiguousInIndexSubset &) final {
+
+    // TODO(T49501)
+    unimplemented();
+  }
+
+  void multiOutTypeSpecificRemoveOutputs(OpId,
+                                         const ContiguousOutIndexSubset &,
+                                         const OptionalTensorIds &) final {
+
+    // TODO(T49501)
+    unimplemented();
+  }
 };
 
 std::ostream &operator<<(std::ostream &, const Graph &);

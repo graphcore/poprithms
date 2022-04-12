@@ -54,15 +54,6 @@ public:
 
   void growUnwind(FullState &u) const;
 
-  void
-  removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) final {
-    unimplemented();
-  }
-
-  void removeSchedulableDerivedInputs(const ContiguousInIndexSubset &) final {
-    unimplemented();
-  }
-
   // Create the host Tensors of the output of this op.
   virtual void fwd(FullState &) const = 0;
 

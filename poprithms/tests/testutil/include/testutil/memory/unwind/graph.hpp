@@ -12,6 +12,7 @@
 namespace poprithms {
 namespace unwindtoy {
 
+using common::multiout::OptionalTensorIds;
 using poprithms::common::multiout::InIndices;
 
 class FullState;
@@ -24,6 +25,8 @@ class FullState;
  * required.
  * */
 class Graph : public poprithms::common::schedulable::Graph {
+
+  void verifySchedulableDerivedGraphValid() const final {}
 
 public:
   Op::State getStartingState(const OpId opId,
@@ -45,6 +48,14 @@ public:
     return insertOp(std::make_unique<T>(
         getStartingState(nOps_i64(), inIds, outShapes), args...));
   }
+
+  void
+  multiOutTypeSpecificRemoveInputs(OpId,
+                                   const ContiguousInIndexSubset &) final {}
+
+  void multiOutTypeSpecificRemoveOutputs(OpId,
+                                         const ContiguousOutIndexSubset &,
+                                         const OptionalTensorIds &) final {}
 
   ~Graph() override;
 
@@ -105,9 +116,9 @@ public:
   }
 
   // we won't be doing any substition in this test graph class.
-  void schedulableTypeSpecificVerifyValidOutputSubstitute(
-      const TensorId &,
-      const TensorId &) const final {
+  void
+  schedulableTypeSpecificVerifyValidSubstitute(const TensorId &,
+                                               const TensorId &) const final {
     unimplemented();
   }
 

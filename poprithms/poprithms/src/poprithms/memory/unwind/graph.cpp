@@ -417,7 +417,7 @@ Op &Graph::op(OpId a) { return static_cast<Op &>(multioutOp(a)); }
 
 void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
 
-  auto cols = getMultioutColumns(opIds);
+  auto cols = getMultioutColumns(opIds, {});
   std::vector<std::string> copyAttractors(nMultioutRows(), "");
 
   uint64_t ti = 0;
@@ -432,7 +432,7 @@ void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
     }
   }
 
-  cols.push_back({"Attractors", copyAttractors});
+  cols.push_back({"Attractors", copyAttractors, {}});
   ost << alignedColumns(cols);
 }
 

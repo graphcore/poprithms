@@ -34,6 +34,16 @@ std::ostream &operator<<(std::ostream &ost, const OptionalTensorIds &ids) {
   return ost;
 }
 
+std::vector<OptionalTensorId>
+OptionalTensorId::fromTensorIds(const TensorIds &tIds) {
+  std::vector<OptionalTensorId> otIds;
+  otIds.reserve(tIds.size());
+  for (const auto &tId : tIds) {
+    otIds.push_back(tId);
+  }
+  return otIds;
+}
+
 } // namespace multiout
 } // namespace common
 } // namespace poprithms

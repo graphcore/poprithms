@@ -141,6 +141,14 @@ public:
   /** \return The Shapes of the outputs of the Op #id. */
   Shapes outShapes(OpId id) const;
 
+  /** \return All InIndices of Op #id. These are [0, ..., nInTensors(opId)).
+   */
+  InIndices inIndices(OpId id) const;
+
+  /** \return All OutIndices of Op #id. These are [0, ..., nOutTensors(opId)).
+   */
+  OutIndices outIndices(OpId) const;
+
   /**
    * The output TensorIds of Op #id.
    * These are simply TensorId(id, o) for o in [0, nOutTensors).
@@ -207,7 +215,7 @@ public:
 
   /**
    * Consider a table summarising the Graph, where for each Tensor, and for
-   * each Op without any output, there is a row of information.
+   * each Op without any output, there is one row of information.
    *
    * This method returns the columns of such a table. The table might be,
    *
@@ -218,18 +226,24 @@ public:
    *                             1        (1,2)
    *                             2        (1,1,1)
    *
-   * if there are 2 Ops, one with 0 outputs and one with 3 outputs. Each of
-   * the 5 columns will then have 6 strings in it. The first column will have
+   * in the case where there are 2 Ops, one with 0 outputs and one with 3
+   * outputs. Each of the 5 columns will then have 6 strings in it. The first
+   * column will have
    * ("OpId ", "---- ", "0    ", "1    ", "     ", "     ", "     "), etc.
    *
+   * The spacing, column width, and other aspects of the layout of the
+   * columns are controlled by #format.
+   *
    * */
-  std::vector<poprithms::util::StringColumn> getMultioutColumns() const;
+  std::vector<poprithms::util::StringColumn> getMultioutColumns(
+      const poprithms::util::StringColumn::Parameters &format) const;
 
   /**
    * Get the multiout columns (see above) of a subset of the Ops.
    * */
   std::vector<poprithms::util::StringColumn>
-  getMultioutColumns(const OpIds &) const;
+  getMultioutColumns(const OpIds &,
+                     const poprithms::util::StringColumn::Parameters &) const;
 
   /**
    * Append a summary of the Ops in #opIds to the stream #ost.
@@ -270,7 +284,7 @@ public:
    * which creates #tId exists and has an #tId as an output. If not, a
    * descriptive error is thrown.
    * */
-  void confirmValidTensorId(const TensorId &tId) const;
+  void verifyValidTensorId(const TensorId &tId) const;
 
   /**
    * \return A string summarizing the Ops which have been removed.
@@ -349,21 +363,56 @@ public:
    * */
   void removeInputs(OpId toPrune, const InIndices &toRemove);
 
+private:
+  /**
+   * \sa removeInputs.
+   *
+   * Perform the removal work of derived graph classes, with method is called
+   * into by #removeInputs.
+   *
+   * \param toPrune the op whose inputs must be removed.
+   *
+   * \param coin describes which input indices should have their inputs
+   *             removed. This object provides utility methods for removing
+   *             elements from vectors are the specified indices.
+   * */
+  virtual void
+  multiOutTypeSpecificRemoveInputs(OpId toPrune,
+                                   const ContiguousInIndexSubset &coin) = 0;
+
+public:
+  void replaceInput(OpId toChange, InIndex, const TensorId &sub);
+
   /**
    * Remove the outputs at indices #toRemove from the Op #toPrune.
    *
-   * \param outputSubstitutes the Tensors to be used inplace of the removed
-   *        output Tensors. Specifically, ops which consume the outputs at
-   *        indices #toRemove should consume #outputSubstitutes instead. See
-   *        #removeOp for more information on how substitutes work.
+   * \param outputSubstitutes the Tensors to replace the removed output
+   *                          Tensors. Specifically, ops which consume the
+   *                          outputs of #toPrune at indices #toRemove will
+   *                          consume #outputSubstitutes instead. See
+   *                          #removeOp for more information on how
+   *                          substitutes work.
    *
    * The outputs at retained output indices are shifted down to fill the gaps
    * created. For example, if output 0 is removed, then output 1 becomes the
-   * new output at index 0. This change is propagated to all consumers.
+   * new output at index 0. This change in indices is propagated to all
+   * consumers.
+   *
+   * This method calls #multiOutTypeSpecificRemoveOutputs to perform the work
+   * of inheriting graph classes.
    * */
   void removeOutputs(OpId toPrune,
                      const OutIndices &toRemove,
                      const OptionalTensorIds &outputSubstitutes);
+
+private:
+  /**
+   * \sa removeOutputs, multiOutTypeSpecificRemoveInputs.
+   * */
+  virtual void
+  multiOutTypeSpecificRemoveOutputs(OpId,
+                                    const ContiguousOutIndexSubset &,
+                                    const OptionalTensorIds &subs) = 0;
 
 private:
   /**
@@ -390,38 +439,52 @@ public:
   /**
    * Verify that 'after' is a valid replacement for 'before'. For example,
    * 'before' and 'after' must have the same Shape. Derived classes might have
-   * Tensors with additional attributes, and for these the method
-   * 'multiOutTypeSpecificVerifyValidOutputSubstitute' must define what is a
-   * valid replacement.
+   * Tensors with additional attributes, for which
+   * 'multiOutTypeSpecificVerifyValidSubstitute' defines whether a replacement
+   * is valid.
    * */
-  void verifyValidOutputSubstitute(const TensorId &before,
-                                   const TensorId &after) const;
+  void verifyValidSubstitute(const TensorId &before,
+                             const TensorId &after) const;
 
-  void verifyValidOutputSubstitutes(
-      OpId toRemove,
-      const OptionalTensorIds &outputSubstitutes) const;
+  void
+  verifyValidSubstitutes(OpId toRemove,
+                         const OptionalTensorIds &outputSubstitutes) const;
 
-  /** \sa verifyValidOutputSubstitute */
-  virtual void multiOutTypeSpecificVerifyValidOutputSubstitute(
-      const TensorId &before,
-      const TensorId &after) const = 0;
+  /** \sa verifyValidSubstitute */
+  virtual void
+  multiOutTypeSpecificVerifyValidSubstitute(const TensorId &before,
+                                            const TensorId &after) const = 0;
 
-  /** Methods to access Ops in this Graph as multiout::Ops. */
   Op &multioutOp(OpId id) { return op(id); }
   const Op &multioutOp(OpId id) const { return op(id); }
 
   /**
-   * Verify that this Graph is in a valid state, by checking the correctness
-   * of the producer/consumer relationships between Ops.
+   * Verify that all aspects of the graph are correct. For this (base class)
+   * graph there are checks that the consumer-producer relationships are all
+   * valid. Derived graph classes implement checks in
+   * #verifyMultioutDerivedGraphValid, which this method calls into.
    * */
-  void assertMultioutGraphCorrectness() const;
+  void verifyValid() const;
 
 private:
+  /**
+   * Verify that the produced/consumer connections of op #opId are valid.
+   * */
+  void verifyMultioutConnections(OpId) const;
+
   /**
    * Derived classes must define what it means to be equivalent in this
    * virtual method.
    * */
   virtual bool multiOutTypeSpecificEqualTo(const Graph &) const = 0;
+
+  /**
+   * \sa verifyValid.
+   * */
+  virtual void verifyMultioutDerivedGraphValid() const = 0;
+
+  /** Methods to access Ops in this Graph as multiout::Ops. */
+  Op &nonConstMultioutOp(OpId id) { return op(id); }
 
   /**
    * Return the  id'th Op in the member variable \a ops, performing checks

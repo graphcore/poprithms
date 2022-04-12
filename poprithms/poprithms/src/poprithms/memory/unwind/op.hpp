@@ -114,14 +114,6 @@ private:
 
   bool
   multiOutTypeSpecificEqualTo(const common::multiout::Op &other) const final;
-
-  void removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) final {
-    unimplemented();
-  }
-
-  void removeMultioutDerivedInputs(const ContiguousInIndexSubset &) final {
-    unimplemented();
-  }
 };
 
 std::ostream &operator<<(std::ostream &, const Op &);

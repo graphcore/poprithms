@@ -195,22 +195,14 @@ public:
   std::vector<OutIndex> outIndicesConsumed() const;
 
   /**
-   * Remove the inputs described by #indMapper. See Graph::removeInputs for
-   * more information.
-   * */
-  void removeInputs(const ContiguousInIndexSubset &indMapper);
+   * All the InIndices of Op #id. These are [0, ..., nInTensors()).
+   */
+  InIndices inIndices() const;
 
   /**
-   * Remove the outputs described by #indMapper. See Graph::removeOutputs for
-   * more information.
-   * */
-  void removeOutputs(const ContiguousOutIndexSubset &indMapper);
-
-  virtual void
-  removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) = 0;
-
-  virtual void
-  removeMultioutDerivedInputs(const ContiguousInIndexSubset &) = 0;
+   * All the OutIndices of Op #id. These are [0, ..., nOutTensors()).
+   */
+  OutIndices outIndices() const;
 
   /**
    * \sa multiOutTypeSpecificEqualTo. */
@@ -291,9 +283,7 @@ private:
    * */
   virtual bool multiOutTypeSpecificEqualTo(const Op &other) const = 0;
 
-  void insertConsumptionId(OutIndex o, const ConsumptionId &c) {
-    consumptionIds_[o.get()].push_back(c);
-  }
+  void insertConsumptionId(OutIndex o, const ConsumptionId &c);
 
   /**
    * Remove #toRemove as a ConsumptionId of the output tensor at #o. If

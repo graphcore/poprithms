@@ -23,6 +23,8 @@ namespace poprithms {
 namespace memory {
 namespace unwind {
 
+using common::multiout::ContiguousInIndexSubset;
+using common::multiout::ContiguousOutIndexSubset;
 using common::multiout::InIndices;
 using common::multiout::OpIds;
 using common::multiout::OptionalTensorIds;
@@ -764,7 +766,7 @@ public:
   /**
    * A utility method for Ops such as dynamicSlice, where the input layout
    * should be determined from the output layout, and will use the
-   * createSliceableTensorSlice poplibs API.
+   * createSliceableTensorFromSlice poplibs API.
    *
    *
    * Consider a dynamic slice:
@@ -1062,12 +1064,26 @@ private:
     unimplemented();
   }
 
-  void multiOutTypeSpecificVerifyValidOutputSubstitute(
-      const TensorId &,
-      const TensorId &) const final {
+  void
+  multiOutTypeSpecificVerifyValidSubstitute(const TensorId &,
+                                            const TensorId &) const final {
     // TODO(T49502)
     unimplemented();
   }
+
+  void
+  multiOutTypeSpecificRemoveInputs(OpId,
+                                   const ContiguousInIndexSubset &) final {
+    unimplemented();
+  }
+
+  void multiOutTypeSpecificRemoveOutputs(OpId,
+                                         const ContiguousOutIndexSubset &,
+                                         const OptionalTensorIds &) final {
+    unimplemented();
+  }
+
+  void verifyMultioutDerivedGraphValid() const final {}
 
   Op &op(OpId);
   const Op &op(OpId) const;

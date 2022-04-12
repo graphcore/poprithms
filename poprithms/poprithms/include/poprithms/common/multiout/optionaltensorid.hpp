@@ -65,6 +65,8 @@ public:
     return !operator>(rhs);
   }
 
+  static std::vector<OptionalTensorId> fromTensorIds(const TensorIds &tIds);
+
 private:
   TensorId id;
   bool isSet{false};

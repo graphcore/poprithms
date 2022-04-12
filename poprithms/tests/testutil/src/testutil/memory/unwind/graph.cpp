@@ -64,8 +64,8 @@ OpId Graph::insertBinBoundary(poprithms::common::schedulable::SubGraphId) {
 
 void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
 
-  auto cols  = getMultioutColumns(opIds);
-  auto cols1 = getSchedulableColumns(opIds);
+  auto cols  = getMultioutColumns(opIds, {});
+  auto cols1 = getSchedulableColumns(opIds, {});
   cols.insert(cols.end(), cols1.cbegin(), cols1.cend());
   ost << alignedColumns(cols);
 }

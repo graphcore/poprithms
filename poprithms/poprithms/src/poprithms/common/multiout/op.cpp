@@ -16,6 +16,36 @@ namespace poprithms {
 namespace common {
 namespace multiout {
 
+void Op::insertConsumptionId(OutIndex o, const ConsumptionId &c) {
+  if (c.opId() == id()) {
+    std::ostringstream oss;
+    oss << "Invalid ConsumptionId " << c << " for of " << id() << "(" << *this
+        << "). An op cannot consume its own output. ";
+    throw error(oss.str());
+  }
+
+  auto &cs = consumptionIds_.at(o.get());
+  if (std::find(cs.cbegin(), cs.cend(), c) == cs.cend()) {
+    cs.push_back(c);
+  }
+}
+
+InIndices Op::inIndices() const {
+  InIndices inIndices_(nInTensors());
+  for (uint64_t i = 0; i < nInTensors(); ++i) {
+    inIndices_[i] = InIndex(i);
+  }
+  return inIndices_;
+}
+
+OutIndices Op::outIndices() const {
+  OutIndices outIndices_(nOutTensors());
+  for (uint64_t i = 0; i < nOutTensors(); ++i) {
+    outIndices_[i] = OutIndex(i);
+  }
+  return outIndices_;
+}
+
 void Op::unimplemented() const {
   std::ostringstream oss;
   oss << "This method for this class derived from multiout::Op "
@@ -24,20 +54,6 @@ void Op::unimplemented() const {
       << "'. typeid of class (typeid(*this).name) is " << typeid(*this).name()
       << '.';
   throw error(oss.str());
-}
-
-void Op::removeInputs(const ContiguousInIndexSubset &indexMapper) {
-  removeMultioutDerivedInputs(indexMapper);
-  indexMapper.reduce(inIds_);
-}
-
-void Op::removeOutputs(const ContiguousOutIndexSubset &indexMapper) {
-
-  removeMultioutDerivedOutputs(indexMapper);
-
-  // take only the outShapes_ and consumptionIds_ at the retained indices.
-  indexMapper.reduce(outShapes_);
-  indexMapper.reduce(consumptionIds_);
 }
 
 TensorIds Op::inTensorIds(const InIndices &indices) const {

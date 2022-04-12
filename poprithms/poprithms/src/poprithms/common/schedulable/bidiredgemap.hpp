@@ -46,7 +46,6 @@ public:
 private:
   // forward edges
   std::map<OpId, OpIds> fwds;
-
   // backward edges (the reverse of forward edges)
   std::map<OpId, OpIds> bwds;
 };

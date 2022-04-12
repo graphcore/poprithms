@@ -48,7 +48,6 @@ void removal0() {
 }
 
 void checkPostRemovalCopies() {
-
   Graph g;
   const auto gid = g.createSubGraphId("g0");
   const auto in0 = g.insert({}, 1, gid, "in0");
@@ -83,6 +82,7 @@ void checkPostRemovalCopies() {
 //  {} -> {0} -> {0,1} -> {0} -> {} -> {2} -> {2,3} -> {2} -> {}
 void removal1() {
   Graph g;
+
   const auto gid = g.createSubGraphId("g0");
   for (uint64_t i = 0; i < 2; ++i) {
     const auto in0 = g.insert({}, 1, gid, {});
@@ -113,6 +113,7 @@ void removal1() {
 }
 
 void removal2() {
+
   Graph g;
   const auto gid = g.createSubGraphId("g0");
   const auto in0 = g.insert({}, 1, gid, {});
@@ -131,10 +132,11 @@ void removal2() {
     throw error(oss.str());
   }
 
-  g.assertSchedulableGraphCorrectness();
+  g.verifyValid();
 }
 
 void catchBadOpId0() {
+
   Graph g;
   const auto gid = g.createSubGraphId("g0");
   const auto in0 = g.insert({}, 1, gid, {});
@@ -158,6 +160,7 @@ void catchBadOpId0() {
 }
 
 void removal3() {
+
   Graph g;
   const auto gid = g.createSubGraphId("g0");
   const auto in0 = g.insert({}, 2, gid, {});
@@ -207,7 +210,7 @@ void removal4() {
     }
     g.propagateControlDependencies(
         toRemove1, Graph::ControlDependencyPropagationType::ConserveLocally);
-    g.removeOp(toRemove1, {TensorId(subst, 0)}, "removal4");
+    g.removeOp(toRemove1, {}, "removal4");
     g.removeOp(toRemove0, {TensorId(subst, 0)}, "removal5");
 
     bool caught{false};
@@ -227,6 +230,7 @@ void removal4() {
 }
 
 void compare0() {
+
   Graph g;
   const auto gid = g.createSubGraphId("g0");
   g.insert({}, 1, gid, {});
@@ -240,7 +244,7 @@ void compare0() {
     throw error("at this point the graphs are not the same, not even same "
                 "number of ops. failed test");
   }
-  g.removeOp(b, {}, {});
+  g.removeOp(b, {{}}, {});
   if (gc == g) {
     throw error("at this point the graphs are still not the same, even "
                 "though they are the same DAG. removed ops leave a trace");
@@ -248,6 +252,7 @@ void compare0() {
 }
 
 void testAdditionalConstraints0() {
+
   // Graph with 10 ops, with no data or control deps. Constraints are provided
   // as AdditionalFwdEdges, pinning the schedule down completely.
   Graph g;

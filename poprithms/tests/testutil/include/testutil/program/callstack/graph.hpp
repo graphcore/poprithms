@@ -53,6 +53,8 @@ using namespace poprithms::common;
  * */
 class Op : public schedulable::Op {
 
+  friend class Graph;
+
 public:
   Op(const schedulable::Op::State &s,
      const SubGraphIds &callees,
@@ -66,18 +68,6 @@ public:
   std::string typeString() const final;
 
   std::unique_ptr<multiout::Op> cloneMultioutOp() const final;
-
-  /**
-   * Remove the copy-outs at specified output indices (and remove indices,
-   * shifting other output indices down as necessary to keep contiguous
-   * indices). */
-  void removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &);
-
-  /**
-   * Remove the copy-ins at specified input indices (and remove indices,
-   * shifting other input indices down as necessary to keep contiguous
-   * indices). */
-  void removeSchedulableDerivedInputs(const ContiguousInIndexSubset &);
 
   const CopyIns &inCopies() const { return inCopies_; }
   const CopyOuts &outCopies() const { return outCopies_; }
@@ -102,13 +92,17 @@ private:
  * A minimal completion of the abstract schedulable::Graph class which allows
  * ops to have callees, and copies into and out of the callees.
  * */
-class Graph : public schedulable::Graph {
+class Graph final : public schedulable::Graph {
+
+  void verifySchedulableDerivedGraphValid() const final {}
 
 private:
   schedulable::Op::State getState(const TensorIds &ins,
                                   uint64_t nOut,
                                   SubGraphId,
                                   const std::string &name) const;
+
+  Op &mutableOp(OpId id) { return static_cast<Op &>(multioutOp(id)); }
 
 public:
   using schedulable::Graph::removeOp;
@@ -154,11 +148,19 @@ private:
     // nothing to do: no new attributes.
   }
 
-  void schedulableTypeSpecificVerifyValidOutputSubstitute(
-      const TensorId &,
-      const TensorId &) const final {
+  void
+  schedulableTypeSpecificVerifyValidSubstitute(const TensorId &,
+                                               const TensorId &) const final {
     // nothing to do: no new attributes.
   }
+
+  void
+  multiOutTypeSpecificRemoveInputs(OpId,
+                                   const ContiguousInIndexSubset &) final;
+
+  void multiOutTypeSpecificRemoveOutputs(OpId,
+                                         const ContiguousOutIndexSubset &,
+                                         const OptionalTensorIds &) final;
 };
 
 std::ostream &operator<<(std::ostream &, const Graph &);

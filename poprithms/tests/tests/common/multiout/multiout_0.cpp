@@ -50,12 +50,10 @@ private:
   bool multiOutTypeSpecificEqualTo(const multiout::Op &) const final {
     return true;
   };
-
-  void removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &) final {}
-  void removeMultioutDerivedInputs(const ContiguousInIndexSubset &) final {}
 };
 
 class Graph : public multiout::Graph {
+
 public:
   multiout::OpId insert(const TensorIds &inIds, uint64_t nOuts) {
     const Shapes outShapes(nOuts, Shape({1}));
@@ -70,15 +68,25 @@ public:
   void appendOpColumns(std::ostream &, const OpIds &) const final;
 
 private:
+  void verifyMultioutDerivedGraphValid() const final {}
+
   bool multiOutTypeSpecificEqualTo(const multiout::Graph &) const final {
     return true;
   }
 
   void multiOutTypeSpecificRemoveOp(OpId, const OptionalTensorIds &) final {}
 
-  void multiOutTypeSpecificVerifyValidOutputSubstitute(
-      const TensorId &,
-      const TensorId &) const final {}
+  void
+  multiOutTypeSpecificVerifyValidSubstitute(const TensorId &,
+                                            const TensorId &) const final {}
+
+  void
+  multiOutTypeSpecificRemoveInputs(OpId,
+                                   const ContiguousInIndexSubset &) final {}
+
+  void multiOutTypeSpecificRemoveOutputs(OpId,
+                                         const ContiguousOutIndexSubset &,
+                                         const OptionalTensorIds &) final {}
 };
 
 } // namespace test
@@ -122,7 +130,7 @@ void test0() {
 }
 
 void test::Graph::appendOpColumns(std::ostream &ost, const OpIds &ids) const {
-  const auto c = getMultioutColumns(ids);
+  const auto c = getMultioutColumns(ids, {});
   ost << alignedColumns(c);
 }
 
@@ -149,7 +157,7 @@ void testLogging0() {
   g.insert({}, 0);
   std::cout << g << std::endl;
 
-  const auto outCols = g.getMultioutColumns();
+  const auto outCols = g.getMultioutColumns({});
   if (outCols.empty()) {
     throw poprithms::test::error("No multiout columns in test");
   }
@@ -300,7 +308,7 @@ void testTraversal1() {
 void verifyEdges(const test::Graph &g, const std::map<OpId, TensorIds> &ins) {
 
   // verify that consumers and outputs and inputs all agree.
-  g.assertMultioutGraphCorrectness();
+  g.verifyValid();
 
   for (const auto &[op, inTensors] : ins) {
     if (g.nInTensors(op) != inTensors.size()) {

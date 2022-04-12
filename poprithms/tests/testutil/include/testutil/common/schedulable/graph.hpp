@@ -38,16 +38,7 @@ public:
   std::string typeString() const final;
   std::unique_ptr<multiout::Op> cloneMultioutOp() const final;
 
-  void
-  removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) final {
-    // nothing to do: no new attributes.
-  }
-
   bool isConstraintPhobic() const final { return phobic_; }
-
-  void removeSchedulableDerivedInputs(const ContiguousInIndexSubset &) final {
-    // nothing to do: no new attributes.
-  }
 
 private:
   bool
@@ -62,6 +53,8 @@ private:
 class Graph final : public schedulable::Graph {
 public:
   using schedulable::Graph::removeOp;
+
+  void verifySchedulableDerivedGraphValid() const final {}
 
   OpId insert(const TensorIds &ins,
               uint64_t nOut,
@@ -81,6 +74,14 @@ public:
     return {};
   }
 
+  void
+  multiOutTypeSpecificRemoveInputs(OpId,
+                                   const ContiguousInIndexSubset &) final {}
+
+  void multiOutTypeSpecificRemoveOutputs(OpId,
+                                         const ContiguousOutIndexSubset &,
+                                         const OptionalTensorIds &) final {}
+
   virtual ~Graph() override;
   void appendOpColumns(std::ostream &, const OpIds &) const final;
 
@@ -97,9 +98,9 @@ private:
     // nothing to do: no new attributes.
   }
 
-  void schedulableTypeSpecificVerifyValidOutputSubstitute(
-      const TensorId &,
-      const TensorId &) const final {
+  void
+  schedulableTypeSpecificVerifyValidSubstitute(const TensorId &,
+                                               const TensorId &) const final {
     // nothing to do: no new attributes.
   }
 };

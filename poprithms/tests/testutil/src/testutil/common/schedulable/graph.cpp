@@ -44,8 +44,8 @@ OpId Graph::insert(const TensorIds &ins,
 Graph::~Graph() = default;
 
 void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
-  auto cols = getMultioutColumns(opIds);
-  for (auto c : getSchedulableColumns(opIds)) {
+  auto cols = getMultioutColumns(opIds, {});
+  for (auto c : getSchedulableColumns(opIds, {})) {
     cols.push_back(c);
   }
   ost << alignedColumns(cols);

@@ -220,6 +220,13 @@ public:
       const AdditionalFwdEdges & = NoAdditionalFwdEdges()) const;
 
   /**
+   * return true if this graph, with the additional constraints provided in
+   * #afe, is acyclical.
+   * */
+  bool
+  isSchedulable(const AdditionalFwdEdges &afe = NoAdditionalFwdEdges()) const;
+
+  /**
    * In some situations, redundant constraints can be removed from a Graph
    * without increasing the number of possible schedules. This can be useful
    * to accelerate operations which are O(Edges).
@@ -293,7 +300,7 @@ public:
    * Assert that the tensors in #tIds are in the sub-graph #sgId. If they are
    * not, a descriptive error is thrown.
    * */
-  void assertSubGraphId(const TensorIds &tIds, SubGraphId sgId) const;
+  void verifySubGraphId(const TensorIds &tIds, SubGraphId sgId) const;
 
   /**
    * return all Ops with #subGraphId which can be scheduled last. That is,
@@ -341,18 +348,24 @@ private:
   OpIds allOutOps(OpId opId) const;
 
 public:
-  std::vector<poprithms::util::StringColumn>
-  getSchedulableColumns(const OpIds &) const;
+  /**
+   * \sa poprithms::common::multiout::Graph::getMultioutColumns
+   * */
+  std::vector<poprithms::util::StringColumn> getSchedulableColumns(
+      const OpIds &,
+      const poprithms::util::StringColumn::Parameters &) const;
 
-  std::vector<poprithms::util::StringColumn> getSchedulableColumns() const {
-    return getSchedulableColumns(multiout::Graph::opIds());
-  }
+  std::vector<poprithms::util::StringColumn> getSchedulableColumns(
+      const poprithms::util::StringColumn::Parameters &p) const;
+
+  void verifySchedulableOp(OpId) const;
 
   /**
    * Verify that this Graph is in a valid state, including all state inherited
    * from base classes.
    * */
-  void assertSchedulableGraphCorrectness() const;
+  void verifyMultioutDerivedGraphValid() const final;
+  virtual void verifySchedulableDerivedGraphValid() const = 0;
 
   const Op &schedulableOp(OpId opId) const { return op(opId); }
 
@@ -391,7 +404,7 @@ protected:
       const OptionalTensorIds &outputSubstitutes) = 0;
 
   // replacements must be in the same sub-graph.
-  virtual void schedulableTypeSpecificVerifyValidOutputSubstitute(
+  virtual void schedulableTypeSpecificVerifyValidSubstitute(
       const TensorId &before,
       const TensorId &after) const = 0;
 
@@ -405,7 +418,7 @@ private:
       const OptionalTensorIds &outputSubstitutes) final;
 
   // This method will remove
-  void multiOutTypeSpecificVerifyValidOutputSubstitute(
+  void multiOutTypeSpecificVerifyValidSubstitute(
       const TensorId &before,
       const TensorId &after) const final;
 

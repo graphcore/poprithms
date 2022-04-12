@@ -102,7 +102,7 @@ public:
   SubGraphId subGraphId() const { return subGraphId_; }
 
   /**
-   * If this op is 'constrant phobic', constraints are transferred to the
+   * If this op is 'constraint phobic', constraints are transferred to the
    * nearest non-phobic ops during scheduling. One use case for this is when
    * making a distinction between ops which do computation, and those which
    * are are view-changing or initialization only. In this case, it might make
@@ -140,33 +140,6 @@ private:
 
   /** Remove an output control dependency, if it exists (else do nothing). */
   void removeControlDependencyOut(OpId);
-
-  virtual void
-  removeSchedulableDerivedOutputs(const ContiguousOutIndexSubset &) = 0;
-
-  virtual void
-  removeSchedulableDerivedInputs(const ContiguousInIndexSubset &) = 0;
-
-  void
-  removeMultioutDerivedOutputs(const ContiguousOutIndexSubset &coin) final {
-    // There's no schedulable op specific work, as there are no output
-    // specific attributes in this class:
-    {}
-
-    // call into derived class method
-    removeSchedulableDerivedOutputs(coin);
-  }
-
-  void
-  removeMultioutDerivedInputs(const ContiguousInIndexSubset &coin) final {
-
-    // There's no schedulable op specific work, as there are no input
-    // specific attributes in this class:
-    {}
-
-    // call into derived class method
-    removeSchedulableDerivedInputs(coin);
-  }
 
   // only the schedulable::Graph can modify an op after it's constructed, no
   // class which inherits from it.

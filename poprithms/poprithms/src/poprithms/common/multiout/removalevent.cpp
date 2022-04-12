@@ -80,18 +80,18 @@ std::string RemovalEvents::str() const {
   }
 
   std::vector<util::StringColumn> cols;
-  cols.push_back({"op id", opId});
+  cols.push_back({"op id", opId, {}});
 
   if (std::any_of(
           name.cbegin(), name.cend(), [](auto &&x) { return !x.empty(); })) {
-    cols.push_back({"op name", name});
+    cols.push_back({"op name", name, {}});
   }
 
-  cols.push_back({"n-ops created when removed", creations});
+  cols.push_back({"n-ops created when removed", creations, {}});
 
   if (std::any_of(
           ctxt.cbegin(), ctxt.cend(), [](auto &&x) { return !x.empty(); })) {
-    cols.push_back({"context", ctxt});
+    cols.push_back({"context", ctxt, {}});
   }
 
   return util::alignedColumns(cols);

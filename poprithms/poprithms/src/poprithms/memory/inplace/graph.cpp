@@ -683,7 +683,7 @@ void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
   const auto nTens     = nMultioutRows(opIds);
   const auto aliasedTo = aGraph().allAliases();
 
-  auto cols = getMultioutColumns(opIds);
+  auto cols = getMultioutColumns(opIds, {});
 
   using Strings = std::vector<std::string>;
 
@@ -713,9 +713,9 @@ void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
     }
   }
 
-  cols.push_back({"TensorId", tensorId__});
-  cols.push_back({"InOps", inOps__});
-  cols.push_back({"Type", tensorType__});
+  cols.push_back({"TensorId", tensorId__, {}});
+  cols.push_back({"InOps", inOps__, {}});
+  cols.push_back({"Type", tensorType__, {}});
 
   // Only add logging about which Tensors self-alias if any of them actually
   // do.
@@ -723,7 +723,7 @@ void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
           selfAliases__.cbegin(), selfAliases__.cend(), [](const auto &x) {
             return x.find("yes") != std::string::npos;
           })) {
-    cols.push_back({"SelfAliases", aliasedTo__});
+    cols.push_back({"SelfAliases", aliasedTo__, {}});
   }
 
   // Only add logging about which Tensors contain constants if any of them
@@ -732,7 +732,7 @@ void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
           constants__.cbegin(), constants__.cend(), [](const auto &x) {
             return x.find("yes") != std::string::npos;
           })) {
-    cols.push_back({"Constant", constants__});
+    cols.push_back({"Constant", constants__, {}});
   }
 
   ost << alignedColumns(cols);

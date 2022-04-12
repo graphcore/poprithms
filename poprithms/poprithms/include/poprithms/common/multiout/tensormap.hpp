@@ -45,7 +45,7 @@ public:
    * Get the Value corresponding to the Tensor #tId.
    * */
   Value getValue(const TensorId &tId) const {
-    assertValidTensorId(tId);
+    verifyValidTensorId(tId);
     return values[tId.opId().get()][tId.outIndex().get()];
   }
 
@@ -53,7 +53,7 @@ public:
    * Get the Value (by non-const ref) corresponding to the Tensor #tId.
    * */
   Value &operator[](const TensorId &tId) {
-    assertValidTensorId(tId);
+    verifyValidTensorId(tId);
     return values[tId.opId().get()][tId.outIndex().get()];
   }
 
@@ -73,12 +73,12 @@ public:
    * Set the Value corresponding to the Tensor #tId to #v.
    * */
   void setValue(const TensorId &tId, const Value &v) {
-    assertValidTensorId(tId);
+    verifyValidTensorId(tId);
     values[tId.opId().get()][tId.outIndex().get()] = v;
   }
 
   void setValues(OpId opId, const Values &vs) {
-    assertValidOpId(opId);
+    verifyValidOpId(opId);
     values[opId.get()] = vs;
   }
 
@@ -86,12 +86,12 @@ public:
    * Set the Value corresponding to the Tensor #tId to #v.
    * */
   void setValue(const TensorId &tId, Value &&v) {
-    assertValidTensorId(tId);
+    verifyValidTensorId(tId);
     values[tId.opId().get()][tId.outIndex().get()] = std::move(v);
   }
 
 private:
-  void assertValidOpId(OpId opId) const {
+  void verifyValidOpId(OpId opId) const {
 
     if (values.size() <= opId.get()) {
       throw poprithms::error::error(
@@ -103,11 +103,11 @@ private:
   /**
    * Assert that the Tensor #tId has a Value stored for it.
    * */
-  void assertValidTensorId(const TensorId &tId) const {
+  void verifyValidTensorId(const TensorId &tId) const {
     uint64_t opId     = tId.opId().get();
     uint64_t outIndex = tId.outIndex().get();
 
-    assertValidOpId(opId);
+    verifyValidOpId(opId);
 
     if (values[opId].size() <= outIndex) {
       throw poprithms::error::error(

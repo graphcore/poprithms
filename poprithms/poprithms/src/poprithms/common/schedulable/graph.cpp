@@ -28,13 +28,18 @@ namespace poprithms {
 namespace common {
 namespace schedulable {
 
-void Graph::multiOutTypeSpecificVerifyValidOutputSubstitute(
+std::vector<poprithms::util::StringColumn> Graph::getSchedulableColumns(
+    const poprithms::util::StringColumn::Parameters &p) const {
+  return getSchedulableColumns(multiout::Graph::opIds(), p);
+}
+
+void Graph::multiOutTypeSpecificVerifyValidSubstitute(
     const TensorId &before,
     const TensorId &after) const {
 
-  schedulableTypeSpecificVerifyValidOutputSubstitute(before, after);
+  schedulableTypeSpecificVerifyValidSubstitute(before, after);
 
-  assertSubGraphId({before}, subGraphId(after));
+  verifySubGraphId({before}, subGraphId(after));
 }
 
 // something faster TODO(T42434)
@@ -87,14 +92,21 @@ bool Graph::hasUniqueSchedule(SubGraphId sgId,
   return true;
 }
 
-void Graph::assertSubGraphId(const TensorIds &tIds,
+bool Graph::isSchedulable(const AdditionalFwdEdges &afe) const {
+
+  using namespace schedule;
+  return vanilla::Query<uint64_t>::isSchedulable(
+      getForwardEdgeMap_u64(afe).fwdEdgesCompact(), vanilla::VerifyEdges::No);
+}
+
+void Graph::verifySubGraphId(const TensorIds &tIds,
                              SubGraphId subGraphId) const {
   if (!tIds.empty() && subGraphIdFromTensorIds(tIds) != subGraphId) {
     std::ostringstream oss;
     oss << "\nThe SubGraphIds of the Tensors " << tIds << " are "
         << subGraphIds(tIds)
-        << ", but the target SubGraphId in assertSubGraphId is " << subGraphId
-        << ": Invalid SubGraphId in assertion, ";
+        << ", but the target SubGraphId in verifySubGraphId is " << subGraphId
+        << ": Invalid SubGraphId in verifyion, ";
     throw error(oss.str());
   }
 }
@@ -671,9 +683,15 @@ SubGraphIds Graph::subGraphIds(const TensorIds &ids) const {
 
 // We could consider keeping an additional datastructre (a field in
 // SubGraphState) which partitions OpIds by Graph, but in my (PopART)
-// experience it's often that this partition is needed.
+// experience it's not often that this partition is needed.
 OpIds Graph::opIds(SubGraphId subGraphId_) const {
-  return subGraphStates.at(subGraphId_.get_u64()).ops();
+  OpIds opIds_;
+  for (auto id : subGraphStates.at(subGraphId_.get_u64()).ops()) {
+    if (isLive(id)) {
+      opIds_.push_back(id);
+    }
+  }
+  return opIds_;
 }
 
 SubGraphId Graph::subGraphId(const TensorId &id) const {
@@ -716,7 +734,8 @@ void Graph::simplifyLinks() {
 }
 
 std::vector<poprithms::util::StringColumn>
-Graph::getSchedulableColumns(const OpIds &opIds) const {
+Graph::getSchedulableColumns(const OpIds &opIds,
+                             const util::StringColumn::Parameters &p) const {
 
   std::vector<poprithms::util::StringColumn> cols;
 
@@ -745,9 +764,9 @@ Graph::getSchedulableColumns(const OpIds &opIds) const {
     }
   }
 
-  cols.push_back({"Graph", std::move(sg__)});
+  cols.push_back({"Graph", std::move(sg__), p});
   if (hasNonDataIns) {
-    cols.push_back({"NonDataIns", std::move(nonDataIns__)});
+    cols.push_back({"NonDataIns", std::move(nonDataIns__), p});
   }
   return cols;
 }
@@ -762,24 +781,51 @@ TensorIds Graph::tensorIds(SubGraphId subGraphId) const {
   return tensorIds;
 }
 
-void Graph::assertSchedulableGraphCorrectness() const {
+void Graph::verifySchedulableOp(OpId opId) const {
 
-  // check the base class is in a correct state:
-  assertMultioutGraphCorrectness();
-
-  for (auto opId : multiout::Graph::opIds()) {
-
-    for (auto out_ : allOutOps(opId)) {
-
-      if (subGraphId(out_) != subGraphId(opId)) {
-        std::ostringstream oss;
-        oss << "There is a topological constraint, " << opId << " -> " << out_
-            << ", but these 2 ops are not in the same sub graph. "
-            << " Correctness assertion failed. ";
-        throw error(oss.str());
-      }
+  // sub-graphs of inputs must match op.
+  for (const auto t : inTensorIds(opId)) {
+    if (subGraphId(t) != subGraphId(opId)) {
+      std::ostringstream oss;
+      oss << "Invalid sub-graphs for inputs to " << op(opId)
+          << ". All inputs must be in the same sub-graph as the ops "
+          << "sub-graph, " << subGraphId(opId);
+      throw error(oss.str());
     }
   }
+
+  // cannot have a constraint between ops in different graphs.
+  for (auto out_ : allOutOps(opId)) {
+    if (subGraphId(out_) != subGraphId(opId)) {
+      std::ostringstream oss;
+      oss << "There is a topological constraint, " << opId << " -> " << out_
+          << ", but these 2 ops are not in the same sub-graph. "
+          << " Correctness verification failed. ";
+      throw error(oss.str());
+    }
+  }
+
+  // agreement on the 2 ends of the constraint.
+  for (auto opBefore : controlDependencyInOps(opId)) {
+    auto afters = controlDependencyOutOps(opBefore);
+    if (std::find(afters.cbegin(), afters.cend(), opId) == afters.cend()) {
+      std::ostringstream oss;
+      oss << "The op " << op(opId) << " has " << op(opBefore)
+          << " as an input control dependency, but " << op(opBefore)
+          << " does not have " << op(opId)
+          << " as an output control dependency.";
+      throw error(oss.str());
+    }
+  }
+}
+
+void Graph::verifyMultioutDerivedGraphValid() const {
+
+  for (auto opId : multiout::Graph::opIds()) {
+    verifySchedulableOp(opId);
+  }
+
+  verifySchedulableDerivedGraphValid();
 }
 
 SubGraphIds Graph::asSubGraphIds(const std::vector<uint64_t> &i) const {

@@ -23,8 +23,8 @@ OpId Graph::insertBinBoundary(schedulable::SubGraphId sgId) {
 
 void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds_) const {
 
-  auto cols = getMultioutColumns(opIds_);
-  for (auto c : getSchedulableColumns(opIds_)) {
+  auto cols = getMultioutColumns(opIds_, {});
+  for (auto c : getSchedulableColumns(opIds_, {})) {
     cols.push_back(c);
   }
 
@@ -48,8 +48,8 @@ void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds_) const {
     }
   }
 
-  cols.push_back({"Copy Sources", std::move(copySources__)});
-  cols.push_back({"Copy Destinations", std::move(copyDestinations__)});
+  cols.push_back({"Copy Sources", std::move(copySources__), {}});
+  cols.push_back({"Copy Destinations", std::move(copyDestinations__), {}});
 
   ost << alignedColumns(cols);
 }
@@ -61,15 +61,19 @@ std::string Op::typeString() const {
   return oss.str();
 }
 
-void Op::removeSchedulableDerivedOutputs(
-    const ContiguousOutIndexSubset &coin) {
-  outCopies_.reduce(coin);
+void Graph::multiOutTypeSpecificRemoveOutputs(
+    OpId opId,
+    const ContiguousOutIndexSubset &coin,
+    const OptionalTensorIds &) {
+  mutableOp(opId).outCopies_.reduce(coin);
 }
 
-void Op::removeSchedulableDerivedInputs(const ContiguousInIndexSubset &coin) {
-  auto copies = inCopies_.copyIns();
+void Graph::multiOutTypeSpecificRemoveInputs(
+    OpId opId,
+    const ContiguousInIndexSubset &coin) {
+  auto copies = mutableOp(opId).inCopies_.copyIns();
   coin.reduce(copies);
-  inCopies_ = CopyIns(copies);
+  mutableOp(opId).inCopies_ = CopyIns(copies);
 }
 
 schedulable::Op::State Graph::getState(const TensorIds &ins,
