@@ -1,4 +1,5 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+#include <algorithm>
 #include <sstream>
 
 #include <poprithms/error/error.hpp>
@@ -194,6 +195,50 @@ void testContainsSubsequence0() {
   testContainsSubsequenceBase(p, {0, 1}, false);
 }
 
+void testEnumeratePermutations0() {
+  {
+    const auto x0 = poprithms::util::enumeratePermutations(0);
+    if (x0.size() != 1 || x0[0].size() != 0) {
+      throw poprithms::test::error(
+          "Incorrect enumeration of length-0 permutations");
+    }
+  }
+
+  {
+    const auto x0 = poprithms::util::enumeratePermutations(1);
+    if (x0.size() != 1 || x0[0] != std::vector<uint32_t>{0}) {
+      throw poprithms::test::error(
+          "Incorrect enumeration of length-1 permutations");
+    }
+  }
+
+  {
+    const auto x0 = poprithms::util::enumeratePermutations(3);
+    if (x0.size() != 6) {
+      throw poprithms::test::error(
+          "Incorrect enumeration of length-3 permutations, there should be "
+          "3! = 6 of them.");
+    }
+
+    for (std::vector<uint32_t> p :
+         std::vector<std::vector<uint32_t>>{{0, 1, 2},
+                                            {0, 2, 1},
+                                            {1, 0, 2},
+                                            {1, 2, 0},
+                                            {2, 0, 1},
+                                            {2, 1, 0}}) {
+
+      if (std::find(x0.begin(), x0.end(), p) == x0.cend()) {
+        std::ostringstream oss;
+        oss << "Incorrect enumeration of length-3 permutations, "
+            << "failed to find ";
+        poprithms::util::append(oss, p);
+        throw poprithms::test::error(oss.str());
+      }
+    }
+  }
+}
+
 } // namespace
 
 int main() {
@@ -204,5 +249,6 @@ int main() {
   testDimShufflePartial1();
   testSubsequence();
   testContainsSubsequence0();
+  testEnumeratePermutations0();
   return 0;
 }

@@ -253,6 +253,12 @@ private:
 
 std::ostream &operator<<(std::ostream &, const Permutation &);
 
+/**
+ * Get all permutations of the digits [0,1,...L). There are L! such
+ * permutations.
+ * */
+std::vector<std::vector<uint32_t>> enumeratePermutations(uint32_t L);
+
 } // namespace util
 } // namespace poprithms
 

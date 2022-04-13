@@ -318,5 +318,38 @@ Permutation Permutation::pow(int64_t p) const {
   return s;
 }
 
+std::vector<std::vector<uint32_t>> enumeratePermutations(uint32_t N) {
+
+  // N! (N factorial).
+  uint64_t expectedSize = 1;
+  for (uint64_t n = 2; n <= N; ++n) {
+    expectedSize *= n;
+  }
+
+  std::vector<std::vector<uint32_t>> partials{{}};
+
+  // Will contain sequences with 1 fewer digit than partials.
+  std::vector<std::vector<uint32_t>> previousPartials;
+
+  partials.reserve(expectedSize);
+  previousPartials.reserve(expectedSize);
+
+  for (uint64_t n = 0; n < N; ++n) {
+    std::swap(previousPartials, partials);
+    partials.clear();
+    for (const auto &previousPartial : previousPartials) {
+      for (uint64_t i = 0; i < N; ++i) {
+        if (std::find(previousPartial.cbegin(), previousPartial.cend(), i) ==
+            previousPartial.cend()) {
+          auto x = previousPartial;
+          x.push_back(i);
+          partials.push_back(x);
+        }
+      }
+    }
+  }
+  return partials;
+}
+
 } // namespace util
 } // namespace poprithms

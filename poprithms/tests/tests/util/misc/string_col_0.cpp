@@ -63,8 +63,8 @@ void test0() {
 
 void test1() {
 
-  auto x =
-      alignedColumns({{"col0", {"asdf", "f"}}, {"col1", {"a", "bumble"}}});
+  auto x = alignedColumns(
+      {{"col0", {"asdf", "f"}, {}}, {"col1", {"a", "bumble"}, {}}});
 
   if (count(x, " \n") != 0) {
     throw poprithms::test::error(
