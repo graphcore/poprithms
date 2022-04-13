@@ -59,15 +59,21 @@ public:
 
   bool constrainWeightSeparatedGroups() const;
 
-  void processWeightSeparatedIdenticalIns(
-      const std::vector<OpAddress> &opsWithIdenticalIns,
-      std::vector<std::array<OpAddress, 2>> &cons) const;
-
 private:
   Graph &graph;
   const transitiveclosure::TransitiveClosure &transitiveClosure;
   const std::vector<AllocWeight> &lowerBoundChange;
   const std::vector<AllocWeight> &upperBoundChange;
+
+  // A class for recording which ops are visited during depth-first search,
+  // used to accelerate the inner loop of one of the optimization passes.
+  class DfsVisitRecords;
+
+  // Internal method used by constrainWeightSeparatedGroups.
+  void processWeightSeparatedIdenticalIns(
+      const std::vector<OpAddress> &opsWithIdenticalIns,
+      std::vector<std::array<OpAddress, 2>> &cons,
+      DfsVisitRecords &) const;
 };
 
 } // namespace shift

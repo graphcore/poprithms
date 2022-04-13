@@ -1,5 +1,9 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
+#include "error.hpp"
+
+#include <numeric>
+
 #include <schedule/shift/transitiveclosureconstrainer.hpp>
 #include <schedule/shift/updatefromfirstfinal.hpp>
 
@@ -210,9 +214,38 @@ bool TransitiveClosureConstrainer::linkCloseTightPairs() const {
   return !newLinks.empty();
 }
 
+class TransitiveClosureConstrainer::DfsVisitRecords {
+public:
+  DfsVisitRecords(uint64_t n) : lookupTable(n, false) {}
+  void insert(OpAddress x) {
+    lookupTable[x] = true;
+    seen.push_back(x);
+  }
+  void clear() {
+    for (auto x : seen) {
+      lookupTable[x] = false;
+    }
+    seen.clear();
+  }
+
+  void assertEmpty() {
+    if (std::accumulate(lookupTable.cbegin(), lookupTable.cend(), 0ul) !=
+        0ul) {
+      throw error("DfsVisitRecords not empty, logic error");
+    }
+  }
+
+  bool contains(OpAddress x) const { return lookupTable[x]; }
+
+private:
+  std::vector<OpAddress> seen;
+  std::vector<bool> lookupTable;
+};
+
 void TransitiveClosureConstrainer::processWeightSeparatedIdenticalIns(
     const std::vector<OpAddress> &identicalIns,
-    std::vector<std::array<OpAddress, 2>> &newConstraints) const {
+    std::vector<std::array<OpAddress, 2>> &newConstraints,
+    DfsVisitRecords &visitRecords) const {
 
   // for (a,b) can we insert a'->b for any a' which are post a?
   for (auto a : identicalIns) {
@@ -220,26 +253,32 @@ void TransitiveClosureConstrainer::processWeightSeparatedIdenticalIns(
       if (upperBoundChange[a] <= lowerBoundChange[b] && a != b) {
 
         // Here we do a depth first search, starting at b, stopping when we
-        // reach an Op with is unconstrained with respect
-        // to t a.
+        // reach an Op which is unconstrained with respect to a.
         //
         // The Ops found end up in this vector:
         std::vector<OpAddress> postBs;
+
+        // This is a stack used for the depth-first search:
         std::vector<OpAddress> toProcess{b};
-        std::vector<OpAddress> seen{b};
+
+        visitRecords.insert(b);
+
         while (!toProcess.empty()) {
           const auto nxt = toProcess.back();
           toProcess.pop_back();
           if (!transitiveClosure.constrained(a, nxt)) {
             postBs.push_back(nxt);
             for (auto out : graph.getOp(nxt).getOuts()) {
-              if (std::find(seen.cbegin(), seen.cend(), out) == seen.cend()) {
-                seen.push_back(out);
+              if (!visitRecords.contains(out)) {
                 toProcess.push_back(out);
+                visitRecords.insert(out);
               }
             }
           }
         }
+
+        // clear the scratch-pad for the next pair (a,b):
+        visitRecords.clear();
 
         auto lb = lowerBoundChange[b];
         for (auto postB : postBs) {
@@ -274,6 +313,10 @@ bool TransitiveClosureConstrainer::constrainWeightSeparatedGroups() const {
 
   std::vector<bool> processed(graph.nOps(), false);
 
+  // An object to accelerate the inner loop of the depth-first search, which
+  // will be reset and reused multiple times.
+  DfsVisitRecords visitRecords(graph.nOps());
+
   std::vector<std::array<OpAddress, 2>> newConstraints;
   for (OpAddress add0 = 0; add0 < graph.nOps(); ++add0) {
     if (processed[add0]) {
@@ -288,8 +331,13 @@ bool TransitiveClosureConstrainer::constrainWeightSeparatedGroups() const {
       continue;
     }
 
-    processWeightSeparatedIdenticalIns(identicalIns, newConstraints);
+    processWeightSeparatedIdenticalIns(
+        identicalIns, newConstraints, visitRecords);
   }
+
+  // A check that the scratch-pad object was correctly reset after every
+  // iteration of its use.
+  visitRecords.assertEmpty();
 
   for (auto constraint : newConstraints) {
     auto from = std::get<0>(constraint);
