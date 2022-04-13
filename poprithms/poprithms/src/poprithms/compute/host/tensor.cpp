@@ -27,6 +27,66 @@ namespace poprithms {
 namespace compute {
 namespace host {
 
+template Tensor Tensor::tMoveVector<int64_t>(const Shape &,
+                                             std::vector<int64_t> &&);
+template Tensor Tensor::tCopyVector<int64_t>(const Shape &,
+                                             const std::vector<int64_t> &);
+
+template Tensor Tensor::tMoveVector<int32_t>(const Shape &,
+                                             std::vector<int32_t> &&);
+template Tensor Tensor::tCopyVector<int32_t>(const Shape &,
+                                             const std::vector<int32_t> &);
+
+template Tensor Tensor::tMoveVector<int16_t>(const Shape &,
+                                             std::vector<int16_t> &&);
+template Tensor Tensor::tCopyVector<int16_t>(const Shape &,
+                                             const std::vector<int16_t> &);
+
+template Tensor Tensor::tMoveVector<int8_t>(const Shape &,
+                                            std::vector<int8_t> &&);
+template Tensor Tensor::tCopyVector<int8_t>(const Shape &,
+                                            const std::vector<int8_t> &);
+
+template Tensor Tensor::tMoveVector<uint64_t>(const Shape &,
+                                              std::vector<uint64_t> &&);
+template Tensor Tensor::tCopyVector<uint64_t>(const Shape &,
+                                              const std::vector<uint64_t> &);
+
+template Tensor Tensor::tMoveVector<uint32_t>(const Shape &,
+                                              std::vector<uint32_t> &&);
+template Tensor Tensor::tCopyVector<uint32_t>(const Shape &,
+                                              const std::vector<uint32_t> &);
+
+template Tensor Tensor::tMoveVector<uint16_t>(const Shape &,
+                                              std::vector<uint16_t> &&);
+template Tensor Tensor::tCopyVector<uint16_t>(const Shape &,
+                                              const std::vector<uint16_t> &);
+
+template Tensor Tensor::tMoveVector<uint8_t>(const Shape &,
+                                             std::vector<uint8_t> &&);
+template Tensor Tensor::tCopyVector<uint8_t>(const Shape &,
+                                             const std::vector<uint8_t> &);
+
+template Tensor Tensor::tMoveVector<bool>(const Shape &,
+                                          std::vector<bool> &&);
+template Tensor Tensor::tCopyVector<bool>(const Shape &,
+                                          const std::vector<bool> &);
+
+template Tensor Tensor::tMoveVector<double>(const Shape &,
+                                            std::vector<double> &&);
+template Tensor Tensor::tCopyVector<double>(const Shape &,
+                                            const std::vector<double> &);
+
+template Tensor Tensor::tMoveVector<float>(const Shape &,
+                                           std::vector<float> &&);
+template Tensor Tensor::tCopyVector<float>(const Shape &,
+                                           const std::vector<float> &);
+
+template Tensor Tensor::tMoveVector<IeeeHalf>(const Shape &,
+                                              std::vector<IeeeHalf> &&);
+template Tensor Tensor::tCopyVector<IeeeHalf>(const Shape &,
+                                              const std::vector<IeeeHalf> &);
+
 std::ostream &operator<<(std::ostream &ost, CommutativeOp cop) {
   ost << str(cop);
   return ost;

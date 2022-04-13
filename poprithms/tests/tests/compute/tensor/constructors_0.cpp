@@ -152,11 +152,30 @@ void testCheckErrors1() {
 }
 
 void testTemplateConstructors0() {
-
   auto d = Tensor::tensor<uint64_t>({2}, {199, 8001});
   auto e = Tensor::unsigned64({2}, {199, 8001});
   assert(d.dtype() == e.dtype());
   d.assertAllEquivalent(e);
+
+  std::vector<std::pair<Tensor, DType>> tensorsAndExpectedTypes{
+      {Tensor::tensor<uint32_t>({}, {0}), DType::Unsigned32},
+      {Tensor::tensor<uint16_t>({}, {0}), DType::Unsigned16},
+      {Tensor::tensor<uint8_t>({}, {0}), DType::Unsigned8},
+      {Tensor::tensor<int64_t>({}, {0}), DType::Int64},
+      {Tensor::tensor<int32_t>({}, {0}), DType::Int32},
+      {Tensor::tensor<int16_t>({}, {0}), DType::Int16},
+      {Tensor::tensor<int8_t>({}, {0}), DType::Int8},
+      {Tensor::tensor<float>({}, {0}), DType::Float32},
+      {Tensor::tensor<double>({}, {0}), DType::Float64}};
+
+  // What I was most interested in here was that there were no linking errors
+  // because the implementations of the template class are not exposed. But we
+  // confirm that the ranks and types are created as expected too.
+  for (auto t : tensorsAndExpectedTypes) {
+    if (t.first.rank_u64() != 0 || t.first.dtype() != t.second) {
+      throw poprithms::test::error("Incorrect rank or type");
+    }
+  }
 }
 
 } // namespace
