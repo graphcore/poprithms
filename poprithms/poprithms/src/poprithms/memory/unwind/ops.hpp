@@ -226,30 +226,6 @@ private:
   bool unwindTypeSpecificEqualTo(const Op &) const final { return true; }
 };
 
-class SliceToSliceable : public BaseBarrier {
-public:
-  SliceToSliceable(const State &st) : BaseBarrier(st) {}
-  std::string typeString() const final { return "SliceToSliceable"; }
-  UpMultioutOp cloneMultioutOp() const final {
-    return Op::mu<SliceToSliceable>(this);
-  }
-
-private:
-  bool unwindTypeSpecificEqualTo(const Op &) const final { return true; }
-};
-
-class SliceableToSlice : public BaseBarrier {
-public:
-  SliceableToSlice(const State &st) : BaseBarrier(st) {}
-  std::string typeString() const final { return "SliceableToSlice"; }
-  UpMultioutOp cloneMultioutOp() const final {
-    return Op::mu<SliceableToSlice>(this);
-  }
-
-private:
-  bool unwindTypeSpecificEqualTo(const Op &) const final { return true; }
-};
-
 class SumLikeReduce : public BaseBarrier {
 public:
   SumLikeReduce(const State &st) : BaseBarrier(st) {}
@@ -260,39 +236,6 @@ public:
 
 private:
   bool unwindTypeSpecificEqualTo(const Op &) const final { return true; }
-};
-
-class MatMulSource : public BaseBarrier {
-public:
-  MatMulSource(const State &st, const Shape &lhs, const Shape &rhs)
-      : BaseBarrier(st), lhs_(lhs), rhs_(rhs) {}
-  Shape lhs() const { return lhs_; }
-  Shape rhs() const { return rhs_; }
-
-private:
-  bool unwindTypeSpecificEqualTo(const Op &) const final;
-  Shape lhs_;
-  Shape rhs_;
-};
-
-class MatMulLhsSource : public MatMulSource {
-public:
-  MatMulLhsSource(const State &st, const Shape &lhs, const Shape &rhs)
-      : MatMulSource(st, lhs, rhs) {}
-  std::string typeString() const final { return "MatMulLhsSource"; }
-  UpMultioutOp cloneMultioutOp() const final {
-    return Op::mu<MatMulLhsSource>(this);
-  }
-};
-
-class MatMulRhsSource : public MatMulSource {
-public:
-  MatMulRhsSource(const State &st, const Shape &lhs, const Shape &rhs)
-      : MatMulSource(st, lhs, rhs) {}
-  std::string typeString() const final { return "MatMulRhsSource"; }
-  UpMultioutOp cloneMultioutOp() const final {
-    return Op::mu<MatMulRhsSource>(this);
-  }
 };
 
 } // namespace unwind

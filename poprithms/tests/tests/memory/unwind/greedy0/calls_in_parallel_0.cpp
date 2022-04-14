@@ -45,11 +45,11 @@ int main() {
   Graph g;
 
   const auto a       = g.sink({4, 5}, "a (mm-lhs)");
-  const auto aSource = g.matMulLhsSource({4, 5}, {5, 6});
+  const auto aSource = g.source({4, 5});
   g.insertValuedPair(aSource, a, 1.5);
 
   const auto b       = g.sink({5, 6}, "b (mm-rhs)");
-  const auto bSource = g.matMulRhsSource({4, 5}, {5, 6});
+  const auto bSource = g.source({5, 6});
   g.insertValuedPair(bSource, b, 2.0);
 
   // We choose to make the matmul a barrier, although it might be better to

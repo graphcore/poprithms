@@ -545,20 +545,9 @@ public:
    * These specialized barriers, will map 1:1 to a poplar API for creating a
    * poplar Tensor.
    * */
-  TensorId sliceToSliceable(const TensorId &slice, const Shape &sliceable);
-  TensorId sliceableToSlice(const TensorId &sliceable, const Shape &slice);
   TensorId sumLikeReduce(const TensorId &full, const Shape &reduced);
-  TensorId matMulLhsSource(const Shape &lhs, const Shape &rhs);
-  TensorId matMulRhsSource(const Shape &lhs, const Shape &rhs);
 
-  bool isSliceToSliceable(OpId) const;
-  bool isSliceableToSlice(OpId) const;
-  bool isMatMulLhsSource(OpId) const;
-  bool isMatMulRhsSource(OpId) const;
   bool isSumLikeReduce(OpId) const;
-
-  // TODO(T52317): neater would be separate methods for lhs and rhs.
-  std::array<Shape, 2> matmulBarrierShapes(const TensorId &) const;
 
   /**
    * Insert a ValuedPair. A ValuedPair signifies that having the same layouts
@@ -762,134 +751,6 @@ public:
   SumLikeOut sumLike(const TensorIds &ids,
                      const std::vector<InIndex> &iwInds,
                      const SumAttractions &);
-
-  /**
-   * A utility method for Ops such as dynamicSlice, where the input layout
-   * should be determined from the output layout, and will use the
-   * createSliceableTensorFromSlice poplibs API.
-   *
-   *
-   * Consider a dynamic slice:
-   *
-   *  -->---> [input]    [offset] <--<---
-   *            |          |
-   *            |          |
-   *            +--+-------+
-   *               |
-   *          dynamic_slice
-   *               |
-   *           [sliceOut] --->--->--->
-   *
-   * The poplibs API createSliceableTensorFromSlice is for setting the layout
-   * of #input based on #sliceOut, and so #sliceOut should be a sink.
-   *
-   * This is modelled in this Graph as,
-   *
-   *
-   *  --> [input]    [target]    [offset] <--<---
-   *                    ^
-   *                    |
-   *             SliceableFromSlice (a type of Barrier Op)
-   *                    ^
-   *                    |
-   *         Sink -> [sliceOut] --->--->--->
-   *
-   *  ValuedPairs
-   *  ============
-   *  (input, target, val)
-   *
-   *    */
-
-  class DynamicSliceLikeOut {
-  public:
-    DynamicSliceLikeOut(TensorId slice_, TensorId sliceableTarget_)
-        : s(slice_), t(sliceableTarget_) {}
-
-    TensorId slice() const { return s; }
-    TensorId sliceableTarget() const { return t; }
-
-  private:
-    TensorId s;
-    TensorId t;
-  };
-
-  class DynamicUpdateLikeOut {
-
-  public:
-    DynamicUpdateLikeOut(TensorId updated,
-                         TensorId updaterTarget,
-                         TensorId toUpdateTarget)
-        : updated_(updated), updaterTarget_(updaterTarget),
-          toUpdateTarget_(toUpdateTarget) {}
-
-    TensorId updated() const { return updated_; }
-
-    TensorId updaterTarget() const { return updaterTarget_; }
-    TensorId sliceTarget() const { return updaterTarget(); }
-
-    TensorId toUpdateTarget() const { return toUpdateTarget_; }
-    TensorId sliceableTarget() const { return toUpdateTarget(); }
-
-  private:
-    TensorId updated_;
-    TensorId updaterTarget_;
-    TensorId toUpdateTarget_;
-  };
-
-  DynamicSliceLikeOut dynamicSliceLike(const TensorId &toSlice,
-                                       const Shape &sliceShape,
-                                       double value);
-
-  /**
-   * A utility method for Ops such as dynamicUpdate, where you can either set
-   * the layout of the output based on the layout of this input, using the
-   * poplibs API createSliceFromSliceable, or you can set the layout of the
-   * input based on the layout of output, using the poplibs API
-   * createSliceableFromSlice.
-   *
-   * Consider the dynamic update:
-   *
-   *                       |
-   *                       |
-   *                       v
-   * --> [toUpdate]     [updater]     [offset] <---
-   *         |             |             |
-   *         |             |             |
-   *         +-------------+-------------+
-   *                       |
-   *                 dynamic_update
-   *                       |
-   *                   [updated] ---->
-   *
-   *  where the output, #updated, has the same layout as the input, #toUpdate.
-   *
-   *  This is modelled with this method as,
-   *
-   *                               |
-   *                               v
-   * --> [toUpdate] -----+     [updater]     [offset] <---
-   *         |           |         |
-   *         v           |         v
-   *  SliceFromSliceable |  SliceableFromSlice
-   *         |           |         |
-   *         v           |         v
-   *  [updaterTarget]    |  [toUpdateTarget]
-   *                     |
-   *                  Identity
-   *                     |
-   *                  [updated] ---->
-   *
-   *  ValuedPairs
-   *  ============
-   *  (toUpdate, toUpdateTarget, sliceableFromSliceValue)
-   *  (updaterTarget, updater, sliceFromSliceableValue)
-   *
-   *
-   * */
-  DynamicUpdateLikeOut dynamicUpdateLike(const TensorId &toUpdate_sliceable,
-                                         const TensorId &updater_slice,
-                                         double sliceableFromSliceValue,
-                                         double sliceFromSliceableValue);
 
   /**
    * Simulate a call from an outer source scope, which contains Tensors

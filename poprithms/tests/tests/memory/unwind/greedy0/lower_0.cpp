@@ -47,7 +47,7 @@ void basicTest0() {
 
   // Test that the layout of the slice of in5x4 used in the matmul
   // is set for the rhs of a matul:
-  fs.createMappedSrc({"rhs_MatMul"}, 0)
+  fs.createMappedSrc({"rhs_matmul"}, 0)
       .dimShuffle({{1, 0}})
       .assertAllEquivalent(fs.mainLayout(in5x4).slice({0, 0}, {5, 2}));
 
@@ -61,79 +61,6 @@ void basicTest0() {
   // for a broadcast add:
   fs.createMappedSrc({"sumLike-reduce"}, 0)
       .assertAllEquivalent(fs.mainLayout(in5x1));
-}
-
-/**
- *
- *  in0 ---+
- *         |
- *         |
- *         +------> matmul ---> out
- *         |
- *         |
- *  in1 ---+
- *
- * By toggling the attraction values, we assert that we have
- *
- * 1) linear mappings of in0 and in1 where appropriate
- * 2) mappings set by the custom input creators (createLHSInput, etc).
- * 3) out having the same mapping as in0 and/or in1 when appropriate.
- *
- *
- * \param lin0: attraction between in0 and a linearly mapped tensor
- * \param lin1: attraction between in1 and a linearly mapped tensor
- * \param mma: the 4 attractions of a matmul.
- *
- * */
-
-void testMatMulPreferences0(double lin0,
-                            double lin1,
-                            const unwindtoy::MatMulAttractions &mma) {
-
-  unwindtoy::Graph g;
-
-  auto in0 = g.input({5, 5}, lin0, "in0");
-  auto in1 = g.input({5, 5}, lin1, "in1");
-  auto out = g.matmul(in0, in1, mma);
-  std::string mmName{"mmo100"};
-  g.setName(out, mmName);
-
-  unwindtoy::FullState fs(g);
-  fs.lower();
-
-  // left hand side layout:
-  {
-
-    // createLhsInput:
-    if (mma.lhs() > mma.lhsOut() && mma.lhs() > lin0) {
-      fs.createMappedSrc({"lhs_MatMul"}, 0)
-          .assertAllEquivalent(fs.mainLayout(in0));
-    }
-
-    // match the output of the matmul to the lhs:
-    else if (mma.lhsOut() > mma.lhs() && mma.lhsOut() > lin0) {
-      fs.createMappedSrc({mmName}, 0).assertAllEquivalent(fs.mainLayout(in0));
-    }
-
-    // linearly map phs:
-    else {
-      fs.createMappedSrc({"linear", "mapper", "in0"}, 0)
-          .assertAllEquivalent(fs.mainLayout(in0));
-    }
-  }
-
-  // right hand side layout:
-  {
-    if (mma.rhs() > mma.rhsOut() && mma.rhs() > lin1) {
-      fs.createMappedSrc({"rhs_MatMul"}, 0)
-          .assertAllEquivalent(fs.mainLayout(in1));
-    } else if (mma.rhsOut() > mma.rhs() && mma.rhsOut() > lin1) {
-      fs.createMappedSrc({mmName}, 0).assertAllEquivalent(fs.mainLayout(in1));
-    } else {
-      fs.createMappedSrc({"linear", "mapper", "in1"}, 0)
-          .assertAllEquivalent(fs.mainLayout(in1));
-    }
-  }
 }
 
 void testMultiUnwind0() {
@@ -187,13 +114,86 @@ void testMultiUnwind0() {
   fs.mainLayout(in0)
       .slice({0, 1}, {5, 4})
       .assertAllEquivalent(
-          fs.createMappedSrc({"lhs_MatMul"}, 0).dimShuffle({{1, 0}}));
+          fs.createMappedSrc({"lhs_matmul"}, 0).dimShuffle({{1, 0}}));
 
   // the little slice should have a layout in preparation for
   // being added (to input 1) of the sum.
   fs.mainLayout(in0)
       .slice({0, 0}, {5, 1})
       .assertAllEquivalent(fs.createMappedSrc({"InIndex:1->0"}, 0));
+}
+
+/**
+ *
+ *  in0 ---+
+ *         |
+ *         |
+ *         +------> matmul ---> out
+ *         |
+ *         |
+ *  in1 ---+
+ *
+ * By toggling the attraction values, we assert that we have
+ *
+ * 1) linear mappings of in0 and in1 where appropriate
+ * 2) mappings set by the custom input creators (createLHSInput, etc).
+ * 3) out having the same mapping as in0 and/or in1 when appropriate.
+ *
+ *
+ * \param lin0: attraction between in0 and a linearly mapped tensor
+ * \param lin1: attraction between in1 and a linearly mapped tensor
+ * \param mma: the 4 attractions of a matmul.
+ *
+ * */
+
+void testMatMulPreferences0(double lin0,
+                            double lin1,
+                            const unwindtoy::MatMulAttractions &mma) {
+
+  unwindtoy::Graph g;
+
+  auto in0 = g.input({5, 5}, lin0, "in0");
+  auto in1 = g.input({5, 5}, lin1, "in1");
+  auto out = g.matmul(in0, in1, mma);
+  std::string mmName{"mmo100"};
+  g.setName(out, mmName);
+
+  unwindtoy::FullState fs(g);
+  fs.lower();
+
+  // left hand side layout:
+  {
+
+    // createLhsInput:
+    if (mma.lhs() > mma.lhsOut() && mma.lhs() > lin0) {
+      fs.createMappedSrc({"lhs_matmul"}, 0)
+          .assertAllEquivalent(fs.mainLayout(in0));
+    }
+
+    // match the output of the matmul to the lhs:
+    else if (mma.lhsOut() > mma.lhs() && mma.lhsOut() > lin0) {
+      fs.createMappedSrc({mmName}, 0).assertAllEquivalent(fs.mainLayout(in0));
+    }
+
+    // linearly map phs:
+    else {
+      fs.createMappedSrc({"linear", "mapper", "in0"}, 0)
+          .assertAllEquivalent(fs.mainLayout(in0));
+    }
+  }
+
+  // right hand side layout:
+  {
+    if (mma.rhs() > mma.rhsOut() && mma.rhs() > lin1) {
+      fs.createMappedSrc({"rhs_matmul"}, 0)
+          .assertAllEquivalent(fs.mainLayout(in1));
+    } else if (mma.rhsOut() > mma.rhs() && mma.rhsOut() > lin1) {
+      fs.createMappedSrc({mmName}, 0).assertAllEquivalent(fs.mainLayout(in1));
+    } else {
+      fs.createMappedSrc({"linear", "mapper", "in1"}, 0)
+          .assertAllEquivalent(fs.mainLayout(in1));
+    }
+  }
 }
 
 void testMatMulPreferences0s() {
@@ -204,10 +204,12 @@ void testMatMulPreferences0s() {
   testMatMulPreferences0(
       1, 1, unwindtoy::MatMulAttractions::Default().lhsOut(1000));
 
-  // expect lhs to mapped linearly.
-  testMatMulPreferences0(1000, 1, unwindtoy::MatMulAttractions::Default());
   testMatMulPreferences0(
       1, 1, unwindtoy::MatMulAttractions::Default().rhsOut(1000));
+
+  // expect lhs to be mapped linearly.
+  testMatMulPreferences0(1000, 1, unwindtoy::MatMulAttractions::Default());
+
   testMatMulPreferences0(1, 1000, unwindtoy::MatMulAttractions::Default());
 }
 
@@ -259,12 +261,12 @@ void test3() {
   // bit which overlaps with s2.
   fs.mainLayout(in0)
       .slice({0, 0}, {2, 3})
-      .assertAllEquivalent(fs.createMappedSrc({"lhs_MatMul"}, 0));
+      .assertAllEquivalent(fs.createMappedSrc({"lhs_matmul"}, 0));
 
   fs.mainLayout(in0)
       .slice({2, 0}, {4, 3})
       .assertAllEquivalent(
-          fs.createMappedSrc({"rhs_MatMul"}, 0).slice({1, 0}, {3, 3}));
+          fs.createMappedSrc({"rhs_matmul"}, 0).slice({1, 0}, {3, 3}));
 
   fs.mainLayout(in0)
       .slice({4, 0}, {5, 3})
@@ -345,7 +347,7 @@ void test5() {
   fs.lower();
 
   fs.mainLayout(in1).assertAllEquivalent(
-      fs.createMappedSrc({"rhs", "MatMul"}, 0).slice({0, 0}, {1, 4}));
+      fs.createMappedSrc({"rhs", "matmul"}, 0).slice({0, 0}, {1, 4}));
 
   {
     const auto mma = g.matMulAttractions(out.opId());
@@ -409,7 +411,7 @@ void testSliceSliceMatmul() {
 
   fs.mainLayout(in0)
       .slice({4, 2}, {8, 8})
-      .assertAllEquivalent(fs.createMappedSrc({"lhs", "MatMul"}, 0));
+      .assertAllEquivalent(fs.createMappedSrc({"lhs", "matmul"}, 0));
 }
 
 } // namespace

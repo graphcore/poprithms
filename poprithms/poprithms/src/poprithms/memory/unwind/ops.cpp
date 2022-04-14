@@ -70,11 +70,6 @@ bool Concat::unwindTypeSpecificEqualTo(const Op &rhs) const {
   return axis() == rhs_.axis();
 }
 
-bool MatMulSource::unwindTypeSpecificEqualTo(const Op &other) const {
-  const auto &rhs__ = dynamic_cast<const MatMulSource &>(other);
-  return lhs() == rhs__.lhs() && rhs() == rhs__.rhs();
-}
-
 // ------- //
 //  Input  //
 // ------- //

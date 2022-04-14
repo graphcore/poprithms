@@ -28,7 +28,7 @@ using common::multiout::TensorId;
  *  (2,3) + (2,1) -> (2,3).
  *
  *  The layout of `b` can be derived from `a`, along the lines of Poplibs's
- *  createBias. This is handled as follows:
+ *  createBias/createBroadcastable. This is handled as follows:
  *
  *  A barrier op takes `a` as input, and outputs `d` of shape (2,1). `d`'s
  *  layout is then set by the user (poplibs). An attraction between `d` and

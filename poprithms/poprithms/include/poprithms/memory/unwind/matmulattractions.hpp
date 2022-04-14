@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <poprithms/common/multiout/tensorid.hpp>
+#include <poprithms/memory/unwind/graph.hpp>
 
 namespace poprithms {
 namespace memory {
@@ -87,6 +88,61 @@ private:
 
   MatMulAttractions() = default;
 };
+
+class MatMulSources {
+
+public:
+  MatMulSources(const TensorId &lhsSource,
+                const TensorId &rhsSource,
+                const TensorId &outSource)
+      : lhsSource_(lhsSource), rhsSource_(rhsSource), outSource_(outSource) {}
+
+  TensorId lhsSource() const { return lhsSource_; }
+  TensorId rhsSource() const { return rhsSource_; }
+  TensorId outSource() const { return outSource_; }
+
+private:
+  TensorId lhsSource_;
+  TensorId rhsSource_;
+  TensorId outSource_;
+};
+
+template <class TensorCreatorInserter>
+MatMulSources growMatmul(const TensorCreatorInserter &tcInserter,
+                         poprithms::memory::unwind::Graph &g,
+                         const MatMulAttractions &atts,
+                         const TensorId &lhs,
+                         const TensorId &rhs) {
+
+  auto name = [&tcInserter](const std::string &pre) -> std::string {
+    return pre + "_matmul_source_" + std::to_string(tcInserter.opId().get());
+  };
+
+  const auto lhsShape = g.shape(lhs);
+  const auto rhsShape = g.shape(rhs);
+  const auto outShape = lhsShape.matmul(rhsShape);
+
+  TensorId lhsSource{g.barrier({}, {lhsShape}, name("lhs")), 0};
+  tcInserter.insertMatMulLhsCreator(lhsSource);
+  g.insertValuedPair(lhs, lhsSource, atts.lhs());
+
+  TensorId rhsSource{g.barrier({}, {rhsShape}, name("rhs")), 0};
+  tcInserter.insertMatMulRhsCreator(rhsSource);
+  g.insertValuedPair(rhs, rhsSource, atts.rhs());
+
+  TensorId outSource{g.barrier({}, {outShape}, name("mm_out")), 0};
+  tcInserter.insertMatMulOutCreator(outSource);
+
+  if (lhsShape == outShape) {
+    g.insertValuedPair(lhs, outSource, atts.lhsOut());
+  }
+
+  if (rhsShape == outShape) {
+    g.insertValuedPair(rhs, outSource, atts.rhsOut());
+  }
+
+  return {lhsSource, rhsSource, outSource};
+}
 
 } // namespace unwind
 } // namespace memory

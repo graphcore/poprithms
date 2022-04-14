@@ -129,31 +129,6 @@ OpId Graph::insertOp(std::unique_ptr<Op> createdOp) {
   return newId;
 }
 
-Graph::DynamicSliceLikeOut Graph::dynamicSliceLike(const TensorId &sliceable,
-                                                   const Shape &outShape,
-                                                   double val) {
-
-  auto sliceOut        = sink(outShape);
-  auto sliceableTarget = sliceToSliceable(sliceOut, shape(sliceable));
-  insertValuedPair(sliceable, sliceableTarget, val);
-  return {sliceOut, sliceableTarget};
-}
-
-Graph::DynamicUpdateLikeOut Graph::dynamicUpdateLike(const TensorId &toUpdate,
-                                                     const TensorId &updater,
-                                                     double vToSliceable,
-                                                     double vToSlice) {
-
-  const auto targetToSliceable = sliceToSliceable(updater, shape(toUpdate));
-  const auto targetToSlice     = sliceableToSlice(toUpdate, shape(updater));
-
-  insertValuedPair(targetToSlice, updater, vToSlice);
-  insertValuedPair(targetToSliceable, toUpdate, vToSliceable);
-
-  auto updated = identity(toUpdate);
-  return {updated, targetToSlice, targetToSliceable};
-}
-
 SumLikeOut Graph::sumLike(const TensorIds &ids,
                           const std::vector<InIndex> &uwIs,
                           const SumAttractions &attractions) {
@@ -366,42 +341,8 @@ OpId Graph::barrier(const TensorIds &inIds,
   return opId;
 }
 
-TensorId Graph::sliceToSliceable(const TensorId &slice,
-                                 const Shape &sliceable) {
-  return {createOp<SliceToSliceable>({slice}, {sliceable}), 0};
-}
-
-TensorId Graph::sliceableToSlice(const TensorId &sliceable,
-                                 const Shape &slice) {
-  return {createOp<SliceableToSlice>({sliceable}, {slice}), 0};
-}
-
 TensorId Graph::sumLikeReduce(const TensorId &full, const Shape &reduced) {
   return {createOp<SumLikeReduce>({full}, {reduced}), 0};
-}
-
-TensorId Graph::matMulLhsSource(const Shape &lhs, const Shape &rhs) {
-  return {createOp<MatMulLhsSource>({}, {lhs}, lhs, rhs), 0};
-}
-
-TensorId Graph::matMulRhsSource(const Shape &lhs, const Shape &rhs) {
-  return {createOp<MatMulRhsSource>({}, {rhs}, lhs, rhs), 0};
-}
-
-bool Graph::isSliceToSliceable(OpId opId) const {
-  return dynamic_cast<const SliceToSliceable *>(&op(opId)) != nullptr;
-}
-
-bool Graph::isSliceableToSlice(OpId opId) const {
-  return dynamic_cast<const SliceableToSlice *>(&op(opId)) != nullptr;
-}
-
-bool Graph::isMatMulLhsSource(OpId opId) const {
-  return dynamic_cast<const MatMulLhsSource *>(&op(opId)) != nullptr;
-}
-
-bool Graph::isMatMulRhsSource(OpId opId) const {
-  return dynamic_cast<const MatMulRhsSource *>(&op(opId)) != nullptr;
 }
 
 bool Graph::isSumLikeReduce(OpId opId) const {
@@ -492,18 +433,6 @@ TensorId Graph::squeeze(const TensorId &id) {
 
 TensorId Graph::slice(const TensorId &id, uint64_t l, uint64_t u) {
   return slice(id, Dimension(0), l, u);
-}
-
-std::array<Shape, 2> Graph::matmulBarrierShapes(const TensorId &id) const {
-  const auto mmp = dynamic_cast<const MatMulSource *>(&op(id.opId()));
-  if (!mmp) {
-    std::ostringstream oss;
-    oss << "Invalid call, Graph::matmulBarrierShapes(id = " << id << "). "
-        << "Called on output of " << op(id.opId())
-        << ", which is not a MatMulSource Op. ";
-    throw error(oss.str());
-  }
-  return {mmp->lhs(), mmp->rhs()};
 }
 
 } // namespace unwind

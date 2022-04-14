@@ -73,13 +73,11 @@ void test(double valCopyInSame, double valMatmulOutAndInSame) {
   const auto actInn = g.sink({1}, "matmul activation in");
 
   // Subgraph input target layout (createMatMulLHS target)
-  const auto actInnSource =
-      g.matMulLhsSource({1}, {1}); // "poplibs create LHS");
+  const auto actInnSource = g.source({1});
 
   // Weights of matmul
-  const auto weightInn = g.sink({1}, "matmul weights");
-  const auto weightInnSource =
-      g.matMulRhsSource({1}, {1}); // BarrierType("poplibs create RHS");
+  const auto weightInn       = g.sink({1}, "matmul weights");
+  const auto weightInnSource = g.source({1});
   g.insertValuedPair(weightInnSource, weightInn, valPoplibsMatmulRHS);
 
   // matmul output. Its layout is assumed to be independent of ins (T32143).

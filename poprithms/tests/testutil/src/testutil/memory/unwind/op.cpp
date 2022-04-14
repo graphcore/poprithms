@@ -2,10 +2,12 @@
 
 #include <string>
 
+#include <testutil/memory/unwind/creatorinserter.hpp>
 #include <testutil/memory/unwind/fullstate.hpp>
 #include <testutil/memory/unwind/op.hpp>
 
 #include <poprithms/error/error.hpp>
+#include <poprithms/memory/unwind/matmulattractions.hpp>
 
 namespace poprithms {
 namespace unwindtoy {
@@ -45,33 +47,14 @@ TensorIds MatMul::grow(FullState &u) const {
   const auto uw0 = u.toUnwind(inTensorId(0));
   const auto uw1 = u.toUnwind(inTensorId(1));
 
-  // lhs input creator
-  auto lhs0 = u.uwGraph().barrier({}, {inShape(0)}, "lhs_" + str());
-
-  // rhs input creator
-  auto rhs0 = u.uwGraph().barrier({}, {inShape(1)}, "rhs_" + str());
-
-  // the output, whose layout does not depend on inputs
-  TensorIds mmindeps{};
-  const auto out =
-      u.uwGraph().barrier(mmindeps, {outShape(0)}, "mm_out_" + str());
-
-  u.uwGraph().insertValuedPair({lhs0, 0}, uw0, atts_.lhs());
-  u.uwGraph().insertValuedPair({rhs0, 0}, uw1, atts_.rhs());
-
-  // points for matching the lhs input's layout to the outputs
-  if (inShape(0) == outShape(0)) {
-    u.uwGraph().insertValuedPair({out, 0}, uw0, atts_.lhsOut());
-  }
-
-  if (inShape(1) == outShape(0)) {
-    u.uwGraph().insertValuedPair({out, 0}, uw1, atts_.rhsOut());
-  }
-  return {{out, 0}};
+  auto x = poprithms::memory::unwind::growMatmul<
+      poprithms::unwindtoy::MatMulTensorCreatorInserter>(
+      {}, u.uwGraph(), atts_, uw0, uw1);
+  return {x.outSource()};
 }
 
 ///////////
-// slice //
+// Slice //
 ///////////
 std::unique_ptr<MultioutOp> Slice::cloneMultioutOp() const {
   return std::make_unique<Slice>(getSchedulableState(), lower_, upper_);
