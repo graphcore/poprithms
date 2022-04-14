@@ -144,6 +144,23 @@ std::vector<CopyIn> CopyIns::zip(const TensorIds &srcs,
 }
 
 std::vector<CopyIn> CopyIns::zip(const TensorIds &srcs,
+                                 const CalleeTensorIds &dsts) {
+  if (srcs.size() != dsts.size()) {
+    std::ostringstream oss;
+    oss << "'srcs' and 'dsts' are not the same size in CopyIns::zip: "
+        << srcs.size() << " != " << dsts.size();
+    throw error(oss.str());
+  }
+  std::vector<CopyIn> cins;
+  cins.reserve(srcs.size());
+  for (uint64_t i = 0; i < srcs.size(); ++i) {
+    cins.push_back({srcs[i], dsts[i].tId(), dsts[i].calleeIndex()});
+  }
+
+  return cins;
+}
+
+std::vector<CopyIn> CopyIns::zip(const TensorIds &srcs,
                                  const TensorIds &dsts,
                                  const CalleeIndices &indices) {
   if (srcs.size() != dsts.size()) {

@@ -76,6 +76,24 @@ void Graph::multiOutTypeSpecificRemoveInputs(
   mutableOp(opId).inCopies_ = CopyIns(copies);
 }
 
+bool Graph::isCarriedTo(const TensorId &tId, const CallStack &cs) const {
+  if (cs.empty()) {
+    return false;
+  }
+  return op(cs.back().caller()).isCarriedTo(tId);
+}
+
+TensorId Graph::carriedFrom(const TensorId &tId, const CallStack &cs) const {
+
+  if (cs.empty()) {
+    std::ostringstream oss;
+    oss << "Invalid call to carriedFrom with tId=" << tId
+        << ": call stack empty.";
+    throw poprithms::test::error(oss.str());
+  }
+  return op(cs.back().caller()).carriedFrom(tId);
+}
+
 schedulable::Op::State Graph::getState(const TensorIds &ins,
                                        uint64_t nOut,
                                        const SubGraphId sgId,
@@ -101,11 +119,15 @@ OpId Graph::insert(const TensorIds &ins,
                    SubGraphId sgId,
                    const std::string &name) {
 
-  return insertSchedulableOp(
-      std::make_unique<Op>(getState(ins, nOut, sgId, name),
-                           SubGraphIds{},
-                           CopyIns{},
-                           CopyOuts(std::vector<TensorIds>(nOut))));
+  std::vector<std::pair<TensorId, TensorId>> carries{};
+
+  auto op_ = std::make_unique<Op>(getState(ins, nOut, sgId, name),
+                                  SubGraphIds{},
+                                  CopyIns{},
+                                  CopyOuts(std::vector<TensorIds>(nOut)),
+                                  carries);
+
+  return insertSchedulableOp(std::move(op_));
 }
 
 std::ostream &operator<<(std::ostream &ost, const Graph &g) {
@@ -115,29 +137,89 @@ std::ostream &operator<<(std::ostream &ost, const Graph &g) {
 
 std::unique_ptr<multiout::Op> Op::cloneMultioutOp() const {
   return std::make_unique<Op>(
-      getSchedulableState(), callees(), inCopies(), outCopies());
+      getSchedulableState(), callees(), inCopies(), outCopies(), carries_);
 }
 
 OpId Graph::insert(SubGraphId sgId,
                    const SubGraphIds &callees,
                    const CopyIns &inCopies,
                    const CopyOuts &outCopies,
+                   OptionalTensorId condition,
+                   const std::vector<std::pair<TensorId, TensorId>> &carries,
                    const std::string &name) {
 
   if ((outCopies.nOutTensors() != 0) &&
       (callees.size() != outCopies.nCallees())) {
-    throw poprithms::test::error("Callees and out copies must be same size");
+    std::ostringstream oss;
+    oss << "Callees is of size " << callees.size()
+        << " but outCopies reports " << outCopies.nCallees() << ".";
+    throw poprithms::test::error(oss.str());
   }
 
   if (callees.empty()) {
-    throw poprithms::test::error("No callees, use other insert method");
+    throw poprithms::test::error(
+        "No callees: use the other insert method of this mock class.");
+  }
+
+  TensorIds inIds = inCopies.srcIds();
+
+  if (condition.has_value()) {
+    inIds.push_back(condition.value());
   }
 
   const auto nOuts = outCopies.nOutTensors();
-  const auto state = getState(inCopies.srcIds(), nOuts, sgId, name);
+  const auto state = getState(inIds, nOuts, sgId, name);
 
   return insertSchedulableOp(
-      std::make_unique<Op>(state, callees, inCopies, outCopies));
+      std::make_unique<Op>(state, callees, inCopies, outCopies, carries));
+}
+
+InIndices Op::nonCalleeCopyInIndices() const {
+  // all ops with calles are switch-like ops with the final input 0 being
+  // the condition tensor.
+  if (!callees_.empty()) {
+    if (inCopies_.nInTensors() + 1 == nInTensors()) {
+      return {nInTensors() - 1};
+    } else if (inCopies_.nInTensors() == nInTensors()) {
+      return {};
+    } else {
+      throw poprithms::test::error("Mock class logic error: can only have 1 "
+                                   "non-copy tensor with callees.");
+    }
+  }
+  return inIndices();
+}
+
+bool Op::isCarriedTo(const TensorId &tId) const {
+  for (auto p : carries_) {
+    if (p.second == tId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+TensorId Op::carriedFrom(const TensorId &to) const {
+  for (auto p : carries_) {
+    if (p.second == to) {
+      return p.first;
+    }
+  }
+  std::ostringstream oss;
+  oss << "The tensor " << to << " is not carried to.";
+  throw poprithms::test::error(oss.str());
+}
+
+std::vector<std::pair<InIndex, TensorId>> Op::copyInDsts() const {
+  if (callees_.empty()) {
+    return {};
+  }
+
+  std::vector<std::pair<InIndex, TensorId>> ps;
+  for (uint64_t i = 0; i < inCopies().nInTensors(); ++i) {
+    ps.push_back({i, inCopies().dst(i)});
+  }
+  return ps;
 }
 
 } // namespace callstack_test

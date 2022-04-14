@@ -7,6 +7,7 @@
 #include <testutil/program/callstack/graph.hpp>
 #include <testutil/program/callstack/querier.hpp>
 
+#include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/error/error.hpp>
 #include <poprithms/program/callstack/querier.hpp>
 #include <poprithms/program/callstack/stackutil.hpp>
@@ -14,6 +15,7 @@
 namespace {
 
 using namespace poprithms::program;
+using poprithms::common::multiout::OptionalTensorId;
 using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
 using poprithms::program::callstack::CalleeIndex;
@@ -47,6 +49,8 @@ void testOnMultiGraphPathTo0() {
                                {sg0},
                                CopyIns{{{{in1, 0}, {in0, 0}, 0}}},
                                CopyOuts{{{out0}}},
+                               OptionalTensorId{},
+                               {},
                                "out1"),
                       0};
 
@@ -56,6 +60,8 @@ void testOnMultiGraphPathTo0() {
                                {sg1},
                                CopyIns{{{{in2, 0}, {in1, 0}, 0}}},
                                CopyOuts{{{out1}}},
+                               {},
+                               {},
                                "out2"),
                       0};
 
@@ -117,12 +123,16 @@ void testNoPathToTarget0() {
                         {sg0}, // <-- callee graph(s)
                         CopyIns{{{in2, in0, CalleeIndex(0)}, {in3, in1, 0}}},
                         CopyOuts{{{add}, {sub}}},
+                        {},
+                        {},
                         "call0");
 
   auto call1 = m.insert(sg1,
                         {sg0},
                         CopyIns{{{{call0, 0}, in0, 0}, {in2, in1, 0}}},
                         CopyOuts{{{add}, {sub}}},
+                        {},
+                        {},
                         "call1");
 
   // expect every tensor except call0, 1
@@ -143,7 +153,7 @@ void testNestedFullStack0() {
   const auto sg1 = m.createSubGraphId("sg0");
   const TensorId in1{m.insert({}, 1, sg1, "in1"), 0};
 
-  m.insert(sg1, {sg0}, CopyIns{}, CopyOuts{}, "call0");
+  m.insert(sg1, {sg0}, CopyIns{}, CopyOuts{}, {}, {}, "call0");
 
   if (callstack_test::Querier(m)
           .onMultiGraphPathTo(callstack::StackUtil::inMainScope({in1}))
@@ -208,6 +218,8 @@ void testMultiGraphBack0() {
       //                               |     |     |
       CopyOuts(std::vector{TensorIds{out0, out2, out3},   // <- OutIndex(0)
                            TensorIds{out1, out3, out2}}), // <- OutIndex(1)
+      {},
+      {},
       "switchWith3");
 
   {
@@ -275,16 +287,15 @@ void testMultiGraphBack1() {
   const auto sg1 = m.createSubGraphId("sg1");
   const TensorId in2{m.insert({}, 1, sg1, "in2"), 0};
 
-  const auto c0 = m.insert(sg1,
-                           {sg0},
-                           CopyIns({CopyIn(in2, in0, 0)}),
-                           CopyOuts(std::vector<TensorIds>{{out0}}),
-                           "call0");
+  const auto c0 =
+      m.insert(sg1, {sg0}, {{{in2, in0, 0}}}, {{{out0}}}, {}, {}, "call0");
 
   const auto c1 = m.insert(sg1,
                            {sg0},
                            CopyIns({CopyIn({c0, 0}, in1, 0)}),
                            CopyOuts(std::vector<TensorIds>{{out1}}),
+                           {},
+                           {},
                            "call0");
 
   auto obs = callstack_test::Querier(m).onMultiGraphPathTo(
@@ -300,6 +311,159 @@ void testMultiGraphBack1() {
 
   assertOnMultiGraph(obs, expected);
 }
+
+void testSwitch0() {
+
+  /**
+   *
+   * in1  ---+-- in0 ---> copy out.
+   *         |
+   * cond ---+
+   *
+   *
+   * Check that "cond" is found in the backwards search.
+   * */
+  callstack_test::Graph m;
+  const auto sg0 = m.createSubGraphId("sg0");
+  const TensorId in0{m.insert({}, 1, sg0, "in0"), 0};
+
+  const auto sg1 = m.createSubGraphId("sg1");
+  const TensorId in1{m.insert({}, 1, sg1, "in1"), 0};
+  const TensorId cond{m.insert({}, 1, sg1, "cond"), 0};
+  const auto c0 =
+      m.insert(sg1, {sg0}, {{{in1, in0, 0}}}, {{{in0}}}, cond, {}, "switch");
+
+  auto obs = callstack_test::Querier(m).onMultiGraphPathTo(
+      callstack::StackUtil::inMainScope({{c0, 0}}));
+
+  StackTensorIds expected{
+      StackTensorId{in0, {CallEvent(c0, sg0, 0)}},
+      StackTensorId{in1, {}},
+      StackTensorId{cond, {}},
+      StackTensorId{{c0, 0}, {}},
+  };
+  assertOnMultiGraph(obs, expected);
+}
+
+void testRepeat0() {
+
+  auto test = [](bool carryFromEnd) {
+    callstack_test::Graph m;
+    const auto sg0 = m.createSubGraphId("sg0");
+
+    //
+    //   in1
+    //    |
+    //    |
+    //    v
+    // copied in
+    //    |
+    //    v
+    //   in0 --> x1 --> x2
+    //           |
+    //           |
+    //           v
+    //        copied out
+    //
+    //
+    // if carry x2 -> in0 : x2 should be visited.
+    // if carry x1 -> in0 : x2 should not be visited.
+    //
+
+    const TensorId in0{m.insert({}, 1, sg0, "in0"), 0};
+    const TensorId x1{m.insert({in0}, 1, sg0, "x1"), 0};
+    const TensorId x2{m.insert({x1}, 1, sg0, "x2"), 0};
+
+    const auto sg1 = m.createSubGraphId("sg1");
+    const TensorId in1{m.insert({}, 1, sg1, "in1"), 0};
+
+    auto carrySource = carryFromEnd ? x2 : x1;
+    const auto c0    = m.insert(sg1,
+                             {sg0},
+                             {{{in1, in0, 0}}},
+                             {{{x1}}},
+                             {},
+                             {{carrySource, in0}},
+                             "repeat");
+
+    auto obs = callstack_test::Querier(m).onMultiGraphPathTo(
+        callstack::StackUtil::inMainScope({{c0, 0}}));
+
+    if (carrySource == x2) {
+      if (std::find(obs.cbegin(),
+                    obs.cend(),
+                    StackTensorId(x2, {CallEvent(c0, sg0, 0)})) ==
+          obs.cend()) {
+        throw poprithms::test::error(
+            "The carry source (x2) should be visited");
+      }
+    }
+
+    else {
+
+      if (std::find(obs.cbegin(),
+                    obs.cend(),
+                    StackTensorId(x2, {CallEvent(c0, sg0, 0)})) !=
+          obs.cend()) {
+        throw poprithms::test::error(
+            "x2 is not on a path to to target repeat output");
+      }
+    }
+  };
+  test(true);
+  test(false);
+}
+
+void testScheduling0() {
+
+  callstack_test::Graph m;
+  const auto sg0 = m.createSubGraphId("sg0");
+  const TensorId in0{m.insert({}, 1, sg0, "in0"), 0};
+  const TensorId x01{m.insert({in0}, 1, sg0, "x1"), 0};
+  const TensorId x02{m.insert({in0}, 1, sg0, "x2"), 0};
+  const TensorId x03{m.insert({in0}, 1, sg0, "x3"), 0};
+  const TensorId out0{m.insert({x01, x02, x03}, 1, sg0, "out0"), 1};
+
+  const auto sg1 = m.createSubGraphId("sg1");
+  const TensorId in1{m.insert({}, 1, sg0, "in0"), 0};
+  auto c =
+      m.insert(sg0, {sg1}, {{{in1, in0, 0}}}, {{{out0}}}, {}, {}, "call");
+  const TensorId out1{c, 0};
+
+  auto assertOrder = [](const auto &sched, const auto &a, const auto &b) {
+    for (const auto &x : sched) {
+      if (x == a.opId()) {
+        return;
+      }
+      if (x == b.opId()) {
+        throw poprithms::test::error("Order not satisifed");
+      }
+    }
+  };
+
+  {
+    using namespace callstack_test;
+    const auto obs = Querier(m).scheduled(Querier::DataDepOrder::Fwd,
+                                          Querier::GraphDepOrder::TopDown);
+    assertOrder(obs, in0, x01);
+    assertOrder(obs, x01, out0);
+    assertOrder(obs, in1, out1);
+    assertOrder(obs, out1, out0);
+    assertOrder(obs, in1, in0);
+  }
+
+  {
+    using namespace callstack_test;
+    const auto obs = Querier(m).scheduled(Querier::DataDepOrder::Bwd,
+                                          Querier::GraphDepOrder::BottomUp);
+    assertOrder(obs, x01, in0);
+    assertOrder(obs, out0, x01);
+    assertOrder(obs, out1, in1);
+    assertOrder(obs, out0, out1);
+    assertOrder(obs, in0, in1);
+  }
+}
+
 } // namespace
 
 int main() {
@@ -308,5 +472,8 @@ int main() {
   testNestedFullStack0();
   testMultiGraphBack0();
   testMultiGraphBack1();
+  testSwitch0();
+  testRepeat0();
+  testScheduling0();
   return 0;
 }

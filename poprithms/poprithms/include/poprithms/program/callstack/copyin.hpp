@@ -115,6 +115,14 @@ public:
   static std::vector<CopyIn>
   zip(const TensorIds &srcs, const TensorIds &dsts, const CalleeIndices &cis);
 
+  /**
+   * Construct a vector of CopyIns with sources #srcs (in calling sub-graph),
+   * and destinations #dsts. Each CalleeTensor in #dsts consists of a callee
+   * sub-graph index, and an tensor in that sub-graph.
+   * */
+  static std::vector<CopyIn> zip(const TensorIds &srcs,
+                                 const CalleeTensorIds &dsts);
+
   const std::vector<CopyIn> &copyIns() const { return copyIns_; }
 
   CalleeIndex calleeIndex(InIndex i) const {

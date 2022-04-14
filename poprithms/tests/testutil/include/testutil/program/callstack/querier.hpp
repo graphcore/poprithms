@@ -21,11 +21,13 @@ namespace poprithms {
 namespace program {
 namespace callstack_test {
 
+using callstack::CallStack;
+
 /**
  * Completion of the callstack::Querier interface, used for running algorithms
  * on the callstack_test::Graph class.
  * */
-class Querier : public poprithms::program::callstack::Querier {
+class Querier final : public poprithms::program::callstack::Querier {
 private:
   const Graph &g_;
   callstack::CopyInMap copyIns_;
@@ -37,15 +39,44 @@ public:
     copyOuts_ = callstack::CopyOutMap(*this);
   }
 
+  std::vector<std::pair<InIndex, TensorId>>
+  copyInDsts(OpId opId) const final {
+    return g().op(opId).copyInDsts();
+  }
+
+  std::vector<CopyIn> copyIns(OpId opId) const {
+    return g().op(opId).inCopies().copyIns();
+  }
+
+  SubGraphId subGraphId(OpId opId) const final {
+    return g().op(opId).subGraphId();
+  }
+
   const Graph &g() const { return g_; }
+
+  bool isCarriedTo(const TensorId &tId, const CallStack &cs) const final {
+    return g().isCarriedTo(tId, cs);
+  }
+
+  TensorId carriedFrom(const TensorId &tId, const CallStack &cs) const final {
+    return g().carriedFrom(tId, cs);
+  }
 
   uint64_t nOutTensors(OpId i) const final { return g().nOutTensors(i); }
 
-  uint64_t nInTensors(OpId i) const final { return g().nInTensors(i); }
-
   SubGraphIds callees(OpId i) const final { return g().callees(i); }
 
-  TensorIds inTensorIds(OpId i) const final { return g().inTensorIds(i); }
+  InIndices nonCalleeCopyInIndices(OpId opId) const final {
+    return g().op(opId).nonCalleeCopyInIndices();
+  }
+
+  TensorIds inTensorIds(OpId opId) const final {
+    return g().inTensorIds(opId);
+  }
+
+  TensorId inTensorId(OpId opId, InIndex inIndex) const final {
+    return g().inTensorId(opId, inIndex);
+  }
 
   OpIds opIds() const final { return g().opIdsAllSubGraphs(); }
 
@@ -72,8 +103,8 @@ public:
     return g().op(cse.caller()).outCopies().outSource(o, cse.index());
   }
 
-  ConsumptionIds consumptionIds(const TensorId &tId) const final {
-    return g().consumptionIds(tId);
+  bool hasSrcInCallee(const CallEvent &cse, OutIndex o) const final {
+    return g().op(cse.caller()).outCopies().hasValue(o, cse.index());
   }
 
   std::vector<std::pair<CallEvent, InIndex>>

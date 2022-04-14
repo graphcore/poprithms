@@ -20,6 +20,7 @@ namespace callstack {
 using poprithms::common::multiout::ConsumptionId;
 using poprithms::common::multiout::ConsumptionIds;
 using poprithms::common::multiout::InIndex;
+using poprithms::common::multiout::InIndices;
 using poprithms::common::multiout::OpId;
 using poprithms::common::multiout::OpIds;
 using poprithms::common::multiout::OutIndex;
@@ -54,9 +55,6 @@ public:
   /** Number of outputs of #id */
   virtual uint64_t nOutTensors(OpId id) const = 0;
 
-  /** Number of inputs of #id */
-  virtual uint64_t nInTensors(OpId id) const = 0;
-
   /**
    * The sub-graphs which the op #id calls. For a call op, this will be
    * the single callee graph. For a switch op, this will be all the
@@ -65,8 +63,54 @@ public:
    * */
   virtual SubGraphIds callees(OpId id) const = 0;
 
-  /** The inputs of op #id */
-  virtual TensorIds inTensorIds(OpId id) const = 0;
+  /**
+   * The sub-graph of op #opId.
+   * */
+  virtual SubGraphId subGraphId(OpId opId) const = 0;
+
+  /**
+   * The input indices of op #opId which do not correspond to copies into
+   * sub-graphs. For ops without callees, this will simply be all indices, [0,
+   * ... nInTensors). For an op which is a simple call, this will probably be
+   * no indices, as all inputs are copied to sub-graphs. For an op like
+   * 'switch', this might be the singleton set containing only the input index
+   * of the conditional (scalar) tensor.
+   * */
+  virtual InIndices nonCalleeCopyInIndices(OpId opId) const = 0;
+
+  /**
+   * The destinations of the inputs which are copied to callee sub-graphs, and
+   * the indices at which they are inputs. Input indices are required, as it
+   * is not required that all inputs to ops with callees are copied to
+   * sub-graphs (\sa nonCalleeCopyInIndices).
+   * */
+  virtual std::vector<std::pair<InIndex, TensorId>>
+  copyInDsts(OpId opId) const = 0;
+
+  /**
+   * The input at index #i of op #opId.
+   * */
+  virtual TensorId inTensorId(OpId opId, InIndex i) const = 0;
+
+  /**
+   * All input tensors of the op #opId.
+   * */
+  virtual TensorIds inTensorIds(OpId opId) const = 0;
+
+  /**
+   * In the call stack #cs, is #tId a loop carry dependency? This is true for
+   * is #cs's current (top) op is a loop op, and #tId is copied to at the end
+   * of each iteration.
+   * */
+  virtual bool isCarriedTo(const TensorId &tId,
+                           const CallStack &cs) const = 0;
+
+  /**
+   * If #tId is a loop carry dependency (see #isCarriedTo), what is its copy
+   * source?
+   * */
+  virtual TensorId carriedFrom(const TensorId &tId,
+                               const CallStack &is) const = 0;
 
   /** All ops in all the sub-graphs. */
   virtual OpIds opIds() const = 0;
@@ -99,17 +143,16 @@ public:
                                const CallEvent &ce) const = 0;
 
   /**
-   * What is the source of the #o'th copy-out of #ce's callee? Note that we
-   * make an assumption here about the structure of ops with multiple callees
-   * (such as a switch op) -- the assumption is that there are the same number
-   * of out-copies from each callee graph.
+   * Is there a copy source out of the callee graph of #ce, at output index
+   * #o?
    * */
-  virtual TensorId srcInCallee(const CallEvent &ce, OutIndex o) const = 0;
+  virtual bool hasSrcInCallee(const CallEvent &ce, OutIndex o) const = 0;
 
   /**
-   * Which ops have #tId as an input, and which index is #tId an input at?
+   * If there is source of the #o'th output in the #ce's callee, what is it?
+   * \sa hasSrcInCallee.
    * */
-  virtual ConsumptionIds consumptionIds(const TensorId &tId) const = 0;
+  virtual TensorId srcInCallee(const CallEvent &ce, OutIndex o) const = 0;
 
   /**
    * This virtual method is used by #unpruneableMultiGraphBackSource to
@@ -189,6 +232,27 @@ public:
    * */
   std::map<TensorId, std::vector<CallStack>>
   nestedFullStackMap(const SubGraphIds &) const;
+
+  /**
+   * A scheduling of the graphs, starting with those which are not called
+   * into (that are never callees), to those which have no callees. Note that
+   * recursion is not allowed so there cannot be cycles.
+   * */
+  SubGraphIds topDown() const;
+
+  /**
+   * Obtain a schedule of all ops using the dependencies defined by
+   * the virtual method #inTensorIds. The ops are contiguous by sub-graph, the
+   * order of sub-graphs is controlled by #gde.
+   * */
+  enum class DataDepOrder { Fwd, Bwd };
+  enum class GraphDepOrder { TopDown, BottomUp };
+  OpIds scheduled(DataDepOrder, GraphDepOrder gde) const;
+
+private:
+  SubGraphIds allSubGraphIds() const;
+
+  OpIds stableSortBySubGraphOrder(const OpIds &, const SubGraphIds &) const;
 };
 
 } // namespace callstack

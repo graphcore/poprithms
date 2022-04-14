@@ -12,5 +12,4 @@ function(add_program_test name source)
 endfunction()
 
 add_program_test(program_callstack_querier_0 querier_0.cpp)
-
 add_program_test(program_callstack_copy_classes_0 copy_classes_0.cpp)

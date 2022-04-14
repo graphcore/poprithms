@@ -2,13 +2,17 @@
 
 #include "error.hpp"
 
+#include <algorithm>
 #include <limits>
 #include <set>
 #include <sstream>
 
+#include <poprithms/common/multiout/fwdedgemap.hpp>
 #include <poprithms/common/multiout/traversal.hpp>
 #include <poprithms/program/callstack/querier.hpp>
 #include <poprithms/program/callstack/stackutil.hpp>
+#include <poprithms/schedule/vanilla/vanilla.hpp>
+#include <poprithms/schedule/vanilla/vanillamap.hpp>
 
 namespace poprithms {
 namespace program {
@@ -41,28 +45,34 @@ private:
 
 StackTensorIds MultiGraphBack::neighbors(const StackTensorId &source0) const {
 
-  const auto tId = source0.tId();
-  auto callStack = source0.callStack();
+  const auto tId        = source0.tId();
+  const auto sourceOpId = tId.opId();
+  auto callStack        = source0.callStack();
   StackTensorIds toReturn;
 
   auto callees_ = gq.callees(tId.opId());
 
-  // If creator has callees, traverse back into the callees.
-  if (!callees_.empty()) {
-    for (uint64_t i = 0; i < callees_.size(); ++i) {
-      auto callStack_ = callStack;
-      const CallEvent cse{tId.opId(), callees_[i], i};
+  // Traverse back into the callees of the op (if it has any callees).
+  // Specifically, for every output in the caller, traverse back to the source
+  // of the copy in the callee.
+  for (uint64_t i = 0; i < callees_.size(); ++i) {
+
+    // Going into callee, so stack gets larger by 1:
+    auto callStack_ = callStack;
+    const CallEvent cse{tId.opId(), callees_[i], i};
+    if (gq.hasSrcInCallee(cse, tId.outIndex())) {
       callStack_.push_back(cse);
       toReturn.push_back(StackTensorId(gq.srcInCallee(cse, tId.outIndex()),
                                        std::move(callStack_)));
     }
   }
 
-  // If creator has no callees, just traverse to creator's inputs.
-  else {
-    auto toAppend =
-        callstack::StackUtil::inScope(gq.inTensorIds(tId.opId()), callStack);
-    toReturn.insert(toReturn.end(), toAppend.cbegin(), toAppend.cend());
+  for (InIndex i : gq.nonCalleeCopyInIndices(sourceOpId)) {
+    toReturn.push_back({gq.inTensorId(sourceOpId, i), callStack});
+  }
+
+  if (gq.isCarriedTo(tId, callStack)) {
+    toReturn.push_back({gq.carriedFrom(tId, callStack), callStack});
   }
 
   // If the tensor is the destination of a copy into a callee, traverse to the
@@ -150,6 +160,79 @@ TensorIds Querier::outTensorIds(OpId id) const {
     ids.push_back({id, o});
   }
   return ids;
+}
+
+OpIds Querier::scheduled(DataDepOrder ddo, GraphDepOrder gdo) const {
+
+  poprithms::common::multiout::FwdEdgeMap opFwdMap(opIds());
+  for (auto opId : opIds()) {
+    for (auto t : inTensorIds(opId)) {
+      opFwdMap.insertEdge(t.opId(), opId);
+    }
+  }
+  using namespace poprithms::schedule::vanilla;
+  auto opOrder = opFwdMap.unpacked(getSchedule_u64(
+      opFwdMap.fwdEdgesCompact(), ErrorIfCycle::Yes, VerifyEdges::Yes));
+
+  if (ddo == DataDepOrder::Bwd) {
+    std::reverse(opOrder.begin(), opOrder.end());
+  }
+
+  auto sgOrder = topDown();
+  if (gdo == GraphDepOrder::BottomUp) {
+    std::reverse(sgOrder.begin(), sgOrder.end());
+  }
+
+  return stableSortBySubGraphOrder(opOrder, sgOrder);
+}
+
+SubGraphIds Querier::allSubGraphIds() const {
+  std::set<SubGraphId> sgIds;
+  for (auto op : opIds()) {
+    sgIds.insert(subGraphId(op));
+    for (auto callee : callees(op)) {
+      sgIds.insert(callee);
+    }
+  }
+  return SubGraphIds(sgIds.cbegin(), sgIds.cend());
+}
+
+SubGraphIds Querier::topDown() const {
+
+  std::unordered_map<SubGraphId, SubGraphIds> fwd;
+  for (auto op : opIds()) {
+    if (fwd.count(subGraphId(op)) == 0) {
+      fwd.insert({subGraphId(op), {}});
+    }
+    auto found = fwd.find(subGraphId(op));
+    for (auto c : callees(op)) {
+      found->second.push_back(c);
+    }
+  }
+
+  using namespace poprithms::schedule::vanilla;
+  return getSchedule(fwd, ErrorIfCycle::Yes, VerifyEdges::Yes);
+}
+
+OpIds Querier::stableSortBySubGraphOrder(const OpIds &opOrder,
+                                         const SubGraphIds &sgOrder) const {
+
+  std::unordered_map<SubGraphId, OpIds> scatter;
+  for (auto sg : sgOrder) {
+    scatter.insert({sg, {}});
+  }
+  for (auto op : opOrder) {
+    scatter[subGraphId(op)].push_back(op);
+  }
+
+  OpIds gather;
+  gather.reserve(opOrder.size());
+  for (auto sg : sgOrder) {
+    for (auto op : scatter.at(sg)) {
+      gather.push_back(op);
+    }
+  }
+  return gather;
 }
 
 } // namespace callstack

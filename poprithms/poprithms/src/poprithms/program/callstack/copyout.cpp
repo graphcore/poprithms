@@ -134,7 +134,13 @@ CopyOuts::CopyOuts(const std::map<CalleeIndex, TensorIds> &m) {
   }
 }
 
-void CopyOuts::assertValidOutIndex(OutIndex o) const {
+void CopyOuts::reset(OutIndex o, CalleeIndex ci, const TensorId &tId) {
+  // note that there is no restiction that the tensors copied out of a
+  // single callee must be distinct at each of the output indices.
+  outs.at(o.get()).at(ci.get()) = tId;
+}
+
+void CopyOuts::verifyValidOutIndex(OutIndex o) const {
   if (o.get() >= nOutTensors()) {
     std::ostringstream oss;
     oss << "Invalid OutIndex=" << o << " with only " << nOutTensors()
@@ -153,14 +159,14 @@ void CopyOuts::assertValidCalleeIndex(CalleeIndex c) const {
 }
 
 bool CopyOuts::hasValue(OutIndex o, CalleeIndex ci) const {
-  assertValidOutIndex(o);
+  verifyValidOutIndex(o);
   assertValidCalleeIndex(ci);
   return outs.at(o.get()).at(ci.get()).has_value();
 }
 
 TensorId CopyOuts::outSource(OutIndex o, CalleeIndex c) const {
 
-  assertValidOutIndex(o);
+  verifyValidOutIndex(o);
   assertValidCalleeIndex(c);
 
   auto opt = outs.at(o.get()).at(c.get());

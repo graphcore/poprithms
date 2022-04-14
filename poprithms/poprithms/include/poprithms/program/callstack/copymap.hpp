@@ -12,6 +12,7 @@
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/program/callstack/calleeindex.hpp>
 #include <poprithms/program/callstack/callstack.hpp>
+#include <poprithms/program/callstack/copyin.hpp>
 
 namespace poprithms {
 namespace program {
@@ -57,7 +58,7 @@ public:
     for (const auto &opId : g.opIds()) {
       const auto callees = g.callees(opId);
       if (!callees.empty()) {
-        auto cis = g.inCopies(opId).copyIns();
+        std::vector<CopyIn> cis = g.copyIns(opId);
         for (InIndex i = 0; i < cis.size(); ++i) {
           const auto ci = cis[i.get()];
           auto found    = m_.find(ci.src());

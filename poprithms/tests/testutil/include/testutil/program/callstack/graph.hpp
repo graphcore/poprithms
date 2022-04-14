@@ -27,6 +27,7 @@ using poprithms::common::multiout::InIndex;
 using poprithms::common::multiout::InIndices;
 using poprithms::common::multiout::OpId;
 using poprithms::common::multiout::OpIds;
+using poprithms::common::multiout::OptionalTensorId;
 using poprithms::common::multiout::OptionalTensorIds;
 using poprithms::common::multiout::OutIndex;
 using poprithms::common::multiout::TensorId;
@@ -39,6 +40,7 @@ using poprithms::program::callstack::CalleeIndex;
 using poprithms::program::callstack::CalleeIndices;
 using poprithms::program::callstack::CallEvent;
 using poprithms::program::callstack::CallEvents;
+using poprithms::program::callstack::CallStack;
 using poprithms::program::callstack::CopyIn;
 using poprithms::program::callstack::CopyInMap;
 using poprithms::program::callstack::CopyIns;
@@ -51,7 +53,7 @@ using namespace poprithms::common;
  * A minimal Op class for testing callstack functionality. Adds callees, input
  * copies, and output copies to the abstract class schedulable::Op.
  * */
-class Op : public schedulable::Op {
+class Op final : public schedulable::Op {
 
   friend class Graph;
 
@@ -59,9 +61,10 @@ public:
   Op(const schedulable::Op::State &s,
      const SubGraphIds &callees,
      const CopyIns &inCopies,
-     const CopyOuts &outCopies)
+     const CopyOuts &outCopies,
+     const std::vector<std::pair<TensorId, TensorId>> &carries)
       : schedulable::Op(s), callees_(callees), inCopies_(inCopies),
-        outCopies_(outCopies) {}
+        outCopies_(outCopies), carries_(carries) {}
 
   bool isConstraintPhobic() const final { return false; }
 
@@ -70,8 +73,18 @@ public:
   std::unique_ptr<multiout::Op> cloneMultioutOp() const final;
 
   const CopyIns &inCopies() const { return inCopies_; }
+
   const CopyOuts &outCopies() const { return outCopies_; }
+
   const SubGraphIds &callees() const { return callees_; }
+
+  InIndices nonCalleeCopyInIndices() const;
+
+  std::vector<std::pair<InIndex, TensorId>> copyInDsts() const;
+
+  bool isCarriedTo(const TensorId &) const;
+
+  TensorId carriedFrom(const TensorId &) const;
 
 private:
   bool
@@ -86,6 +99,7 @@ private:
   SubGraphIds callees_;
   CopyIns inCopies_;
   CopyOuts outCopies_;
+  std::vector<std::pair<TensorId, TensorId>> carries_;
 };
 
 /**
@@ -116,17 +130,24 @@ public:
     return {};
   }
 
-  // insert a "normal" op which has no callees.
+  // insert a "normal" op. That is, an op which has no callees.
   OpId insert(const TensorIds &ins,
               uint64_t nOut,
               SubGraphId sgId,
               const std::string &name);
 
-  // insert an op which has callees.
+  // insert a generalized op with callees. The op has an optional input which
+  // is not a copy (#condition) to model a switch op, and optional set of
+  // tensors which are carried, to model a repeat op.
+  //
+  // carries[i] = {carriedTo, carriedFrom}.
+  //
   OpId insert(SubGraphId sgId,
               const SubGraphIds &callees,
               const CopyIns &inCopies,
               const CopyOuts &outCopies,
+              OptionalTensorId condition,
+              const std::vector<std::pair<TensorId, TensorId>> &carries,
               const std::string &name);
 
   const SubGraphIds &callees(OpId id) const { return op(id).callees(); }
@@ -136,6 +157,10 @@ public:
   void appendOpColumns(std::ostream &, const OpIds &) const final;
 
   OpId insertBinBoundary(schedulable::SubGraphId sgId) final;
+
+  bool isCarriedTo(const TensorId &tId, const CallStack &cs) const;
+
+  TensorId carriedFrom(const TensorId &tId, const CallStack &cs) const;
 
 private:
   bool multiOutTypeSpecificEqualTo(const multiout::Graph &) const final {

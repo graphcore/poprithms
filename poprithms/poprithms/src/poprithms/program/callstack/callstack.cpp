@@ -1,5 +1,7 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
+#include "error.hpp"
+
 #include <set>
 
 #include <poprithms/common/multiout/opid.hpp>
@@ -21,6 +23,29 @@ namespace callstack {
 
 void CalleeTensorId::append(std::ostream &ost) const {
   ost << tId().str() << ':' << calleeIndex();
+}
+
+std::vector<CalleeTensorId> CalleeTensorId::zip(const TensorIds &tIds,
+                                                CalleeIndex ci) {
+  CalleeTensorIds zipped;
+  zipped.reserve(tIds.size());
+  for (const auto &tId : tIds) {
+    zipped.push_back({tId, ci});
+  }
+  return zipped;
+}
+
+std::vector<CalleeTensorId> CalleeTensorId::zip(const TensorIds &tIds,
+                                                const CalleeIndices &cis) {
+  if (tIds.size() != cis.size()) {
+    throw error("TensorIds and CalleeIndices must be same length.");
+  }
+  CalleeTensorIds zipped;
+  zipped.reserve(tIds.size());
+  for (uint64_t i = 0; i < tIds.size(); ++i) {
+    zipped.push_back({tIds[i], cis[i]});
+  }
+  return zipped;
 }
 
 void StackTensorId::append(std::ostream &ost) const {
@@ -75,8 +100,8 @@ std::ostream &operator<<(std::ostream &ost, const StackTensorIds &ids) {
   }
 
   std::vector<poprithms::util::StringColumn> cols;
-  cols.push_back(StringColumn("TensorId", tIds));
-  cols.push_back(StringColumn("Call stack", stacks));
+  cols.push_back(StringColumn("TensorId", tIds, {}));
+  cols.push_back(StringColumn("Call stack", stacks, {}));
   const auto finalString = poprithms::util::alignedColumns(cols);
   ost << finalString;
   return ost;

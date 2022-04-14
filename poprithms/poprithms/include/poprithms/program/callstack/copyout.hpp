@@ -136,11 +136,16 @@ public:
 
   void reduce(const ContiguousOutIndexSubset &coin) { coin.reduce(outs); }
 
+  /**
+   * Set the output of callee #ci at output index #o to #tId.
+   * */
+  void reset(OutIndex o, CalleeIndex ci, const TensorId &tId);
+
 private:
   // indexed as outs[outIndex][calleeIndex].
   std::vector<OptionalTensorIds> outs;
 
-  void assertValidOutIndex(OutIndex) const;
+  void verifyValidOutIndex(OutIndex) const;
   void assertValidCalleeIndex(CalleeIndex) const;
 };
 

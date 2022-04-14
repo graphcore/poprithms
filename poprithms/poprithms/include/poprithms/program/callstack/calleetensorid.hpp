@@ -21,6 +21,20 @@ public:
   TensorId tId() const { return get<0, TensorId>(); }
   CalleeIndex calleeIndex() const { return get<1, CalleeIndex>(); }
   void append(std::ostream &) const;
+
+  /**
+   * Create a vector of CalleeTensorIds, with TensorIds from #tIds and all
+   * with CalleeIndex #ci.
+   * */
+  static std::vector<CalleeTensorId> zip(const TensorIds &tIds,
+                                         CalleeIndex ci);
+
+  /**
+   * Create a vector of CalleeTensorIds, with TensorIds from #tIds tied to the
+   * CalleeIndices in #cis.
+   * */
+  static std::vector<CalleeTensorId> zip(const TensorIds &tIds,
+                                         const std::vector<CalleeIndex> &cis);
 };
 
 using CalleeTensorIds = std::vector<CalleeTensorId>;
