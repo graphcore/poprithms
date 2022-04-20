@@ -100,8 +100,10 @@ void testScalarConstructors0() {
 }
 
 void testScalarConstructors1() {
+
   const auto a = Tensor::scalar(DType::Float16, 1.125);
   const auto b = Tensor::scalar(DType::Float64, 1.125);
+
   const auto c = a - b.toFloat16();
   c.assertAllEquivalent(Tensor::scalar(DType::Float16, 0.0));
 }
@@ -126,7 +128,6 @@ void testCheckErrors0() {
   try {
     Tensor::copyFloat64({1, 2}, nullptr);
   } catch (const poprithms::error::error &e) {
-    std::cout << e.what();
     caught = true;
   }
   if (!caught) {
@@ -141,7 +142,6 @@ void testCheckErrors1() {
   try {
     Tensor::float64({1, 2}, {1, 2, 3, 4});
   } catch (const poprithms::error::error &e) {
-    std::cout << e.what();
     caught = true;
   }
   if (!caught) {

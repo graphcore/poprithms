@@ -464,17 +464,18 @@ Tensor Tensor::expand_(const Shape &to) const {
 
 namespace {
 
-void verifySameTypeBinary(const Tensor &lhs, const Tensor &rhs) {
+void verifySameType(const Tensor &lhs, const Tensor &rhs) {
   if (rhs.dtype() != lhs.dtype()) {
     std::ostringstream oss;
-    oss << "Failed in Tensor::verifySameTypeBinary, "
-        << "where `lhs` Tensor is of type " << lhs.dtype()
-        << ", but `rhs` Tensor is of type " << rhs.dtype() << ". "
-        << "Implicit casting is not supported in this Tensor class. "
-        << "`lhs` Tensor is \n"
-        << lhs << ", and `rhs` Tensor is \n"
+    oss << "Failed in Tensor::verifySameType, "
+        << "where first tensor is of type " << lhs.dtype()
+        << ", and second tensor is of type " << rhs.dtype() << ". "
+        << "Note that implicit casting of op inputs is never performed "
+        << "in this tensor class. "
+        << "The first tensor is, \n"
+        << lhs << ", and the second tensor is, \n"
         << rhs << '.' << " Consider explicitly casting one of them before "
-        << "performing this binary operation. ";
+        << "performing the operation. ";
     throw error(oss.str());
   }
 }
@@ -492,7 +493,7 @@ struct CoRowMaj {
 //         2) of the same shape (numpy broadcast their Shapes together).
 //
 CoRowMaj getRowMajorPair(const Tensor &a, const Tensor &b) {
-  verifySameTypeBinary(a, b);
+  verifySameType(a, b);
   auto outShape = a.shape().numpyBinary(b.shape());
   auto arg0     = a.shape() == outShape ? a : a.expand(outShape);
   auto arg1     = b.shape() == outShape ? b : b.expand(outShape);
@@ -511,10 +512,12 @@ Tensor getArg1InplaceTarget(const Tensor &a, const Shape &arg0Shape) {
 bool Tensor::implIsView() const { return !tData().isOriginData(); }
 
 Tensor Tensor::add(const Tensor &rhs) const {
+  verifySameType(*this, rhs);
   auto co = getRowMajorPair(*this, rhs);
   return {co.shape, dtype(), co.arg0.tData().add(co.arg1.tData())};
 }
 Tensor Tensor::add_(const Tensor &rhs) const {
+  verifySameType(*this, rhs);
   tData().add_(getArg1InplaceTarget(rhs, shape()).tData());
   return *this;
 }
@@ -536,10 +539,12 @@ Tensor Tensor::encodeOneHot_(const std::vector<uint64_t> &indices) const {
 }
 
 Tensor Tensor::mul(const Tensor &rhs) const {
+  verifySameType(*this, rhs);
   auto co = getRowMajorPair(*this, rhs);
   return {co.shape, dtype(), co.arg0.tData().mul(co.arg1.tData())};
 }
 Tensor Tensor::mul_(const Tensor &rhs) const {
+  verifySameType(*this, rhs);
   tData().mul_(getArg1InplaceTarget(rhs, shape()).tData());
   return *this;
 }
@@ -580,10 +585,12 @@ Tensor Tensor::matmul(const Tensor &rhs) const {
 }
 
 Tensor Tensor::pow(const Tensor &rhs) const {
+  verifySameType(*this, rhs);
   auto co = getRowMajorPair(*this, rhs);
   return {co.shape, dtype(), co.arg0.tData().pow(co.arg1.tData())};
 }
 Tensor Tensor::pow_(const Tensor &rhs) const {
+  verifySameType(*this, rhs);
   tData().pow_(getArg1InplaceTarget(rhs, shape()).tData());
   return *this;
 }
@@ -591,7 +598,10 @@ Tensor Tensor::pow_(const Tensor &rhs) const {
 Tensor Tensor::copyFrom_(const Tensor &rhs) const {
   // If this source and destination are the same, ignore the copy.
   if (&tData() != &rhs.tData()) {
-    tData().copyFrom_(getArg1InplaceTarget(rhs, shape()).tData());
+    verifySameType(*this, rhs);
+
+    auto rhsTarg = getArg1InplaceTarget(rhs, shape());
+    tData().copyFrom_(rhsTarg.tData());
   }
   return *this;
 }
@@ -659,28 +669,38 @@ Tensor Tensor::updatePart_(const Tensor &updater,
 }
 
 Tensor Tensor::subtract(const Tensor &rhs) const {
+  verifySameType(*this, rhs);
   auto co = getRowMajorPair(*this, rhs);
   return {co.shape, dtype(), co.arg0.tData().subtract(co.arg1.tData())};
 }
 Tensor Tensor::subtract_(const Tensor &rhs) const {
+  verifySameType(*this, rhs);
   tData().subtract_(getArg1InplaceTarget(rhs, shape()).tData());
   return *this;
 }
 
 Tensor Tensor::divide(const Tensor &rhs) const {
+
+  verifySameType(*this, rhs);
   auto co = getRowMajorPair(*this, rhs);
   return {co.shape, dtype(), co.arg0.tData().divide(co.arg1.tData())};
 }
 Tensor Tensor::divide_(const Tensor &rhs) const {
+
+  verifySameType(*this, rhs);
   tData().divide_(getArg1InplaceTarget(rhs, shape()).tData());
   return *this;
 }
 
 Tensor Tensor::mod(const Tensor &rhs) const {
+
+  verifySameType(*this, rhs);
   auto co = getRowMajorPair(*this, rhs);
   return {co.shape, dtype(), co.arg0.tData().mod(co.arg1.tData())};
 }
 Tensor Tensor::mod_(const Tensor &rhs) const {
+
+  verifySameType(*this, rhs);
   tData().mod_(getArg1InplaceTarget(rhs, shape()).tData());
   return *this;
 }
@@ -1178,6 +1198,9 @@ std::vector<const BaseData *> Tensor::getBaseDataPtrs(const Tensors &tIns) {
 
 Tensor Tensor::concat(const Tensors &tIns, uint64_t axis) {
 
+  for (uint64_t i = 1; i < tIns.size(); ++i) {
+    verifySameType(tIns[0], tIns[i]);
+  }
   assertNonEmptyConcat(tIns.size());
   const auto shapes      = getShapes(tIns);
   const auto tDatas      = Tensor::getBaseDataPtrs(tIns);
@@ -1315,8 +1338,9 @@ Tensor Tensor::tCopyVector(const Shape &s, const std::vector<T> &vs) {
   }
 
   auto vsCopy = vs;
-  return Tensor(
-      s, DType::Float16, std::make_shared<AllocData<T>>(std::move(vsCopy)));
+  return Tensor(s,
+                ndarray::get<T>(),
+                std::make_shared<AllocData<T>>(std::move(vsCopy)));
 }
 
 template <typename T> Tensor Tensor::tArange(T x0, T x1, T step) {

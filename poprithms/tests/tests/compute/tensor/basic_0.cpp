@@ -207,6 +207,28 @@ void testAllValuesTheSame() {
   }
 }
 
+void testImplicitCastError() {
+  auto a = Tensor::float32(1);
+  auto b = Tensor::float64(2);
+
+  bool caught{false};
+  try {
+    a.add_(b);
+  } catch (const poprithms::error::error &e) {
+
+    auto x = std::string(e.what());
+    if (x.find("implicit casting of op inputs is never performed") ==
+        std::string::npos) {
+      throw poprithms::test::error("The error message isn't as expected");
+    }
+    caught = true;
+  }
+
+  if (!caught) {
+    throw poprithms::test::error("Failed to catch implicit cast attempt");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -223,6 +245,8 @@ int main() {
   testAllClose1();
   testScalarFromElement();
   testAllValuesTheSame();
+
+  testImplicitCastError();
 
   return 0;
 }
