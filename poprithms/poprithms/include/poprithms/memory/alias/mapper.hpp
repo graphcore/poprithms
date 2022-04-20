@@ -44,7 +44,7 @@ public:
 
   /**
    * For improved error messages, this virtual method must be implemented to
-   * return the name/context of the external porject.
+   * return the name/context of the external project.
    * */
   virtual std::string external() const = 0;
 

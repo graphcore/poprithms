@@ -14,4 +14,5 @@ endfunction()
 add_subdirectory(graph)
 add_subdirectory(origins)
 add_subdirectory(tensor)
+add_subdirectory(util)
 
