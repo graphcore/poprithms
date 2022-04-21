@@ -1,0 +1,1 @@
+add_program_test(program_prune_prune_0 prune_0.cpp)

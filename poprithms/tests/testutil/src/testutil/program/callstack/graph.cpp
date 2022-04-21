@@ -48,8 +48,8 @@ void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds_) const {
     }
   }
 
-  cols.push_back({"Copy Sources", std::move(copySources__), {}});
-  cols.push_back({"Copy Destinations", std::move(copyDestinations__), {}});
+  cols.push_back({"Copy ins", std::move(copySources__), {}});
+  cols.push_back({"Copy outs", std::move(copyDestinations__), {}});
 
   ost << alignedColumns(cols);
 }
@@ -71,9 +71,15 @@ void Graph::multiOutTypeSpecificRemoveOutputs(
 void Graph::multiOutTypeSpecificRemoveInputs(
     OpId opId,
     const ContiguousInIndexSubset &coin) {
-  auto copies = mutableOp(opId).inCopies_.copyIns();
-  coin.reduce(copies);
-  mutableOp(opId).inCopies_ = CopyIns(copies);
+
+  auto oldCopyIns = op(opId).inCopies().copyIns();
+  std::vector<CopyIn> copyIns;
+  for (InIndex i = 0; i < op(opId).inCopies().nInTensors(); ++i) {
+    if (!coin.isRemoved(i)) {
+      copyIns.push_back(oldCopyIns.at(i.get()));
+    }
+  }
+  mutableOp(opId).inCopies_ = CopyIns(copyIns);
 }
 
 bool Graph::isCarriedTo(const TensorId &tId, const CallStack &cs) const {

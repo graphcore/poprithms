@@ -178,6 +178,16 @@ public:
   virtual std::vector<std::pair<CallEvent, OutIndex>>
   getCopyOutsFrom(const TensorId &inCallee) const = 0;
 
+  /**
+   * Which ops have #tId as an input, and which index is #tId an input at?
+   * */
+  virtual ConsumptionIds consumptionIds(const TensorId &tId) const = 0;
+
+  /**
+   * Return true if the tensor #tId has any consuming ops.
+   * */
+  virtual bool hasConsumers(const TensorId &tId) const = 0;
+
 public:
   /**
    * The following methods call into the virtual methods defined above.

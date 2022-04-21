@@ -116,6 +116,14 @@ public:
   getCopyOutsFrom(const TensorId &inCallee) const final {
     return copyOuts_.get(inCallee);
   }
+
+  ConsumptionIds consumptionIds(const TensorId &tId) const final {
+    return g().consumptionIds(tId);
+  }
+
+  bool hasConsumers(const TensorId &tId) const {
+    return g().hasConsumptionIds(tId);
+  }
 };
 
 } // namespace callstack_test
