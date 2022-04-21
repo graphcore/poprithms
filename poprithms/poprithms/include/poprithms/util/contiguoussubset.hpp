@@ -3,8 +3,10 @@
 #define POPRITHMS_UTIL_CONTIGUOUSSUBSET_HPP
 
 #include <cstdint>
+#include <sstream>
 #include <vector>
 
+#include <poprithms/error/error.hpp>
 #include <poprithms/util/typedinteger.hpp>
 
 namespace poprithms {
@@ -60,11 +62,53 @@ public:
 
   // Select the values at retained indices from #us.
   template <class U> void reduce(std::vector<U> &us) const {
+    if (us.size() != isRetainedMask.size()) {
+      std::ostringstream oss;
+      oss << "Incorrect number (" << us.size()
+          << ") of elements in reduce from " << isRetainedMask.size()
+          << "-element vector.";
+      throw poprithms::error::error("util", oss.str());
+    }
     for (uint64_t i = 0; i < nSubset(); ++i) {
       auto old = us[get_u64(toFullset[i])];
       us[i]    = std::move(old);
     }
     us.erase(us.cbegin() + nSubset(), us.cend());
+  }
+
+  // Explanation by example..
+  //
+  // Suppose this ContiguousSubset removes at:
+  //
+  // 0 1 2 3 4 5 6 7 8 9
+  // . x x x x . . . . .  (where x == removed).
+  //
+  // Suppose us = {a,b,c,d,e} and indices = {0,1,2,4,6}:
+  //
+  // a b c . d . e . . . (the values to filter).
+  //   x x x x
+  //
+  // b, c and d are all at removal indices, so {a,e} is returned.
+  template <class U>
+  void reduce(std::vector<U> &us, const std::vector<T> &indices) const {
+    if (us.size() != indices.size()) {
+      throw poprithms::error::error(
+          "util", "values and indices vectors are different lengths");
+    }
+    for (auto v : indices) {
+      if (get_u64(v) >= isRetainedMask.size()) {
+        throw poprithms::error::error("util", "Invalid index");
+      }
+    }
+    uint64_t currentInsertIndex{0};
+    for (uint64_t i = 0; i < us.size(); ++i) {
+      if (isRetainedMask[get_u64(indices[i])]) {
+        us[currentInsertIndex] = us.at(i);
+        ++currentInsertIndex;
+      } else {
+      }
+    }
+    us.erase(us.cbegin() + currentInsertIndex, us.cend());
   }
 
   uint64_t nSubset() const { return toFullset.size(); }
@@ -83,7 +127,6 @@ public:
         notRetained.push_back(i);
       }
     }
-
     return notRetained;
   }
 
