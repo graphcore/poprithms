@@ -297,11 +297,16 @@ void TimePartitionLogger::append(std::ostream &ost,
     percentages.push_back(StopwatchSummary::percStr(a.second, total));
   }
 
+  using Parameters = poprithms::util::StringColumn::Parameters;
   ost << util::alignedColumns(
-      {{"Scope", scopes},
-       {"Time [s]", times},
-       {"Count", counts, '-', util::StringColumn::Align::Right},
-       {"Percentage", percentages, '-', util::StringColumn::Align::Right}});
+      {{"Scope", scopes, Parameters()},
+       {"Time [s]", times, Parameters()},
+       {"Count",
+        counts,
+        Parameters().alignType(util::StringColumn::Align::Right)},
+       {"Percentage",
+        percentages,
+        Parameters().alignType(util::StringColumn::Align::Right)}});
 }
 
 std::string TimePartitionLogger::str(double minPercentage) const {

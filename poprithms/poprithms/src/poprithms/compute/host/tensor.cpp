@@ -599,7 +599,6 @@ Tensor Tensor::copyFrom_(const Tensor &rhs) const {
   // If this source and destination are the same, ignore the copy.
   if (&tData() != &rhs.tData()) {
     verifySameType(*this, rhs);
-
     auto rhsTarg = getArg1InplaceTarget(rhs, shape());
     tData().copyFrom_(rhsTarg.tData());
   }

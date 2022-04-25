@@ -113,14 +113,14 @@ void TestGraphInfo::append(std::ostream &ost) const {
     types_.push_back(Op::str(op.type));
   }
 
-  columns.push_back({"Id", ids_});
-  columns.push_back({"Type", types_});
-  columns.push_back({"Ins", ins_});
-  columns.push_back({"nOut", nOuts_});
-  columns.push_back({"insRequired", insRequired_});
-  columns.push_back({"outsRequired", outsRequired_});
-  columns.push_back({"flows", flows_});
-  columns.push_back({"name", names_});
+  columns.push_back({"Id", ids_, {}});
+  columns.push_back({"Type", types_, {}});
+  columns.push_back({"Ins", ins_, {}});
+  columns.push_back({"nOut", nOuts_, {}});
+  columns.push_back({"insRequired", insRequired_, {}});
+  columns.push_back({"outsRequired", outsRequired_, {}});
+  columns.push_back({"flows", flows_, {}});
+  columns.push_back({"name", names_, {}});
 
   ost << alignedColumns(columns);
 }

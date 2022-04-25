@@ -2,8 +2,6 @@
 #ifndef POPRITHMS_COMMON_MULTIOUT_SKIP_TRAVERSAL_HPP
 #define POPRITHMS_COMMON_MULTIOUT_SKIP_TRAVERSAL_HPP
 
-#include <iostream>
-
 #include <poprithms/common/multiout/traversal.hpp>
 
 namespace poprithms {

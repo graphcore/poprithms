@@ -1,7 +1,6 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
 #include <algorithm>
-#include <iostream>
 #include <iterator>
 #include <memory>
 #include <numeric>

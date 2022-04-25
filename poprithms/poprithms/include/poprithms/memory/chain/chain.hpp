@@ -114,6 +114,11 @@ public:
   std::vector<uint64_t> where(Type t) const;
 
   /**
+   * Return true if there is at least one op in this Chain of type #t.
+   * */
+  bool contains(Type t) const;
+
+  /**
    * Template class requirements: `ViewChanger' and 'View' must both have
    * methods reshape, expand, reduce, settSample, settFillInto, reverse, and
    * dimShuffle. Two example uses cases are

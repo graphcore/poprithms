@@ -98,10 +98,10 @@ struct StringColumn {
 
   StringColumn(const std::string &title,
                const std::vector<std::string> &entries,
-               char delimiter          = '-',
-               Align alignType         = Align::Left,
-               uint64_t thresholdWidth = 100,
-               bool abridgeToSingleRow = false);
+               char delimiter,
+               Align alignType,
+               uint64_t thresholdWidth,
+               bool abridgeToSingleRow);
 
   const std::string &title() const { return title_; }
   std::string entry(uint64_t i) const { return entries_[i]; }

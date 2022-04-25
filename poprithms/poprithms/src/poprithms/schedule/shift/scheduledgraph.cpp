@@ -1304,13 +1304,13 @@ std::string ScheduledGraph::getLivenessString() const {
     sName.push_back(ossName.str());
   }
 
-  std::vector<util::StringColumn> stringCols{{"Index", sIndex},
-                                             {"Name", sName},
-                                             {"Ins", sIns},
-                                             {"LinkTo", sLinkTo},
-                                             {"Outs", sOuts},
-                                             {"Allocs", sAllocs},
-                                             {"Liveness", sLiveness}};
+  std::vector<util::StringColumn> stringCols{{"Index", sIndex, {}},
+                                             {"Name", sName, {}},
+                                             {"Ins", sIns, {}},
+                                             {"LinkTo", sLinkTo, {}},
+                                             {"Outs", sOuts, {}},
+                                             {"Allocs", sAllocs, {}},
+                                             {"Liveness", sLiveness, {}}};
 
   return alignedColumns(stringCols);
 }

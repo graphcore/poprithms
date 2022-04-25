@@ -317,25 +317,16 @@ std::string getSummary(const FwdEdges &edges,
       const auto componentFrom = getLocal(components[ci]);
       const auto sp            = getLocal(cycles.at(ci));
 
-      // The maximum column width in the summary string.
-      constexpr uint64_t maxColWidth{120};
-
+      const auto stringColParams =
+          util::StringColumn::Parameters().thresholdWidth(120);
       std::vector<util::StringColumn> cols{
-          {"Op (debug name)",
-           componentDbs,
-           '-',
-           StringColumn::Align::Left,
-           maxColWidth},
+          {"Op (debug name)", componentDbs, stringColParams},
           {"Op (local id)",
            StringColumn::entriesFromInts(componentFrom),
-           '-',
-           StringColumn::Align::Left,
-           maxColWidth},
+           stringColParams},
           {"Edge ends (local ids)",
            StringColumn::entriesFromVectors(componentTo),
-           '-',
-           StringColumn::Align::Left,
-           maxColWidth}};
+           stringColParams}};
 
       if (infoGetter.providesEdgeStrings()) {
         std::vector<std::vector<std::string>> edgeInfos;
@@ -348,9 +339,7 @@ std::string getSummary(const FwdEdges &edges,
         }
         cols.push_back({"Edge types",
                         StringColumn::entriesFromVectors(edgeInfos),
-                        '-',
-                        StringColumn::Align::Left,
-                        maxColWidth});
+                        stringColParams});
       }
 
       oss << util::alignedColumns(cols);

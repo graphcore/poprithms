@@ -451,8 +451,11 @@ void Chain::canonicalize(const Types &targetOrder) {
   };
 
   // Check if the full Region gets mapped to the empty Region. If it does,
-  // it can be represented as a simple mask.
-  if (apply(DisjointRegions::createFull(inShape())).empty()) {
+  // it can be represented as a simple mask. This starts by checking for an op
+  // of type SettFillInto, because without an op of this type it is impossible
+  // to map to the empty region (early+fast exit if present).
+  if (contains(Type::SettFillInto) &&
+      apply(DisjointRegions::createFull(inShape())).empty()) {
     ops_.uptr->ops.clear();
     mask(Region::createEmpty(outShape()));
     return;
@@ -701,6 +704,16 @@ void Chain::confirmEqual(const Chain &rhs, const std::string &ctxt) const {
     }
     throw error(oss.str());
   }
+}
+
+bool Chain::contains(Type t) const {
+
+  for (uint64_t i = 0; i < nOps(); ++i) {
+    if (type(i) == t) {
+      return true;
+    }
+  }
+  return false;
 }
 
 std::vector<uint64_t> Chain::where(Type t) const {

@@ -466,12 +466,12 @@ public:
    * */
   void verifyValid() const;
 
-private:
   /**
    * Verify that the produced/consumer connections of op #opId are valid.
    * */
   void verifyMultioutConnections(OpId) const;
 
+private:
   /**
    * Derived classes must define what it means to be equivalent in this
    * virtual method.

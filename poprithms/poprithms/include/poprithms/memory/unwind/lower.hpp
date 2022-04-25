@@ -57,6 +57,7 @@ public:
       // If the node is an op, call 'initialize' on it (similar to popart's
       // grow method).
       if (ss.isOp(n)) {
+
         helper.initialize(ss.op(n));
       }
       // If the node is a path, then unwind from the source to the
