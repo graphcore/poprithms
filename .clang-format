@@ -64,15 +64,23 @@ ForEachMacros:
 IncludeBlocks:   Regroup 
 IncludeCategories: 
 #All poprithms files at the bottom of the include block:
-  - Regex:           '<testutil*'
-    Priority:        190
   - Regex:           '<poprithms*'
     Priority:        200
-  - Regex:           '<compute/'
+  - Regex:           '<testutil*'
+    Priority:        190
+  - Regex:           '<autodiff/'
     Priority:        190
   - Regex:           '<common/'
     Priority:        190
+  - Regex:           '<compute/'
+    Priority:        190
   - Regex:           '<memory/'
+    Priority:        190
+  - Regex:           '<ndarray/'
+    Priority:        190
+  - Regex:           '<outline/'
+    Priority:        190
+  - Regex:           '<program/'
     Priority:        190
   - Regex:           '<schedule/'
     Priority:        190

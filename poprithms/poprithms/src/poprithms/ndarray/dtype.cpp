@@ -2,9 +2,10 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <ndarray/error.hpp>
 #include <sstream>
 #include <string>
+
+#include <ndarray/error.hpp>
 
 #include <poprithms/ndarray/dtype.hpp>
 

@@ -1,7 +1,8 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
-#include <autodiff/autodiff/error.hpp>
 #include <set>
+
+#include <autodiff/autodiff/error.hpp>
 
 #include <poprithms/autodiff/guide/traversals.hpp>
 #include <poprithms/common/multiout/traversal.hpp>

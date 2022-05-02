@@ -1,12 +1,13 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <functional>
-#include <ndarray/error.hpp>
 #include <numeric>
 #include <ostream>
 #include <sstream>
 #include <tuple>
 #include <type_traits>
+
+#include <ndarray/error.hpp>
 
 #include <poprithms/ndarray/accessors.hpp>
 #include <poprithms/ndarray/shape.hpp>

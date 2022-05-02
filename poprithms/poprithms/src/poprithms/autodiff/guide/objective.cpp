@@ -1,8 +1,9 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
 #include <algorithm>
-#include <autodiff/autodiff/error.hpp>
 #include <sstream>
+
+#include <autodiff/autodiff/error.hpp>
 
 #include <poprithms/autodiff/guide/objective.hpp>
 #include <poprithms/util/unisort.hpp>

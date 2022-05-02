@@ -1,9 +1,10 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
 #include <algorithm>
-#include <autodiff/autodiff/error.hpp>
 #include <map>
 #include <sstream>
+
+#include <autodiff/autodiff/error.hpp>
 
 #include <poprithms/autodiff/core/autodiff.hpp>
 #include <poprithms/common/multiout/tensormap.hpp>
