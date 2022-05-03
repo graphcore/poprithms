@@ -2,7 +2,11 @@ include(EnableCompilerWarnings)
 
 function(add_autodiff_test_executable name source)
   add_executable(${name} ${source})
-  target_link_libraries(${name} poprithms-autodiff autodiff-test-util poprithms-common-multiout)
+  target_link_libraries(${name} 
+       poprithms-autodiff-base 
+       poprithms-autodiff-automatic 
+       autodiff-test-util 
+       poprithms-common-multiout)
 endfunction()
 
 function(add_autodiff_test name source)

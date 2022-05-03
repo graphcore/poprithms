@@ -206,7 +206,7 @@ add_library(poprithms-outline SHARED
 )
 
 set(autodiff_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/src/poprithms/autodiff)
-set(autodiff_sources
+set(autodiff_base_sources
   ${autodiff_src_dir}/core/autodiff.cpp
   ${autodiff_src_dir}/core/gradinfo.cpp
   ${autodiff_src_dir}/core/summary.cpp
@@ -216,11 +216,27 @@ set(autodiff_sources
   ${autodiff_src_dir}/guide/objective.cpp
   ${autodiff_src_dir}/autodiff/error.cpp
 )
-add_library(poprithms-autodiff-objlib OBJECT ${autodiff_sources})
-add_library(poprithms-autodiff SHARED
-  $<TARGET_OBJECTS:poprithms-autodiff-objlib>
+
+add_library(poprithms-autodiff-base-objlib OBJECT ${autodiff_base_sources})
+add_library(poprithms-autodiff-base SHARED
+  $<TARGET_OBJECTS:poprithms-autodiff-base-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+  $<TARGET_OBJECTS:poprithms-common-multiout-objlib>)
+
+# The top-level autodiff requires more components (scheduling, etc) of poprithms 
+# and so is bundled separatedly to the rest of the autodiff project. 
+set(autodiff_automatic_sources
+  ${autodiff_src_dir}/automatic/gradinfos.cpp
+)
+add_library(poprithms-autodiff-automatic-objlib OBJECT ${autodiff_automatic_sources})
+add_library(poprithms-autodiff-automatic SHARED
+  $<TARGET_OBJECTS:poprithms-autodiff-automatic-objlib>
+  $<TARGET_OBJECTS:poprithms-autodiff-base-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
+  $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
+  $<TARGET_OBJECTS:poprithms-program-objlib> 
 )
 
 
@@ -379,7 +395,8 @@ add_library(poprithms-memory-unwind SHARED
 )
 
 add_library(poprithms SHARED 
-  $<TARGET_OBJECTS:poprithms-autodiff-objlib>
+  $<TARGET_OBJECTS:poprithms-autodiff-base-objlib>
+  $<TARGET_OBJECTS:poprithms-autodiff-automatic-objlib>
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
   $<TARGET_OBJECTS:poprithms-common-compute-objlib>
@@ -412,8 +429,10 @@ foreach(tgt IN ITEMS
   poprithms-schedule-other
   poprithms-outline-objlib
   poprithms-outline
-  poprithms-autodiff-objlib
-  poprithms-autodiff
+  poprithms-autodiff-base-objlib
+  poprithms-autodiff-base
+  poprithms-autodiff-automatic-objlib
+  poprithms-autodiff-automatic
   poprithms-memory-nest-objlib
   poprithms-memory-nest
   poprithms-memory-alias-objlib

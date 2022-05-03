@@ -55,7 +55,9 @@ set(autodiff-test-util-sources
 )
 add_library(autodiff-test-util SHARED ${autodiff-test-util-sources})
 target_include_directories(autodiff-test-util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(autodiff-test-util poprithms-autodiff poprithms-common-multiout)
+target_link_libraries(autodiff-test-util poprithms-autodiff-base 
+                                         poprithms-autodiff-automatic 
+                                         poprithms-common-multiout)
 
 set(program-test-util-sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/program/callstack/graph.cpp
