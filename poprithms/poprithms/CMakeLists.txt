@@ -84,6 +84,21 @@ add_library(poprithms-common-schedulable SHARED
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
+set(common_compute_sources
+  ${src_dir}/common/compute/op.cpp
+  ${src_dir}/common/compute/error.cpp
+  ${src_dir}/common/compute/graph.cpp
+)
+add_library(poprithms-common-compute-objlib OBJECT ${common_compute_sources})
+add_library(poprithms-common-compute SHARED
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
+  $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
+  $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
+  $<TARGET_OBJECTS:poprithms-common-compute-objlib>
+  $<TARGET_OBJECTS:poprithms-program-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
 
 set(schedule_src_dir ${src_dir}/schedule)
 
@@ -367,6 +382,7 @@ add_library(poprithms SHARED
   $<TARGET_OBJECTS:poprithms-autodiff-objlib>
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
+  $<TARGET_OBJECTS:poprithms-common-compute-objlib>
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-shift-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
@@ -386,6 +402,8 @@ foreach(tgt IN ITEMS
   poprithms-common-multiout
   poprithms-common-schedulable-objlib
   poprithms-common-schedulable
+  poprithms-common-compute-objlib
+  poprithms-common-compute
   poprithms-compute-host-objlib
   poprithms-compute-host
   poprithms-schedule-shift-objlib
