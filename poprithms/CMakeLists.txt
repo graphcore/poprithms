@@ -70,6 +70,10 @@ if (BUILD_TESTING)
 endif()
 
 if(${POPRITHMS_BUILD_MOCKS})
+  set(POPRITHMS_MOCKS_DIR ${PROJECT_SOURCE_DIR}/poprithms/tests/mocks)
   add_subdirectory(tests/mocks)
+  if (BUILD_TESTING)
+     add_subdirectory(tests/googletests)
+  endif()
 endif()
 
