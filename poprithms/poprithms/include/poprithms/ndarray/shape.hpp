@@ -1266,6 +1266,10 @@ public:
 
   bool operator==(const Shape &rhs) const { return shp == rhs.shp; }
   bool operator!=(const Shape &rhs) const { return shp != rhs.shp; }
+  bool operator<(const Shape &rhs) const { return shp < rhs.shp; }
+  bool operator>(const Shape &rhs) const { return shp > rhs.shp; }
+  bool operator<=(const Shape &rhs) const { return shp <= rhs.shp; }
+  bool operator>=(const Shape &rhs) const { return shp >= rhs.shp; }
 };
 
 std::ostream &operator<<(std::ostream &, const Shape &);
