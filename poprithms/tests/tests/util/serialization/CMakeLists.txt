@@ -1,0 +1,1 @@
+add_util_test(util_serialization_0 serialization_0.cpp)

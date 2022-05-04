@@ -46,7 +46,7 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 # The header only components don't need to be listed after COMPONENTS. 
-find_package(Boost REQUIRED COMPONENTS filesystem system)
+find_package(Boost REQUIRED COMPONENTS filesystem system serialization)
 message(STATUS "Boost_INCLUDE_DIRS is " ${Boost_INCLUDE_DIRS})
 message(STATUS "Boost_LIBRARIES is " ${Boost_LIBRARIES})
 

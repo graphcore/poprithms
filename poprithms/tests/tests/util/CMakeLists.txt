@@ -3,8 +3,9 @@ function(add_util_test_executable name source)
   target_include_directories(${name}
       PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}
-      $<TARGET_PROPERTY:poprithms-util,INCLUDE_DIRECTORIES>)
-  target_link_libraries(${name} poprithms-util poprithms-compute-host)
+      $<TARGET_PROPERTY:poprithms-util,INCLUDE_DIRECTORIES>
+      )
+    target_link_libraries(${name} poprithms-util poprithms-compute-host ${Boost_LIBRARIES})
 endfunction()
 
 function(add_util_test name source)
@@ -27,3 +28,4 @@ add_subdirectory(dtype)
 add_subdirectory(logging)
 add_subdirectory(interval)
 add_subdirectory(ndarray)
+add_subdirectory(serialization)

@@ -113,7 +113,6 @@ void testInsertOnesAt0() {
 
 int main() {
   testCreateFrom0();
-
   testFlatten0();
   testFlatten1();
   testInsertOnesAt0();
