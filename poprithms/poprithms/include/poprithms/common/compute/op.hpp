@@ -11,8 +11,10 @@
 #include <poprithms/common/schedulable/op.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/memory/nest/region.hpp>
+#include <poprithms/ndarray/deviceid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/shape.hpp>
+#include <poprithms/ndarray/tensorinfo.hpp>
 #include <poprithms/program/callstack/callstack.hpp>
 
 namespace poprithms {
@@ -30,11 +32,15 @@ using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
 using poprithms::memory::nest::DisjointRegions;
 using poprithms::memory::nest::Region;
+using poprithms::ndarray::DeviceId;
+using poprithms::ndarray::DeviceIds;
 using poprithms::ndarray::Dimensions;
 using poprithms::ndarray::DType;
 using poprithms::ndarray::DTypes;
 using poprithms::ndarray::Shape;
 using poprithms::ndarray::Shapes;
+using poprithms::ndarray::TensorInfo;
+using poprithms::ndarray::TensorInfos;
 using poprithms::program::callstack::CallEvent;
 using poprithms::program::callstack::CallEvents;
 
@@ -58,10 +64,12 @@ public:
   public:
     State(const schedulable::Op::State &baseState_,
           const DTypes &outDTypes_,
+          const DeviceIds &outDeviceIds_,
           const std::vector<CallEvents> &inCopies_,
           const std::vector<CallEvents> &outCopies_,
           const Graph &pGraph_)
-        : baseState(baseState_), outDTypes(outDTypes_), inCopies(inCopies_),
+        : baseState(baseState_), outDTypes(outDTypes_),
+          outDeviceIds(outDeviceIds_), inCopies(inCopies_),
           outCopies(outCopies_), pGraph(&pGraph_) {}
 
     const schedulable::Op::State baseState;
@@ -70,6 +78,11 @@ public:
      * The numerical type of each of the outputs of this op.
      * */
     const DTypes outDTypes;
+
+    /**
+     * The device which each of the output tensors is on.
+     * */
+    const DeviceIds outDeviceIds;
 
     /**
      * All of the call events in the graph which involve a copy from a calling
@@ -175,10 +188,52 @@ public:
    * */
   void computeOpRemoveOutputs(const ContiguousOutIndexSubset &);
 
-protected:
-  // unique pointer to base op class.
-  using UpBop = std::unique_ptr<multiout::Op>;
+  /**
+   * The device of the input at index #i.
+   * */
+  DeviceId inDeviceId(InIndex i) const;
 
+  /**
+   * The device of the output at index #o.
+   * */
+  DeviceId outDeviceId(OutIndex o) const { return outDeviceIds_.at(o.get()); }
+
+  /**
+   * The input or output device at index i.
+   * */
+  DeviceId deviceId(Port, uint64_t i) const;
+
+  /**
+   * The devices of all of the inputs.
+   * */
+  DeviceIds inDeviceIds() const;
+
+  /**
+   * The devices of all of the outputs.
+   * */
+  DeviceIds outDeviceIds() const { return outDeviceIds_; }
+
+  /**
+   * The tensor information (shape, type, device) of input #i.
+   * */
+  TensorInfo inTensorInfo(InIndex i) const;
+
+  /**
+   * The tensor information (shape, type, device) of output #o.
+   * */
+  TensorInfo outTensorInfo(OutIndex o) const;
+
+  /**
+   * The tensor information (shape, type, device) of all inputs.
+   * */
+  TensorInfos inTensorInfos() const;
+
+  /**
+   * The tensor information (shape, type, device) of all outputs.
+   * */
+  TensorInfos outTensorInfos() const;
+
+protected:
   /**
    * Some utility methods used for checking for correctness of ops where there
    * is an expectation on the equivalence of input/output types.
@@ -190,6 +245,7 @@ protected:
 private:
   // See the comments in the Op::State class about these attributes.
   DTypes outDTypes_;
+  DeviceIds outDeviceIds_;
   std::vector<CallEvents> inCopies_;
   std::vector<CallEvents> outCopies_;
   const Graph *pGraph_;

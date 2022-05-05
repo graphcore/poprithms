@@ -54,19 +54,26 @@ void Op::removeOutCopy(OutIndex outIndex, const CallEvent &ce) {
 }
 
 Op::State Op::getComputeState() const {
-  return {getSchedulableState(), outDTypes_, inCopies_, outCopies_, *pGraph_};
+  return {getSchedulableState(),
+          outDTypes_,
+          outDeviceIds_,
+          inCopies_,
+          outCopies_,
+          *pGraph_};
 }
 
 bool Op::State::operator==(const Op::State &rhs) const {
-  return outDTypes == rhs.outDTypes && //
-         inCopies == rhs.inCopies &&   //
-         outCopies == rhs.outCopies && //
-         pGraph == rhs.pGraph;         // pointer comparison.
+  return outDTypes == rhs.outDTypes &&       //
+         outDeviceIds == rhs.outDeviceIds && //
+         inCopies == rhs.inCopies &&         //
+         outCopies == rhs.outCopies &&       //
+         pGraph == rhs.pGraph;               // pointer comparison.
 }
 
 Op::Op(const Op::State &ob)
     : schedulable::Op(ob.baseState), outDTypes_(ob.outDTypes),
-      inCopies_(ob.inCopies), outCopies_(ob.outCopies), pGraph_(ob.pGraph) {
+      outDeviceIds_(ob.outDeviceIds), inCopies_(ob.inCopies),
+      outCopies_(ob.outCopies), pGraph_(ob.pGraph) {
   if (!ob.pGraph) {
     throw error("Op's graph must not be nullptr");
   }
@@ -131,11 +138,57 @@ void Op::computeOpRemoveOutputs(const ContiguousOutIndexSubset &coin) {
   coin.reduce(outCopies_);
   coin.reduce(inCopies_);
   coin.reduce(outDTypes_);
+  coin.reduce(outDeviceIds_);
 }
 
 DType Op::inDType(InIndex i) const { return graph().dtype(inTensorId(i)); }
 
+DeviceIds Op::inDeviceIds() const {
+  DeviceIds ins;
+  ins.reserve(nInTensors());
+  for (auto inId : inTensorIds()) {
+    ins.push_back(graph().deviceId(inId));
+  }
+  return ins;
+}
+
+DeviceId Op::deviceId(Port p, uint64_t i) const {
+  return (p == Port::In ? inDeviceId(InIndex(i)) : outDeviceId(OutIndex(i)));
+}
+
+DeviceId Op::inDeviceId(InIndex i) const {
+  return graph().deviceId(inTensorId(i));
+}
+
 const Graph &Op::graph() const { return *pGraph_; }
+
+TensorInfo Op::inTensorInfo(InIndex i) const {
+  return TensorInfo(inShape(i), inDeviceId(i), inDType(i));
+}
+
+TensorInfos Op::inTensorInfos() const {
+  std::vector<TensorInfo> infos;
+  infos.reserve(nInTensors());
+  for (uint64_t i = 0; i < nInTensors(); ++i) {
+    infos.push_back(inTensorInfo(i));
+  }
+  return TensorInfos(std::move(infos));
+}
+
+TensorInfos Op::outTensorInfos() const {
+
+  std::vector<TensorInfo> infos;
+  infos.reserve(nOutTensors());
+  for (uint64_t o = 0; o < nOutTensors(); ++o) {
+    infos.push_back(outTensorInfo(o));
+  }
+
+  return TensorInfos(std::move(infos));
+}
+
+TensorInfo Op::outTensorInfo(OutIndex o) const {
+  return TensorInfo(outShape(o), outDeviceId(o), outDType(o));
+}
 
 } // namespace compute
 } // namespace common
