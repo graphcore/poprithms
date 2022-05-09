@@ -86,9 +86,11 @@ add_library(poprithms-common-schedulable SHARED
 )
 
 set(common_compute_sources
-  ${src_dir}/common/compute/op.cpp
+  ${src_dir}/common/compute/device.cpp
+  ${src_dir}/common/compute/devicetype.cpp
   ${src_dir}/common/compute/error.cpp
   ${src_dir}/common/compute/graph.cpp
+  ${src_dir}/common/compute/op.cpp
 )
 add_library(poprithms-common-compute-objlib OBJECT ${common_compute_sources})
 add_library(poprithms-common-compute SHARED
