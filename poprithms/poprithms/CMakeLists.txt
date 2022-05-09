@@ -252,6 +252,7 @@ set(compute_host_sources
   ${compute_src_dir}/host/ieeehalf.cpp
   ${compute_src_dir}/host/origindata.cpp
   ${compute_src_dir}/host/basedata.cpp
+  ${compute_src_dir}/host/serializer.cpp
   # instantiating templates on separate translation units
   # to parallelize their compilations.
   ${compute_src_dir}/host/types/float32float64.cpp

@@ -19,7 +19,7 @@ namespace ndarray {
 
 // Non-intrusive boost based serialization class for serializing classes in
 // the ndarray namespace.
-class Serializer;
+class BoostSerializer;
 
 class Shape;
 using Shapes = std::vector<Shape>;
@@ -34,7 +34,7 @@ class Shape {
 
 private:
   std::vector<int64_t> shp;
-  friend class Serializer;
+  friend class BoostSerializer;
 
 public:
   using Shapes = std::vector<Shape>;

@@ -99,6 +99,7 @@ std::string str(CommutativeOp);
  *
  * */
 class Tensor {
+
 public:
   /**
    * Create a Float64 Tensor by copying data.
@@ -1337,6 +1338,11 @@ private:
   Shape shape_;
   DType dtype_;
   std::shared_ptr<BaseData> tData_;
+
+  // Grant acceess to the Serializer class which uses boost::serialization to
+  // serialize Tensors. Boost handles the tricky task of serializing
+  // shared_ptrs, polymorphic base pointers, etc.
+  friend class Serializer;
 
   void assertValidReshape(const Shape &) const;
 

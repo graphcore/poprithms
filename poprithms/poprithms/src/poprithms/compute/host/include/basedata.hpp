@@ -18,6 +18,8 @@ namespace poprithms {
 namespace compute {
 namespace host {
 
+class Serializer;
+
 class BaseData;
 template <class T> class OriginData;
 template <class T> class AllocData;

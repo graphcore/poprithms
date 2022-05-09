@@ -49,6 +49,8 @@ template <class T>
 class OriginData : public TypedData<T>,
                    public std::enable_shared_from_this<OriginData<T>> {
 
+  friend class Serializer;
+
 public:
   using Vec = std::vector<T>;
   using BaseData::nelms_i64;

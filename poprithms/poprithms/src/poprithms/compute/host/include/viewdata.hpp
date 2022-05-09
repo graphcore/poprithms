@@ -28,6 +28,8 @@ template <class T>
 class ViewData : public TypedData<T>,
                  public std::enable_shared_from_this<ViewData<T>> {
 
+  friend class Serializer;
+
 private:
   using OriginDatas = std::vector<std::shared_ptr<const OriginData<T>>>;
 
@@ -44,6 +46,12 @@ private:
   // shared_ptrs in rowMajorOriginDatas, to avoid multiple virtual method
   // calls into polymorphic OriginData objects.
   std::vector<T *> rowMajorOriginDataPtrs;
+  void setRowMajorOriginDataPtrs() {
+    rowMajorOriginDataPtrs.reserve(rowMajorOriginDatas.size());
+    for (auto o : rowMajorOriginDatas) {
+      rowMajorOriginDataPtrs.push_back(o->dataPtr());
+    }
+  }
 
   // A vector of length nelms(), which stores the underlying BaseData where
   // particular Tensor elements live. For example, if rowMajorOriginDatas[5] =
@@ -144,10 +152,7 @@ public:
       : rowMajorOriginDatas(origins_),
         rowMajorOriginDataIndices(std::move(indices_)),
         rowMajorOriginDataOffsets(std::move(offsets_)) {
-    rowMajorOriginDataPtrs.reserve(rowMajorOriginDatas.size());
-    for (auto o : rowMajorOriginDatas) {
-      rowMajorOriginDataPtrs.push_back(o->dataPtr());
-    }
+    setRowMajorOriginDataPtrs();
   }
 
   ViewData(const ViewData &) = default;

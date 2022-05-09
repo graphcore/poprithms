@@ -12,6 +12,8 @@ namespace poprithms {
 namespace compute {
 namespace host {
 
+class Serializer;
+
 // We do not want to use std::vector<bool> because:
 //
 //  1) does not expose raw data through a data() member method.
@@ -53,6 +55,7 @@ template <class T> class AllocData : public OriginData<T> {
 private:
   using Primal = typename Container<T>::Primal;
   using Dual   = typename Container<T>::Dual;
+  friend class Serializer;
 
 public:
   AllocData(const Primal &v) : up(std::make_unique<Primal>(v)) {}
