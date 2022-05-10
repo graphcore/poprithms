@@ -109,6 +109,7 @@ private:
 class Graph final : public schedulable::Graph {
 
   void verifySchedulableDerivedGraphValid() const final {}
+  void verifySchedulableDerivedOpValid(OpId) const final {}
 
 private:
   schedulable::Op::State getState(const TensorIds &ins,

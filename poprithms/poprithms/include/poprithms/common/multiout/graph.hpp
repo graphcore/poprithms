@@ -322,9 +322,6 @@ protected:
    * inputs' creators.
    * */
   OpId insertMultioutOp(std::unique_ptr<Op> op);
-  OpId insertMultioutOp(const Op &op) {
-    return insertMultioutOp(op.cloneMultioutOp());
-  }
 
   [[noreturn]] void unimplemented() const;
 
@@ -467,9 +464,11 @@ public:
   void verifyValid() const;
 
   /**
-   * Verify that the produced/consumer connections of op #opId are valid.
+   * Verify that the op #opId is valid, at every level of inheritance. This
+   * method uses the the same inheritance design as #verifyValid, but for just
+   * a single op instead of the entire graph.
    * */
-  void verifyMultioutConnections(OpId) const;
+  void verifyOpValid(OpId) const;
 
 private:
   /**
@@ -477,6 +476,16 @@ private:
    * virtual method.
    * */
   virtual bool multiOutTypeSpecificEqualTo(const Graph &) const = 0;
+
+  /**
+   * Verify that the attributes of this multiout op are correct.
+   * */
+  void verifyValidAtMultioutLevel(OpId) const;
+
+  /**
+   * Verify that all derived op attributes are correct.
+   * */
+  virtual void verifyMultioutDerivedOpValid(OpId opId) const = 0;
 
   /**
    * \sa verifyValid.

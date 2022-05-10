@@ -69,6 +69,7 @@ public:
 
 private:
   void verifyMultioutDerivedGraphValid() const final {}
+  void verifyMultioutDerivedOpValid(OpId) const final {}
 
   bool multiOutTypeSpecificEqualTo(const multiout::Graph &) const final {
     return true;

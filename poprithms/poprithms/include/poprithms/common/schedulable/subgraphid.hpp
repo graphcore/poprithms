@@ -1,17 +1,25 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
-#ifndef POPRITHMS_COMMON_SCHEDULABLE_GRAPHID_HPP
-#define POPRITHMS_COMMON_SCHEDULABLE_GRAPHID_HPP
+#ifndef POPRITHMS_COMMON_SCHEDULABLE_SUBGRAPHID_HPP
+#define POPRITHMS_COMMON_SCHEDULABLE_SUBGRAPHID_HPP
 
+#include <algorithm>
 #include <limits>
 #include <vector>
 
+#include <poprithms/common/multiout/tensorid.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/util/typedinteger.hpp>
 #include <poprithms/util/typedvector.hpp>
 
 namespace poprithms {
-
 namespace common {
 namespace schedulable {
+
+using poprithms::common::multiout::TensorId;
+using poprithms::common::multiout::TensorIds;
+
+class SubGraphId;
+using SubGraphIds = std::vector<SubGraphId>;
 
 /// The Graph class controls the construction and generation of SubGraphIds.
 class Graph;
@@ -62,13 +70,55 @@ public:
    * */
   static SubGraphId createSubGraphId(uint32_t v) { return SubGraphId(v); }
 
+  template <typename G>
+  static SubGraphIds subGraphIds(const G &g, const TensorIds &tIds) {
+    SubGraphIds sgIds;
+    sgIds.reserve(tIds.size());
+    for (const TensorId &tId : tIds) {
+      sgIds.push_back(g.subGraphId(tId));
+    }
+    return sgIds;
+  }
+
+  template <typename G>
+  static SubGraphId fromTensorIds(const G &g, const TensorIds &ids) {
+
+    if (ids.empty()) {
+      throw poprithms::error::error(
+          "common::schedulable",
+          "Failed to obtain SubGraphId from empty vector of TensorIds. ");
+    }
+
+    const auto subGraphId_ = g.subGraphId(ids[0]);
+    if (std::any_of(ids.cbegin() + 1,
+                    ids.cend(),
+                    [&subGraphId_, &g](const TensorId &id) {
+                      return g.subGraphId(id) != subGraphId_;
+                    })) {
+      std::ostringstream oss;
+      oss << "Contradictory solution while attemting to obtain "
+          << "SubGraphId from the TensorIds, " << ids
+          << ". Expected all TensorIds to have same SubGraphId, "
+          << "but the SubGraphIds are not all identical, "
+          << subGraphIds<G>(g, ids);
+      throw poprithms::error::error("common::schedulable", oss.str());
+    }
+
+    return subGraphId_;
+  }
+
+  template <typename G>
+  static SubGraphId fromTensorIds(const G &g,
+                                  const std::vector<TensorIds> &idss) {
+    return fromTensorIds<G>(g, TensorId::flatten(idss));
+  }
+
 private:
   SubGraphId(uint32_t v) : val(v) {}
   friend class Graph;
   uint32_t val;
 };
 
-using SubGraphIds = std::vector<SubGraphId>;
 std::ostream &operator<<(std::ostream &, const SubGraphIds &);
 std::ostream &operator<<(std::ostream &, const SubGraphId &);
 

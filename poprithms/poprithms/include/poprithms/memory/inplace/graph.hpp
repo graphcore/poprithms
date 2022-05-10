@@ -102,6 +102,7 @@ public:
   Graph &operator=(const Graph &) = default;
 
   void verifyMultioutDerivedGraphValid() const final {}
+  void verifyMultioutDerivedOpValid(OpId) const final {}
 
   /** Subsample a Tensor in a specified Region. \sa Region */
   TensorId settSample(const TensorId &, const Region &);

@@ -50,12 +50,24 @@ public:
   struct State {
 
   public:
-    State(const OpId id_,
+    State(OpId id_,
           const TensorIds &inIds_,
           const std::vector<ConsumptionIds> &consumptionIds_,
           const Shapes &outShapes_,
           const std::string &name_,
-          const Graph &mulitoutGraph_);
+          const Graph &);
+
+    static State getStartingState(OpId opId,
+                                  const TensorIds &inIds,
+                                  const Shapes &outShapes,
+                                  const Graph &g) {
+      return State(opId,
+                   inIds,
+                   std::vector<ConsumptionIds>(outShapes.size()),
+                   outShapes,
+                   {},
+                   g);
+    }
 
     // This Op's unique identifier.
     const OpId id;

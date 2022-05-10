@@ -27,6 +27,7 @@ class FullState;
 class Graph : public poprithms::common::schedulable::Graph {
 
   void verifySchedulableDerivedGraphValid() const final {}
+  void verifySchedulableDerivedOpValid(OpId) const final {}
 
 public:
   Op::State getStartingState(const OpId opId,

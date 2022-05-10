@@ -945,6 +945,7 @@ private:
   }
 
   void verifyMultioutDerivedGraphValid() const final {}
+  void verifyMultioutDerivedOpValid(OpId) const final {}
 
   Op &op(OpId);
   const Op &op(OpId) const;

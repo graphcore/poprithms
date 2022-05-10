@@ -14,6 +14,9 @@ namespace poprithms {
 namespace common {
 namespace multiout {
 
+class TensorId;
+using TensorIds = std::vector<TensorId>;
+
 /**
  * A Tensor within a Graph is identified by the OpId of the Op which creates
  * it, and the output index where it is created.
@@ -43,11 +46,12 @@ public:
 
   std::tuple<OpId, OutIndex> tup() const { return {opId(), outIndex()}; }
 
+  static TensorIds flatten(const std::vector<TensorIds> &);
+
 private:
   OpId opId_;
   OutIndex outIndex_;
 };
-using TensorIds = std::vector<TensorId>;
 std::ostream &operator<<(std::ostream &, const TensorId &);
 std::ostream &operator<<(std::ostream &, const TensorIds &);
 

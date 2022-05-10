@@ -4,6 +4,7 @@
 
 #include <poprithms/common/multiout/op.hpp>
 #include <poprithms/common/multiout/opid.hpp>
+#include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 
 namespace poprithms {
@@ -14,6 +15,8 @@ using multiout::ContiguousInIndexSubset;
 using multiout::ContiguousOutIndexSubset;
 using multiout::OpId;
 using multiout::OpIds;
+using multiout::Shape;
+using multiout::Shapes;
 using multiout::TensorIds;
 
 class Graph;
@@ -46,6 +49,19 @@ public:
         : baseState(baseState_), subGraphId(subGraphId_),
           controlDependencyInOps(controlDependencyInOps_),
           controlDependencyOutOps(controlDependencyOutOps_) {}
+
+    // no control deps (and all the starting state of the multiout op).
+    static State getStartingState(OpId opId,
+                                  SubGraphId sgId,
+                                  const TensorIds &inIds,
+                                  const Shapes &outShapes,
+                                  const Graph &g) {
+      return State(
+          multiout::Op::State::getStartingState(opId, inIds, outShapes, g),
+          sgId,
+          {},
+          {});
+    }
 
     // The base state, contains Shapes, data dependencies (TensorIds), a name,
     // an OpId, etc.

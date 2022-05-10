@@ -113,40 +113,11 @@ void Graph::verifySubGraphId(const TensorIds &tIds,
 
 SubGraphId
 Graph::subGraphIdFromTensorIds(const std::vector<TensorIds> &tidss) const {
-  uint64_t n = std::accumulate(
-      tidss.cbegin(), tidss.cend(), 0ULL, [](uint64_t nIn, const auto &x) {
-        return nIn + x.size();
-      });
-
-  TensorIds flat{};
-  flat.reserve(n);
-
-  for (const auto &x : tidss) {
-    flat.insert(flat.end(), x.cbegin(), x.cend());
-  }
-  return subGraphIdFromTensorIds(flat);
+  return subGraphIdFromTensorIds(TensorId::flatten(tidss));
 }
 
 SubGraphId Graph::subGraphIdFromTensorIds(const TensorIds &ids) const {
-  if (ids.empty()) {
-    throw error(
-        "Failed to obtain SubGraphId from empty vector of TensorIds. ");
-  }
-
-  const auto subGraphId_ = subGraphId(ids[0]);
-  if (std::any_of(
-          ids.cbegin() + 1, ids.cend(), [&subGraphId_, this](const auto &id) {
-            return subGraphId(id) != subGraphId_;
-          })) {
-    std::ostringstream oss;
-    oss << "Contradictory solution while attemting to obtain "
-        << "SubGraphId from the TensorIds, " << ids
-        << ". Expected all TensorIds to have same SubGraphId, "
-        << "but the SubGraphIds are not all identical, " << subGraphIds(ids);
-    throw error(oss.str());
-  }
-
-  return subGraphId_;
+  return SubGraphId::fromTensorIds(*this, ids);
 }
 
 void Graph::binConstraint(const std::vector<OpIds> &bins) {
@@ -337,6 +308,8 @@ OpId Graph::insertSchedulableOp(std::unique_ptr<Op> op_) {
 
     info.setLast(newId);
   }
+
+  verifyValidAtSchedulableLevel(newId);
 
   return newId;
 }
@@ -673,12 +646,7 @@ Graph::getSubGraphForwardEdgeMap_u64(SubGraphId sgId,
 }
 
 SubGraphIds Graph::subGraphIds(const TensorIds &ids) const {
-  SubGraphIds subGraphIds;
-  subGraphIds.reserve(ids.size());
-  for (const auto &id : ids) {
-    subGraphIds.push_back(subGraphId(id));
-  }
-  return subGraphIds;
+  return SubGraphId::subGraphIds(*this, ids);
 }
 
 // We could consider keeping an additional datastructre (a field in
@@ -781,7 +749,7 @@ TensorIds Graph::tensorIds(SubGraphId subGraphId) const {
   return tensorIds;
 }
 
-void Graph::verifySchedulableOp(OpId opId) const {
+void Graph::verifyValidAtSchedulableLevel(OpId opId) const {
 
   // sub-graphs of inputs must match op.
   for (const auto t : inTensorIds(opId)) {
@@ -822,10 +790,15 @@ void Graph::verifySchedulableOp(OpId opId) const {
 void Graph::verifyMultioutDerivedGraphValid() const {
 
   for (auto opId : multiout::Graph::opIds()) {
-    verifySchedulableOp(opId);
+    verifyValidAtSchedulableLevel(opId);
   }
 
   verifySchedulableDerivedGraphValid();
+}
+
+void Graph::verifyMultioutDerivedOpValid(OpId opId) const {
+  verifyValidAtSchedulableLevel(opId);
+  verifySchedulableDerivedOpValid(opId);
 }
 
 SubGraphIds Graph::asSubGraphIds(const std::vector<uint64_t> &i) const {

@@ -358,15 +358,6 @@ public:
   std::vector<poprithms::util::StringColumn> getSchedulableColumns(
       const poprithms::util::StringColumn::Parameters &p) const;
 
-  void verifySchedulableOp(OpId) const;
-
-  /**
-   * Verify that this Graph is in a valid state, including all state inherited
-   * from base classes.
-   * */
-  void verifyMultioutDerivedGraphValid() const final;
-  virtual void verifySchedulableDerivedGraphValid() const = 0;
-
   const Op &schedulableOp(OpId opId) const { return op(opId); }
 
   /**
@@ -409,6 +400,19 @@ protected:
       const TensorId &after) const = 0;
 
 private:
+  /**
+   * Verify that the attributes of a single op are valid.
+   * */
+  virtual void verifySchedulableDerivedOpValid(OpId opId) const = 0;
+  void verifyMultioutDerivedOpValid(OpId) const final;
+  void verifyValidAtSchedulableLevel(OpId) const;
+
+  /**
+   * Verify that the entire graph is valid.
+   * */
+  virtual void verifySchedulableDerivedGraphValid() const = 0;
+  void verifyMultioutDerivedGraphValid() const final;
+
   // This method will remove the control dependencies of opToRemove, ensuring
   // that there are no dangling ends when it is removed. No control
   // dependncies are 'transferred', these must be done before the call to

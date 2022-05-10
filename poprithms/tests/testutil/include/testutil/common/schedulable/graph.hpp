@@ -55,6 +55,7 @@ public:
   using schedulable::Graph::removeOp;
 
   void verifySchedulableDerivedGraphValid() const final {}
+  void verifySchedulableDerivedOpValid(OpId) const final {}
 
   OpId insert(const TensorIds &ins,
               uint64_t nOut,

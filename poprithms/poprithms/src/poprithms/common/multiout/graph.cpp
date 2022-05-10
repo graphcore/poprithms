@@ -348,7 +348,12 @@ void Graph::removeOutputs(OpId opToPrune,
   indexMapper.reduce(op_.consumptionIds_);
 }
 
-void Graph::verifyMultioutConnections(OpId op_) const {
+void Graph::verifyOpValid(OpId opId) const {
+  verifyValidAtMultioutLevel(opId);
+  verifyMultioutDerivedOpValid(opId);
+}
+
+void Graph::verifyValidAtMultioutLevel(OpId op_) const {
 
   // for every input, check that there's agreement with the producer of the
   // input:
@@ -450,6 +455,8 @@ OpId Graph::insertMultioutOp(std::unique_ptr<Op> createdOp) {
   const auto newId = ops().back().uptr->id();
 
   atts.live_.insert(/* hint = */ atts.live_.end(), newId);
+
+  verifyValidAtMultioutLevel(newId);
 
   return newId;
 }
@@ -711,7 +718,7 @@ void Graph::verifyValid() const {
   }
 
   for (auto op_ : opIds()) {
-    verifyMultioutConnections(op_);
+    verifyValidAtMultioutLevel(op_);
   }
 
   verifyMultioutDerivedGraphValid();
