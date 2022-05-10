@@ -90,10 +90,12 @@ set(common_compute_sources
   ${src_dir}/common/compute/devicetype.cpp
   ${src_dir}/common/compute/error.cpp
   ${src_dir}/common/compute/graph.cpp
+  ${src_dir}/common/compute/initialvalues.cpp
   ${src_dir}/common/compute/op.cpp
 )
 add_library(poprithms-common-compute-objlib OBJECT ${common_compute_sources})
 add_library(poprithms-common-compute SHARED
+  $<TARGET_OBJECTS:poprithms-compute-host-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>

@@ -1,6 +1,6 @@
 function(add_common_test_executable name source)
   add_executable(${name} ${source})
-  target_link_libraries(${name} poprithms-common-schedulable common-schedulable-test-util)
+  target_link_libraries(${name} poprithms-common-compute)
 endfunction()
 
 function(add_common_test name source)
@@ -12,5 +12,4 @@ function(add_common_test name source)
 endfunction()
 
 
-add_common_test(poprithms_common_schedulable_0 schedulable_0.cpp)
-add_common_test(poprithms_common_schedulable_1 schedulable_1.cpp)
+add_common_test(poprithms_common_compute_basics_0 basics_0.cpp)
