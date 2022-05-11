@@ -8,7 +8,7 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
-using HostTensor = poprithms::compute::host::Tensor;
+using HostTensor  = poprithms::compute::host::Tensor;
 using HostTensors = std::vector<HostTensor>;
 
 /** A host tensor where operator== is defined via numerical equivalence. */

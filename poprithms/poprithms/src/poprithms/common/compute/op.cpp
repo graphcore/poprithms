@@ -11,6 +11,24 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+Op::State Op::State::getStartingState(OpId opId,
+                                      SubGraphId sgId,
+                                      const TensorIds &ins,
+                                      const TensorInfos &outs,
+                                      const Graph &g) {
+  return State(schedulable::Op::State::getStartingState(
+                   opId, sgId, ins, outs.shapes(), g),
+               outs.dtypes(),
+               outs.deviceIds(),
+               std::vector<CallEvents>(outs.size()),
+               std::vector<CallEvents>(outs.size()),
+               InitialValues(outs.size()));
+}
+
+void Op::verifyValidAtComputeLevel() const {
+  // TODO(T62089)
+}
+
 void Op::insertInCopy(OutIndex outIndex, const CallEvent &ce) {
   auto &cs = inCopies_.at(outIndex.get());
   if (std::find(cs.cbegin(), cs.cend(), ce) == cs.cend()) {
@@ -59,25 +77,21 @@ Op::State Op::getComputeState() const {
           outDeviceIds_,
           inCopies_,
           outCopies_,
-          *pGraph_};
+          initVals_};
 }
 
 bool Op::State::operator==(const Op::State &rhs) const {
   return outDTypes == rhs.outDTypes &&       //
          outDeviceIds == rhs.outDeviceIds && //
          inCopies == rhs.inCopies &&         //
-         outCopies == rhs.outCopies &&       //
-         pGraph == rhs.pGraph;               // pointer comparison.
+         outCopies == rhs.outCopies          //
+         && initVals == rhs.initVals;
 }
 
 Op::Op(const Op::State &ob)
     : schedulable::Op(ob.baseState), outDTypes_(ob.outDTypes),
       outDeviceIds_(ob.outDeviceIds), inCopies_(ob.inCopies),
-      outCopies_(ob.outCopies), pGraph_(ob.pGraph) {
-  if (!ob.pGraph) {
-    throw error("Op's graph must not be nullptr");
-  }
-}
+      outCopies_(ob.outCopies), initVals_(ob.initVals) {}
 
 void Op::verifyInsSameDType() const {
   if (nInTensors() < 2) {
@@ -139,6 +153,127 @@ void Op::computeOpRemoveOutputs(const ContiguousOutIndexSubset &coin) {
   coin.reduce(inCopies_);
   coin.reduce(outDTypes_);
   coin.reduce(outDeviceIds_);
+  initVals_.reduce(coin);
+}
+
+std::map<uint64_t, poprithms::compute::host::Tensor>
+Op::initialValues(OutIndex o) const {
+
+  if (!isIpu(o)) {
+    throw error(
+        "Only ipu tensors can have initial values before compilation. ");
+  }
+
+  return initVals_.getInitialValues(o);
+}
+
+void Op::setInitialValue(uint64_t replica,
+                         OutIndex o,
+                         const poprithms::compute::host::Tensor &v) {
+
+  if (!isIpu(o)) {
+    throw error("Only ipu tensors can have initial values set, other tensors "
+                "must be set after compilation. ");
+  }
+
+  if (v.shape() != outShape(o)) {
+    std::ostringstream oss;
+    oss << "The shape of the host tensor is " << v.shape()
+        << ", which is different to the shape output #" << o << " of op "
+        << *this << ": shapes must match in setInitialValue. ";
+    throw error(oss.str());
+  }
+
+  if (v.dtype() != v.dtype()) {
+    std::ostringstream oss;
+    oss << "The data type of the host tensor is " << v.dtype()
+        << ", which is different to the data type of output #" << o
+        << " of op " << *this
+        << ": data types must match in setInitialValue. ";
+    throw error(oss.str());
+  }
+
+  if (replica >= graph().replicationFactor_u64()) {
+    std::ostringstream oss;
+    oss << "Attempt to set the initial value replica #" << replica
+        << " of a graph with only " << graph().replicationFactor_u64() << ".";
+    throw error(oss.str());
+  }
+
+  initVals_.setValue(o, replica, v);
+}
+
+DeviceType Op::outDeviceType(OutIndex o) const {
+  return graph().device(outDeviceId(o)).deviceType();
+  // This causes problems if called during construction:
+  // return m().deviceType(outTensorId(o));
+}
+
+DeviceType Op::inDeviceType(InIndex i) const {
+  return graph().deviceType(inTensorId(i));
+}
+DeviceType Op::deviceType(Port p, uint64_t i) const {
+  return (p == Port::In ? inDeviceType(InIndex(i))
+                        : outDeviceType(OutIndex(i)));
+}
+
+DeviceTypes Op::outDeviceTypes() const {
+  std::vector<DeviceType> ts;
+  ts.reserve(nOutTensors());
+  for (uint64_t o = 0; o < nOutTensors(); ++o) {
+    ts.push_back(outDeviceType(o));
+  }
+  return ts;
+}
+
+DeviceTypes Op::inDeviceTypes() const {
+  std::vector<DeviceType> ts;
+  ts.reserve(nInTensors());
+  for (uint64_t i = 0; i < nInTensors(); ++i) {
+    ts.push_back(inDeviceType(i));
+  }
+  return ts;
+}
+
+const Device &Op::outDevice(OutIndex o) const {
+  return graph().device(outDeviceId(o));
+}
+const Device &Op::inDevice(InIndex i) const {
+  return graph().device(inDeviceId(i));
+}
+
+DeviceTypes Op::inAndOutDeviceTypes() const {
+  auto all        = inDeviceTypes();
+  const auto outs = outDeviceTypes();
+  all.insert(all.end(), outs.cbegin(), outs.cend());
+  return all;
+}
+
+const Device &Op::device(Port p, uint64_t i) const {
+  return (p == Port::In ? inDevice(InIndex(i)) : outDevice(OutIndex(i)));
+}
+
+DeviceType Op::deviceType() const {
+  const auto ts = inAndOutDeviceTypes();
+  if (ts.empty()) {
+    std::ostringstream oss;
+    oss << "Cannot infer device type for Op " << *this
+        << " which has no inputs and no outputs. ";
+    throw error(oss.str());
+  }
+  if (!std::all_of(
+          ts.cbegin(), ts.cend(), [&ts](auto t) { return t == ts[0]; })) {
+    std::ostringstream oss;
+    oss << "Not all inputs and outputs for op " << *this
+        << " are on a device of the same type. "
+        << "It is therefore not possible to define what device type " << *this
+        << "is on. "
+        << "The inputs and outputs, " << inAndOutTensorIds()
+        << " are on device types, ";
+    poprithms::util::append(oss, ts);
+    throw error(oss.str());
+  }
+  return ts[0];
 }
 
 DType Op::inDType(InIndex i) const { return graph().dtype(inTensorId(i)); }
@@ -160,7 +295,9 @@ DeviceId Op::inDeviceId(InIndex i) const {
   return graph().deviceId(inTensorId(i));
 }
 
-const Graph &Op::graph() const { return *pGraph_; }
+const Graph &Op::graph() const {
+  return static_cast<const Graph &>(multioutGraph());
+}
 
 TensorInfo Op::inTensorInfo(InIndex i) const {
   return TensorInfo(inShape(i), inDeviceId(i), inDType(i));

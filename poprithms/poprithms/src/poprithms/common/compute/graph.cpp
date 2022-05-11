@@ -17,8 +17,49 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
-OpId Graph::insertComputeOp(std::unique_ptr<Op> op) {
-  return insertSchedulableOp(std::move(op));
+DeviceType Graph::deviceType(const TensorId &tensorId) const {
+  return device(tensorId).deviceType();
+}
+
+DeviceType Graph::deviceType(OpId opId) const {
+  return op(opId).deviceType();
+}
+DeviceType Graph::deviceType(DeviceId devId) const {
+  return device(devId).deviceType();
+}
+
+std::vector<DeviceType> Graph::deviceTypes(const TensorIds &ids) const {
+  std::vector<DeviceType> ts;
+  ts.reserve(ids.size());
+  for (auto id : ids) {
+    ts.push_back(deviceType(id));
+  }
+  return ts;
+}
+
+const Device &Graph::device(const TensorId &tid) const {
+  return device(op(tid.opId()).outDeviceId(tid.outIndex()));
+}
+
+OpId Graph::insertComputeOp(std::unique_ptr<Op> nxtOp) {
+  const auto newId = insertSchedulableOp(std::move(nxtOp));
+  verifyValidAtComputeLevel(newId);
+  return newId;
+}
+
+void Graph::verifyValidAtComputeLevel(OpId opId) const {
+  op(opId).verifyValidAtComputeLevel();
+}
+
+void Graph::verifySchedulableDerivedGraphValid() const {
+  for (auto opId : multiout::Graph::opIds()) {
+    verifySchedulableDerivedOpValid(opId);
+  }
+}
+
+void Graph::verifySchedulableDerivedOpValid(OpId opId) const {
+  verifyValidAtComputeLevel(opId);
+  verifyComputeDerivedOpValid(opId);
 }
 
 DType Graph::dtype(const TensorId &tId) const {

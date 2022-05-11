@@ -1,3 +1,5 @@
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
+
 #include <poprithms/common/compute/initialvalues.hpp>
 #include <poprithms/error/error.hpp>
 
