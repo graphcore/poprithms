@@ -87,23 +87,6 @@ private:
   DeviceType deviceType_;
 };
 
-/**
- * The host device type.
- * */
-class Host : public Device {
-public:
-  Host(DeviceId id) : Device(id, DeviceType::Host) {}
-  std::unique_ptr<Device> clone() const final;
-
-private:
-  /**
-   * There is no restriction on the shape or type of host tensor, so these
-   * methods return true.
-   * */
-  bool canStoreShape(const Shape &) const final { return true; }
-  bool canStoreDType(DType) const final { return true; }
-};
-
 std::ostream &operator<<(std::ostream &oss, const Device &);
 
 } // namespace compute
