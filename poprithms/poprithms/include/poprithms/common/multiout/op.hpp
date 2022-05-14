@@ -275,6 +275,8 @@ public:
    * */
   TensorId tensorId(Port, uint64_t i) const;
 
+  void verifyValidOutIndex(OutIndex) const;
+
 private:
   OpId id_;
   TensorIds inIds_;
@@ -309,7 +311,7 @@ private:
   friend class multiout::Graph;
 
 protected:
-  [[noreturn]] void unimplemented() const;
+  [[noreturn]] void unimplemented(const std::string & = {}) const;
 };
 
 std::ostream &operator<<(std::ostream &, const Op &);

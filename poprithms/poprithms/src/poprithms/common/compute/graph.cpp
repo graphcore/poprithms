@@ -17,6 +17,32 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+void Graph::schedulableTypeSpecificRemoveOp(
+    OpId opToRemove,
+    const OptionalTensorIds &outputSubstitutes) {
+
+  (void)opToRemove;
+  (void)outputSubstitutes;
+}
+
+void Graph::schedulableTypeSpecificVerifyValidSubstitute(
+    const TensorId &before,
+    const TensorId &after) const {
+  if (deviceId(before) != deviceId(after)) {
+    std::ostringstream oss;
+    oss << "DeviceId of tensor before substitution is " << deviceId(before)
+        << ", and DeviceId after substitution is " << deviceId(after) << ". ";
+    throw error(oss.str());
+  }
+
+  if (dtype(before) != dtype(after)) {
+    std::ostringstream oss;
+    oss << "Type of tensor before substitution is " << dtype(before)
+        << ", and type after substitution is " << deviceId(after) << ". ";
+    throw error(oss.str());
+  }
+}
+
 DeviceType Graph::deviceType(const TensorId &tensorId) const {
   return device(tensorId).deviceType();
 }
@@ -138,6 +164,77 @@ TensorInfos Graph::tensorInfos(const TensorIds &ids) const {
     infos.push_back(tensorInfo(id));
   }
   return infos;
+}
+namespace {
+template <typename T> std::string getStr(const std::vector<T> &X) {
+  std::ostringstream ost;
+  poprithms::util::append(ost, X);
+  return ost.str();
+}
+} // namespace
+
+void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds_) const {
+
+  const auto colParams = poprithms::util::StringColumn::Parameters()
+                             .abridgeToSingleRow(false)
+                             .thresholdWidth(50);
+
+  auto cols = getMultioutColumns(opIds_, colParams);
+
+  for (auto &&c : getSchedulableColumns(opIds_, colParams)) {
+    cols.push_back(c);
+  }
+
+  for (auto &&c : getComputeColumns(opIds_, colParams)) {
+    cols.push_back(c);
+  }
+
+  ost << alignedColumns(cols);
+}
+
+std::vector<poprithms::util::StringColumn> Graph::getComputeColumns(
+    const OpIds &opIds_,
+    const poprithms::util::StringColumn::Parameters &colParams) const {
+
+  std::vector<poprithms::util::StringColumn> cols;
+
+  const auto nRows = nMultioutRows(opIds_);
+  using Strings    = std::vector<std::string>;
+
+  Strings devices(nRows, "");
+  Strings dtypes(nRows, "");
+  Strings rootRefOf(nRows, "");
+  bool hasOutRefs{false};
+
+  uint64_t rowIndex{0};
+  for (auto opId : opIds_) {
+
+    const auto &op_       = op(opId);
+    const auto subGraphId = op_.subGraphId();
+    const auto gName      = subGraphName(subGraphId);
+    for (uint64_t o = 0; o < op_.nOutTensors(); ++o) {
+      dtypes[rowIndex]  = poprithms::ndarray::lcase(dtype({opId, o}));
+      const auto devId  = op_.outDeviceId(o);
+      devices[rowIndex] = device(devId).str();
+      auto outRefs      = op_.derivedRefs(o);
+      hasOutRefs |= !outRefs.empty();
+      rootRefOf[rowIndex] = getStr(outRefs);
+      ++rowIndex;
+    }
+    if (op_.nOutTensors() == 0) {
+      ++rowIndex;
+    }
+  }
+
+  cols.push_back({"Device", std::move(devices), colParams});
+
+  // If there is no cross-graph referencing, do not append a column.
+  if (hasOutRefs) {
+    cols.push_back({"IsRootOf", std::move(rootRefOf), colParams});
+  }
+  cols.push_back({"Type", std::move(dtypes), colParams});
+
+  return cols;
 }
 
 } // namespace compute

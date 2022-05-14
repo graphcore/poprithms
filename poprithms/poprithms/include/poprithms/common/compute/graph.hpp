@@ -15,6 +15,7 @@
 #include <poprithms/ndarray/deviceid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/tensorinfo.hpp>
+#include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace common {
@@ -158,8 +159,42 @@ public:
    * */
   virtual const Device &device(DeviceId dId) const = 0;
 
+  /**
+   * The columns of the attributes specific to common::compute::Ops.
+   * */
+  std::vector<poprithms::util::StringColumn>
+  getComputeColumns(const OpIds &,
+                    const poprithms::util::StringColumn::Parameters &) const;
+
+  void appendOpColumns(std::ostream &, const OpIds &) const final;
+
+  bool hasDerivedRefs(const TensorId &tId) const {
+    return op(tId.opId()).hasDerivedRefs(tId.outIndex());
+  }
+
+  bool isRootRef(const TensorId &tId) const {
+    return op(tId.opId()).isRootRef(tId.outIndex());
+  }
+
+  TensorId rootRef(const TensorId &tId) const {
+    return op(tId.opId()).rootRef(tId.outIndex());
+  }
+
+  TensorIds refsExcludingSelf(const TensorId &tId) const {
+    return op(tId.opId()).refsExcludingSelf(tId.outIndex());
+  }
+
 protected:
   OpId insertComputeOp(std::unique_ptr<Op>);
+
+  /**
+   * Insert an op of type TRefFromOp, which has zero inputs and have #srcId as
+   * an attribute. This is a special kind of initializer (input) op, which
+   * does not create a new variable/constant but rather just aliases a
+   * variable in a different graph. See the Op class for further information.
+   * */
+  template <class TRefFromOp>
+  TensorId tRefFrom(const TensorId &srcId, SubGraphId destination);
 
 private:
   /**
@@ -183,6 +218,14 @@ private:
    * */
   virtual void verifyComputeDerivedGraphValid() const = 0;
   void verifySchedulableDerivedGraphValid() const final;
+
+  void schedulableTypeSpecificRemoveOp(
+      OpId opToRemove,
+      const OptionalTensorIds &outputSubstitutes) final;
+
+  void schedulableTypeSpecificVerifyValidSubstitute(
+      const TensorId &before,
+      const TensorId &after) const final;
 
   // These's methods are protected in the parent class, but should not be used
   // beyond this class and are therefore made private:
@@ -208,6 +251,37 @@ OpId Graph::createComputeOp(const TensorIds &inIds,
 
   auto opId = insertComputeOp(std::unique_ptr<T>(new T(state, args...)));
   return opId;
+}
+template <class T>
+TensorId Graph::tRefFrom(const TensorId &srcId,
+                         const SubGraphId destination) {
+
+  /// Obtain the canonical representative of #srcId.
+  const TensorId rootId = op(srcId.opId()).rootRef(srcId.outIndex());
+
+  /// If #rootId is already in the sub-graph #destination, then do not create
+  /// a new op, just return #rootId.
+  if (subGraphId(rootId) == destination) {
+    return rootId;
+  }
+
+  /// If there is already a reference to #rootId in #destination, do not
+  /// create a new op, rather re-use the existing one.
+  for (auto existingDerived :
+       op(rootId.opId()).derivedRefs(rootId.outIndex())) {
+    if (subGraphId(existingDerived) == destination) {
+      return existingDerived;
+    }
+  }
+
+  const auto opId =
+      createComputeOp<T>({}, destination, {tensorInfo(srcId)}, rootId);
+
+  const TensorId dst = op(opId).outTensorId(OutIndex(0));
+
+  op(rootId.opId()).insertOutDerivedRef(rootId.outIndex(), dst);
+
+  return dst;
 }
 
 } // namespace compute

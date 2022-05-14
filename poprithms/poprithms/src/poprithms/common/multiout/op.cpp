@@ -46,13 +46,16 @@ OutIndices Op::outIndices() const {
   return outIndices_;
 }
 
-void Op::unimplemented() const {
+void Op::unimplemented(const std::string &n) const {
   std::ostringstream oss;
   oss << "This method for this class derived from multiout::Op "
       << "is not implemented. "
       << "Called on graph with name '" << getName()
       << "'. typeid of class (typeid(*this).name) is " << typeid(*this).name()
       << '.';
+  if (!n.empty()) {
+    oss << " Context: " << n;
+  }
   throw error(oss.str());
 }
 
@@ -324,6 +327,15 @@ uint64_t Op::nTensors(Port p) const {
   return (p == Port::In ? nInTensors() : nOutTensors());
 }
 std::string Op::lowercase(Port p) { return (p == Port::In ? "in" : "out"); }
+
+void Op::verifyValidOutIndex(OutIndex index) const {
+  if (index.get() >= nOutTensors()) {
+    std::ostringstream oss;
+    oss << "Invalid OutIndex (" << index << "). This Op " << *this
+        << " only has " << nOutTensors() << " output Tensors. ";
+    throw error(oss.str());
+  }
+}
 
 } // namespace multiout
 } // namespace common

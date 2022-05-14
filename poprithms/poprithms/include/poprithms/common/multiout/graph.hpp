@@ -323,7 +323,7 @@ protected:
    * */
   OpId insertMultioutOp(std::unique_ptr<Op> op);
 
-  [[noreturn]] void unimplemented() const;
+  [[noreturn]] void unimplemented(const std::string & = {}) const;
 
 public:
   /**

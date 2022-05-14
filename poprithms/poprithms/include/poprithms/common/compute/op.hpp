@@ -72,15 +72,17 @@ public:
           const DeviceIds &outDeviceIds_,
           const std::vector<CallEvents> &inCopies_,
           const std::vector<CallEvents> &outCopies_,
-          const InitialValues &initVals_)
+          const InitialValues &initVals_,
+          const std::vector<TensorIds> &derivedRefs_)
         : baseState(baseState_), outDTypes(outDTypes_),
           outDeviceIds(outDeviceIds_), inCopies(inCopies_),
-          outCopies(outCopies_), initVals(initVals_) {}
+          outCopies(outCopies_), initVals(initVals_),
+          derivedRefs(derivedRefs_) {}
 
     /**
      * Extends the base State with starting attributes for this inheritance
      * layer. In particular, this State has no copies to or from the output
-     * tensors of the op.
+     * tensors of the op, and no derived reference tensors.
      * */
     static State getStartingState(OpId,
                                   SubGraphId,
@@ -123,6 +125,36 @@ public:
      * DeviceType::Ipu.
      * */
     const InitialValues initVals;
+
+    /**
+     * In common::compute::Graphs, tensors may have aliases in multiple
+     * sub-graphs. This non-SSA feature makes it possible to describe poplar
+     * graphs and programs directly.
+     *
+     * By default however, tensors are not global. By default, all of the
+     * tensors which alias a tensor are in its sub-graph. A user must
+     * explicity "opt-in" for cross-graph aliasing via a special type of
+     * inputless op (more on this later).
+     *
+     * The semantics for this feature are as follows.
+     *
+     * The tensors form a partitioning, where tensors in a equivalence class
+     * are all the same underlying tensor, but with different ids and
+     * belonging to different sub-graphs. There is one canonical
+     * representative in each equivalence class which we call the 'root
+     * reference'. In the case where there is no aliasing between sub-graphs,
+     * each of the equivalence classes will be of size 1, and every tensor is
+     * its own root reference.
+     *
+     * In an equivalence class of size N there is 1 canonical representative
+     * (the root reference) and the other N-1 tensors are called the 'derived
+     * references'.
+     *
+     * This vector stores the derived references of all outputs of this op
+     * which are root tensors. If there is no cross-graph aliasing, then there
+     * are no derived references.
+     * */
+    const std::vector<TensorIds> derivedRefs;
 
     Shape inShape(uint64_t i) const { return baseState.baseState.inShape(i); }
 
@@ -322,8 +354,47 @@ public:
    * */
   const Device &device(Port, uint64_t) const;
 
-  // if in and out don't all agree, throws error
+  /**
+   * The device type of this op, inferred from the device types of all inputs
+   * and outputs. If not all inputs and outputs have the same device type, an
+   * error is thrown.
+   * */
   DeviceType deviceType() const;
+
+  /**
+   * The root reference tensor for output tensor #i. In other words, the
+   * canonical representative of the equivalence class of identical tensors in
+   * different sub-graphs.
+   *
+   * If output #o does not have references in other graphs, this will be the
+   * output #o itself.
+   * */
+  virtual TensorId rootRef(OutIndex o) const = 0;
+
+  bool isRootRef(OutIndex o) const { return rootRef(o) == outTensorId(o); }
+
+  /**
+   * If the output #o is a root reference tensor (the canonical representative
+   * of its equivalence class), return then N-1 other tensors in the
+   * equivalence class (where N is the size of the equivalence class). If
+   * output #o is not a root reference, return {}.
+   * */
+
+  TensorIds derivedRefs(OutIndex o) const { return derivedRefs_.at(o.get()); }
+
+  uint64_t nDerivedRefs(OutIndex o) const {
+    return derivedRefs_.at(o.get()).size();
+  }
+
+  bool hasDerivedRefs(OutIndex o) const { return nDerivedRefs(o) != 0; }
+
+  /**
+   * All tensors in the equivalence class of output #o formed of identical
+   * tensors in different sub-graphs, excluding output #o.
+   * */
+  TensorIds refsExcludingSelf(OutIndex) const;
+
+  void insertOutDerivedRef(OutIndex, TensorId);
 
 protected:
   /**
@@ -335,6 +406,18 @@ protected:
   void verifyAllSameDType() const;
 
 private:
+  bool schedulableTypeSpecificEqualTo(
+      const poprithms::common::schedulable::Op &other) const final;
+
+  /**
+   * A pure virtual function that derived classes must implement.
+   * This function has a precondition that it will only
+   * be called when the 'other' is the same type as the instance
+   * invoking the function.
+   * */
+  virtual bool computeTypeSpecificEqualTo(const Op &other) const = 0;
+
+private:
   // See the comments in the Op::State class about these attributes.
   DTypes outDTypes_;
   DeviceIds outDeviceIds_;
@@ -342,6 +425,7 @@ private:
   std::vector<CallEvents> outCopies_;
   // indexed as [out index][replica]:
   InitialValues initVals_;
+  std::vector<TensorIds> derivedRefs_;
 };
 
 } // namespace compute

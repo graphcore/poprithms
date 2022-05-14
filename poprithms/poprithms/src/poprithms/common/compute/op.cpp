@@ -22,7 +22,8 @@ Op::State Op::State::getStartingState(OpId opId,
                outs.deviceIds(),
                std::vector<CallEvents>(outs.size()),
                std::vector<CallEvents>(outs.size()),
-               InitialValues(outs.size()));
+               InitialValues(outs.size()),
+               std::vector<TensorIds>(outs.size()));
 }
 
 void Op::verifyValidAtComputeLevel() const {
@@ -77,21 +78,24 @@ Op::State Op::getComputeState() const {
           outDeviceIds_,
           inCopies_,
           outCopies_,
-          initVals_};
+          initVals_,
+          derivedRefs_};
 }
 
 bool Op::State::operator==(const Op::State &rhs) const {
   return outDTypes == rhs.outDTypes &&       //
          outDeviceIds == rhs.outDeviceIds && //
          inCopies == rhs.inCopies &&         //
-         outCopies == rhs.outCopies          //
-         && initVals == rhs.initVals;
+         outCopies == rhs.outCopies &&       //
+         initVals == rhs.initVals &&         //
+         derivedRefs == rhs.derivedRefs;
 }
 
 Op::Op(const Op::State &ob)
     : schedulable::Op(ob.baseState), outDTypes_(ob.outDTypes),
       outDeviceIds_(ob.outDeviceIds), inCopies_(ob.inCopies),
-      outCopies_(ob.outCopies), initVals_(ob.initVals) {}
+      outCopies_(ob.outCopies), initVals_(ob.initVals),
+      derivedRefs_(ob.derivedRefs) {}
 
 void Op::verifyInsSameDType() const {
   if (nInTensors() < 2) {
@@ -154,6 +158,9 @@ void Op::computeOpRemoveOutputs(const ContiguousOutIndexSubset &coin) {
   coin.reduce(outDTypes_);
   coin.reduce(outDeviceIds_);
   initVals_.reduce(coin);
+
+  // TODO(T26307): update the root stored in each of the derived refs.
+  coin.reduce(derivedRefs_);
 }
 
 std::map<uint64_t, poprithms::compute::host::Tensor>
@@ -325,6 +332,46 @@ TensorInfos Op::outTensorInfos() const {
 
 TensorInfo Op::outTensorInfo(OutIndex o) const {
   return TensorInfo(outShape(o), outDeviceId(o), outDType(o));
+}
+void Op::insertOutDerivedRef(OutIndex index, TensorId tensorId) {
+  verifyValidOutIndex(index);
+
+  if (tensorId == TensorId(id(), index)) {
+    std::ostringstream oss;
+    oss << "Attempt to insert output derived index at index " << index
+        << " of " << *this << " to " << tensorId
+        << ", but cannot set an output reference of a tensor to the "
+           "tensor itself. ";
+    throw error(oss.str());
+  }
+  derivedRefs_[index.get()].push_back(tensorId);
+}
+TensorIds Op::refsExcludingSelf(OutIndex o) const {
+  TensorId rr = rootRef(o);
+  auto ders   = graph().computeOp(rr.opId()).derivedRefs(rr.outIndex());
+  for (auto &x : ders) {
+    if (x == outTensorId(o)) {
+      x = rr;
+    }
+  }
+  return ders;
+}
+
+bool Op::schedulableTypeSpecificEqualTo(
+    const poprithms::common::schedulable::Op &other) const {
+
+  // guaranteed that this is valid. Should we just drop this assumption, and
+  // have a check?
+  const auto &rhs = static_cast<const Op &>(other);
+
+  return
+      // Same base properties:
+      getComputeState() == rhs.getComputeState() &&
+
+      //  Same derived class:
+      typeid(*this) == typeid(rhs) &&
+      // Same derived class properties:
+      computeTypeSpecificEqualTo(rhs);
 }
 
 } // namespace compute

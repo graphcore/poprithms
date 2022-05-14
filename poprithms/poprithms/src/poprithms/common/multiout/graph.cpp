@@ -724,13 +724,16 @@ void Graph::verifyValid() const {
   verifyMultioutDerivedGraphValid();
 }
 
-void Graph::unimplemented() const {
+void Graph::unimplemented(const std::string &ctxt) const {
   std::ostringstream oss;
   oss << "This method for this class derived from multiout::Graph "
       << "is not implemented. "
       << "Called on graph with name '" << getName()
       << "'. typeid of class (typeid(*this).name) is " << typeid(*this).name()
       << '.';
+  if (!ctxt.empty()) {
+    oss << " Additional context: " << ctxt;
+  }
   throw error(oss.str());
 }
 
