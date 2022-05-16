@@ -6,12 +6,48 @@
 #include <sstream>
 #include <tuple>
 
+#include <poprithms/program/callstack/carriedtensorid.hpp>
 #include <poprithms/program/callstack/copyin.hpp>
 #include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace program {
 namespace callstack {
+
+std::vector<std::pair<TensorId, CalleeTensorId>> CopyIns::zipCalleeTensorId(
+    const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &ins_) {
+  std::vector<std::pair<TensorId, CalleeTensorId>> zipped;
+  zipped.reserve(ins_.size());
+  for (const auto &in_ : ins_) {
+    zipped.push_back(
+        {std::get<0>(in_), {std::get<1>(in_), std::get<2>(in_)}});
+  }
+  return zipped;
+}
+
+std::vector<CopyIn>
+CopyIns::zip(const std::vector<std::pair<TensorId, TensorId>> &v,
+             CalleeIndex ci) {
+  std::vector<CopyIn> cIns;
+  cIns.reserve(v.size());
+  for (const auto &x : v) {
+    cIns.push_back({x.first, x.second, ci});
+  }
+  return cIns;
+}
+
+std::pair<TensorIds, TensorIds>
+CopyIns::split(const std::vector<std::pair<TensorId, TensorId>> &ps) {
+  TensorIds a;
+  TensorIds b;
+  a.reserve(ps.size());
+  b.reserve(ps.size());
+  for (const auto &p : ps) {
+    a.push_back(p.first);
+    b.push_back(p.second);
+  }
+  return {std::move(a), std::move(b)};
+}
 
 InIndex CopyIns::inIndex(CalleeIndex ci, const TensorId &inCallee) const {
 
@@ -228,6 +264,32 @@ CopyIns::CopyIns(const std::vector<CopyIn> &cis) : copyIns_(cis) {
     throw error("Cannot have a destination in the callee graph with multiple "
                 "copy sources");
   }
+}
+
+// CarriedTensorId implementation included in this translation unit to avoid
+// tiny translation units.
+void CarriedTensorId::append(std::ostream &ost) const {
+  ost << sourceInCaller() << "-->" << destinationInCallee() << "<-"
+      << sourceInCallee();
+}
+
+TensorIds CarriedTensorIds::sourcesInCallee() const {
+  TensorIds tIds;
+  tIds.reserve(nTensors());
+  for (const auto &ct : carriedTensorIds()) {
+    tIds.push_back(ct.sourceInCallee());
+  }
+  return tIds;
+}
+
+std::ostream &operator<<(std::ostream &ost, const CarriedTensorId &ct) {
+  ct.append(ost);
+  return ost;
+}
+
+std::ostream &operator<<(std::ostream &ost, const CarriedTensorIds &ct) {
+  poprithms::util::append(ost, ct.carriedTensorIds());
+  return ost;
 }
 
 } // namespace callstack

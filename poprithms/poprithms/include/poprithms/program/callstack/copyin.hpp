@@ -108,12 +108,21 @@ public:
   static std::vector<CopyIn>
   zip(const TensorIds &srcs, const TensorIds &dsts, CalleeIndex i);
 
+  static std::vector<CopyIn>
+  zip(const std::vector<std::pair<TensorId, TensorId>> &, CalleeIndex);
+
+  static std::pair<TensorIds, TensorIds>
+  split(const std::vector<std::pair<TensorId, TensorId>> &);
+
   /**
    * Construct a vector of CopyIns with sources #srcs (in calling sub-graph),
    * and destinations #dsts, where #dsts are in the sub-graphs at indices #is.
    * */
   static std::vector<CopyIn>
   zip(const TensorIds &srcs, const TensorIds &dsts, const CalleeIndices &cis);
+
+  static std::vector<std::pair<TensorId, CalleeTensorId>> zipCalleeTensorId(
+      const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &);
 
   /**
    * Construct a vector of CopyIns with sources #srcs (in calling sub-graph),
