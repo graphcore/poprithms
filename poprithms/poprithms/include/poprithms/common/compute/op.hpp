@@ -18,6 +18,8 @@
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/ndarray/tensorinfo.hpp>
+#include <poprithms/program/callstack/calleeindex.hpp>
+#include <poprithms/program/callstack/calleetensorid.hpp>
 #include <poprithms/program/callstack/callstack.hpp>
 
 namespace poprithms {
@@ -46,6 +48,9 @@ using poprithms::ndarray::Shape;
 using poprithms::ndarray::Shapes;
 using poprithms::ndarray::TensorInfo;
 using poprithms::ndarray::TensorInfos;
+using poprithms::program::callstack::CalleeIndex;
+using poprithms::program::callstack::CalleeTensorId;
+using poprithms::program::callstack::CalleeTensorIds;
 using poprithms::program::callstack::CallEvent;
 using poprithms::program::callstack::CallEvents;
 
@@ -194,7 +199,7 @@ public:
   /**
    * The graph to which this op belongs.
    * */
-  const Graph &graph() const;
+  const Graph &computeGraph() const;
 
 public:
   void insertInCopy(OutIndex, const CallEvent &);
@@ -217,6 +222,45 @@ public:
    * graph).
    * */
   const std::vector<CallEvents> &inCopies() const { return inCopies_; }
+
+  /**
+   * The sub-graphs that this op calls into (if any). For most 'normal' ops
+   * this will be the empty vector, for an if-op this will be the 2 sub-graphs
+   * (if and else branches), etc.
+   * */
+  virtual SubGraphIds callees() const = 0;
+
+  /**
+   * Callee #ci.
+   * */
+  virtual SubGraphId callee(CalleeIndex ci) const = 0;
+
+  /**
+   * The input index at which the callee tensor #ctId is copied into.
+   * Specifically, this method is used when this op has callee sub-graphs, and
+   * #ctId is a tensor in one of the callee sub-graphs to which an input of
+   * this op (in the calling graph) is copied.
+   **/
+  virtual InIndex inIndex(const CalleeTensorId &ctId) const = 0;
+
+  /**
+   * The output index at which the callee tensor #ctId is copied out of one of
+   * this op's callee sub-graphs.
+   * */
+  virtual OutIndex outIndex(const CalleeTensorId &ctId) const = 0;
+
+  /**
+   * The number of callee sub-graphs that this op has.
+   * */
+  virtual uint64_t nCallees() const = 0;
+
+  bool hasCallees() const { return nCallees() != 0; }
+
+  /**
+   * The callees, tied to their callee indices. For example if this op has
+   * callees (2,5) then this method returns ((2,0),(5,1)).
+   * */
+  std::vector<std::pair<SubGraphId, CalleeIndex>> indexedCallees() const;
 
   /**
    * All call events which end with a copy from the #o'th output tensor of
@@ -406,6 +450,8 @@ protected:
   void verifyAllSameDType() const;
 
 private:
+  const Graph &graph() const { return computeGraph(); }
+
   bool schedulableTypeSpecificEqualTo(
       const poprithms::common::schedulable::Op &other) const final;
 
@@ -416,6 +462,14 @@ private:
    * invoking the function.
    * */
   virtual bool computeTypeSpecificEqualTo(const Op &other) const = 0;
+
+  // These are methods defined in schedulable::Op. We don't want them to be
+  // publicly accessible at this level, all constraints should be inserted
+  // with Graph::constraint. Hence making them private.
+  void insertIn(OpId);
+  void insertOut(OpId);
+
+  using poprithms::common::multiout::Op::multioutGraph;
 
 private:
   // See the comments in the Op::State class about these attributes.

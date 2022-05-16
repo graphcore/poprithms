@@ -26,8 +26,72 @@ Op::State Op::State::getStartingState(OpId opId,
                std::vector<TensorIds>(outs.size()));
 }
 
+template <typename T>
+void checkNumberOfOuts(const T &t, const Op &op, const std::string &ctxt) {
+  if (t.size() != op.nOutTensors()) {
+    std::ostringstream oss;
+    oss << "There are " << t.size() << " values (" << ctxt
+        << ") for tensors but " << op.nOutTensors() << " output tensors. "
+        << t.size() << " != " << op.nOutTensors() << ". This for op " << op;
+    throw error(oss.str());
+  }
+}
+
 void Op::verifyValidAtComputeLevel() const {
-  // TODO(T62089)
+
+  // check that there are right number of attributes (1 per output tensor).
+  checkNumberOfOuts(outDTypes_, *this, "dtypes");
+  checkNumberOfOuts(outDeviceIds_, *this, "device ids");
+  checkNumberOfOuts(inCopies_, *this, "in copies");
+  checkNumberOfOuts(inCopies_, *this, "out copies");
+  checkNumberOfOuts(inCopies_, *this, "initial values");
+  checkNumberOfOuts(inCopies_, *this, "derived refs");
+
+  // Check that callee-copy relationships are correct:
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    for (const auto &ce : inCopies_.at(o.get())) {
+      const auto &caller = graph().computeOp(ce.caller());
+      // get the index copied in at.  This serves as the test.
+      const auto index = caller.inIndex({outTensorId(o), ce.index()});
+      (void)index;
+    }
+
+    for (const auto &ce : outCopies_.at(o.get())) {
+      const auto &caller = graph().computeOp(ce.caller());
+      // get the index copied out at.  This serves as the test.
+      const auto index = caller.outIndex({outTensorId(o), ce.index()});
+      (void)index;
+    }
+  }
+
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    for (const auto &[k, v] : initVals_.getInitialValues(o)) {
+      (void)k;
+      if (v.shape() != outShape(o) || v.dtype() != outDType(o)) {
+        std::ostringstream oss;
+        oss << "The initial value for the output #" << o << " has shape "
+            << v.shape() << " and type " << v.dtype()
+            << ", but the output tensor #" << o << " has shape "
+            << outShape(o) << " and type " << outDType(o);
+        throw error(oss.str());
+      }
+    }
+  }
+
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    for (auto derivedRef : derivedRefs_.at(o.get())) {
+      auto reported =
+          graph().computeOp(derivedRef.opId()).rootRef(derivedRef.outIndex());
+      if (reported != outTensorId(o)) {
+
+        std::ostringstream oss;
+        oss << "The output #" << o << " has " << derivedRef
+            << " as a derived reference, but " << derivedRef << " has "
+            << reported << " as its root reference. ";
+        throw error(oss.str());
+      }
+    }
+  }
 }
 
 void Op::insertInCopy(OutIndex outIndex, const CallEvent &ce) {
@@ -302,7 +366,7 @@ DeviceId Op::inDeviceId(InIndex i) const {
   return graph().deviceId(inTensorId(i));
 }
 
-const Graph &Op::graph() const {
+const Graph &Op::computeGraph() const {
   return static_cast<const Graph &>(multioutGraph());
 }
 
@@ -355,6 +419,19 @@ TensorIds Op::refsExcludingSelf(OutIndex o) const {
     }
   }
   return ders;
+}
+
+std::vector<std::pair<SubGraphId, CalleeIndex>> Op::indexedCallees() const {
+
+  std::vector<std::pair<SubGraphId, CalleeIndex>> cs;
+  auto callees_ = callees();
+
+  cs.reserve(callees_.size());
+  for (CalleeIndex ci = 0; ci < callees_.size(); ++ci) {
+    cs.push_back({callees_.at(ci.get()), ci});
+  }
+
+  return cs;
 }
 
 bool Op::schedulableTypeSpecificEqualTo(
