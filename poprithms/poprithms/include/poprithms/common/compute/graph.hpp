@@ -8,13 +8,17 @@
 #include <tuple>
 #include <vector>
 
-#include <poprithms/common/compute/device.hpp>
+#include <poprithms/common/compute/host.hpp>
+#include <poprithms/common/compute/ipu.hpp>
 #include <poprithms/common/compute/op.hpp>
+#include <poprithms/common/compute/remote.hpp>
+#include <poprithms/common/compute/replication.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/ndarray/deviceid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/tensorinfo.hpp>
+#include <poprithms/util/copybyclone.hpp>
 #include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
@@ -43,12 +47,21 @@ using poprithms::ndarray::TensorInfos;
 class Graph : public poprithms::common::schedulable::Graph {
 
 public:
-  Graph()              = default;
-  Graph(Graph &&)      = default;
-  Graph(const Graph &) = default;
-  Graph &operator=(Graph &&) = default;
-  Graph &operator=(const Graph &) = default;
-  virtual ~Graph() override       = default;
+  Graph(Graph &&);
+  Graph(const Graph &);
+
+  Graph &operator=(Graph &&);
+  Graph &operator=(const Graph &);
+
+  /**
+   * Create a graph containing an ipu with #nTilesPerReplica tiles per
+   * replica, and #rf replicas.
+   * */
+  Graph(uint64_t nTilesPerReplica, ReplicationFactor);
+
+  Graph() : Graph(32, ReplicationFactor::create(1)) {}
+
+  virtual ~Graph() override;
 
   /**
    * The numerical type of the elements of tensor #tId.
@@ -56,9 +69,9 @@ public:
   DType dtype(const TensorId &tId) const;
 
   /**
-   * The numerical types of the elements of tensor #tId.
+   * The numerical types of the elements of tensors #tIds.
    * */
-  DTypes dtypes(const TensorId &) const;
+  DTypes dtypes(const TensorIds &tIds) const;
 
   /**
    * Return true if the numerical type of tensor #tId is integral.
@@ -76,8 +89,8 @@ public:
   DeviceIds deviceIds(const TensorIds &tIds) const;
 
   /**
-   * If all the tensors in #tIds are on the same device, then return that
-   * device. Otherwise, throw an error.
+   * If all the tensors in #tIds are on the same device, then return the
+   * device id. If not, throw an error.
    * */
   DeviceId deviceIdByConsensus(const TensorIds &tIds) const;
 
@@ -128,9 +141,9 @@ public:
   DeviceType deviceType(const TensorId &tId) const;
 
   /**
-   * The type of the device then inputs and outputs of the op #opId are on. If
+   * The type of the device that inputs and outputs of the op #opId are on. If
    * either (1) not all inputs and outputs are on the same type of device or
-   * (2) there are no inputs or outputs to op #opId, then an error is thrown.
+   * (2) there are no inputs or outputs of op #opId, then an error is thrown.
    * */
   DeviceType deviceType(OpId opId) const;
 
@@ -150,14 +163,78 @@ public:
   DeviceType deviceType(DeviceId) const;
 
   /**
-   * The replication factor of all of the ipu tensors in this graph.
+   * Set the initial value of the ipu tensor #tId on replica #r to #initVal.
    * */
-  virtual uint64_t replicationFactor_u64() const = 0;
+  void
+  setInitialValue(const TensorId &tId, uint64_t r, const HostTensor &initVal);
 
   /**
-   * The device with id #dId.
+   * The sub-graph of op #opId.
    * */
-  virtual const Device &device(DeviceId dId) const = 0;
+  SubGraphId subGraphId(OpId) const;
+
+  /**
+   * The sub-graph of tensor #tId.
+   * */
+  SubGraphId subGraphId(const TensorId &tId) const;
+
+  /**
+   * Return true of the tensor #tId is a remote device.
+   * */
+  bool isOnRemote(const TensorId &) const;
+
+  /**
+   * Return true of the tensor #tId is on the host device.
+   * */
+  bool isOnHost(const TensorId &) const;
+
+  /**
+   * Return true of the tensor #tId is on an ipu device.
+   * */
+  bool isOnIpu(const TensorId &) const;
+
+  /**
+   * The total number of devices.
+   * */
+  uint64_t nDevices() const { return devices.size(); }
+
+  /**
+   * Check that the tensor #tId is a host tensor. If it is not, throw a
+   * descriptive error.
+   * */
+  void verifyIsHost(const TensorId &) const;
+
+  /**
+   * Check that the tensor #tId is a remote tensor. If it is not, throw a
+   * descriptive error.
+   * */
+  void verifyIsRemote(const TensorId &) const;
+
+  /**
+   * Check that the tensor #tId is an ipu tensor. If it is not, throw a
+   * descriptive error.
+   * */
+  void verifyIsIpu(const TensorId &) const;
+
+  /**
+   * Check that device #devId is an ipu device.
+   * */
+  void verifyIsIpu(const DeviceId &) const;
+
+  /**
+   * All ipu devices.
+   * */
+  DeviceIds ipuDevices() const;
+
+  /**
+   * All ipu devices, other than the root ipu.
+   * */
+  DeviceIds nonRootIpuDevices() const;
+
+  /**
+   * All remote devices.
+   * */
+  DeviceIds remoteDevices() const;
 
   /**
    * The columns of the attributes specific to common::compute::Ops.
@@ -184,8 +261,76 @@ public:
     return op(tId.opId()).refsExcludingSelf(tId.outIndex());
   }
 
+  /**
+   * The device id of the host device.
+   * */
+  DeviceId host() const { return DeviceId(0); }
+
+  /**
+   * The device id of the 'root ipu'. This is the ipu with all available
+   * tiles, and it corresonds to the top-level poplar graph from which virtual
+   * graphs are created.
+   * */
+  DeviceId rootIpu() const { return DeviceId(1); }
+
+  uint64_t nTilesPerReplica() const { return nTilesPerReplica_; }
+
+  uint64_t replicationFactor_u64() const {
+    return replicationFactor_.get_u64();
+  }
+
+  const Device &device(DeviceId id) const;
+
+  /**
+   * The total number of ipu tiles, across all replicas.
+   * */
+  uint64_t nTiles() const {
+    return nTilesPerReplica() * replicationFactor_.get_u64();
+  }
+
+  /**
+   * Return an ipu with a subset of #ipu0's tiles. Specifically, return a
+   * device with the (ranked) tiles from #rank0 to #rank1 of ipu0.
+   *
+   * Example: if #ipu0 has tiles made up of the intervals [2,4) and [6,9),
+   *          and if rank0 = 1 and rank1 = 4:
+   *
+   *    0 1 2 3 4 5 6 7 8 9    : all tiles
+   *        [   )   [     )
+   *    . . x x . . x x x .    : tiles of ipu0 ('x' = included)
+   *        0 1     2 3 4      : indices of tiles of ipu0
+   *          ^         ^
+   *          |         |
+   *        rank0      rank1
+   *
+   * then the subset of tiles is [1,2), [6,8).
+   *
+   * The returned device has rank1 - rank0 tiles.
+   *
+   * \sa Intevals::subIntervals.
+   * */
+  DeviceId ipu(DeviceId ipu0, uint64_t rank0, uint64_t rank1);
+
+  /**
+   * Return N ipu devices each with 1/N of the tiles of #ipu0.
+   * */
+  std::vector<DeviceId> partition(DeviceId, uint64_t N);
+
+  /**
+   * The ipu device with id #dId. If #dId is not an ipu, an error is thrown.
+   * */
+  const Ipu &ipu(DeviceId) const;
+
+  /**
+   * The remote device with id #dId. If #dId is not a remote device, an error
+   * is thrown.
+   * */
+  const Remote &remote(DeviceId) const;
+
 protected:
   OpId insertComputeOp(std::unique_ptr<Op>);
+
+  bool computeTypeSpecificEqualTo(const Graph &rhs) const;
 
   /**
    * Insert an op of type TRefFromOp, which has zero inputs and have #srcId as
@@ -195,6 +340,15 @@ protected:
    * */
   template <class TRefFromOp>
   TensorId tRefFrom(const TensorId &srcId, SubGraphId destination);
+
+  /**
+   * Create a remote device associated to the ipu #ipu, of numerical type
+   * #dtype.
+   * */
+  DeviceId createRemote(DeviceId ipu,
+                        DType dtype,
+                        const Shape &,
+                        const RemoteOptions &);
 
 private:
   /**
@@ -232,6 +386,10 @@ private:
   using schedulable::Graph::insertSchedulableOp;
   using schedulable::Graph::schedulableTypeSpecificRemoveOp;
   using schedulable::Graph::schedulableTypeSpecificVerifyValidSubstitute;
+
+  std::vector<poprithms::util::CopyByClone<Device>> devices;
+  uint64_t nTilesPerReplica_;
+  ReplicationFactor replicationFactor_;
 };
 
 template <class T, class... Args>
