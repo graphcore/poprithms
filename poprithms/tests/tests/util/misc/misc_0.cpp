@@ -1,12 +1,12 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
-#include "poprithms/util/printiter.hpp"
-
 #include <iostream>
 #include <sstream>
 #include <vector>
 
 #include <poprithms/error/error.hpp>
+#include <poprithms/util/circularcounter.hpp>
 #include <poprithms/util/contiguoussubset.hpp>
+#include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 #include <poprithms/util/typedinteger.hpp>
 
@@ -62,11 +62,27 @@ void test2() {
   }
 }
 
+void testCircularCounter() {
+
+  CircularCounters<int> cs;
+  uint64_t modulus_ = 4;
+  int key           = 1001;
+  cs.insert(key, modulus_);
+  for (uint64_t i = 0; i < modulus_ + 1; ++i) {
+    cs.increment(key);
+  }
+  if (cs.state(key) != 1) {
+    throw poprithms::test::error("Failed in circular counter test, where (M "
+                                 "+ 1) % M = 1. (where M = 4). ");
+  }
+}
+
 } // namespace
 
 int main() {
   test0();
   test1();
   test2();
+  testCircularCounter();
   return 0;
 }
