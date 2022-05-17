@@ -24,3 +24,6 @@ add_autodiff_test(autodiff_guide_0
 
 add_autodiff_test(autodiff_core_0
                            core_0.cpp)
+
+add_autodiff_test(autodiff_automatic_finite_difference_0
+                           finite_difference_0.cpp)

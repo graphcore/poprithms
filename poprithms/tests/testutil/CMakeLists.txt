@@ -52,12 +52,14 @@ set(autodiff-test-util-sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/autodiff/testop.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/autodiff/testgraphinfo.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/autodiff/testgraphmutator.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/autodiff/finitedifference.cpp
 )
 add_library(autodiff-test-util SHARED ${autodiff-test-util-sources})
 target_include_directories(autodiff-test-util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(autodiff-test-util poprithms-autodiff-base 
                                          poprithms-autodiff-automatic 
-                                         poprithms-common-multiout)
+                                         poprithms-common-multiout
+                                         poprithms-compute-host)
 
 set(program-test-util-sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/program/callstack/graph.cpp
