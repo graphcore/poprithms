@@ -63,12 +63,12 @@ public:
     return found->second;
   }
 
-  /** return true of #eId has an alias tensor corresponding to it. */
+  /** return true if #eId has an alias tensor corresponding to it. */
   bool has(const ExternTensorId &eId) const {
     return toAlias_.find(eId) != toAlias_.cend();
   }
 
-  /** return true of #aId has an external tensor corresponding to it. */
+  /** return true if #aId has an external tensor corresponding to it. */
   bool hasAliasId(const TensorId &aId) const {
     return toExtern_.find(aId) != toExtern_.cend();
   }

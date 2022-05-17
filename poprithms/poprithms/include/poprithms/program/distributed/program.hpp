@@ -88,7 +88,7 @@ public:
   void appendToBack(OpId);
 
   /**
-   * return true of this sequence is empty.
+   * return true if this sequence is empty.
    * */
   bool empty() const { return programs_.empty(); }
 

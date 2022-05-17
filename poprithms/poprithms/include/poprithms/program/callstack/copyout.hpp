@@ -116,7 +116,7 @@ public:
   OutIndex outIndex(CalleeIndex ci, const TensorId &tId) const;
 
   /**
-   * \return true of #tId is a copy source in callee graph #ci.
+   * \return true if #tId is a copy source in callee graph #ci.
    * */
 
   bool isSource(CalleeIndex ci, const TensorId &tId) const;
