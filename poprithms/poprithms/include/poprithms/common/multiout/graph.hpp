@@ -185,10 +185,9 @@ public:
   /**
    * We implement operator== once in this base class, and use the non-virtual
    * interface (NVI) idiom for derived classes to specify equivalence: the
-   * pure virtual function, #typeSpecificEqualTo, must be implemented by
-   * derived classes to perform the equality check, so that this base
-   * class doesn't need to know what it means for derived classes to be
-   * equivalent.
+   * pure virtual function, #multiOutTypeSpecificEqualTo, must be implemented
+   * by derived classes to perform the equality check, so that this base class
+   * doesn't need to know what it means for derived classes to be equivalent.
    * */
   bool operator==(const Graph &rhs) const;
   bool operator!=(const Graph &rhs) const { return !operator==(rhs); }

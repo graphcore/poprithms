@@ -93,7 +93,7 @@ public:
 private:
   void verifyValidOpId(OpId opId) const {
 
-    if (values.size() <= opId.get()) {
+    if (values.size() <= static_cast<uint64_t>(opId.get())) {
       throw poprithms::error::error(
           "common::multiout",
           "Invalid OpId, " + std::to_string(opId.get()) + ". Only " +

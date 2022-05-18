@@ -1,12 +1,15 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
-#include "poprithms/util/interval.hpp"
-
 #include <algorithm>
+#include <functional>
 #include <iostream>
+#include <sstream>
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/initialvalues.hpp>
+#include <poprithms/common/compute/simtensormap.hpp>
+#include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/error/error.hpp>
+#include <poprithms/util/interval.hpp>
 
 namespace {
 using namespace poprithms::common::compute;
@@ -59,6 +62,8 @@ public:
   cloneMultioutOp() const final {
     unimplemented("cloneMultioutOp");
   }
+
+  SubGraphId callee(CalleeIndex) const final { unimplemented("callee"); }
   std::string typeString() const final { return "testop"; }
   bool isConstraintPhobic() const final {
     unimplemented("isConstraintPhobic");
@@ -68,8 +73,6 @@ public:
   }
 
   SubGraphIds callees() const final { unimplemented("callees"); }
-
-  SubGraphId callee(CalleeIndex) const final { unimplemented("callee"); }
 
   InIndex inIndex(const CalleeTensorId &) const final {
     unimplemented("inIndex");
@@ -281,6 +284,25 @@ void testIpuCreation0() {
   }
 }
 
+void testSimTensorMap() {
+  SimTensorMap m;
+  m.insertCounter(OpId(5), 7);
+  m.incrementCounter(OpId(5));
+  m.push_back({HostTensors(5, HostTensor::int16(6))});
+  m.push_back({HostTensors(4, HostTensor::int16(3))});
+
+  auto m2 = m.clone();
+  if (m2->getCounterState(OpId(5)) != 1) {
+    throw poprithms::test::error(
+        "Cloned SimTensorMap has incorrect counter state");
+  }
+
+  if (m2->getTensors({{1, 0}}, 3).back().getInt16(0) != 3) {
+    throw poprithms::test::error(
+        "Cloned SimTensorMap has incorrect tensor value");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -290,6 +312,6 @@ int main() {
   testInitialValues0();
   testVirtualGraph0();
   testIpuCreation0();
-
+  testSimTensorMap();
   return 0;
 }

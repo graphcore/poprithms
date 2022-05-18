@@ -216,7 +216,7 @@ DeviceIds Graph::deviceIds(const TensorIds &tIds) const {
   return devIds;
 }
 
-DeviceId Graph::deviceIdByConsensus(const TensorIds &all) const {
+DeviceId Graph::deviceIdByUnanimity(const TensorIds &all) const {
 
   if (all.empty()) {
     std::ostringstream oss;
@@ -230,7 +230,7 @@ DeviceId Graph::deviceIdByConsensus(const TensorIds &all) const {
   for (auto devId : dIds) {
     if (devId != dIds[0]) {
       std::ostringstream oss;
-      oss << "Failed to determine a DeviceId by consensus "
+      oss << "Failed to determine a DeviceId by unanimity "
           << ", as not all tensors have the same DeviceId. "
           << "The DeviceIds were " << dIds << ", corresponding to tensors "
           << all << ", which are in sub-graphs " << subGraphIds(all) << '.';

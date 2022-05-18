@@ -92,7 +92,7 @@ public:
    * If all the tensors in #tIds are on the same device, then return the
    * device id. If not, throw an error.
    * */
-  DeviceId deviceIdByConsensus(const TensorIds &tIds) const;
+  DeviceId deviceIdByUnanimity(const TensorIds &tIds) const;
 
   /**
    * The devices of all of the input tensors of op #opId.

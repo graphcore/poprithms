@@ -289,9 +289,9 @@ public:
   void ensureLastOfCurrentOps(OpId opId);
 
   /**
-   * Get a consensus on the SubGraphId from all Tensors in #tIds. If not all
-   * Tensors in #tIds have the same SubGraphId, or if #tIds is empty, then
-   * an error is thrown.
+   * Get a unanimous agreement on the SubGraphId from all Tensors in #tIds. If
+   * not all Tensors in #tIds have the same SubGraphId, or if #tIds is empty,
+   * then an error is thrown.
    * */
   SubGraphId subGraphIdFromTensorIds(const TensorIds &tIds) const;
   SubGraphId subGraphIdFromTensorIds(const std::vector<TensorIds> &) const;
