@@ -11,6 +11,14 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+bool Op::inIsFixedPoint(InIndex inIndex) const {
+  return poprithms::ndarray::isFixedPoint(inDType(inIndex));
+}
+
+bool Op::outIsFixedPoint(OutIndex outIndex) const {
+  return poprithms::ndarray::isFixedPoint(outDType(outIndex));
+}
+
 Op::State Op::State::getStartingState(OpId opId,
                                       SubGraphId sgId,
                                       const TensorIds &ins,
@@ -160,53 +168,6 @@ Op::Op(const Op::State &ob)
       outDeviceIds_(ob.outDeviceIds), inCopies_(ob.inCopies),
       outCopies_(ob.outCopies), initVals_(ob.initVals),
       derivedRefs_(ob.derivedRefs) {}
-
-void Op::verifyInsSameDType() const {
-  if (nInTensors() < 2) {
-    return;
-  }
-  for (uint64_t i = 1; i < nInTensors(); ++i) {
-    if (inDType(i) != inDType(0)) {
-      std::ostringstream oss;
-      oss << "Failure in verifyInsSameDType for op " << *this
-          << ". The input #0 has dtype " << inDType(0) << ", but the input #"
-          << i << " has dtype " << inDType(i) << '.';
-      throw error(oss.str());
-    }
-  }
-}
-
-void Op::verifyOutsSameDType() const {
-  if (nOutTensors() < 2) {
-    return;
-  }
-  for (uint64_t i = 1; i < nOutTensors(); ++i) {
-    if (outDType(i) != outDType(0)) {
-      std::ostringstream oss;
-      oss << "Failure in Op::verifyOutsSameDType for op " << *this
-          << ". The output #0 has dtype " << outDType(0)
-          << ", but the output #" << i << " has dtype " << outDType(i) << '.';
-      throw error(oss.str());
-    }
-  }
-}
-
-void Op::verifyAllSameDType() const {
-
-  verifyInsSameDType();
-  verifyOutsSameDType();
-
-  if (nInTensors() > 0 && nOutTensors() > 0) {
-    if (outDType(0) != inDType(0)) {
-      std::ostringstream oss;
-      oss << "Failure in Op::verifyAllSameDType for op " << *this
-          << ". The output #0 has dtype " << outDType(0)
-          << ", but the input #0"
-          << " has dtype " << inDType(0) << '.';
-      throw error(oss.str());
-    }
-  }
-}
 
 DType Op::dtype(Port p, uint64_t i) const {
   return (p == Port::In ? inDType(InIndex(i)) : outDType(OutIndex(i)));

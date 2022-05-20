@@ -323,6 +323,17 @@ TensorId Op::tensorId(Port p, uint64_t i) const {
   return (p == Port::In ? inTensorId(InIndex(i)) : outTensorId(OutIndex(i)));
 }
 
+void Op::verifyRank(InIndex inIndex, uint64_t r) const {
+  if (inShape(inIndex).rank_u64() != r) {
+    std::ostringstream oss;
+    oss << "Failure in verifyRank for op " << *this << ", at input index "
+        << inIndex << ". Expected the rank to be " << r
+        << ", but the tensor has shape " << inShape(inIndex) << " (rank "
+        << inRank(inIndex) << ").";
+    throw error(oss.str());
+  }
+}
+
 uint64_t Op::nTensors(Port p) const {
   return (p == Port::In ? nInTensors() : nOutTensors());
 }
@@ -333,6 +344,22 @@ void Op::verifyValidOutIndex(OutIndex index) const {
     std::ostringstream oss;
     oss << "Invalid OutIndex (" << index << "). This Op " << *this
         << " only has " << nOutTensors() << " output Tensors. ";
+    throw error(oss.str());
+  }
+}
+
+void Op::verifyNInAndOutTensors(uint64_t expectedIn,
+                                uint64_t expectedOut) const {
+  verifyNTensors(Port::In, expectedIn);
+  verifyNTensors(Port::Out, expectedOut);
+}
+
+void Op::verifyNTensors(Port p, uint64_t expected) const {
+  if (nTensors(p) != expected) {
+    std::ostringstream oss;
+    oss << "Incorrect number of " << lowercase(p) << "put tensors, "
+        << nTensors(p) << ", for op " << *this << ", expected " << expected
+        << '.';
     throw error(oss.str());
   }
 }

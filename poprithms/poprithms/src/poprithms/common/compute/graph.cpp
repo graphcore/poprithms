@@ -446,6 +446,10 @@ const Device &Graph::device(DeviceId id) const {
   return *devices.at(id.get_u64()).uptr;
 }
 
+uint64_t Graph::nbytes(const TensorId &id) const {
+  return nelms_u64(id) * poprithms::ndarray::nbytes(dtype(id));
+}
+
 void Graph::setInitialValue(const TensorId &tId,
                             uint64_t replica,
                             const poprithms::compute::host::Tensor &v) {

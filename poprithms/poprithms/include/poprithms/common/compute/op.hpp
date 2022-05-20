@@ -440,14 +440,15 @@ public:
 
   void insertOutDerivedRef(OutIndex, TensorId);
 
-protected:
   /**
-   * Some utility methods used for checking for correctness of ops where
-   * there is an expectation on the equivalence of input/output types.
+   * Return true if the input at index #i is fixed point (integral).
    * */
-  void verifyInsSameDType() const;
-  void verifyOutsSameDType() const;
-  void verifyAllSameDType() const;
+  bool inIsFixedPoint(InIndex i) const;
+
+  /**
+   * Return true if the input at index #o is fixed point (integral).
+   * */
+  bool outIsFixedPoint(OutIndex o) const;
 
 private:
   const Graph &graph() const { return computeGraph(); }

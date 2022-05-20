@@ -125,6 +125,10 @@ public:
   /** The Shape if the #i'th output of this Op. */
   const Shape &outShape(OutIndex o) const { return outShapes_.at(o.get()); }
 
+  std::vector<uint64_t> outShape_u64(OutIndex o) const {
+    return outShape(o).get_u64();
+  }
+
   /** The rank of the #i'th output of this Op. */
   uint64_t outRank(OutIndex o) const { return outShape(o).rank_u64(); }
 
@@ -264,6 +268,23 @@ public:
    * The number of input/output tensors.
    * */
   uint64_t nTensors(Port) const;
+
+  /**
+   * Verify that the number of input/output tneors is #expected.
+   * */
+  void verifyNTensors(Port, uint64_t expected) const;
+
+  /**
+   * Verify that the number of input tensors is #expectedIn and the number of
+   * output tensors is #expectedOut.
+   * */
+  void verifyNInAndOutTensors(uint64_t expectedIn,
+                              uint64_t expectedOut) const;
+
+  /**
+   * Verify that the rank of input #i is #expectedRank.
+   * */
+  void verifyRank(InIndex i, uint64_t expectedRank) const;
 
   /**
    * The shape of the tensor at input/output index #i.

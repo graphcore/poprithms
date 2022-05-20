@@ -278,7 +278,7 @@ public:
   void toggleEager(SubGraphId subGraphId, bool enable);
 
   /**
-   * return true of the #subGraphId is currently in eager mode.
+   * return true if the #subGraphId is currently in eager mode.
    * */
   bool eagerIsEnabled(SubGraphId subGraphId) const;
 

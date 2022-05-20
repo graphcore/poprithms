@@ -69,6 +69,12 @@ public:
   DType dtype(const TensorId &tId) const;
 
   /**
+   * The number of bytes (number_of_elements * bytes_per_element) of tensor
+   * #tId.
+   * */
+  uint64_t nbytes(const TensorId &tId) const;
+
+  /**
    * The numerical types of the elements of tensors #tIds.
    * */
   DTypes dtypes(const TensorIds &tIds) const;
@@ -184,12 +190,12 @@ public:
   bool isOnRemote(const TensorId &) const;
 
   /**
-   * Return true of the tensor #tId is on the host device.
+   * Return true if the tensor #tId is on the host device.
    * */
   bool isOnHost(const TensorId &) const;
 
   /**
-   * Return true of the tensor #tId is on an ipu device.
+   * Return true if the tensor #tId is on an ipu device.
    * */
   bool isOnIpu(const TensorId &) const;
 
