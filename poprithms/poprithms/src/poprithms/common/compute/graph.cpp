@@ -148,9 +148,24 @@ void Graph::schedulableTypeSpecificVerifyValidSubstitute(
 DeviceType Graph::deviceType(const TensorId &tensorId) const {
   return device(tensorId).deviceType();
 }
+CodeLocation Graph::codeLocationFromDeviceType(DeviceType dt) {
+  switch (dt) {
+  case DeviceType::Host: {
+    return CodeLocation::Host;
+  }
+  case DeviceType::Ipu: {
+    return CodeLocation::Ipu;
+  }
+  default: {
+    std::ostringstream oss;
+    oss << "No CodeLocation equivalent for " << dt << '.';
+    throw error(oss.str());
+  }
+  }
+}
 
-DeviceType Graph::deviceType(OpId opId) const {
-  return op(opId).deviceType();
+DeviceType Graph::deviceTypeByUnanimity(OpId opId) const {
+  return op(opId).deviceTypeByUnanimity();
 }
 DeviceType Graph::deviceType(DeviceId devId) const {
   return device(devId).deviceType();

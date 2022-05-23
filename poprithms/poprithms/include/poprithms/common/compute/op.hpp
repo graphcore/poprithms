@@ -6,6 +6,7 @@
 #include <poprithms/common/compute/device.hpp>
 #include <poprithms/common/compute/devicetype.hpp>
 #include <poprithms/common/compute/initialvalues.hpp>
+#include <poprithms/common/compute/simtensormap.hpp>
 #include <poprithms/common/multiout/consumptionid.hpp>
 #include <poprithms/common/multiout/ioindices.hpp>
 #include <poprithms/common/multiout/op.hpp>
@@ -21,6 +22,8 @@
 #include <poprithms/program/callstack/calleeindex.hpp>
 #include <poprithms/program/callstack/calleetensorid.hpp>
 #include <poprithms/program/callstack/callstack.hpp>
+#include <poprithms/program/callstack/copyout.hpp>
+#include <poprithms/program/distributed/codelocation.hpp>
 
 namespace poprithms {
 namespace common {
@@ -53,6 +56,7 @@ using poprithms::program::callstack::CalleeTensorId;
 using poprithms::program::callstack::CalleeTensorIds;
 using poprithms::program::callstack::CallEvent;
 using poprithms::program::callstack::CallEvents;
+using poprithms::program::distributed::CodeLocation;
 
 class Graph;
 
@@ -362,6 +366,12 @@ public:
   bool isRemove(OutIndex o) const { return outDevice(o).isRemote(); }
 
   /**
+   * Return true if there is at least one input/output tensor which is on
+   * host, and at least one which is not.
+   * */
+  bool isPartiallyHost() const;
+
+  /**
    * The device types of all of the input tensors.
    * */
   DeviceTypes inDeviceTypes() const;
@@ -403,7 +413,7 @@ public:
    * and outputs. If not all inputs and outputs have the same device type, an
    * error is thrown.
    * */
-  DeviceType deviceType() const;
+  DeviceType deviceTypeByUnanimity() const;
 
   /**
    * The root reference tensor for output tensor #i. In other words, the
@@ -446,9 +456,67 @@ public:
   bool inIsFixedPoint(InIndex i) const;
 
   /**
-   * Return true if the input at index #o is fixed point (integral).
+   * Return true if the output at index #o is fixed point (integral).
    * */
   bool outIsFixedPoint(OutIndex o) const;
+
+  /**
+   * If this op performs zero compute cycles, it is an 'initializing op'.
+   * Examples are view-changing ops (reshape, slice, etc.) without any data
+   * copies, and ops which initialize constants and variables.
+   * */
+  virtual bool isInitializingOp() const = 0;
+
+  /**
+   * Initializing ops can appear anywhere in a schedule.
+   * */
+  bool isConstraintPhobic() const final { return isInitializingOp(); }
+
+public:
+  /**
+   * Update the tensors in #simTensors corresponding to the output tensors of
+   * this op, by running this op on cpu.
+   * */
+  virtual void runSim(SimTensorMap &simTensors) const = 0;
+
+  /**
+   * Initialize the tensors in #simTensors corresponding to the output tensors
+   * of this op.
+   * */
+  virtual void initializeSimOut(SimTensorMap &) const = 0;
+
+  /**
+   * Initialize the output tensors of this op, based on the input tensors
+   * #ins.
+   * */
+  virtual HostTensors initializeOut(const HostTensors &ins) const = 0;
+
+  /**
+   * A utility method for creating output tensors for this op with the value
+   * 0.
+   * */
+  HostTensors zeroOuts() const;
+
+  /**
+   * A utility method for creating output tensors for this op with non-0
+   * values.
+   * */
+  HostTensors badValOuts() const;
+
+  virtual CodeLocation codeLocation() const = 0;
+
+protected:
+  /**
+   * A utility method for initializing ipu tensors in a SimTensorMap. This
+   * method initializes the tensors in #simTensors corresponding to the
+   * outputs of this op.
+   *
+   * This method is protected, as it is only ever called into by op
+   * implementations of initializeSimOut.
+   * */
+  void initializeReplicatedSimOut(SimTensorMap &simTensors) const;
+
+  CodeLocation locationByUnanimity() const;
 
 private:
   const Graph &graph() const { return computeGraph(); }

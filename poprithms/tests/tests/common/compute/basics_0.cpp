@@ -65,9 +65,7 @@ public:
 
   SubGraphId callee(CalleeIndex) const final { unimplemented("callee"); }
   std::string typeString() const final { return "testop"; }
-  bool isConstraintPhobic() const final {
-    unimplemented("isConstraintPhobic");
-  }
+  CodeLocation codeLocation() const final { unimplemented("codeLocation"); }
   bool computeTypeSpecificEqualTo(const Op &) const final {
     unimplemented("computeTypeSpecificEqualTo");
   }
@@ -81,6 +79,18 @@ public:
     unimplemented("outIndex");
   }
   uint64_t nCallees() const final { unimplemented("nCallees"); }
+
+  bool isInitializingOp() const final { unimplemented("isInitializingOp"); }
+
+  void runSim(SimTensorMap &) const final { unimplemented("runSim"); }
+
+  void initializeSimOut(SimTensorMap &) const final {
+    unimplemented("initializeSimOut");
+  }
+
+  HostTensors initializeOut(const HostTensors &) const final {
+    unimplemented("initializeOut");
+  }
 };
 
 class TestRefFrom final : public TestOp {
@@ -263,6 +273,24 @@ void testVirtualGraph0() {
   }
 }
 
+void testBadValOuts() {
+  TestGraph tg(100, ReplicationFactor::create(2));
+
+  auto sg0     = tg.createSubGraphId("sg0");
+  auto in0     = tg.var(sg0);
+  auto badVals = tg.computeOp(in0.opId()).badValOuts();
+  if (badVals.size() == 0 || badVals.at(0).nelms() == 0) {
+    throw poprithms::test::error(
+        "Expected one op with a tensor with 1 element");
+  }
+  for (const auto &t : badVals) {
+    if (!t.allNonZero()) {
+      throw poprithms::test::error(
+          "All values should be non-zero in initialized values");
+    }
+  }
+}
+
 void testIpuCreation0() {
 
   TestGraph tg(32, ReplicationFactor::create(1));
@@ -313,5 +341,6 @@ int main() {
   testVirtualGraph0();
   testIpuCreation0();
   testSimTensorMap();
+  testBadValOuts();
   return 0;
 }

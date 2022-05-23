@@ -18,6 +18,7 @@
 #include <poprithms/ndarray/deviceid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/tensorinfo.hpp>
+#include <poprithms/program/distributed/codelocation.hpp>
 #include <poprithms/util/copybyclone.hpp>
 #include <poprithms/util/stringutil.hpp>
 
@@ -33,12 +34,13 @@ using common::multiout::TensorId;
 using common::multiout::TensorIds;
 using common::schedulable::SubGraphId;
 using common::schedulable::SubGraphIds;
-using poprithms::ndarray::DeviceId;
-using poprithms::ndarray::DeviceIds;
-using poprithms::ndarray::DType;
-using poprithms::ndarray::DTypes;
-using poprithms::ndarray::TensorInfo;
-using poprithms::ndarray::TensorInfos;
+using ndarray::DeviceId;
+using ndarray::DeviceIds;
+using ndarray::DType;
+using ndarray::DTypes;
+using ndarray::TensorInfo;
+using ndarray::TensorInfos;
+using program::distributed::CodeLocation;
 
 /**
  * A graph class combining multiple poprithms components -- autodiff,
@@ -151,7 +153,7 @@ public:
    * either (1) not all inputs and outputs are on the same type of device or
    * (2) there are no inputs or outputs of op #opId, then an error is thrown.
    * */
-  DeviceType deviceType(OpId opId) const;
+  DeviceType deviceTypeByUnanimity(OpId opId) const;
 
   /**
    * The device types of each of the tensors in #tIds.
@@ -332,6 +334,15 @@ public:
    * is thrown.
    * */
   const Remote &remote(DeviceId) const;
+
+  /**
+   * Map from the one enum type to the other.
+   *
+   * DeviceType::Ipu    -> CodeLocation::Ipu
+   * DeviceType::Host   -> CodeLocation::Host
+   * DeviceType::Remote -> invalid (no code).
+   * */
+  static CodeLocation codeLocationFromDeviceType(DeviceType);
 
 protected:
   OpId insertComputeOp(std::unique_ptr<Op>);

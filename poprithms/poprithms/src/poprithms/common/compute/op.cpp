@@ -11,6 +11,28 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+bool Op::isPartiallyHost() const {
+  const auto types = inAndOutDeviceTypes();
+  if (types.empty()) {
+    return false;
+  }
+
+  // They're all host?
+  if (std::all_of(types.cbegin(), types.cend(), [](auto t) {
+        return t == DeviceType::Host;
+      })) {
+    return false;
+  }
+
+  // They're all not host?
+  if (std::all_of(types.cbegin(), types.cend(), [](auto t) {
+        return t != DeviceType::Host;
+      })) {
+    return false;
+  }
+  return true;
+}
+
 bool Op::inIsFixedPoint(InIndex inIndex) const {
   return poprithms::ndarray::isFixedPoint(inDType(inIndex));
 }
@@ -188,8 +210,7 @@ void Op::computeOpRemoveOutputs(const ContiguousOutIndexSubset &coin) {
   coin.reduce(derivedRefs_);
 }
 
-std::map<uint64_t, poprithms::compute::host::Tensor>
-Op::initialValues(OutIndex o) const {
+std::map<uint64_t, HostTensor> Op::initialValues(OutIndex o) const {
 
   if (!isIpu(o)) {
     throw error(
@@ -199,9 +220,7 @@ Op::initialValues(OutIndex o) const {
   return initVals_.getInitialValues(o);
 }
 
-void Op::setInitialValue(uint64_t replica,
-                         OutIndex o,
-                         const poprithms::compute::host::Tensor &v) {
+void Op::setInitialValue(uint64_t replica, OutIndex o, const HostTensor &v) {
 
   if (!isIpu(o)) {
     throw error("Only ipu tensors can have initial values set, other tensors "
@@ -285,7 +304,7 @@ const Device &Op::device(Port p, uint64_t i) const {
   return (p == Port::In ? inDevice(InIndex(i)) : outDevice(OutIndex(i)));
 }
 
-DeviceType Op::deviceType() const {
+DeviceType Op::deviceTypeByUnanimity() const {
   const auto ts = inAndOutDeviceTypes();
   if (ts.empty()) {
     std::ostringstream oss;
@@ -395,6 +414,59 @@ std::vector<std::pair<SubGraphId, CalleeIndex>> Op::indexedCallees() const {
   return cs;
 }
 
+void Op::initializeReplicatedSimOut(SimTensorMap &htm) const {
+
+  // no outputs to initialize.
+  if (nOutTensors() == 0) {
+    return;
+  }
+
+  if (isPartiallyHost()) {
+    std::ostringstream oss;
+    oss << "Unhandled Op (" << *this << ") in initializeReplicatedSimOut. "
+        << "This Op is partially on host, "
+        << "with DeviceTypes for inputs:";
+    poprithms::util::append(oss, inDeviceTypes());
+    oss << " and DeviceTypes for outputs:";
+    poprithms::util::append(oss, outDeviceTypes());
+    oss << ". "
+        << "Tensor initialization should go via initializeSimOut for this "
+           "case, as this method "
+        << "expects the same replication factor between all "
+        << "inputs and outputs. ";
+    throw error(oss.str());
+  }
+
+  const uint64_t rf = [this, &htm]() -> uint64_t {
+    if (nInTensors() == 0) {
+      if (deviceTypeByUnanimity() == DeviceType::Host) {
+        return 1ull;
+      }
+      return graph().replicationFactor_u64();
+    }
+    return htm.getNTensorsByUnanimity(inTensorIds());
+  }();
+
+  // this vector is indexed as [rf][outIndex]:
+  std::vector<HostTensors> tensors_;
+  tensors_.reserve(rf);
+  for (uint64_t r = 0; r < rf; ++r) {
+    tensors_.push_back(initializeOut(htm.getTensors(inTensorIds(), r)));
+  }
+
+  // this vector is indexed as [outIndex][rf]:
+  std::vector<HostTensors> nxt(nOutTensors());
+  for (uint64_t o = 0; o < nOutTensors(); ++o) {
+    for (uint64_t r = 0; r < rf; ++r) {
+      nxt[o].push_back(tensors_[r][o]);
+    }
+  }
+
+  for (uint64_t o = 0; o < nOutTensors(); ++o) {
+    htm.setValue({id(), o}, nxt[o]);
+  }
+}
+
 bool Op::schedulableTypeSpecificEqualTo(
     const poprithms::common::schedulable::Op &other) const {
 
@@ -410,6 +482,36 @@ bool Op::schedulableTypeSpecificEqualTo(
       typeid(*this) == typeid(rhs) &&
       // Same derived class properties:
       computeTypeSpecificEqualTo(rhs);
+}
+
+HostTensors Op::badValOuts() const {
+
+  HostTensors outs;
+  outs.reserve(nOutTensors());
+  for (uint64_t o = 0; o < nOutTensors(); ++o) {
+
+    // Choosing any non-zero value for initializing tensors with:
+    auto type  = outDType(o);
+    bool isPos = poprithms::ndarray::isUnsignedFixedPoint(type);
+    double val = (isPos * 2. - 1) * 99.;
+
+    outs.push_back(HostTensor::ones(outDType(o), outShape(o)).mul_(val));
+  }
+  return outs;
+}
+
+HostTensors Op::zeroOuts() const {
+  HostTensors outs;
+  outs.reserve(nOutTensors());
+  for (uint64_t o = 0; o < nOutTensors(); ++o) {
+    outs.push_back(HostTensor::zeros(outDType(o), outShape(o)));
+  }
+  return outs;
+}
+
+CodeLocation Op::locationByUnanimity() const {
+  return poprithms::common::compute::Graph::codeLocationFromDeviceType(
+      deviceTypeByUnanimity());
 }
 
 } // namespace compute
