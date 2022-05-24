@@ -41,25 +41,34 @@ private:
   OriginDatas rowMajorOriginDatas;
   uint64_t nOriginDatas() const { return rowMajorOriginDatas.size(); }
 
-  // The pointers to the first elements of the BaseDatas where the
-  // underlying data lives. The raw pointers are stored in addition to the
-  // shared_ptrs in rowMajorOriginDatas, to avoid multiple virtual method
-  // calls into polymorphic OriginData objects.
-  std::vector<T *> rowMajorOriginDataPtrs;
-  void setRowMajorOriginDataPtrs() {
+  // The raw pointers are to the underlying data values. These are obtained
+  // just-in-time for computation, in case the underlying pointer of a
+  // PointerData<T> object us updated after this ViewData<T> is constructed.
+  std::vector<T *> getPtrs() const {
+
+    // (1) Set the raw pointer for each of the OriginData<T>s (pointer to
+    // element 0 of each origin data).
+    std::vector<T *> rowMajorOriginDataPtrs;
     rowMajorOriginDataPtrs.reserve(rowMajorOriginDatas.size());
     for (auto o : rowMajorOriginDatas) {
       rowMajorOriginDataPtrs.push_back(o->dataPtr());
     }
-  }
+
+    // (2) Combine the raw pointers in (1) with the offsets of each element.
+    std::vector<T *> ptrs;
+    ptrs.reserve(nelms_u64());
+    for (uint64_t i = 0; i < nelms_u64(); ++i) {
+      ptrs.push_back(
+          std::next(rowMajorOriginDataPtrs[rowMajorOriginDataIndices[i]],
+                    rowMajorOriginDataOffsets[i]));
+    }
+    return ptrs;
+  };
 
   // A vector of length nelms(), which stores the underlying BaseData where
   // particular Tensor elements live. For example, if rowMajorOriginDatas[5] =
   // 3, then the 5'th element of this BaseData is in rowMajorOriginDatas[3]
   std::vector<uint64_t> rowMajorOriginDataIndices;
-  T *dataPtr0(uint64_t i) const {
-    return rowMajorOriginDataPtrs[rowMajorOriginDataIndices[i]];
-  }
 
   // A vector of length nelms(), which stores the index within the underlying
   // data array for particular elements. For example, if
@@ -68,15 +77,10 @@ private:
   //   BaseData is rowMajorOriginDataPtrs[3][6].
   std::vector<int64_t> rowMajorOriginDataOffsets;
 
-  // The address of underlying data of the i'th element of this BaseData
-  T *dataPtr(uint64_t i) const {
-    auto ptr = std::next(dataPtr0(i), rowMajorOriginDataOffsets[i]);
-    return ptr;
-  }
-
   bool allZero() const final {
+    const auto ptrs = getPtrs();
     for (uint64_t i = 0; i < nelms_u64(); ++i) {
-      if (*dataPtr(i) > T(0) || *dataPtr(i) < T(0)) {
+      if (*ptrs[i] > T(0) || *ptrs[i] < T(0)) {
         return false;
       }
     }
@@ -84,8 +88,9 @@ private:
   }
 
   bool allNonZero() const final {
+    const auto ptrs = getPtrs();
     for (uint64_t i = 0; i < nelms_u64(); ++i) {
-      if (*dataPtr(i) >= T(0) && *dataPtr(i) <= T(0)) {
+      if (*ptrs[i] >= T(0) && *ptrs[i] <= T(0)) {
         return false;
       }
     }
@@ -140,10 +145,6 @@ public:
                    [&toNxt](auto x) { return toNxt[x]; });
 
     rowMajorOriginDatas = nxt;
-    rowMajorOriginDataPtrs.clear();
-    for (auto o : rowMajorOriginDatas) {
-      rowMajorOriginDataPtrs.push_back(o->dataPtr());
-    }
   }
 
   ViewData(const OriginDatas &origins_,
@@ -151,9 +152,7 @@ public:
            std::vector<int64_t> &&offsets_)
       : rowMajorOriginDatas(origins_),
         rowMajorOriginDataIndices(std::move(indices_)),
-        rowMajorOriginDataOffsets(std::move(offsets_)) {
-    setRowMajorOriginDataPtrs();
-  }
+        rowMajorOriginDataOffsets(std::move(offsets_)) {}
 
   ViewData(const ViewData &) = default;
   ViewData(ViewData &&)      = default;
@@ -478,16 +477,19 @@ public:
   }
 
   void encodeOneHot_(const std::vector<uint64_t> &indices) const final {
+
     if (containsAliases()) {
       throw error("ViewData::encodeOneHot_ not implemented for self-aliases");
     }
+
+    const auto ptrs  = getPtrs();
     const auto nRows = indices.size();
     const auto nCols = nelms_u64() / nRows;
     for (uint64_t i = 0; i < nRows; ++i) {
       for (uint64_t j = 0; j < nCols; ++j) {
-        *dataPtr(i * nCols + j) = 0;
+        *ptrs[i * nCols + j] = 0;
       }
-      *dataPtr(i * nCols + indices[i]) = 1;
+      *ptrs[i * nCols + indices[i]] = 1;
     }
   }
 
@@ -499,11 +501,10 @@ private:
     // error is thrown if a Tensor contains aliases.
     const UnaryOp op(args...);
     const auto singles = GridPointHelper::getUnique(indices(), offsets());
-
     std::for_each(singles.cbegin(), singles.cend(), [this, op](auto single) {
       auto index  = std::get<0>(single);
       auto offset = std::get<1>(single);
-      auto &v     = rowMajorOriginDataPtrs[index][offset];
+      auto &v     = rowMajorOriginDatas.at(index)->dataPtr()[offset];
       v           = op(v);
     });
   }
@@ -513,10 +514,13 @@ private:
     if (containsAliases()) {
       throw error("ViewData::binary_ not implemented for self-aliases");
     }
+
     if (auto rhs_ = dynamic_cast<const OriginData<T> *>(&rhs)) {
+
+      const auto ptrs      = getPtrs();
       const auto *rhsData_ = rhs_->dataPtr();
       for (uint64_t i = 0; i < nelms_u64(); ++i) {
-        *dataPtr(i) = op(*dataPtr(i), rhsData_[i]);
+        *ptrs[i] = op(*ptrs[i], rhsData_[i]);
       }
     } else {
       std::ostringstream oss;
@@ -531,9 +535,11 @@ private:
   template <class UnaryOp, class... Args>
   std::vector<T> unaryVector(Args... args) const {
     const UnaryOp op(args...);
+
+    const auto ptrs = getPtrs();
     std::vector<T> out(nelms_u64());
     for (uint64_t i = 0; i < out.size(); ++i) {
-      out[i] = op(*dataPtr(i));
+      out[i] = op(*ptrs[i]);
     }
     return out;
   }
@@ -558,14 +564,23 @@ private:
 
 public:
   std::vector<T> getNativeVector() const final {
-    std::vector<T> out(nelms_u64());
-    for (uint64_t i = 0; i < out.size(); ++i) {
-      out[i] = *dataPtr(i);
+    std::vector<T> out;
+    out.reserve(nelms_u64());
+
+    const auto ptrs = getPtrs();
+    for (uint64_t i = 0; i < nelms_u64(); ++i) {
+      out.push_back(*ptrs[i]);
     }
     return out;
   }
 
-  T getNativeValue(uint64_t i) const final { return *dataPtr(i); }
+  T *getPtr(uint64_t i) const {
+    return rowMajorOriginDatas.at(rowMajorOriginDataIndices.at(i))
+               ->dataPtr() +
+           rowMajorOriginDataOffsets.at(i);
+  }
+
+  T getNativeValue(uint64_t i) const final { return *getPtr(i); }
 };
 
 } // namespace host

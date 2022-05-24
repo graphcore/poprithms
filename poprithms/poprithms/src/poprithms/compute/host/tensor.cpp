@@ -20,6 +20,7 @@
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/groupedmatmulpack.hpp>
+#include <poprithms/ndarray/tensorinfo.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
@@ -508,6 +509,46 @@ Tensor getArg1InplaceTarget(const Tensor &a, const Shape &arg0Shape) {
   return arg1;
 }
 } // namespace
+
+template <typename T> void Tensor::updateRef(T *v) const {
+  // assert that this tensor if of type 'T':
+  assertType(ndarray::get<T>());
+
+  auto asPtrData = dynamic_cast<PointerData<T> *>(tData_.get());
+  if (!asPtrData) {
+    std::ostringstream oss;
+    oss << "Failed to cast the data of " << *this
+        << " to a PointerData of type " << ndarray::get<T>() << ".";
+    throw error(oss.str());
+  }
+  asPtrData->updateData(v);
+}
+
+void Tensor::updateRefFloat64(double *v) const { updateRef<double>(v); }
+void Tensor::updateRefFloat32(float *v) const { updateRef<float>(v); }
+
+Tensor Tensor::refFloat16(const Shape &s, uint16_t *v) {
+  IeeeHalf *x = reinterpret_cast<IeeeHalf *>(v);
+  return tRefData(s, x);
+}
+void Tensor::updateRefFloat16(uint16_t *v) const {
+  auto foo = reinterpret_cast<IeeeHalf *>(v);
+  updateRef<IeeeHalf>(foo);
+}
+
+void Tensor::updateRefUnsigned64(uint64_t *v) const {
+  updateRef<uint64_t>(v);
+}
+void Tensor::updateRefUnsigned32(uint32_t *v) const {
+  updateRef<uint32_t>(v);
+}
+void Tensor::updateRefUnsigned16(uint16_t *v) const { updateRef(v); }
+void Tensor::updateRefUnsigned8(uint8_t *v) const { updateRef<uint8_t>(v); }
+
+void Tensor::updateRefInt64(int64_t *v) const { updateRef<int64_t>(v); }
+void Tensor::updateRefInt32(int32_t *v) const { updateRef<int32_t>(v); }
+void Tensor::updateRefInt16(int16_t *v) const { updateRef<int16_t>(v); }
+void Tensor::updateRefInt8(int8_t *v) const { updateRef<int8_t>(v); }
 
 bool Tensor::implIsView() const { return !tData().isOriginData(); }
 

@@ -100,15 +100,8 @@ public:
                    const compute::host::ViewData<T> &bd,
                    uint32_t /* version */) {
 
-    // A ViewData<T> object has 4 fields, 3 which are passed into the
-    // ViewData<T> constructor, and a fourth field (rowMajorOriginDataPtrs)
-    // which is a vector<T *> derived from the first. It is impossible to
-    // correctly serialize these pointers ahead of time. For this reason, we
-    // have split the serialize method into a 'save' and 'load' as
-    // described and recommended in the boost docs.
-    //
-    // We only save the first 3 fields, the vector<T *> will be computed in
-    // 'load' based on the loaded values.
+    // For historical reasons, we have split the serialize method into a
+    // 'save' and 'load' as described in the boost docs.
 
     a << bd.rowMajorOriginDatas;
     a << bd.rowMajorOriginDataIndices;
@@ -123,7 +116,6 @@ public:
     a >> bd.rowMajorOriginDatas;
     a >> bd.rowMajorOriginDataIndices;
     a >> bd.rowMajorOriginDataOffsets;
-    bd.setRowMajorOriginDataPtrs();
   }
 
   template <typename Archive, typename T>

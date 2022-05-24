@@ -8,8 +8,10 @@ namespace poprithms {
 namespace compute {
 namespace host {
 
-/** An OriginData which does not contain an internal buffer, only a raw
- * pointer to underlying data is kept. */
+/**
+ * An OriginData which does not contain an internal buffer, only a raw
+ * pointer to underlying data is kept.
+ * */
 template <class T> class PointerData : public OriginData<T> {
 public:
   PointerData(T *data__, uint64_t nElms__) : data_(data__), nElms_(nElms__) {}
@@ -27,8 +29,10 @@ public:
     return std::make_shared<PointerData<T>>(data_, nElms_);
   }
 
+  void updateData(T *n) { data_ = n; }
+
 private:
-  T *const data_;
+  T *data_;
   const uint64_t nElms_;
 };
 

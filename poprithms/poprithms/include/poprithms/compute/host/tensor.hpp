@@ -189,6 +189,13 @@ public:
   static Tensor refFloat64(const Shape &shape, double *element0);
 
   /**
+   * This method is for tensors which store a reference to externally managed
+   * memory. \sa refFloat64. Set the pointer to the first element of the
+   * tensor to be #element0.
+   * */
+  void updateRefFloat64(double *element0) const;
+
+  /**
    * Create a Tensor of type Float64 with values drawn independently from the
    * uniform distribution, U ~ Uniform[low, upp).
    *
@@ -263,6 +270,7 @@ public:
   static Tensor float32(const Shape &, std::vector<float> &&);
   static Tensor float32(float);
   static Tensor refFloat32(const Shape &, float *);
+  void updateRefFloat32(float *) const;
   static Tensor
   uniformFloat32(float low, float upp, const Shape &, uint32_t seed);
   static Tensor arangeFloat32(float start, float stop, float step);
@@ -277,6 +285,7 @@ public:
   static Tensor float16(const Shape &, const std::vector<uint16_t> &);
   static Tensor float16(float);
   static Tensor refFloat16(const Shape &, uint16_t *);
+  void updateRefFloat16(uint16_t *) const;
   static Tensor
   uniformFloat16(float low, float upp, const Shape &, uint32_t seed);
   static Tensor arangeFloat16(float start, float stop, float step);
@@ -293,6 +302,7 @@ public:
   static Tensor int64(const Shape &, std::vector<int64_t> &&);
   static Tensor int64(int64_t);
   static Tensor refInt64(const Shape &, int64_t *);
+  void updateRefInt64(int64_t *) const;
   static Tensor arangeInt64(int64_t start, int64_t stop, int64_t step);
   Tensor toInt64() const;
   std::vector<int64_t> getInt64Vector() const;
@@ -320,6 +330,7 @@ public:
   static Tensor unsigned64(const Shape &, std::vector<uint64_t> &&);
   static Tensor unsigned64(uint64_t);
   static Tensor refUnsigned64(const Shape &, uint64_t *);
+  void updateRefUnsigned64(uint64_t *) const;
   static Tensor
   arangeUnsigned64(uint64_t start, uint64_t stop, uint64_t step);
   Tensor toUnsigned64() const;
@@ -337,6 +348,7 @@ public:
   static Tensor int32(const Shape &, std::vector<int32_t> &&);
   static Tensor int32(int32_t);
   static Tensor refInt32(const Shape &, int32_t *);
+  void updateRefInt32(int32_t *) const;
   static Tensor arangeInt32(int32_t start, int32_t stop, int32_t step);
   Tensor toInt32() const;
   std::vector<int32_t> getInt32Vector() const;
@@ -358,6 +370,7 @@ public:
   static Tensor unsigned32(const Shape &, std::vector<uint32_t> &&);
   static Tensor unsigned32(uint32_t);
   static Tensor refUnsigned32(const Shape &, uint32_t *);
+  void updateRefUnsigned32(uint32_t *) const;
   static Tensor
   arangeUnsigned32(uint32_t start, uint32_t stop, uint32_t step);
   Tensor toUnsigned32() const;
@@ -375,6 +388,7 @@ public:
   static Tensor int16(const Shape &, std::vector<int16_t> &&);
   static Tensor int16(int16_t);
   static Tensor refInt16(const Shape &, int16_t *);
+  void updateRefInt16(int16_t *) const;
   static Tensor arangeInt16(int16_t start, int16_t stop, int16_t step);
   Tensor toInt16() const;
   std::vector<int16_t> getInt16Vector() const;
@@ -391,6 +405,7 @@ public:
   static Tensor unsigned16(const Shape &, std::vector<uint16_t> &&);
   static Tensor unsigned16(uint16_t);
   static Tensor refUnsigned16(const Shape &, uint16_t *);
+  void updateRefUnsigned16(uint16_t *) const;
   static Tensor
   arangeUnsigned16(uint16_t start, uint16_t stop, uint16_t step);
   Tensor toUnsigned16() const;
@@ -408,6 +423,7 @@ public:
   static Tensor int8(const Shape &, std::vector<int8_t> &&);
   static Tensor int8(int8_t);
   static Tensor refInt8(const Shape &, int8_t *);
+  void updateRefInt8(int8_t *) const;
   static Tensor arangeInt8(int8_t start, int8_t stop, int8_t step);
   Tensor toInt8() const;
   std::vector<int8_t> getInt8Vector() const;
@@ -424,6 +440,7 @@ public:
   static Tensor unsigned8(const Shape &, std::vector<uint8_t> &&);
   static Tensor unsigned8(uint8_t);
   static Tensor refUnsigned8(const Shape &, uint8_t *);
+  void updateRefUnsigned8(uint8_t *) const;
   static Tensor arangeUnsigned8(uint8_t start, uint8_t stop, uint8_t step);
   Tensor toUnsigned8() const;
   std::vector<uint8_t> getUnsigned8Vector() const;
@@ -1309,6 +1326,12 @@ public:
    * Cast this Tensor to one of DType \a type
    * */
   Tensor to(DType type) const;
+
+  /**
+   * This method is for tensors which store a pointer to externally managed
+   * memory. \sa refFloat64.
+   * */
+  template <typename T> void updateRef(T *element0) const;
 
 private:
   // get the BaseData for each Tensor in tIns.
