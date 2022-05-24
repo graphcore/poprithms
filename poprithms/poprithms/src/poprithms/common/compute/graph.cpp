@@ -1,5 +1,7 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
+#include <algorithm>
+#include <iterator>
 #include <memory>
 #include <ostream>
 #include <set>
@@ -17,6 +19,7 @@
 #include <poprithms/common/compute/remote.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/util/copybyclone_impl.hpp>
+#include <poprithms/util/unisort.hpp>
 
 namespace poprithms {
 namespace common {
@@ -42,7 +45,8 @@ void Graph::verifyIsHost(const TensorId &id) const {
 
 bool Graph::computeTypeSpecificEqualTo(const Graph &r) const {
   return devices == r.devices && nTilesPerReplica_ == r.nTilesPerReplica_ &&
-         replicationFactor_ == r.replicationFactor_;
+         replicationFactor_ == r.replicationFactor_ &&
+         runnable_ == r.runnable_;
 }
 
 void Graph::verifyIsRemote(const TensorId &tId) const {
@@ -455,6 +459,162 @@ const Remote &Graph::remote(DeviceId devId) const {
     throw error(oss.str());
   }
   return *remote;
+}
+
+std::vector<std::pair<CallEvent, InIndex>>
+Graph::indexedInCopies(const TensorId &tId) const {
+
+  const auto &events = op(tId.opId()).inCopies(tId.outIndex());
+  std::vector<std::pair<CallEvent, InIndex>> pairs;
+  pairs.reserve(events.size());
+
+  for (const auto &e : events) {
+    const auto index = op(e.caller()).inIndex(CalleeTensorId(tId, e.index()));
+
+    pairs.push_back({e, index});
+  }
+  return pairs;
+}
+
+std::vector<std::pair<CallEvent, OutIndex>>
+Graph::indexedOutCopies(const TensorId &tId) const {
+
+  std::vector<std::pair<CallEvent, OutIndex>> pairs;
+  const auto &events = op(tId.opId()).outCopies(tId.outIndex());
+  pairs.reserve(events.size());
+
+  for (const auto &e : events) {
+    const auto index =
+        op(e.caller()).outIndex(CalleeTensorId(tId, e.index()));
+    pairs.push_back({e, index});
+  }
+
+  return pairs;
+}
+
+TensorIds Graph::hostTensors() const {
+  TensorIds hts;
+  for (const auto opId : opIds()) {
+    for (OutIndex o = 0; o < nOutTensors(opId); ++o) {
+      if (isOnHost({opId, o})) {
+        hts.push_back({opId, o});
+      }
+    }
+  }
+  return hts;
+}
+
+OpIds Graph::opsWithCallees() const {
+  OpIds o;
+  for (auto opId : opIds()) {
+    if (op(opId).hasCallees()) {
+      o.push_back(opId);
+    }
+  }
+  return o;
+}
+
+std::vector<std::vector<uint64_t>> Graph::calleeGraph() const {
+  std::vector<std::vector<uint64_t>> edges;
+  const auto sources = opsWithCallees();
+  edges.resize(nSubGraphs());
+  for (auto src : sources) {
+    for (auto dst : op(src).callees()) {
+      auto &es = edges[subGraphId(src).get_u64()];
+      if (std::find(es.begin(), es.end(), dst.get_u64()) == es.end()) {
+        es.push_back(dst.get_u64());
+      }
+    }
+  }
+  return edges;
+}
+
+std::string Graph::str(const OpIds &opIds) const {
+  std::vector<std::string> parts;
+  for (auto opId : opIds) {
+    parts.push_back(op(opId).str());
+  }
+  std::ostringstream oss;
+  poprithms::util::append(oss, parts);
+  return oss.str();
+}
+
+SubGraphIds Graph::reachable(const SubGraphIds &roots) const {
+
+  auto calleeGraph_ = calleeGraph();
+
+  auto toProcess = asUnsigned64s(roots);
+  std::set<uint64_t> seen{toProcess.cbegin(), toProcess.cend()};
+
+  std::vector<uint64_t> reachable = {};
+
+  while (!toProcess.empty()) {
+    auto nxt = toProcess.back();
+    toProcess.pop_back();
+    reachable.push_back(nxt);
+    for (auto sgId : calleeGraph_.at(nxt)) {
+      if (seen.count(sgId) == 0) {
+        seen.insert(sgId);
+        toProcess.push_back(sgId);
+      }
+    }
+  }
+
+  return asSubGraphIds(reachable);
+}
+
+std::map<SubGraphId, CallEvents> Graph::callEvents() const {
+  std::map<SubGraphId, CallEvents> m;
+  for (auto opId : opIds()) {
+    auto callees_ = callees(opId);
+    for (CalleeIndex i = 0; i < callees_.size(); ++i) {
+      const auto sg = callees_[i.get()];
+      CallEvent ce(opId, sg, i);
+      auto found = m.find(sg);
+      if (found == m.cend()) {
+        m.insert({sg, {ce}});
+      } else {
+        found->second.push_back(ce);
+      }
+    }
+  }
+  return m;
+}
+
+bool Graph::isRunnable(SubGraphId sgId) const {
+  return std::find(runnable_.cbegin(), runnable_.cend(), sgId) !=
+         runnable_.cend();
+}
+
+void Graph::setRunnable(const SubGraphIds &rids) {
+
+  auto sorted = poprithms::util::unisorted(rids);
+  if (sorted == runnable_) {
+    return;
+  }
+
+  if (!runnable_.empty()) {
+    std::ostringstream oss;
+    oss << "This Graph already has a set of runnable sub-graphs, "
+        << runnable_ << ". This set should be only be set once "
+        << "(the method setRunnable is not 'incremental'). "
+        << "Bailing on call to set runnables to " << rids << '.';
+    throw error(oss.str());
+  }
+
+  runnable_ = poprithms::util::unisorted(rids);
+}
+
+CallEvent Graph::callEvent(OpId opId) const {
+  auto callees_ = op(opId).callees();
+  if (callees_.size() != 1) {
+    std::ostringstream oss;
+    oss << "Invalid call to method callEvent(OpId=" << opId << ") where "
+        << opId << " is the id of the op " << op(opId)
+        << ". This method can only be used for ops with 1 callee. ";
+    throw error(oss.str());
+  }
+  return CallEvent(opId, callees_[0], CalleeIndex(0));
 }
 
 const Device &Graph::device(DeviceId id) const {

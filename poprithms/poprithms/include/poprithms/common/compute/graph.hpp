@@ -336,13 +336,110 @@ public:
   const Remote &remote(DeviceId) const;
 
   /**
-   * Map from the one enum type to the other.
+   * Map from one enum type to the other.
    *
    * DeviceType::Ipu    -> CodeLocation::Ipu
    * DeviceType::Host   -> CodeLocation::Host
    * DeviceType::Remote -> invalid (no code).
    * */
   static CodeLocation codeLocationFromDeviceType(DeviceType);
+
+  CodeLocation codeLocation(OpId id) const { return op(id).codeLocation(); }
+
+  bool isPartiallyHost(OpId id) const { return op(id).isPartiallyHost(); }
+
+  std::string str(OpId id) const { return op(id).str(); }
+
+  /**
+   * Specify that the sub-graphs #sgIds are runnable. That is, they are entry
+   * points of execution of the graph. These are analagous to the set of
+   * programs passed to a poplar engine. Any sub-graph can be made runnable.
+   * */
+  void setRunnable(const std::vector<SubGraphId> &sgIds);
+
+  /**
+   * \return true if #sgId is a runnable sub-graph, set with the method
+   *         #setRunnable.
+   * */
+  bool isRunnable(SubGraphId sgId) const;
+
+  std::vector<SubGraphId> runnable() const { return runnable_; }
+
+  using poprithms::common::multiout::Graph::opIds;
+  using poprithms::common::schedulable::Graph::opIds;
+
+  /**
+   * All the tensors which are on the host device.
+   * */
+  TensorIds hostTensors() const;
+
+  /**
+   * The DAG consisting of all caller->callee edges. Specifically, if an op in
+   * graph #g0 has a callee sub-graph g1, then there is an edge #g0->#g1, and
+   * the returned vector #edges has #g1 in #edges[g0].
+   * */
+  std::vector<std::vector<uint64_t>> calleeGraph() const;
+
+  /**
+   * For all sub-graphs which are callees, return the set of ops call into
+   * them, and their context. Specifically, return a map whose keys are the
+   * sub-graphs, and the values are the call events where the callee is the
+   * map key.
+   * */
+  std::map<SubGraphId, CallEvents> callEvents() const;
+
+  SubGraphIds callees(OpId id) const { return op(id).callees(); }
+
+  uint64_t nCallees(OpId id) const { return op(id).nCallees(); }
+
+  /**
+   * For ops with unique callees, return the unique CallEvent. If #opId has
+   * multiple callees, this method throws an error.
+   * */
+  CallEvent callEvent(OpId opId) const;
+
+  /**
+   * Starting from the sub-graphs in #sgIds and traversing the DAG formed by
+   * edges between callers and callees (see #calleeGraph), traverse to all
+   * reachable sub-graphs.
+   * */
+  SubGraphIds reachable(const SubGraphIds &) const;
+
+  SubGraphIds reachableFromRunnable() const { return reachable(runnable()); }
+
+  /**
+   * Return all ops with one or more callees.
+   * */
+  OpIds opsWithCallees() const;
+
+  bool atLeastOneOutIsIpu(OpId id) const {
+    return op(id).atLeastOneOutIsIpu();
+  }
+
+  /**
+   * If the tensor #tId is
+   * 1) in a sub-graph which is the callee of a calling op,
+   * 2) is the destination of a copy into the callee from the calling
+   *    sub-graph,
+   * then the calling op and index of the copy are an element of the returned
+   * vector.
+   *
+   * \sa Op::inCopies.
+   * */
+  std::vector<std::pair<CallEvent, InIndex>>
+  indexedInCopies(const TensorId &tId) const;
+
+  /**
+   * \sa indexedInCopies and Op::outCopies. This method returns all copies out
+   * from the callee sub-graphs into the calling sub-graph.
+   * */
+  std::vector<std::pair<CallEvent, OutIndex>>
+  indexedOutCopies(const TensorId &) const;
+
+  /**
+   * A string summarizing the ops in #opIds.
+   * */
+  std::string str(const OpIds &opIds) const;
 
 protected:
   OpId insertComputeOp(std::unique_ptr<Op>);
@@ -407,6 +504,7 @@ private:
   std::vector<poprithms::util::CopyByClone<Device>> devices;
   uint64_t nTilesPerReplica_;
   ReplicationFactor replicationFactor_;
+  SubGraphIds runnable_;
 };
 
 template <class T, class... Args>

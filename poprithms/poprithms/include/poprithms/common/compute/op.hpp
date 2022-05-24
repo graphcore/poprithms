@@ -371,6 +371,8 @@ public:
    * */
   bool isPartiallyHost() const;
 
+  bool atLeastOneOutIsIpu() const;
+
   /**
    * The device types of all of the input tensors.
    * */

@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <sstream>
 
 #include <poprithms/common/compute/graph.hpp>
@@ -58,10 +59,6 @@ public:
   ~TestOp() override = default;
 
   TestOp(const poprithms::common::compute::Op::State &s) : Op(s) {}
-  std::unique_ptr<poprithms::common::multiout::Op>
-  cloneMultioutOp() const final {
-    unimplemented("cloneMultioutOp");
-  }
 
   SubGraphId callee(CalleeIndex) const final { unimplemented("callee"); }
   std::string typeString() const final { return "testop"; }
@@ -99,6 +96,11 @@ public:
 
   TensorId rootRef(OutIndex) const final { return rr; }
 
+  std::unique_ptr<poprithms::common::multiout::Op>
+  cloneMultioutOp() const final {
+    return std::make_unique<TestRefFrom>(*this);
+  }
+
   ~TestRefFrom() override = default;
   TestRefFrom(const poprithms::common::compute::Op::State &s,
               const TensorId rootRef)
@@ -109,6 +111,11 @@ class TestNonRefFrom : public TestOp {
 
 public:
   TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
+
+  std::unique_ptr<poprithms::common::multiout::Op>
+  cloneMultioutOp() const final {
+    return std::make_unique<TestNonRefFrom>(*this);
+  }
 
   ~TestNonRefFrom() override = default;
   TestNonRefFrom(const poprithms::common::compute::Op::State &s)
@@ -291,6 +298,40 @@ void testBadValOuts() {
   }
 }
 
+void testSetRunnable() {
+  TestGraph tg;
+
+  auto sg0 = tg.createSubGraphId("sg0");
+  auto sg1 = tg.createSubGraphId("sg1");
+  auto in0 = tg.var(sg0);
+  (void)in0;
+
+  tg.setRunnable({sg0, sg0});
+
+  // Fine, as same as before.
+  tg.setRunnable({sg0});
+
+  {
+    auto ctg = tg;
+    if (ctg.runnable() != SubGraphIds({sg0})) {
+      throw poprithms::test::error(
+          "Copy of test graph does not have same runnable sub-graphs");
+    }
+  }
+
+  bool caught{false};
+  try {
+    tg.setRunnable({sg0, sg1});
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw poprithms::test::error(
+        "Failed to catch error of setting runnable sub-graphs twice (with "
+        "different sub-graphs)");
+  }
+}
+
 void testIpuCreation0() {
 
   TestGraph tg(32, ReplicationFactor::create(1));
@@ -342,5 +383,6 @@ int main() {
   testIpuCreation0();
   testSimTensorMap();
   testBadValOuts();
+  testSetRunnable();
   return 0;
 }

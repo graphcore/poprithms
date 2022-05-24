@@ -11,6 +11,15 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+bool Op::atLeastOneOutIsIpu() const {
+  for (uint64_t outIndex = 0; outIndex < nOutTensors(); ++outIndex) {
+    if (outDeviceType(outIndex) == DeviceType::Ipu) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool Op::isPartiallyHost() const {
   const auto types = inAndOutDeviceTypes();
   if (types.empty()) {
