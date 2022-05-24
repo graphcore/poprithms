@@ -92,6 +92,7 @@ set(common_compute_sources
   ${src_dir}/common/compute/graph.cpp
   ${src_dir}/common/compute/initialvalues.cpp
   ${src_dir}/common/compute/op.cpp
+  ${src_dir}/common/compute/opverifier.cpp
   ${src_dir}/common/compute/simtensormap.cpp
 )
 add_library(poprithms-common-compute-objlib OBJECT ${common_compute_sources})

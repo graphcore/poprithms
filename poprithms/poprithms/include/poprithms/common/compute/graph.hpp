@@ -82,7 +82,7 @@ public:
   DTypes dtypes(const TensorIds &tIds) const;
 
   /**
-   * Return true if the numerical type of tensor #tId is integral.
+   * \return true if the numerical type of tensor #tId is integral.
    * */
   bool isFixedPoint(const TensorId &) const;
 
@@ -187,17 +187,17 @@ public:
   SubGraphId subGraphId(const TensorId &tId) const;
 
   /**
-   * Return true of the tensor #tId is a remote device.
+   * \return true if the tensor #tId is a remote device.
    * */
   bool isOnRemote(const TensorId &) const;
 
   /**
-   * Return true if the tensor #tId is on the host device.
+   * \return true if the tensor #tId is on the host device.
    * */
   bool isOnHost(const TensorId &) const;
 
   /**
-   * Return true if the tensor #tId is on an ipu device.
+   * \return true if the tensor #tId is on an ipu device.
    * */
   bool isOnIpu(const TensorId &) const;
 
@@ -270,6 +270,18 @@ public:
   }
 
   /**
+   * All tensors which reference a tensor in a different sub-graph (root or
+   * derived).
+   * */
+  TensorIds tensorsWithRefs() const;
+
+  /**
+   * All root references. Specifically, all tensors which have derived
+   * references in different sub-graphs.
+   * */
+  TensorIds rootRefs() const;
+
+  /**
    * The device id of the host device.
    * */
   DeviceId host() const { return DeviceId(0); }
@@ -320,7 +332,7 @@ public:
   DeviceId ipu(DeviceId ipu0, uint64_t rank0, uint64_t rank1);
 
   /**
-   * Return N ipu devices each with 1/N of the tiles of #ipu0.
+   * \return N ipu devices each with 1/N of the tiles of #ipu0.
    * */
   std::vector<DeviceId> partition(DeviceId, uint64_t N);
 
@@ -408,7 +420,7 @@ public:
   SubGraphIds reachableFromRunnable() const { return reachable(runnable()); }
 
   /**
-   * Return all ops with one or more callees.
+   * \return all ops with one or more callees.
    * */
   OpIds opsWithCallees() const;
 
@@ -440,6 +452,67 @@ public:
    * A string summarizing the ops in #opIds.
    * */
   std::string str(const OpIds &opIds) const;
+
+  /**
+   * Create a clone of op #opId in the sub-graph #sgId, with input tensors
+   * #inTensors. The new input tensors #inTensors must have the same type and
+   * shape as #opId, and they must be in the sub-graph #sgId.
+   *
+   * Topological constraints are not transferred when cloning with this
+   * method.
+   * */
+  OpId clone(OpId opId, const TensorIds &inTensors, SubGraphId sgId);
+
+  /**
+   * The source of the copy to the callee tensor #inCallee for the call event
+   * #ce. The returned tensor is in the calling sub-graph.
+   * */
+  TensorId srcInCaller(const TensorId &inCallee, const CallEvent &ce) const;
+
+  /**
+   * The destination of the copy from the callee tensor #inCallee, for the
+   * call event #ce. This copy happens at the end of the call event, when the
+   * tensor in the callee sub-graph is copied to a tensor in the calling
+   * sub-graph.
+   * */
+  TensorId dstInCaller(const TensorId &inCallee, const CallEvent &ce) const;
+
+  /**
+   * For an op #opId with just 1 callee sub-graph, this method returns the
+   * destination in the calling sub-graph (the sub-graph containing #opId) of
+   * the copy at the end of the call event from the callee tensor #inCallee.
+   * */
+  TensorId dstInCaller(const TensorId &inCallee, OpId opId) const {
+    return dstInCaller(inCallee, callEvent(opId));
+  }
+
+  /**
+   * \return true if the call event #ce has a tensor copied out at index #o.
+   * */
+  bool hasSrcInCallee(const CallEvent &, OutIndex o) const;
+
+  /**
+   * The tensor copied out of the callee sub-graph of #ce, at output index #o.
+   * */
+  TensorId srcInCallee(const CallEvent &ce, OutIndex o) const;
+
+  /**
+   * The destinations in a callee sub-graph to which the tensor #inCaller is
+   * copied at the start of the call event #ce.
+   * */
+  TensorIds dstsInCallee(const TensorId &inCaller, const CallEvent &ce) const;
+
+  /**
+   * \return true if the tensor #inCallee is copied to from a tensor in the
+   *         calling sub-graph in the call event #ce.
+   * */
+  bool isDstInCallee(const TensorId &inCallee, const CallEvent &ce) const;
+
+  /**
+   * \return true is the tensor #inCallee is copied from in the call event
+   * #ce. The destination of such a copy is a tensor in calling sub-graph.
+   * */
+  bool isSrcInCallee(const TensorId &inCallee, const CallEvent &) const;
 
 protected:
   OpId insertComputeOp(std::unique_ptr<Op>);

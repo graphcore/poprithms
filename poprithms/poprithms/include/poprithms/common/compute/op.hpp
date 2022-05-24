@@ -235,6 +235,38 @@ public:
   virtual SubGraphIds callees() const = 0;
 
   /**
+   * \return true if #inCallee, a tensor in a callee sub-graph of this op, is
+   *         copied to at the start of a call event.
+   * */
+  virtual bool isDstInCallee(const CalleeTensorId &inCallee) const = 0;
+
+  /**
+   * \return true if #inCallee, a tensor in a callee sub-graph of this op, is
+   *         copied from at the end of a call event.
+   * */
+  virtual bool isSrcInCallee(const CalleeTensorId &inCallee) const = 0;
+
+  /**
+   * \return The tensor in the callee sub-graph #ci of this op which is copied
+   *         (out) to the calling sub-graph at output index #o.
+   * */
+  virtual TensorId srcInCallee(OutIndex o, CalleeIndex ci) const = 0;
+
+  /**
+   * \param ctId A tensor in the calling sub-graph (an input to this op) and a
+   *        callee sub-graph index.
+   *
+   * \return The tensors in the callee sub-graph to which #ctId is copied.
+   * */
+  virtual TensorIds dstsInCallee(const CalleeTensorId &ctId) const = 0;
+
+  /**
+   * \return true if the output at index #o is copied into a tensor in the
+   *         calling sub-graph from the callee sub-graph #ci.
+   * */
+  virtual bool isCopiedOut(OutIndex o, CalleeIndex ci) const = 0;
+
+  /**
    * Callee #ci.
    * */
   virtual SubGraphId callee(CalleeIndex ci) const = 0;
@@ -506,6 +538,13 @@ public:
   HostTensors badValOuts() const;
 
   virtual CodeLocation codeLocation() const = 0;
+
+  /**
+   * Create a clone of this op, but with state #s. This method is useful for
+   * cloning all op specific attributes while allowing the cloned tensor to
+   * have different input tensors, constraints, and other base attributes.
+   * */
+  virtual std::unique_ptr<Op> cloneWithState(const State &s) const = 0;
 
 protected:
   /**

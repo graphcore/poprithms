@@ -88,6 +88,29 @@ public:
   HostTensors initializeOut(const HostTensors &) const final {
     unimplemented("initializeOut");
   }
+  std::unique_ptr<Op> cloneWithState(const State &) const final {
+    unimplemented("cloneWithState");
+  }
+
+  bool isDstInCallee(const CalleeTensorId &) const final {
+    unimplemented("isDstInCallee");
+  }
+
+  bool isSrcInCallee(const CalleeTensorId &) const final {
+    unimplemented("isSrcInCallee");
+  }
+
+  TensorId srcInCallee(OutIndex, CalleeIndex) const final {
+    unimplemented("srcInCallee");
+  }
+
+  TensorIds dstsInCallee(const CalleeTensorId &) const final {
+    unimplemented("dstsInCallee");
+  }
+
+  bool isCopiedOut(OutIndex, CalleeIndex) const final {
+    unimplemented("isCopiedOut");
+  }
 };
 
 class TestRefFrom final : public TestOp {

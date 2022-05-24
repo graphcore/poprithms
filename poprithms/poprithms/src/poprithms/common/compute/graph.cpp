@@ -70,6 +70,103 @@ void Graph::verifyIsIpu(const TensorId &tId) const {
   }
 }
 
+TensorIds Graph::rootRefs() const {
+  TensorIds tids;
+  for (auto opId : opIds()) {
+    const auto &op_ = op(opId);
+    for (OutIndex o = 0; o < nOutTensors(opId); ++o) {
+      if (op_.nDerivedRefs(o) != 0) {
+        tids.push_back({opId, o});
+      }
+    }
+  }
+  return tids;
+}
+
+OpId Graph::clone(OpId opId, const TensorIds &inIds, SubGraphId sgId) {
+
+  verifySubGraphId(inIds, sgId);
+
+  if (op(opId).inShapes() != shapes(inIds)) {
+    std::ostringstream oss;
+    oss << "The shapes of the inputs to the op being cloned, " << op(opId)
+        << ", are ";
+    poprithms::util::append(oss, op(opId).inShapes());
+    oss << ". The shapes of the new inputs are ";
+    poprithms::util::append(oss, shapes(inIds));
+    oss << ". They should be the same (shape inference is not rerun).";
+    throw error(oss.str());
+  }
+
+  if (dtypes(inTensorIds(opId)) != dtypes(inIds)) {
+    std::ostringstream oss;
+    oss << "The dtypes of the inputs to the op being cloned, " << op(opId)
+        << ", are ";
+    poprithms::util::append(oss, dtypes(inTensorIds(opId)));
+    oss << ". The dtypes of the new inputs are ";
+    poprithms::util::append(oss, shapes(inIds));
+    oss << ". They should be the same (dtype inference is not rerun).";
+    throw error(oss.str());
+  }
+
+  // note that topo-cons are not copied across.
+  const auto state = Op::State::getStartingState(
+      OpId(nxtOpId()), sgId, inIds, tensorInfos(outTensorIds(opId)), *this);
+
+  auto foo = op(opId).cloneWithState(state);
+
+  return insertComputeOp(std::move(foo));
+}
+
+TensorId Graph::srcInCaller(const TensorId &inCallee,
+                            const CallEvent &cse) const {
+  const auto &op_ = op(cse.caller());
+  return op_.inTensorId(op_.inIndex({inCallee, cse.index()}));
+}
+
+TensorId Graph::dstInCaller(const TensorId &inCallee,
+                            const CallEvent &ce) const {
+  auto outIndex =
+      op(ce.caller()).outIndex(CalleeTensorId(inCallee, ce.index()));
+  return op(ce.caller()).outTensorId(outIndex);
+}
+
+bool Graph::isDstInCallee(const TensorId &inCallee,
+                          const CallEvent &cse) const {
+  return op(cse.caller()).isDstInCallee({inCallee, cse.index()});
+}
+
+bool Graph::isSrcInCallee(const TensorId &inCallee,
+                          const CallEvent &cse) const {
+  return op(cse.caller()).isSrcInCallee({inCallee, cse.index()});
+}
+
+TensorIds Graph::dstsInCallee(const TensorId &inCaller,
+                              const CallEvent &ce) const {
+  return op(ce.caller()).dstsInCallee({inCaller, ce.index()});
+}
+
+bool Graph::hasSrcInCallee(const CallEvent &cse, OutIndex o) const {
+  return op(cse.caller()).isCopiedOut(o, cse.index());
+}
+
+TensorId Graph::srcInCallee(const CallEvent &cse, OutIndex o) const {
+  return op(cse.caller()).srcInCallee(o, cse.index());
+}
+
+TensorIds Graph::tensorsWithRefs() const {
+  TensorIds tids;
+  for (auto opId : opIds()) {
+    const auto &op_ = op(opId);
+    for (OutIndex o = 0; o < nOutTensors(opId); ++o) {
+      if (!op_.refsExcludingSelf(o).empty()) {
+        tids.push_back({opId, o});
+      }
+    }
+  }
+  return tids;
+}
+
 bool Graph::isOnHost(const TensorId &tId) const {
   return deviceType(tId) == DeviceType::Host;
 }
@@ -629,6 +726,15 @@ void Graph::setInitialValue(const TensorId &tId,
                             uint64_t replica,
                             const poprithms::compute::host::Tensor &v) {
   op(tId.opId()).setInitialValue(replica, tId.outIndex(), v);
+}
+
+DTypes Graph::dtypes(const TensorIds &tIds) const {
+  DTypes ts;
+  ts.reserve(tIds.size());
+  for (const auto &tId : tIds) {
+    ts.push_back(dtype(tId));
+  }
+  return ts;
 }
 
 } // namespace compute

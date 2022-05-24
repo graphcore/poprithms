@@ -469,6 +469,12 @@ public:
    * */
   void verifyOpValid(OpId) const;
 
+  /**
+   * \return All tensors which are on a data path to one or several of the
+   *         tensors in #ids. The returned set includes #ids.
+   * */
+  TensorIds onPathTo(const TensorIds &ids) const;
+
 private:
   /**
    * Derived classes must define what it means to be equivalent in this

@@ -737,6 +737,24 @@ void Graph::unimplemented(const std::string &ctxt) const {
   throw error(oss.str());
 }
 
+namespace {
+class BasicBack {
+public:
+  BasicBack(const Graph &m) : graph(m) {}
+  TensorIds neighbors(const TensorId &n) const {
+    return graph.inTensorIds(n.opId());
+  }
+
+private:
+  const Graph &graph;
+};
+} // namespace
+
+TensorIds Graph::onPathTo(const TensorIds &ids) const {
+  return poprithms::common::multiout::depthFirst(
+      BasicBack(*this), ids, [](const TensorId &) { return true; });
+}
+
 } // namespace multiout
 } // namespace common
 
