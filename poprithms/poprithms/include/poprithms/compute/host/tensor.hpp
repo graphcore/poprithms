@@ -1333,6 +1333,15 @@ public:
    * */
   template <typename T> void updateRef(T *element0) const;
 
+  /**
+   * Create a tensor which stores a reference to externally managed memory for
+   * a tensor of shape #s and type #t. The address stored is set to nullptr.
+   * The tensor created and returned should not be used until the #updateRef
+   * method has been called to set the stored pointer to an address with at
+   * least s.nelms() values o type #t following it contiguously in memory.
+   * */
+  static Tensor uninitializedRef(const Shape &s, const DType t);
+
 private:
   // get the BaseData for each Tensor in tIns.
   static std::vector<const BaseData *> getBaseDataPtrs(const Tensors &tIns);
@@ -1375,10 +1384,13 @@ private:
   assertValidScatter(const Shape &out,
                      const std::vector<std::vector<int64_t>> &where) const;
 
+  // Helper classes for delegating DTypes to appropriate template parameters
+  // (DType::Unsigned64 -> uint64_t, etc.):
   class Caster;
   class ScalarCaster;
   class Zeros;
   class Ones;
+  class UninitializedPointer;
 
   void assertContainsAliases(bool) const;
 

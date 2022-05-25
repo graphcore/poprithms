@@ -140,6 +140,22 @@ void testRefToInt32() {
         "Failed to update the pointer of the int32 tensor correctly");
   }
 }
+
+void testUninitializedTensor0() {
+  auto foo = Tensor::uninitializedRef({7}, DType::Float64);
+
+  bool caught{false};
+  try {
+    auto bar = foo + foo;
+  } catch (const poprithms::error::error &) {
+  }
+  caught = true;
+  if (!caught) {
+    throw poprithms::test::error("Failed to catch case where uninitialized "
+                                 "tensor is used (pointer is still nullptr");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -148,5 +164,6 @@ int main() {
   testGetPtrToOriginData();
   testRefToFloat16();
   testRefToInt32();
+  testUninitializedTensor0();
   return 0;
 }

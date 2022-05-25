@@ -56,6 +56,10 @@ public:
   using BaseData::nelms_i64;
   using BaseData::nelms_u64;
 
+  // The address of element #0 of the contiguous memory of this origin data.
+  // Note that this method should not be called in inner loops of computation
+  // for performance reasons (virtual method overhead, and some additional
+  // checks are performed).
   virtual T *dataPtr() const = 0;
   bool isOriginData() const final { return true; }
   bool containsAliases() const final { return false; }
@@ -389,7 +393,6 @@ private:
 
   template <class BinaryOp> void binary_(const BaseData &rhs) const {
     const BinaryOp op;
-    // const T *data_ = dataPtr();
     OriginDataHelper::assertSameBinaryOpNelms(
         rhs.nelms_u64(), nelms_u64(), *this);
 

@@ -196,6 +196,18 @@ public:
   static std::string str() { return "Tensor::Ones"; }
 };
 
+class Tensor::UninitializedPointer {
+public:
+  template <typename T> static Tensor go(const Shape &s) {
+    return tRefData<T>(s, nullptr);
+  }
+  static std::string str() { return "Tensor::UninitializedPointer"; }
+};
+
+Tensor Tensor::uninitializedRef(const Shape &s, const DType t) {
+  return typeSwitch<UninitializedPointer, Tensor>(t, s);
+}
+
 class Tensor::Caster {
 public:
   template <typename T> static Tensor go(const Shape &s, const void *vp) {

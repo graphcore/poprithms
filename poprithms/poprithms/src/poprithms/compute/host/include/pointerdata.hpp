@@ -2,7 +2,11 @@
 #ifndef POPRITHMS_COMPUTE_HOST_POINTERDATA_HPP
 #define POPRITHMS_COMPUTE_HOST_POINTERDATA_HPP
 
+#include <sstream>
+
 #include <compute/host/include/basedata.hpp>
+
+#include <poprithms/error/error.hpp>
 
 namespace poprithms {
 namespace compute {
@@ -21,7 +25,16 @@ public:
         << ",nelms=" << nelms_u64() << ')';
   }
 
-  T *dataPtr() const final { return data_; }
+  T *dataPtr() const final {
+    if (!data_) {
+      std::ostringstream oss;
+      oss << "The data pointer of this PointerData, ";
+      append(oss);
+      oss << ", is nullptr. ";
+      throw error(oss.str());
+    }
+    return data_;
+  }
 
   uint64_t nelms_u64() const final { return nElms_; }
 
