@@ -2,19 +2,23 @@
 #ifndef POPRITHMS_COMMON_COMPUTE_OP_HPP
 #define POPRITHMS_COMMON_COMPUTE_OP_HPP
 
+#include <poprithms/autodiff/automatic/requiredids.hpp>
 #include <poprithms/autodiff/core/togradgraph.hpp>
 #include <poprithms/common/compute/device.hpp>
 #include <poprithms/common/compute/devicetype.hpp>
 #include <poprithms/common/compute/initialvalues.hpp>
+#include <poprithms/common/compute/memoryaliasmapper.hpp>
 #include <poprithms/common/compute/simtensormap.hpp>
 #include <poprithms/common/multiout/consumptionid.hpp>
 #include <poprithms/common/multiout/ioindices.hpp>
 #include <poprithms/common/multiout/op.hpp>
 #include <poprithms/common/multiout/opid.hpp>
+#include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/common/schedulable/op.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/memory/nest/region.hpp>
+#include <poprithms/memory/unwind/graph.hpp>
 #include <poprithms/ndarray/deviceid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/shape.hpp>
@@ -29,12 +33,15 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+using poprithms::autodiff::core::ToGradGraph;
 using poprithms::common::multiout::ConsumptionIds;
 using poprithms::common::multiout::ContiguousInIndexSubset;
 using poprithms::common::multiout::ContiguousOutIndexSubset;
 using poprithms::common::multiout::InIndex;
 using poprithms::common::multiout::OpId;
 using poprithms::common::multiout::OpIds;
+using poprithms::common::multiout::OptionalTensorId;
+using poprithms::common::multiout::OptionalTensorIds;
 using poprithms::common::multiout::OutIndex;
 using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
@@ -370,6 +377,20 @@ public:
   void verifyValidAtComputeLevel() const;
 
   /**
+   * Verify that all the attributes of ops derived from this op class are
+   * valid.
+   * */
+  virtual void computeDerivedVerifyValid() const = 0;
+
+  /**
+   * Verify valid at and beyond this level of op abstraction.
+   * */
+  void verifyValidFromComputeLevel() const {
+    verifyValidAtComputeLevel();
+    computeDerivedVerifyValid();
+  }
+
+  /**
    * Get the initial values (if any) for each replica if the output tensor #o.
    * */
   std::map<uint64_t, poprithms::compute::host::Tensor>
@@ -546,6 +567,77 @@ public:
    * */
   virtual std::unique_ptr<Op> cloneWithState(const State &s) const = 0;
 
+  /**
+   * Perform any removal work at derived op levels for when the inputs at
+   * indices defined by #coin are removed.
+   * */
+  virtual void
+  computeDerivedRemoveInputs(const ContiguousInIndexSubset &coin) = 0;
+
+  /**
+   * Perform any removal work at derived op levels for when the outputs at
+   * indices defined by #coin are removed.
+   * */
+  virtual void
+  computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &coin) = 0;
+
+  virtual void growAliasMapper(MemoryAliasMapper &) const = 0;
+
+  /**
+   * \return true if any element of the output tensor at #outIndex is aliased
+   *         to any element of the input tensor at #inIndex.
+   * */
+  virtual bool aliases(InIndex inIndex, OutIndex outIndex) const = 0;
+
+  /**
+   * \return true if any element of the input tensor at #inIndex is modified
+   *         by this op.
+   * */
+  virtual bool modifies(InIndex inIndex) const = 0;
+
+  std::unique_ptr<poprithms::common::multiout::Op>
+  cloneMultioutOp() const final {
+    return cloneWithState(getComputeState());
+  }
+
+  /**
+   * Suppose that there is a non-zero gradient being backpropagated at output
+   * index #o (dLoss/dOut(o) is non-zero). Is it possible that the gradient
+   * of the input at index #i (dLoss/dIn(i)) is non-zero? If so, this method
+   * returns true.
+   */
+  virtual bool gradientPropagates(OutIndex o, InIndex i) const = 0;
+
+  /**
+   * \return true of a non-zero gradient might be propagate from #o to any
+   *         index.
+   * */
+  bool gradientPropagates(OutIndex o) const;
+
+  /**
+   * This op requires zero, one or several activations to backpropagate
+   * the gradients of its outputs to its inputs. The activations required may
+   * be inputs or outputs.
+   *
+   * This method ensures that a minimal set of input/output activations are
+   * present in #activations to compute the input gradients of this op.
+   *
+   * Note that some ops can do backpropagation provided with either the input
+   * OR the output activation. For example, when backpropagating through, Out
+   * = relu(In),
+   *
+   * it is sufficient to have either #Out or #In, as,
+   *    dLoss/dIn = dLoss/dOut * (Out > 0)
+   *              = dLoss/dOut * (In > 0).
+   *
+   * So in theory only one of the input or the output needs to be inserted
+   * into #activations. This approach adds complexity and so is currently not
+   * used for any ops.
+   * */
+
+  virtual void extendAutodiffRequiredTensors(
+      poprithms::autodiff::automatic::RequiredIds &activations) const = 0;
+
 protected:
   /**
    * A utility method for initializing ipu tensors in a SimTensorMap. This
@@ -558,6 +650,22 @@ protected:
   void initializeReplicatedSimOut(SimTensorMap &simTensors) const;
 
   CodeLocation locationByUnanimity() const;
+
+  // Utility method for creating variable tensors in an alias model,
+  // corresponding to this ops outputs.
+  void createVariables(MemoryAliasMapper &) const;
+
+  // Utility method for making the unique output of this op in the alias model
+  // #mam, an alias of #tId (a tensor in the alias model) in an alias model.
+  void createAlias(MemoryAliasMapper &mam, const TensorId &tId) const;
+
+  // Utility method for throwing a descriptive error for a (derived) op who
+  // whose virtual method should never be called.
+  [[noreturn]] void invalid(const std::string &ctxt = {}) const;
+
+  // Utility method for throwing a descriptive error where an op has not
+  // implemented certain functionality.
+  [[noreturn]] void unimplemented(const std::string &ctxt) const;
 
 private:
   const Graph &graph() const { return computeGraph(); }

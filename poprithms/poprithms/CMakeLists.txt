@@ -94,11 +94,16 @@ set(common_compute_sources
   ${src_dir}/common/compute/op.cpp
   ${src_dir}/common/compute/opverifier.cpp
   ${src_dir}/common/compute/simtensormap.cpp
+  ${src_dir}/common/compute/memoryaliasmapper.cpp
 )
 add_library(poprithms-common-compute-objlib OBJECT ${common_compute_sources})
 add_library(poprithms-common-compute SHARED
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-chain-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-unwind-objlib>
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
   $<TARGET_OBJECTS:poprithms-common-compute-objlib>
@@ -223,6 +228,7 @@ set(autodiff_base_sources
   ${autodiff_src_dir}/guide/objective.cpp
   ${autodiff_src_dir}/autodiff/error.cpp
 )
+
 
 add_library(poprithms-autodiff-base-objlib OBJECT ${autodiff_base_sources})
 add_library(poprithms-autodiff-base SHARED

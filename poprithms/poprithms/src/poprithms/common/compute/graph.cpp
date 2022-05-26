@@ -83,6 +83,19 @@ TensorIds Graph::rootRefs() const {
   return tids;
 }
 
+TensorIds Graph::derivedRefs() const {
+  TensorIds tids;
+  for (auto opId : opIds()) {
+    const auto &op_ = op(opId);
+    for (OutIndex o = 0; o < nOutTensors(opId); ++o) {
+      if (!op_.isRootRef(o)) {
+        tids.push_back({opId, o});
+      }
+    }
+  }
+  return tids;
+}
+
 OpId Graph::clone(OpId opId, const TensorIds &inIds, SubGraphId sgId) {
 
   verifySubGraphId(inIds, sgId);
@@ -287,12 +300,19 @@ const Device &Graph::device(const TensorId &tid) const {
 
 OpId Graph::insertComputeOp(std::unique_ptr<Op> nxtOp) {
   const auto newId = insertSchedulableOp(std::move(nxtOp));
-  verifyValidAtComputeLevel(newId);
+
+  // Verify that the attributes at this level of abstraction, and at all
+  // derived levels, are valid.
+  verifyValidFromComputeLevel(newId);
   return newId;
 }
 
 void Graph::verifyValidAtComputeLevel(OpId opId) const {
   op(opId).verifyValidAtComputeLevel();
+}
+
+void Graph::verifyValidFromComputeLevel(OpId opId) const {
+  op(opId).verifyValidFromComputeLevel();
 }
 
 void Graph::verifySchedulableDerivedGraphValid() const {
@@ -302,8 +322,7 @@ void Graph::verifySchedulableDerivedGraphValid() const {
 }
 
 void Graph::verifySchedulableDerivedOpValid(OpId opId) const {
-  verifyValidAtComputeLevel(opId);
-  verifyComputeDerivedOpValid(opId);
+  verifyValidFromComputeLevel(opId);
 }
 
 DType Graph::dtype(const TensorId &tId) const {
@@ -735,6 +754,28 @@ DTypes Graph::dtypes(const TensorIds &tIds) const {
     ts.push_back(dtype(tId));
   }
   return ts;
+}
+
+bool Graph::gradientPropagates(const OpTraversal &ot) const {
+
+  if (op(ot.opId()).inIsFixedPoint(ot.inIndex()) ||
+      op(ot.opId()).outIsFixedPoint(ot.outIndex())) {
+    return false;
+  }
+
+  auto props = op(ot.opId()).gradientPropagates(ot.outIndex(), ot.inIndex());
+
+  return props;
+}
+
+bool Graph::gradientPropagates(const TensorId &id) const {
+  for (uint64_t i = 0; i < nInTensors(id.opId()); ++i) {
+    if (gradientPropagates(
+            OpTraversal{InIndex(i), id.opId(), id.outIndex()})) {
+      return true;
+    }
+  }
+  return false;
 }
 
 } // namespace compute

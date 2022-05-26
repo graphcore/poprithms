@@ -204,8 +204,10 @@ DType Op::dtype(Port p, uint64_t i) const {
   return (p == Port::In ? inDType(InIndex(i)) : outDType(OutIndex(i)));
 }
 
-void Op::computeOpRemoveInputs(const ContiguousInIndexSubset &) {
+void Op::computeOpRemoveInputs(const ContiguousInIndexSubset &coin) {
   // nothing to do, as the op has no input specific attributes.
+
+  computeDerivedRemoveInputs(coin);
 }
 
 void Op::computeOpRemoveOutputs(const ContiguousOutIndexSubset &coin) {
@@ -217,6 +219,7 @@ void Op::computeOpRemoveOutputs(const ContiguousOutIndexSubset &coin) {
 
   // TODO(T26307): update the root stored in each of the derived refs.
   coin.reduce(derivedRefs_);
+  computeDerivedRemoveOutputs(coin);
 }
 
 std::map<uint64_t, HostTensor> Op::initialValues(OutIndex o) const {
@@ -521,6 +524,47 @@ HostTensors Op::zeroOuts() const {
 CodeLocation Op::locationByUnanimity() const {
   return poprithms::common::compute::Graph::codeLocationFromDeviceType(
       deviceTypeByUnanimity());
+}
+void Op::createVariables(MemoryAliasMapper &mag) const {
+
+  poprithms::memory::alias::TensorIds ts;
+  ts.reserve(nOutTensors());
+  for (auto s : outShapes()) {
+    ts.push_back(mag.graph().allocate(s, MemoryAliasVariable));
+  }
+  mag.insert(ts, outTensorIds());
+}
+
+bool Op::gradientPropagates(OutIndex o) const {
+  for (InIndex i = 0; i < nInTensors(); ++i) {
+    if (gradientPropagates(o, i)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void Op::createAlias(MemoryAliasMapper &b, const TensorId &id) const {
+  if (nOutTensors() != 1) {
+    throw error(
+        "createAlias method should only be used for ops with 1 output");
+  }
+  auto nxt = b.graph().identity(b.id(id));
+  b.insert({nxt}, outTensorIds());
+}
+
+[[noreturn]] void Op::unimplemented(const std::string &cntxt) const {
+  std::ostringstream oss;
+  oss << "For Op " << *this << ", unimplemented method. Context=\"" << cntxt
+      << "\".";
+  throw error(oss.str());
+}
+
+[[noreturn]] void Op::invalid(const std::string &cntxt) const {
+  std::ostringstream oss;
+  oss << "Invalid method called for Op " << *this << ". Context=\"" << cntxt
+      << "\".";
+  throw error(oss.str());
 }
 
 } // namespace compute

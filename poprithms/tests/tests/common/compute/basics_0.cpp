@@ -1,7 +1,6 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <sstream>
 
@@ -88,10 +87,6 @@ public:
   HostTensors initializeOut(const HostTensors &) const final {
     unimplemented("initializeOut");
   }
-  std::unique_ptr<Op> cloneWithState(const State &) const final {
-    unimplemented("cloneWithState");
-  }
-
   bool isDstInCallee(const CalleeTensorId &) const final {
     unimplemented("isDstInCallee");
   }
@@ -111,6 +106,24 @@ public:
   bool isCopiedOut(OutIndex, CalleeIndex) const final {
     unimplemented("isCopiedOut");
   }
+
+  void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
+  void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
+
+  void computeDerivedVerifyValid() const final {}
+
+  bool aliases(InIndex, OutIndex) const final { unimplemented("aliases"); }
+
+  virtual bool modifies(InIndex) const final { unimplemented("modifies"); }
+
+  bool gradientPropagates(OutIndex, InIndex) const final {
+    unimplemented("gradientPropagates");
+  }
+
+  void extendAutodiffRequiredTensors(
+      poprithms::autodiff::automatic::RequiredIds &) const final {
+    unimplemented("extendAutodiffRequiredTensors");
+  }
 };
 
 class TestRefFrom final : public TestOp {
@@ -119,9 +132,12 @@ public:
 
   TensorId rootRef(OutIndex) const final { return rr; }
 
-  std::unique_ptr<poprithms::common::multiout::Op>
-  cloneMultioutOp() const final {
-    return std::make_unique<TestRefFrom>(*this);
+  std::unique_ptr<Op> cloneWithState(const State &s) const final {
+    return std::make_unique<TestRefFrom>(s, rr);
+  }
+
+  void growAliasMapper(MemoryAliasMapper &mam) const final {
+    createAlias(mam, rootRef(OutIndex(0)));
   }
 
   ~TestRefFrom() override = default;
@@ -135,9 +151,12 @@ class TestNonRefFrom : public TestOp {
 public:
   TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
 
-  std::unique_ptr<poprithms::common::multiout::Op>
-  cloneMultioutOp() const final {
-    return std::make_unique<TestNonRefFrom>(*this);
+  std::unique_ptr<Op> cloneWithState(const State &s) const final {
+    return std::make_unique<TestNonRefFrom>(s);
+  }
+
+  void growAliasMapper(MemoryAliasMapper &mam) const final {
+    createVariables(mam);
   }
 
   ~TestNonRefFrom() override = default;
@@ -177,6 +196,7 @@ public:
   OpId insertBinBoundary(SubGraphId) final {
     unimplemented("insertBinBoundary");
   }
+
   std::map<OpId, OpIds>
   schedulableDerivedSpecificConstraints(const OpIds &) const final {
     unimplemented("schedulableDerivedSpecificConstraints");
@@ -321,6 +341,58 @@ void testBadValOuts() {
   }
 }
 
+void testCastsAndGets() {
+  TestGraph tg;
+  auto sg0     = tg.createSubGraphId("sg0");
+  auto in0     = tg.var(sg0);
+  auto nonRefs = tg.opIds<TestNonRefFrom>(sg0);
+  auto refs    = tg.opIds<TestRefFrom>(sg0);
+  if (nonRefs.size() != 1 || refs.size() != 0) {
+    throw poprithms::test::error(
+        "Failed in check of method to get ops a specific type");
+  }
+
+  bool caught{false};
+  try {
+    tg.castOrThrow<TestRefFrom>(in0.opId());
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw poprithms::test::error(
+        "Failed to catch error of invalid cast (method should throw if "
+        "dynamic cast fails)");
+  }
+
+  auto derRefs = tg.derivedRefs();
+  if (derRefs.size() != 0) {
+    throw poprithms::test::error("There are no derived refs in the graph, "
+                                 "just the one var (output == root)");
+  }
+
+  auto sg1 = tg.createSubGraphId("sg1");
+  auto in1 = tg.refFrom(in0, sg1);
+  (void)in1;
+  if (tg.derivedRefs().size() != 1) {
+    throw poprithms::test::error("Now there is 1 derived ref in the graph.");
+  }
+
+  auto mam = MemoryAliasMapper(tg, {in1});
+  if (mam.graph().nTensors() != 2) {
+    throw poprithms::test::error(
+        "Expected 2 tensors in the memory alias graph: the tensors in "
+        "sub-graph 1 and then tensor in sub-graph 0 (from which it is "
+        "derived)");
+  }
+
+  if (MemoryAliasMapper(tg, {in0}).graph().nTensors() != 1) {
+    throw poprithms::test::error(
+        "Expected just 1 tensor in this case. The MemoryAliasMapper where "
+        "the target is just 1 variable initialization should never contain "
+        "more than 1");
+  }
+}
+
 void testSetRunnable() {
   TestGraph tg;
 
@@ -407,5 +479,6 @@ int main() {
   testSimTensorMap();
   testBadValOuts();
   testSetRunnable();
+  testCastsAndGets();
   return 0;
 }

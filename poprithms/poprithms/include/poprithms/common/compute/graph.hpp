@@ -15,6 +15,7 @@
 #include <poprithms/common/compute/replication.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/deviceid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/tensorinfo.hpp>
@@ -40,6 +41,10 @@ using ndarray::DType;
 using ndarray::DTypes;
 using ndarray::TensorInfo;
 using ndarray::TensorInfos;
+using poprithms::common::multiout::OpTraversal;
+using poprithms::common::multiout::OpTraversals;
+using poprithms::common::multiout::OutIndex;
+using poprithms::common::multiout::OutIndices;
 using program::distributed::CodeLocation;
 
 /**
@@ -137,6 +142,28 @@ public:
                        SubGraphId sgId,
                        const TensorInfos &outInfos,
                        Args... args);
+
+  /**
+   * Dynamically cast op #opId to type OP.
+   * */
+  template <typename OP> const OP *dynamicCast(OpId) const;
+  template <typename OP> OP *dynamicMutableCast(OpId);
+
+  /**
+   * Dynamically cast op #opId to type OP, and throw an error if this fails.
+   * */
+  template <typename OP> const OP *castOrThrow(OpId) const;
+  template <typename OP> OP *mutableCastOrThrow(OpId);
+
+  /**
+   * All ops in the sub-graph #sgId which can be cast to type T0.
+   * */
+  template <typename T0> OpIds opIds(SubGraphId) const;
+
+  /**
+   * All ops (in all sub-graphs) which can be cast to type T0.
+   * */
+  template <typename T0> OpIds opIds() const;
 
   /**
    * The device which the tensor #tId is on.
@@ -280,6 +307,12 @@ public:
    * references in different sub-graphs.
    * */
   TensorIds rootRefs() const;
+
+  /**
+   * All derived reference tensors. Specifically, all tensors whose root
+   * tensor is in a different sub-graph.
+   * */
+  TensorIds derivedRefs() const;
 
   /**
    * The device id of the host device.
@@ -514,6 +547,27 @@ public:
    * */
   bool isSrcInCallee(const TensorId &inCallee, const CallEvent &) const;
 
+  /**
+   * This method checks true if a non-zero gradient propagate across in the
+   * input-output indices of #ot.
+   *
+   * Specifically, this method returns true if (1) the input and output
+   * tensors of #ot are floating point and (2) the op of #ot can propagate the
+   * gradients (\sa Op::gradientPropagates).
+   *
+   * */
+  bool gradientPropagates(const OpTraversal &ot) const;
+
+  /**
+   * Recall that a TensorId is a pair containing (1) the id of the op which
+   * creates the tensor and (2) the output index of the tensor. An OpTraversal
+   * is a triplet, which adds to (1) and (2) and input index.
+   *
+   * This method checks if there are any input indices for the for the op of
+   * #tId for which the corresponding OpTraversal can propagate a gradient.
+   * */
+  bool gradientPropagates(const TensorId &tId) const;
+
 protected:
   OpId insertComputeOp(std::unique_ptr<Op>);
 
@@ -553,6 +607,7 @@ private:
   virtual void verifyComputeDerivedOpValid(OpId) const = 0;
   void verifySchedulableDerivedOpValid(OpId) const final;
   void verifyValidAtComputeLevel(OpId) const;
+  void verifyValidFromComputeLevel(OpId) const;
 
   /**
    * Verify that the attributes of the entire graph are valid.
@@ -628,6 +683,56 @@ TensorId Graph::tRefFrom(const TensorId &srcId,
   op(rootId.opId()).insertOutDerivedRef(rootId.outIndex(), dst);
 
   return dst;
+}
+
+template <typename T0> OpIds Graph::opIds(SubGraphId subGraphId) const {
+  OpIds ids;
+  for (auto opId : poprithms::common::schedulable::Graph::opIds(subGraphId)) {
+    if (dynamicCast<T0>(opId)) {
+      ids.push_back(opId);
+    }
+  }
+  return ids;
+}
+
+template <typename T0> OpIds Graph::opIds() const {
+  OpIds ids;
+  for (auto opId : opIds()) {
+    if (dynamicCast<T0>(opId)) {
+      ids.push_back(opId);
+    }
+  }
+  return ids;
+}
+
+template <typename T> const T *Graph::dynamicCast(OpId opId) const {
+  return dynamic_cast<const T *>(&op(opId));
+}
+
+template <typename T> const T *Graph::castOrThrow(OpId opId) const {
+  auto cst = dynamic_cast<const T *>(&op(opId));
+  if (!cst) {
+    std::ostringstream oss;
+    oss << "Failed to cast op " << op(opId)
+        << " to type with typeid name:" << typeid(T).name();
+    throw poprithms::error::error("common::compute", oss.str());
+  }
+  return cst;
+}
+
+template <typename T> T *Graph::mutableCastOrThrow(OpId opId) {
+  auto cst = dynamic_cast<T *>(&op(opId));
+  if (!cst) {
+    std::ostringstream oss;
+    oss << "Failed to cast op " << op(opId)
+        << " to type with typeid name:" << typeid(T).name();
+    throw poprithms::error::error("common::compute", oss.str());
+  }
+  return cst;
+}
+
+template <typename T> T *Graph::dynamicMutableCast(OpId opId) {
+  return dynamic_cast<T *>(&op(opId));
 }
 
 } // namespace compute
