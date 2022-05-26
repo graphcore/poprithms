@@ -263,11 +263,13 @@ void TransitiveClosureConstrainer::processWeightSeparatedIdenticalIns(
 
         visitRecords.insert(b);
 
-        while (!toProcess.empty()) {
+        auto lb = lowerBoundChange[b];
+        while (!toProcess.empty() && upperBoundChange[a] <= lb) {
           const auto nxt = toProcess.back();
           toProcess.pop_back();
           if (!transitiveClosure.constrained(a, nxt)) {
             postBs.push_back(nxt);
+            lb = std::min(lb, lowerBoundChange[nxt]);
             for (auto out : graph.getOp(nxt).getOuts()) {
               if (!visitRecords.contains(out)) {
                 toProcess.push_back(out);
@@ -279,11 +281,6 @@ void TransitiveClosureConstrainer::processWeightSeparatedIdenticalIns(
 
         // clear the scratch-pad for the next pair (a,b):
         visitRecords.clear();
-
-        auto lb = lowerBoundChange[b];
-        for (auto postB : postBs) {
-          lb = std::min(lb, lowerBoundChange[postB]);
-        }
 
         if (upperBoundChange[a] <= lb) {
 
