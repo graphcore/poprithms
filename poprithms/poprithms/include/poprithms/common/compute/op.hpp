@@ -33,6 +33,8 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+using CircularBufferCount = poprithms::util::TypedInteger<'C', uint32_t>;
+
 using poprithms::autodiff::core::ToGradGraph;
 using poprithms::common::multiout::ConsumptionIds;
 using poprithms::common::multiout::ContiguousInIndexSubset;

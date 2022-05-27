@@ -208,6 +208,10 @@ public:
     unimplemented("verifyComputeDerivedGraphValid");
   }
 
+  bool isConstInit(OpId) const final { unimplemented("isConstInit"); }
+  HostTensor constInitValue(OpId) const { unimplemented("constInitValue"); }
+  bool isVarInit(OpId) const final { unimplemented("isVarInit"); }
+
   // Insert a variable
   TensorId var(SubGraphId sgId) {
     auto opId = createComputeOp<TestNonRefFrom>(

@@ -568,6 +568,51 @@ public:
    * */
   bool gradientPropagates(const TensorId &tId) const;
 
+  /**
+   * Tensors which are streamed between an ipu device and the host have a
+   * particular shape relationship, in part due to the implicit replication of
+   * tensors on ipu. Specifically, cpu tensors have 2 more dimensions than
+   * their ipu counterparts. These 2 dimensions, which appear before the
+   * other, normal, 'shape' dimensions are the parameters.
+   *
+   *  \param fanFactor The size of the circular buffer, or the number of times
+   *                   the tensor is copied between host and device before the
+   *                   buffer wraps around to the starting position.
+   *
+   * \param replicationFactor The replication factor of the ipu. Host tensors
+   *                           have explicit replication dimensions.
+   *
+   * \param ipuShape The shape of the tensor on the ipu.
+   *
+   * \return  (fanFactor, replicationFactor, *ipuShape).
+   *
+   * */
+  static Shape getHostShape(CircularBufferCount fanFactor,
+                            ReplicationFactor,
+                            const Shape &ipuShape);
+
+  /**
+   * If all tensors in the sub-graph #sgId and its callees (recursively) are
+   * on the same device, return that device. If not, error.
+   * */
+  DeviceId deviceId(SubGraphId) const;
+
+  /**
+   * \return true if the op #opId initializes a constant tensor.
+   * */
+  virtual bool isConstInit(OpId) const = 0;
+
+  /**
+   * \return The constant value that the op #opId initializes.
+   * */
+  virtual HostTensor constInitValue(OpId) const = 0;
+
+  /**
+   * \return true if the op #opId initializes a variable (=non-constant)
+   * tensor.
+   * */
+  virtual bool isVarInit(OpId) const = 0;
+
 protected:
   OpId insertComputeOp(std::unique_ptr<Op>);
 

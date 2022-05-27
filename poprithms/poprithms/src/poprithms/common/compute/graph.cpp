@@ -778,6 +778,34 @@ bool Graph::gradientPropagates(const TensorId &id) const {
   return false;
 }
 
+Shape Graph::getHostShape(CircularBufferCount ff,
+                          ReplicationFactor rf,
+                          const Shape &ipuShape) {
+
+  auto &&s1 = ipuShape.get();
+
+  std::vector<int64_t> s0;
+  s0.reserve(2 + s1.size());
+  s0.push_back(ff.get());
+  s0.push_back(rf.get_i64());
+  s0.insert(s0.end(), s1.cbegin(), s1.cend());
+  return Shape(std::move(s0));
+}
+
+DeviceId Graph::deviceId(SubGraphId sgId) const {
+
+  // All sub-graphs reachable via ops with callees:
+  auto sgIds = reachable({sgId});
+
+  TensorIds all;
+  for (auto sgId_ : sgIds) {
+    auto nxt = tensorIds(sgId_);
+    all.insert(all.end(), nxt.cbegin(), nxt.cend());
+  }
+
+  return deviceIdByUnanimity(all);
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms
