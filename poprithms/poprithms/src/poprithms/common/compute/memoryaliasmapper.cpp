@@ -2,6 +2,7 @@
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/memoryaliasmapper.hpp>
+#include <poprithms/compute/host/regionutil.hpp>
 #include <poprithms/memory/alias/jitgrower.hpp>
 
 namespace poprithms {
@@ -63,6 +64,40 @@ void MemoryAliasMapper::extend(const TensorIds &tIds) {
 MemoryAliasMapper::MemoryAliasMapper(const Graph &g, const TensorIds &tIds)
     : poprithms::memory::alias::Mapper<TensorId>(), graph_(g) {
   extend(tIds);
+}
+
+bool AliasQuerier::isAllConstZero(const Graph &g, const TensorId &tId) {
+
+  MemoryAliasMapper mam(g, {tId});
+
+  // If any of the allocations of #tId are non-constant, return false.
+  if (mam.graph().containsColor(mam.id(tId), MemoryAliasVariable)) {
+    return false;
+  }
+  auto aliases = mam.idsFromAliasIds(mam.graph().allAliases(mam.id(tId)));
+
+  OpIds allocs;
+
+  // For all the aliases of #tId which are constant initializers, check that
+  // the elements of the regions used by #tId are all 0.
+  for (auto a : aliases) {
+    if (g.isConstInit(a.opId())) {
+      auto &&regs = mam.graph().allocRegions(mam.id(tId), mam.id(a));
+
+      for (const auto &regs_ : regs) {
+        for (const auto &r : regs_.get()) {
+          if (!poprithms::compute::host::RegionUtil::allZero(
+                  g.constInitValue(a.opId()), r)) {
+            return false;
+          }
+        }
+      }
+
+      allocs.push_back(a.opId());
+    }
+  }
+
+  return true;
 }
 
 } // namespace compute

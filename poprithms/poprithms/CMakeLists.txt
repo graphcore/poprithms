@@ -256,15 +256,17 @@ add_library(poprithms-autodiff-automatic SHARED
 
 set(compute_src_dir ${src_dir}/compute)
 set(compute_host_sources
+  ${compute_src_dir}/host/basedata.cpp
   ${compute_src_dir}/host/error.cpp
+  ${compute_src_dir}/host/gridpointhelper.cpp
+  ${compute_src_dir}/host/tensormapper.cpp
+  ${compute_src_dir}/host/ieeehalf.cpp
+  ${compute_src_dir}/host/numpyformatter.cpp
+  ${compute_src_dir}/host/origindata.cpp
+  ${compute_src_dir}/host/regionutil.cpp
+  ${compute_src_dir}/host/serializer.cpp
   ${compute_src_dir}/host/tensor.cpp
   ${compute_src_dir}/host/viewchange.cpp
-  ${compute_src_dir}/host/numpyformatter.cpp
-  ${compute_src_dir}/host/gridpointhelper.cpp
-  ${compute_src_dir}/host/ieeehalf.cpp
-  ${compute_src_dir}/host/origindata.cpp
-  ${compute_src_dir}/host/basedata.cpp
-  ${compute_src_dir}/host/serializer.cpp
   # instantiating templates on separate translation units
   # to parallelize their compilations.
   ${compute_src_dir}/host/types/float32float64.cpp
@@ -278,6 +280,7 @@ set(compute_host_sources
 add_library(poprithms-compute-host-objlib OBJECT ${compute_host_sources})
 add_library(poprithms-compute-host SHARED
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
+  $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -329,7 +332,6 @@ set(memory_alias_sources
 set(memory_chain_sources
 	${memory_src_dir}/chain/chain.cpp
 	${memory_src_dir}/chain/error.cpp
-	${memory_src_dir}/chain/hosttensormapper.cpp
 	${memory_src_dir}/chain/logging.cpp
 	${memory_src_dir}/chain/op.cpp
 	${memory_src_dir}/chain/settutil.cpp

@@ -441,6 +441,13 @@ public:
 
   static TensorIds ids(const Tensors &);
 
+  /**
+   * The regions of the allocation tensor #alloc which the tensor #query
+   * aliases.
+   * */
+  const std::vector<DisjointRegions> &allocRegions(TensorId query,
+                                                   TensorId alloc) const;
+
 private:
   Node &node(TensorId);
   const Node &node(TensorId) const;

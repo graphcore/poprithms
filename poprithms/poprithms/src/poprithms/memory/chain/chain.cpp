@@ -7,9 +7,9 @@
 
 #include <memory/chain/disjointregionsmapper.hpp>
 #include <memory/chain/error.hpp>
-#include <memory/chain/hosttensormapper.hpp>
 #include <memory/chain/op.hpp>
 
+#include <poprithms/compute/host/tensormapper.hpp>
 #include <poprithms/memory/chain/chain.hpp>
 #include <poprithms/memory/chain/type.hpp>
 #include <poprithms/util/copybyclone_impl.hpp>
@@ -36,7 +36,7 @@ compute::host::Tensor Chain::apply(const compute::host::Tensor &t) const {
         << ", to a host::Tensor of Shape " << t.shape();
     throw error(oss.str());
   }
-  return apply<HostTensorMapper, compute::host::Tensor>(t);
+  return apply<compute::host::TensorMapper, compute::host::Tensor>(t);
 }
 
 class Chain::Ops {

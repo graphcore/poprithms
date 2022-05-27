@@ -46,6 +46,14 @@ private:
   const Graph &graph_;
 };
 
+class AliasQuerier {
+public:
+  /**
+   * \return true if all elements of the tensor #tId are constant and zero.
+   * */
+  static bool isAllConstZero(const Graph &g, const TensorId &tId);
+};
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

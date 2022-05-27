@@ -788,6 +788,15 @@ TensorId Graph::clone(TensorId toCloneId, CloneColorMethod cloneColorMethod) {
   return nTensors() - 1;
 }
 
+const std::vector<DisjointRegions> &
+Graph::allocRegions(TensorId query, TensorId allocation) const {
+  if (!allocates(allocation)) {
+    error("Not an allocation");
+  }
+
+  return node(query).origins().at(AllocId(allocation.get()));
+}
+
 std::string Graph::verboseString() const {
   std::ostringstream oss;
   append(oss);
