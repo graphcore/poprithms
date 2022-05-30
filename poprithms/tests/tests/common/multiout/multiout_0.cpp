@@ -895,6 +895,32 @@ void testForwardEdgeMap1() {
   }
 }
 
+void testOnPathTo0() {
+
+  test::Graph g;
+
+  auto x = g.insert({}, 1);
+  auto y = g.insert({}, 1);
+  (void)y;
+
+  auto z0 = g.insert({{x, 0}}, 1);
+  auto z1 = g.insert({{x, 0}}, 10);
+  auto z2 = g.insert({{z0, 0}, {z1, 0}}, 1);
+
+  auto onPath_ = g.onPathTo({{z2, 0}});
+  std::set<TensorId> onPathSet{onPath_.cbegin(), onPath_.cend()};
+
+  std::set<TensorId> expected{{z2, 0}, {z1, 0}, {z0, 0}, {x, 0}};
+
+  if (onPathSet != expected) {
+    std::ostringstream oss;
+    oss << "Expected the tensors "
+        << TensorIds(expected.begin(), expected.end())
+        << " to be on the path, not " << onPath_;
+    throw poprithms::test::error(oss.str());
+  }
+}
+
 } // namespace
 
 int main() {
@@ -915,5 +941,6 @@ int main() {
   testSkipTraverse2();
   testForwardEdgeMap0();
   testForwardEdgeMap1();
+  testOnPathTo0();
   return 0;
 }

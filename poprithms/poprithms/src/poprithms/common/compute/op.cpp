@@ -1,8 +1,8 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
-#include "error.hpp"
-
 #include <sstream>
+
+#include <common/compute/error.hpp>
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/op.hpp>
@@ -10,6 +10,15 @@
 namespace poprithms {
 namespace common {
 namespace compute {
+
+bool Op::hasDerivedRefs() const {
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    if (hasDerivedRefs(o)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 bool Op::atLeastOneOutIsIpu() const {
   for (uint64_t outIndex = 0; outIndex < nOutTensors(); ++outIndex) {
@@ -389,7 +398,22 @@ TensorInfos Op::outTensorInfos() const {
 TensorInfo Op::outTensorInfo(OutIndex o) const {
   return TensorInfo(outShape(o), outDeviceId(o), outDType(o));
 }
-void Op::insertOutDerivedRef(OutIndex index, TensorId tensorId) {
+
+void Op::removeOutDerivedRef(OutIndex index, const TensorId &tensorId) {
+  verifyValidOutIndex(index);
+  auto &v    = derivedRefs_[index.get()];
+  auto found = std::find(v.cbegin(), v.cend(), tensorId);
+  if (found == v.cend()) {
+    std::ostringstream oss;
+    oss << "Cannot remove " << tensorId
+        << " as an out derived reference output of output #" << index
+        << " as it is not currently one. This for op " << *this;
+    throw error(oss.str());
+  }
+  v.erase(found);
+}
+
+void Op::insertOutDerivedRef(OutIndex index, const TensorId &tensorId) {
   verifyValidOutIndex(index);
 
   if (tensorId == TensorId(id(), index)) {

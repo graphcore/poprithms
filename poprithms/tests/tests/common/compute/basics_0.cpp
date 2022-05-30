@@ -1,11 +1,16 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 #include <algorithm>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <sstream>
 
+#include <testutil/common/compute/graph.hpp>
+
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/initialvalues.hpp>
+#include <poprithms/common/compute/ops/init.hpp>
+#include <poprithms/common/compute/ops/reffrom.hpp>
 #include <poprithms/common/compute/simtensormap.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/error/error.hpp>
@@ -50,33 +55,21 @@ void testInitialValues0() {
 }
 
 /**
- * Minimal completion of compute::Op to make it non-abstract.
+ * An op which makes a copy of its input, with certain functionality not
+ * implemented yet as not required for testing.
  * */
-class TestOp : public Op {
+class TestCopy : public WithoutCallees {
 
 public:
-  ~TestOp() override = default;
-
-  TestOp(const poprithms::common::compute::Op::State &s) : Op(s) {}
-
-  SubGraphId callee(CalleeIndex) const final { unimplemented("callee"); }
   std::string typeString() const final { return "testop"; }
   CodeLocation codeLocation() const final { unimplemented("codeLocation"); }
-  bool computeTypeSpecificEqualTo(const Op &) const final {
-    unimplemented("computeTypeSpecificEqualTo");
+  bool computeTypeSpecificEqualTo(const compute::Op &) const final {
+    return true;
   }
 
-  SubGraphIds callees() const final { unimplemented("callees"); }
+  void resetRootRef(OutIndex, const TensorId &) final { invalid(); }
 
-  InIndex inIndex(const CalleeTensorId &) const final {
-    unimplemented("inIndex");
-  }
-  OutIndex outIndex(const CalleeTensorId &) const final {
-    unimplemented("outIndex");
-  }
-  uint64_t nCallees() const final { unimplemented("nCallees"); }
-
-  bool isInitializingOp() const final { unimplemented("isInitializingOp"); }
+  bool isInitializingOp() const final { return false; }
 
   void runSim(SimTensorMap &) const final { unimplemented("runSim"); }
 
@@ -87,148 +80,73 @@ public:
   HostTensors initializeOut(const HostTensors &) const final {
     unimplemented("initializeOut");
   }
-  bool isDstInCallee(const CalleeTensorId &) const final {
-    unimplemented("isDstInCallee");
-  }
-
-  bool isSrcInCallee(const CalleeTensorId &) const final {
-    unimplemented("isSrcInCallee");
-  }
-
-  TensorId srcInCallee(OutIndex, CalleeIndex) const final {
-    unimplemented("srcInCallee");
-  }
-
-  TensorIds dstsInCallee(const CalleeTensorId &) const final {
-    unimplemented("dstsInCallee");
-  }
-
-  bool isCopiedOut(OutIndex, CalleeIndex) const final {
-    unimplemented("isCopiedOut");
-  }
 
   void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
   void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
 
   void computeDerivedVerifyValid() const final {}
 
-  bool aliases(InIndex, OutIndex) const final { unimplemented("aliases"); }
+  bool aliases(InIndex, OutIndex) const final { return false; }
 
-  virtual bool modifies(InIndex) const final { unimplemented("modifies"); }
+  virtual bool modifies(InIndex) const final { return false; }
 
-  bool gradientPropagates(OutIndex, InIndex) const final {
-    unimplemented("gradientPropagates");
-  }
-
-  void extendAutodiffRequiredTensors(
-      poprithms::autodiff::automatic::RequiredIds &) const final {
-    unimplemented("extendAutodiffRequiredTensors");
-  }
-};
-
-class TestRefFrom final : public TestOp {
-public:
-  TensorId rr;
-
-  TensorId rootRef(OutIndex) const final { return rr; }
-
-  std::unique_ptr<Op> cloneWithState(const State &s) const final {
-    return std::make_unique<TestRefFrom>(s, rr);
-  }
-
-  void growAliasMapper(MemoryAliasMapper &mam) const final {
-    createAlias(mam, rootRef(OutIndex(0)));
-  }
-
-  ~TestRefFrom() override = default;
-  TestRefFrom(const poprithms::common::compute::Op::State &s,
-              const TensorId rootRef)
-      : TestOp(s), rr(rootRef) {}
-};
-
-class TestNonRefFrom : public TestOp {
-
-public:
+  bool gradientPropagates(OutIndex, InIndex) const final { return true; }
   TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
 
-  std::unique_ptr<Op> cloneWithState(const State &s) const final {
-    return std::make_unique<TestNonRefFrom>(s);
+  std::unique_ptr<compute::Op> cloneWithState(const State &s) const final {
+    return std::make_unique<TestCopy>(s);
   }
 
   void growAliasMapper(MemoryAliasMapper &mam) const final {
     createVariables(mam);
   }
 
-  ~TestNonRefFrom() override = default;
-  TestNonRefFrom(const poprithms::common::compute::Op::State &s)
-      : TestOp(s) {}
+  ~TestCopy() override = default;
+  TestCopy(const poprithms::common::compute::Op::State &s)
+      : WithoutCallees(s) {}
+
+  void compute(const HostTensors &ins, const HostTensors &outs) const final {
+    ins.at(0).update_(outs.at(0));
+  }
+
+  std::vector<InIndex> autodiffRequiredIns() const final { return {}; }
+
+  std::vector<OutIndex> autodiffRequiredOuts() const final { return {}; }
+
+  OptionalTensorIds backpropagate(Graph &,
+                                  const GradOpInIds &gIn) const final {
+    return {gIn.gradOfOutput(0)};
+  }
 };
 
 /**
  * Minimal completion of compute::TestGraph to make it non-abstract.
  * */
-class TestGraph : public Graph {
+class TestGraph : public poprithms::common::compute::test::Graph {
 
 private:
-  [[noreturn]] void noImpl() const {
-    throw poprithms::test::error("not implemented");
-  }
-
 public:
   TestGraph() = default;
   TestGraph(uint64_t nTilesPerReplica, ReplicationFactor rf)
-      : Graph(nTilesPerReplica, rf) {}
-
-  void multiOutTypeSpecificRemoveOutputs(OpId,
-                                         const ContiguousOutIndexSubset &,
-                                         const OptionalTensorIds &) final {
-    unimplemented("multiOutTypeSpecificRemoveOutputs");
-  }
-  void
-  multiOutTypeSpecificRemoveInputs(OpId,
-                                   const ContiguousInIndexSubset &) final {
-    unimplemented("multiOutTypeSpecificRemoveInputs");
-  }
-  bool multiOutTypeSpecificEqualTo(
-      const poprithms::common::multiout::Graph &) const final {
-    unimplemented("multiOutTypeSpecificEqualTo");
-  }
-  OpId insertBinBoundary(SubGraphId) final {
-    unimplemented("insertBinBoundary");
-  }
-
-  std::map<OpId, OpIds>
-  schedulableDerivedSpecificConstraints(const OpIds &) const final {
-    unimplemented("schedulableDerivedSpecificConstraints");
-  }
-  void verifyComputeDerivedOpValid(OpId) const final {
-    unimplemented("verifyComputeDerivedOpValid");
-  }
-  void verifyComputeDerivedGraphValid() const final {
-    unimplemented("verifyComputeDerivedGraphValid");
-  }
-
-  bool isConstInit(OpId) const final { unimplemented("isConstInit"); }
-  HostTensor constInitValue(OpId) const { unimplemented("constInitValue"); }
-  bool isVarInit(OpId) const final { unimplemented("isVarInit"); }
+      : test::Graph(nTilesPerReplica, rf) {}
 
   // Insert a variable
   TensorId var(SubGraphId sgId) {
-    auto opId = createComputeOp<TestNonRefFrom>(
-        {}, sgId, {TensorInfo({}, 0, DType::Int32)});
+    auto opId =
+        createComputeOp<VarInit>({}, sgId, {TensorInfo({}, 0, DType::Int32)});
     return {opId, 0};
   }
 
-  // Insert a relu
-  TensorId relu(const TensorId &tId) {
-    auto opId = createComputeOp<TestNonRefFrom>(
+  // Insert a copy
+  TensorId copy(const TensorId &tId) {
+    auto opId = createComputeOp<TestCopy>(
         {tId}, subGraphId(tId), {TensorInfo({}, 0, DType::Int32)});
     return {opId, 0};
   }
 
   // Insert a cross-graph reference.
   TensorId refFrom(const TensorId &root, SubGraphId sgId) {
-    return tRefFrom<TestRefFrom>(root, sgId);
+    return tRefFrom<RefFrom>(root, sgId);
   }
 };
 
@@ -239,8 +157,8 @@ void testRefAcrossSubGraphs0() {
   auto sg1 = g.createSubGraphId("sg1");
   auto sg2 = g.createSubGraphId("sg2");
 
-  const auto in0 = g.relu(g.var(sg0));
-  const auto in2 = g.relu(g.var(sg2));
+  const auto in0 = g.copy(g.var(sg0));
+  const auto in2 = g.copy(g.var(sg2));
 
   const auto ref0to1 = g.refFrom(in0, sg1);
   const auto ref2to0 = g.refFrom(in2, sg0);
@@ -257,6 +175,10 @@ void testRefAcrossSubGraphs0() {
   }
 
   if (!g.hasDerivedRefs(in0)) {
+
+    g.append(std::cout);
+    std::cout << std::endl;
+
     throw poprithms::test::error(
         "in0 does have a derived reference (ref0to1)");
   }
@@ -349,16 +271,16 @@ void testCastsAndGets() {
   TestGraph tg;
   auto sg0     = tg.createSubGraphId("sg0");
   auto in0     = tg.var(sg0);
-  auto nonRefs = tg.opIds<TestNonRefFrom>(sg0);
-  auto refs    = tg.opIds<TestRefFrom>(sg0);
+  auto nonRefs = tg.opIds<VarInit>(sg0);
+  auto refs    = tg.opIds<RefFrom>(sg0);
   if (nonRefs.size() != 1 || refs.size() != 0) {
     throw poprithms::test::error(
-        "Failed in check of method to get ops a specific type");
+        "Failed in check of method to get ops of a specific type");
   }
 
   bool caught{false};
   try {
-    tg.castOrThrow<TestRefFrom>(in0.opId());
+    tg.castOrThrow<RefFrom>(in0.opId());
   } catch (const poprithms::error::error &) {
     caught = true;
   }

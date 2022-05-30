@@ -47,6 +47,13 @@ add_library(common-schedulable-test-util SHARED ${common-schedulable-test-util-s
 target_include_directories(common-schedulable-test-util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(common-schedulable-test-util poprithms-common-schedulable)
 
+set(common-compute-test-util-sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/common/compute/graph.cpp
+)
+add_library(common-compute-test-util SHARED ${common-compute-test-util-sources})
+target_include_directories(common-compute-test-util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(common-compute-test-util poprithms-common-compute)
+
 
 set(autodiff-test-util-sources
   ${CMAKE_CURRENT_SOURCE_DIR}/src/testutil/autodiff/testop.cpp

@@ -127,7 +127,7 @@ void Pruner::prune(const callstack::Querier &gq,
       }
 
       const auto ctxt = "[pruning] " + gq.str(opId) +
-                        " is not on a path to am unpruneable back source. ";
+                        " is not on a path to an unpruneable back source. ";
 
       // Remove the op. Things like topological constraint transfer must be
       // implemented by the user in this virtual method.

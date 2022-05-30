@@ -121,7 +121,7 @@ public:
    * If this op is 'constraint phobic', constraints are transferred to the
    * nearest non-phobic ops during scheduling. One use case for this is when
    * making a distinction between ops which do computation, and those which
-   * are are view-changing or initialization only. In this case, it might make
+   * are view-changing or initialization only. In this case, it might make
    * sense to transfer control dependencies from view-changing ops to
    * surrounding compute ops before scheduling, and so we'd make view-changing
    * ops 'constraint phobic'. This allows all compute (non-phobic) ops to

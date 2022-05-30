@@ -165,6 +165,23 @@ private:
  * */
 std::string alignedColumns(const std::vector<StringColumn> &);
 
+/**
+ * Some variadic string sugar
+ * */
+namespace cat {
+inline void append(std::ostream &) {}
+template <class Arg0, class... Args>
+void append(std::ostream &oss, Arg0 &&arg0, Args &&...args) {
+  oss << arg0;
+  return append(oss, args...);
+}
+template <class... Args> std::string strcat(Args &&...args) {
+  std::ostringstream oss;
+  append(oss, args...);
+  return oss.str();
+}
+} // namespace cat
+
 } // namespace util
 } // namespace poprithms
 

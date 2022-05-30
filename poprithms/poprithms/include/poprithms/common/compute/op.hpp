@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_COMMON_COMPUTE_OP_HPP
 #define POPRITHMS_COMMON_COMPUTE_OP_HPP
 
+#include <poprithms/autodiff/automatic/gradopin.hpp>
 #include <poprithms/autodiff/automatic/requiredids.hpp>
 #include <poprithms/autodiff/core/togradgraph.hpp>
 #include <poprithms/common/compute/device.hpp>
@@ -76,6 +77,13 @@ using Upper = Shape::Upper;
 
 using Shapes = std::vector<Shape>;
 using DTypes = std::vector<DType>;
+
+using GradOpInIds =
+    poprithms::autodiff::automatic::OpIn<TensorId, OptionalTensorId>;
+
+class Op;
+
+using UpOp = std::unique_ptr<Op>;
 
 // An op in a graph
 class Op : public schedulable::Op {
@@ -270,10 +278,36 @@ public:
   virtual TensorIds dstsInCallee(const CalleeTensorId &ctId) const = 0;
 
   /**
+   * \return true if the input at index #i is copied to a callee sub-graph.
+   *         For ops without any callee sub-graphs, this will always be false.
+   * */
+  virtual bool isCopyToCalleeInIndex(InIndex i) const = 0;
+
+  /**
+   * \return The tensor in a a callee sub-graph to which the input at index #i
+   *         is copied.
+   * */
+  virtual CalleeTensorId dstInCallee(InIndex i) const = 0;
+
+  /**
    * \return true if the output at index #o is copied into a tensor in the
    *         calling sub-graph from the callee sub-graph #ci.
    * */
   virtual bool isCopiedOut(OutIndex o, CalleeIndex ci) const = 0;
+
+  /**
+   * Change the tensor which the input #i is copied to to #replacement.
+   * */
+  virtual void resetCalleeTensorId(InIndex,
+                                   const CalleeTensorId &replacement) = 0;
+
+  /**
+   * This op has a callee sub-graph #ci, and an output at index #o which is
+   * comes from this callee. This method changes the source tensor of this
+   * copy to the tensor #replacement (which is in the callee).
+   * */
+  virtual void
+  resetOutSource(OutIndex o, CalleeIndex ci, const TensorId &replacement) = 0;
 
   /**
    * Callee #ci.
@@ -482,6 +516,13 @@ public:
    * */
   virtual TensorId rootRef(OutIndex o) const = 0;
 
+  /**
+   * Set the root reference tensor of the output #o to be #root. This method
+   * should only be called by specialized ops which create references to
+   * tensors in different sub-graphs.
+   * */
+  virtual void resetRootRef(OutIndex, const TensorId &root) = 0;
+
   bool isRootRef(OutIndex o) const { return rootRef(o) == outTensorId(o); }
 
   /**
@@ -500,12 +541,26 @@ public:
   bool hasDerivedRefs(OutIndex o) const { return nDerivedRefs(o) != 0; }
 
   /**
+   * \return true if there are any output indices #o which have a derived
+   *         output reference.
+   * */
+  bool hasDerivedRefs() const;
+
+  /**
    * All tensors in the equivalence class of output #o formed of identical
    * tensors in different sub-graphs, excluding output #o.
    * */
   TensorIds refsExcludingSelf(OutIndex) const;
 
-  void insertOutDerivedRef(OutIndex, TensorId);
+  /**
+   * Insert #tId as a derived reference of this op's output at index #o.
+   * */
+  void insertOutDerivedRef(OutIndex o, const TensorId &tId);
+
+  /**
+   * Remove #tId as a derived reference of this op's output at index #o.
+   * */
+  void removeOutDerivedRef(OutIndex o, const TensorId &tId);
 
   /**
    * Return true if the input at index #i is fixed point (integral).
@@ -640,6 +695,21 @@ public:
   virtual void extendAutodiffRequiredTensors(
       poprithms::autodiff::automatic::RequiredIds &activations) const = 0;
 
+  /**
+   * Extend the graph #g by creating the gradient op(s) of this op. #g must be
+   * the graph to which this op belongs. #g is an argument to this method
+   * because ops do not have access to a non-const ref of their own graphs.
+   *
+   * The gradient op(s) will be inserted in the sub-grah #toExtend. The object
+   * #toGradGraph maps between tensors and their gradients. The object
+   * #gradInfos is used by ops with callees to navigate callee sub-graphs.
+   * */
+  virtual OptionalTensorIds
+  growInGrads(Graph &g,
+              const ToGradGraph &toGradGraph,
+              const poprithms::autodiff::automatic::GradInfos &gradInfos,
+              SubGraphId toExtend) const = 0;
+
 protected:
   /**
    * A utility method for initializing ipu tensors in a SimTensorMap. This
@@ -689,7 +759,12 @@ private:
   void insertIn(OpId);
   void insertOut(OpId);
 
+  // only the compute graph (which descends from the multiout graph) should be
+  // used at this level.
   using poprithms::common::multiout::Op::multioutGraph;
+
+  // cloning must be done via the Graph class, which manages op ids.
+  using poprithms::common::multiout::Op::clone;
 
 private:
   // See the comments in the Op::State class about these attributes.

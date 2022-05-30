@@ -41,9 +41,11 @@ public:
 
     // build backwards edges:
     for (const auto &[f, ts] : fwdEdges_) {
+      (void)ts;
       bwdEdges_.insert({f, {}});
     }
     for (const auto &[f, ts] : fwdEdges_) {
+      (void)f;
       for (auto t : ts) {
         if (bwdEdges_.find(t) == bwdEdges_.cend()) {
           bwdEdges_.insert({t, {}});
@@ -116,14 +118,15 @@ void assertHistory(
     throw poprithms::test::error(oss.str());
   }
 
-  auto orderCorrect = [&history](auto p) {
+  auto orderCorrect = [&history](auto pair_) {
     for (const auto x : history) {
-      if (x == p.first) {
+      if (x == pair_.first) {
         return;
       }
-      if (x == p.second) {
+      if (x == pair_.second) {
         std::ostringstream oss;
-        oss << "Expected to observe " << p.first << " before " << p.second
+        oss << "Expected to observe " << pair_.first << " before "
+            << pair_.second
             << " in the grow history, but did not. History is " << history;
         throw poprithms::test::error(oss.str());
       }

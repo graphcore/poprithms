@@ -204,10 +204,10 @@ void Graph::removeOp(OpId opId,
 
   verifyValidSubstitutes(opId, substitutes);
 
+  multiOutTypeSpecificRemoveOp(opId, substitutes);
+
   removeInputs(opId, inIndices(opId));
   removeOutputs(opId, outIndices(opId), substitutes);
-
-  multiOutTypeSpecificRemoveOp(opId, substitutes);
 
   // finally, register removal event, and perform removal.
   atts.removals_.insert({opId, op(opId).getName(), ops().size(), context});

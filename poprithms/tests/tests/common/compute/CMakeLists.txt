@@ -1,6 +1,6 @@
 function(add_common_test_executable name source)
   add_executable(${name} ${source})
-  target_link_libraries(${name} poprithms-common-compute)
+  target_link_libraries(${name} poprithms-common-compute common-compute-test-util)
 endfunction()
 
 function(add_common_test name source)

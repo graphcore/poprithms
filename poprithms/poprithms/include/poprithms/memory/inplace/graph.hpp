@@ -88,7 +88,7 @@ class AliasGate;
  *    the N inputs.
  *
  * 2) multi. This Op has N inputs and creates M outputs, of user specified
- *           Shapes. How inputs and outpus are are aliased, if at all, is also
+ *           Shapes. How inputs and outpus are aliased, if at all, is also
  *           user specified.
  * */
 class Graph : public common::multiout::Graph {
