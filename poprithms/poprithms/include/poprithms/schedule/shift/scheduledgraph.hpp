@@ -235,10 +235,10 @@ private:
   ShiftAndCost getBestShiftSimpleAlgo(const ScheduleIndex start,
                                       const int nToShift) const;
 
-  AllocWeight getShiftCost(ScheduleIndex start0,
-                           ScheduleIndex start1,
-                           int nToShift,
-                           const Alloc &) const;
+  int getShiftCostDistanceFactor(ScheduleIndex start0,
+                                 ScheduleIndex start1,
+                                 int nToShift,
+                                 AllocAddress allocAddress) const;
 
   std::vector<AllocAddress> getAllocAddresses(ScheduleIndex start,
                                               ScheduleIndex end) const;

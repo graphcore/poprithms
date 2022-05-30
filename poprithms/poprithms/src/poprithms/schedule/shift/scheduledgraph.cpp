@@ -740,7 +740,9 @@ ScheduledGraph::getRippleCosts(const ScheduleIndex start0,
     // having removed  previous effect of allocs, insert up-to-date entries
     for (auto allocAddress : start1Allocs) {
       auto partCost =
-          getShiftCost(start0, start1, nToShift, getAlloc(allocAddress));
+          getShiftCostDistanceFactor(start0, start1, nToShift, allocAddress) *
+          getAlloc(allocAddress).getWeight();
+
       const auto &schedInds = allocToSchedule(allocAddress);
       const auto extremum   = (sign == -1 ? schedInds[0] : schedInds.back());
 
@@ -837,10 +839,11 @@ ScheduledGraph::getFwdRippleCosts(const ScheduleIndex start0,
   return getRippleCosts(start0, nToShift, sign, nCostsToCompute, dirOffset);
 }
 
-AllocWeight ScheduledGraph::getShiftCost(ScheduleIndex start0,
-                                         ScheduleIndex start1,
-                                         int nToShift,
-                                         const Alloc &alloc) const {
+int ScheduledGraph::getShiftCostDistanceFactor(
+    ScheduleIndex start0,
+    ScheduleIndex start1,
+    int nToShift,
+    AllocAddress allocAddress) const {
 
   // rotate the problem so that start0 < start1
   if (start1 < start0) {
@@ -851,7 +854,7 @@ AllocWeight ScheduledGraph::getShiftCost(ScheduleIndex start0,
     nToShift  = old0 - old1;
   }
 
-  AllocWeight fwdShiftCost = AllocWeight::negativeOne();
+  int fwdShiftFactor = 0;
 
   // example:
   //
@@ -890,9 +893,6 @@ AllocWeight ScheduledGraph::getShiftCost(ScheduleIndex start0,
   // how much each o is shifted backward
   auto bwdShift = nToShift;
 
-  auto allocWeight  = alloc.getWeight();
-  auto allocAddress = alloc.getAddress();
-
   // current alloc liveneness range
   auto a0 = allocToFirstSchedule(allocAddress);
   auto a1 = allocToFinalSchedule(allocAddress);
@@ -911,22 +911,22 @@ AllocWeight ScheduledGraph::getShiftCost(ScheduleIndex start0,
 
   //  ..         ,,          .,
   if (a1 < x0 || o1 <= a0 || (a0 < x0 && o1 <= a1)) {
-    fwdShiftCost = AllocWeight(0);
+    // fwdShiftFactor = 0, current value.
   }
 
   //        xx                       oo
   else if ((x0 <= a0 && a1 < o0) || (o0 <= a0 && a1 < o1)) {
-    fwdShiftCost = AllocWeight(0);
+    // fwdShiftFactor = 0, current value.
   }
 
   // .x
   else if (a0 < x0 && x0 <= a1 && a1 < o0) {
-    fwdShiftCost = fwdShift * allocWeight;
+    fwdShiftFactor = fwdShift;
   }
 
   // o,
   else if (o0 <= a0 && a0 < o1 && o1 <= a1) {
-    fwdShiftCost = bwdShift * allocWeight;
+    fwdShiftFactor = bwdShift;
   }
 
   // three remaining cases : .o  xo  x,
@@ -943,15 +943,14 @@ AllocWeight ScheduledGraph::getShiftCost(ScheduleIndex start0,
 
       // .o with NONE in x
       if (lastPreO < x0) {
-        fwdShiftCost = -1 * bwdShift * allocWeight;
+        fwdShiftFactor = -1 * bwdShift;
       }
       // .o with at least one IN x
       // . . . x x x o o o , , ,
       //   |       |   |
       //   -------------
       else {
-        fwdShiftCost =
-            ((lastPreO - x0 + o1 - o0) - (a1 - o0 + o0 - x0)) * allocWeight;
+        fwdShiftFactor = ((lastPreO - x0 + o1 - o0) - (a1 - o0 + o0 - x0));
       }
     }
 
@@ -975,7 +974,7 @@ AllocWeight ScheduledGraph::getShiftCost(ScheduleIndex start0,
         auto costBefore = a1 - a0 + 1;
         auto delta      = *firstPostX - *(firstPostX - 1);
         auto costAfter  = o1 - x0 - delta + 1;
-        fwdShiftCost    = (costAfter - costBefore) * allocWeight;
+        fwdShiftFactor  = costAfter - costBefore;
       }
 
       // x, with at least one IN o
@@ -984,7 +983,7 @@ AllocWeight ScheduledGraph::getShiftCost(ScheduleIndex start0,
         // . . . . x x x x x o o o . . . . .
         //         |           |     |
         //         -------------------
-        fwdShiftCost = ((a0 - x0) - (*firstPostX - o0)) * allocWeight;
+        fwdShiftFactor = (a0 - x0) - (*firstPostX - o0);
       }
 
       // x, with NONE in o
@@ -992,11 +991,11 @@ AllocWeight ScheduledGraph::getShiftCost(ScheduleIndex start0,
         // . . . . x x x x x o o o . . . . .
         //         |     |           |
         //         -------------------
-        fwdShiftCost = -1 * fwdShift * allocWeight;
+        fwdShiftFactor = -1 * fwdShift;
       }
     }
   }
-  return fwdShiftCost;
+  return fwdShiftFactor;
 }
 
 std::vector<OpAddress>
@@ -1428,6 +1427,7 @@ ScheduledGraph::ScheduledGraph(Graph &&gInitial,
              settings.seed(),
              settings.tcos(),
              summaryWriter);
+
   greedyRotate(settings.rotationAlgo(),
                settings.debugMode(),
                settings.seed(),
