@@ -13,6 +13,8 @@
 #include <poprithms/common/compute/op.hpp>
 #include <poprithms/common/compute/remote.hpp>
 #include <poprithms/common/compute/replication.hpp>
+#include <poprithms/common/compute/subgraph.hpp>
+#include <poprithms/common/compute/tensor.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/error/error.hpp>
@@ -69,6 +71,14 @@ public:
   Graph() : Graph(32, ReplicationFactor::create(1)) {}
 
   virtual ~Graph() override;
+
+  /**
+   * Create a sub-graph with name #sgName. The SubGraph class is a thin
+   * wrapper around (1) a SubGraphId and a (2) Graph, which acts as syntactic
+   * sugar for creating sub-graphs. A SubGraph is to a SubGraphId as a Tensor
+   * is to a TensorId.
+   * */
+  SubGraph createSubGraph(const std::string &sgName);
 
   /**
    * The numerical type of the elements of tensor #tId.
@@ -613,11 +623,6 @@ public:
    * */
   virtual bool isVarInit(OpId) const = 0;
 
-protected:
-  OpId insertComputeOp(std::unique_ptr<Op>);
-
-  bool computeTypeSpecificEqualTo(const Graph &rhs) const;
-
   /**
    * Insert an op of type TRefFromOp, which has zero inputs and have #srcId as
    * an attribute. This is a special kind of initializer (input) op, which
@@ -626,6 +631,11 @@ protected:
    * */
   template <class TRefFromOp>
   TensorId tRefFrom(const TensorId &srcId, SubGraphId destination);
+
+protected:
+  OpId insertComputeOp(std::unique_ptr<Op>);
+
+  bool computeTypeSpecificEqualTo(const Graph &rhs) const;
 
   /**
    * Create a remote device associated to the ipu #ipu, of numerical type

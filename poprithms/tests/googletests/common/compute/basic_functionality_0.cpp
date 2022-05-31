@@ -6,6 +6,7 @@
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/op.hpp>
 #include <poprithms/common/compute/ops/init.hpp>
+#include <poprithms/common/compute/ops/reffrom.hpp>
 
 namespace {
 using ::testing::AtLeast;
@@ -112,4 +113,18 @@ TEST(CommonComputeBasicFunctionality, VarInit0) {
   EXPECT_THROW(
       g.mutableCastOrThrow<VarInit>(var2.opId())->setUserManagedHost(true),
       poprithms::error::error);
+}
+
+TEST(CommonComputeBasicFunctionality, SubGraphTensor0) {
+
+  test::Graph g;
+  auto sg0 = g.createSubGraph("sg0");
+  auto sg1 = g.createSubGraph("sg1");
+  auto t0  = sg0.constant(HostTensor::int32(5), g.host());
+  auto t1  = sg0.constant(DType::Int32, 5, g.host());
+  (void)t1;
+  auto t0_in_sg1 = t0.refTo_(sg1);
+  EXPECT_TRUE(t0_in_sg1.graphIsSet());
+  EXPECT_EQ(g.opIds<ConstInit>(sg0).size(), 2);
+  EXPECT_EQ(g.opIds<RefFrom>(sg1).size(), 1);
 }

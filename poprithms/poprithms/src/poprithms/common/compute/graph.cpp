@@ -16,6 +16,7 @@
 #include <poprithms/common/compute/host.hpp>
 #include <poprithms/common/compute/ipu.hpp>
 #include <poprithms/common/compute/op.hpp>
+#include <poprithms/common/compute/ops/reffrom.hpp>
 #include <poprithms/common/compute/remote.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/util/copybyclone_impl.hpp>
@@ -236,6 +237,15 @@ Graph::Graph(uint64_t nTilesPerReplica, ReplicationFactor r)
 void Graph::schedulableTypeSpecificRemoveOp(
     OpId opToRemove,
     const OptionalTensorIds &outputSubstitutes) {
+
+  const auto &op_ = op(opToRemove);
+
+  for (OutIndex o = 0; o < op_.nOutTensors(); ++o) {
+    if (!op_.isRootRef(o)) {
+      const auto root = op_.rootRef(o);
+      op(root.opId()).removeOutDerivedRef(root.outIndex(), {opToRemove, o});
+    }
+  }
 
   (void)opToRemove;
   (void)outputSubstitutes;
@@ -804,6 +814,11 @@ DeviceId Graph::deviceId(SubGraphId sgId) const {
   }
 
   return deviceIdByUnanimity(all);
+}
+
+SubGraph Graph::createSubGraph(const std::string &n) {
+  auto sgId = createSubGraphId(n);
+  return SubGraph(sgId, *this);
 }
 
 } // namespace compute
