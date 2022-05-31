@@ -164,7 +164,7 @@ void baseSliceReshapeReorder(const Shape &in0,
         << "can be replaced by reshape->slice. "
         << "input shape is " << in0 << ", sliced shape is " << sliced
         << " and output (final) shape is " << reshaped
-        << ". The expectation was that this this could " <<
+        << ". The expectation was that this could " <<
         [expected]() { return expected ? "" : "not "; }() << "be reordered. ";
     throw poprithms::test::error(oss.str());
   }

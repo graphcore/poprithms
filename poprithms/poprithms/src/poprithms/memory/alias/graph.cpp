@@ -521,7 +521,7 @@ bool Graph::containsAliases(TensorId id) const {
 }
 
 Colors Graph::colors(TensorId id) const {
-  // Using set, not unordered_set, so the the returned vector is ordered.
+  // Using set, not unordered_set, so the returned vector is ordered.
   std::set<Color> colors;
   const auto allocIds = node(id).getAllocIds();
   for (auto allocId : allocIds) {

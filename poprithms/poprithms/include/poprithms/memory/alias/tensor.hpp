@@ -105,7 +105,7 @@ public:
   bool containsColor(Color c) const;
 
   /**
-   * \return All of the Colors of the the allocation(s) which this Tensor is
+   * \return All of the Colors of the allocation(s) which this Tensor is
    *        composed of. The Colors in the returned vector are unique, and in
    *        ascending order.
    * */

@@ -1241,7 +1241,7 @@ public:
                          const Shape &finalShape) const;
 
   /**
-   * Similar to #moveReshapeBeforeSlice, this this method attempts to change
+   * Similar to #moveReshapeBeforeSlice, this method attempts to change
    * reshape->slice to slice->reshape. The implementation logic overlaps with
    * #moveReshapeBeforeSlice, as one reordering is possible if and only if the
    * other is.

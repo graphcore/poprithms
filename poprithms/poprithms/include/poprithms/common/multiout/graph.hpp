@@ -464,7 +464,7 @@ public:
 
   /**
    * Verify that the op #opId is valid, at every level of inheritance. This
-   * method uses the the same inheritance design as #verifyValid, but for just
+   * method uses the same inheritance design as #verifyValid, but for just
    * a single op instead of the entire graph.
    * */
   void verifyOpValid(OpId) const;

@@ -10,7 +10,7 @@ namespace poprithms {
 namespace schedule {
 namespace shift {
 
-// recomputate graphs
+// recompute graphs
 //
 // example of log-mem graph.
 // N = 11

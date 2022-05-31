@@ -604,7 +604,7 @@ public:
   Tensor flatten_() const { return reshape_({shape().nelms()}); }
 
   /**
-   * Reshape by collapsing the dimensions in the the interval [i0, i1) into a
+   * Reshape by collapsing the dimensions in the interval [i0, i1) into a
    * single dimension. \sa Shape::flatten.
    * */
   Tensor flatten(uint64_t i0, uint64_t i1) const;

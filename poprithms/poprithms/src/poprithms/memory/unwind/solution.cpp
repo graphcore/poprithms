@@ -279,7 +279,7 @@ void Solution::setPathsGreedy0() {
           // the #destination. The pair is weighted by its attraction
           // value, and the distance from the destination to a terminal
           // node is used as a tie-breaker (the logic behind this tie-breaker
-          // is that tensors appearing 'early' in the the computate graph
+          // is that tensors appearing 'early' in the compute graph
           // should have their layouts set earlier).
           ExtendedValuedPair p{
               source,

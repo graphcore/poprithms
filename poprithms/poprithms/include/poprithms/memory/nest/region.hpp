@@ -508,7 +508,7 @@ public:
   }
 
   /**
-   * Create the union of all the Regions in #regs, ensuring that that they are
+   * Create the union of all the Regions in #regs, ensuring that they are
    * disjoint by taking set differences where required.
    * */
   static DisjointRegions

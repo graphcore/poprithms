@@ -20,7 +20,7 @@ using common::multiout::TensorId;
 
 /**
  * Sets the priorities on the relative layouts of the tensors involved in
- * dynamic slice and dynamic update. Motivated by the the 3 poplibs methods
+ * dynamic slice and dynamic update. Motivated by the 3 poplibs methods
  * for creating dynamic slice tensors, createSliceTensor,
  * createSliceableTensor, & createSliceableTensorFromSlice.
  * */

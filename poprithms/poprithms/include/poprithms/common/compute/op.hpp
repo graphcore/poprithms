@@ -284,7 +284,7 @@ public:
   virtual bool isCopyToCalleeInIndex(InIndex i) const = 0;
 
   /**
-   * \return The tensor in a a callee sub-graph to which the input at index #i
+   * \return The tensor in a callee sub-graph to which the input at index #i
    *         is copied.
    * */
   virtual CalleeTensorId dstInCallee(InIndex i) const = 0;
