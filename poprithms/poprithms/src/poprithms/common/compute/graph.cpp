@@ -16,6 +16,7 @@
 #include <poprithms/common/compute/host.hpp>
 #include <poprithms/common/compute/ipu.hpp>
 #include <poprithms/common/compute/op.hpp>
+#include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
 #include <poprithms/common/compute/remote.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
@@ -829,6 +830,185 @@ OptionalTensors Graph::getOptionalTensors(const OptionalTensorIds &otis) {
     }
   }
   return q;
+}
+
+bool Graph::isConstInit(OpId opId) const {
+  return dynamic_cast<const ConstInit *>(&op(opId));
+}
+
+bool Graph::isVarInit(OpId opId) const {
+  return dynamic_cast<const VarInit *>(&op(opId));
+}
+
+HostTensor Graph::constInitValue(OpId opId) const {
+  return castOrThrow<ConstInit>(opId)->value();
+}
+
+void Graph::verifyComputeDerivedGraphValid() const {
+  for (const auto opId : opIds()) {
+    op(opId).computeDerivedVerifyValid();
+  }
+}
+
+TensorId Graph::refFrom_(const TensorId &tId, SubGraphId destination) {
+  return tRefFrom<RefFrom>(tId, destination);
+}
+
+void Graph::verifyComputeDerivedOpValid(OpId opId) const {
+  op(opId).computeDerivedVerifyValid();
+}
+
+void Graph::setUserManagedHost(const TensorId &tId, bool b) {
+
+  auto asVarInit = dynamicMutableCast<VarInit>(tId.opId());
+  if (!asVarInit) {
+    std::ostringstream oss;
+    oss << "The creator of the op " << tId << " is " << op(tId.opId())
+        << ", which is not a VarInit. "
+        << "Only VarInit ops can have the flag for 'user managed host' set. ";
+    throw error(oss.str());
+  }
+
+  asVarInit->setUserManagedHost(b);
+}
+
+// TODO(T63457) add the tests which currently depend on ops which have not yet
+// been added.
+void Graph::multiOutTypeSpecificRemoveOutputs(
+    OpId opId,
+    const ContiguousOutIndexSubset &coin,
+    const OptionalTensorIds &subs) {
+
+  // if output is being removed, return.
+  if (coin.nSubset() == 0) {
+    return;
+  }
+
+  {
+    // The op which is having some outputs removed:
+    const auto &op_ = op(opId);
+
+    // For all of the outputs, if the output is a root reference of tensor(s)
+    // in different sub-graphs, adjust the stored root reference of the
+    // derived tensors. This involves a shifting down of output indices to
+    // fill in the gaps.
+    //
+    // Example:
+    //   suppose this op has 3 outputs and output #0 is being removed, and
+    //   output #1 has a derived reference tId. Then the stored root reference
+    //   of tId will change from (opId, 1) to (opId, 0).
+    //
+    // If an output with a derived reference is removed, an error will be
+    // thrown. The derived reference needs to adjusted before this call to
+    // remove the root reference.
+    for (OutIndex o = 0; o < op_.nOutTensors(); ++o) {
+      for (auto dr : op_.derivedRefs(o)) {
+        op(dr.opId()).resetRootRef(dr.outIndex(), {opId, coin.inSubset(o)});
+      }
+    }
+
+    // Suppose the op #opId, which is having outputs removed, has callees.
+    //
+    // Suppose that output #o of the op is copied out of callee #ci. Then
+    // there is some op in the callee #ci which creates the tensor being
+    // copied out at index #o. This creator (#toAmend) stores the call event
+    // with this out-copy as an attribute (see the Op class), and this call
+    // event should be removed now that #o is no longer copied out.
+    for (auto o : coin.toRemove()) {
+      for (CalleeIndex ci = 0; ci < op_.nCallees(); ++ci) {
+        if (op_.isCopiedOut(o, ci)) {
+          auto toAmend = op_.srcInCallee(o, ci);
+          auto ce      = CallEvent(opId, op_.callee(ci), ci);
+          op(toAmend.opId()).removeOutCopy(toAmend.outIndex(), ce);
+        }
+      }
+    }
+  }
+
+  auto getSub = [&subs](OutIndex o) { return subs.at(o.get()).value(); };
+
+  // Suppose the op #opId, which is having outputs removed, has an output #o
+  // which is copied into during a call event. So #opId is probably a
+  // VarInit in a callee sub-graph, although this cannot be assumed.
+  //
+  // Here we transfer the destination of in-copy from (opId, #o) to the
+  // substitute provided to this method.
+  for (auto o : coin.toRemove()) {
+    for (auto ce : op(opId).inCopies(o)) {
+      auto removedId = CalleeTensorId({opId, o}, ce.index());
+      auto sub       = getSub(o);
+      auto &caller   = op(ce.caller());
+      op(sub.opId()).insertInCopy(sub.outIndex(), ce);
+      caller.resetCalleeTensorId(caller.inIndex(removedId),
+                                 {sub, ce.index()});
+      op(opId).removeInCopy(o, ce);
+    }
+  }
+
+  // Suppose the #opId which is having outputs removed has an output #o
+  // which is copied out from during a call event. So #opId is probably a
+  // final op in a callee sub-graph, although we don't assume this.
+  //
+  // Here we transfer the source of the out-copy from (opId, #o) to the
+  // substitute provided to this method.
+  for (auto o : coin.toRemove()) {
+    for (auto ce : op(opId).outCopies(o)) {
+      auto removedId = CalleeTensorId({opId, o}, ce.index());
+      auto sub       = getSub(o);
+      auto &caller   = op(ce.caller());
+      op(sub.opId()).insertOutCopy(sub.outIndex(), ce);
+      caller.resetOutSource(caller.outIndex(removedId), ce.index(), sub);
+      op(opId).removeOutCopy(o, ce);
+    }
+  }
+
+  // Shift indices downwards to fill in the gaps.
+  for (OutIndex o = 0; o < nOutTensors(opId); ++o) {
+    for (auto ce : op(opId).inCopies(o)) {
+      CalleeTensorId toRemove({opId, o}, ce.index());
+      CalleeTensorId shiftedId({opId, coin.inSubset(o)}, ce.index());
+      auto &caller = op(ce.caller());
+      caller.resetCalleeTensorId(caller.inIndex(toRemove), shiftedId);
+    }
+    for (auto ce : op(opId).outCopies(o)) {
+      auto &caller = op(ce.caller());
+      caller.resetOutSource(caller.outIndex({{opId, o}, ce.index()}),
+                            ce.index(),
+                            {opId, coin.inSubset(o)});
+    }
+  }
+
+  // Op specific work.
+  op(opId).computeOpRemoveOutputs(coin);
+}
+
+void Graph::multiOutTypeSpecificRemoveInputs(
+    OpId opId,
+    const ContiguousInIndexSubset &coin) {
+
+  const auto &op_ = op(opId);
+
+  // If the input #i to the op #opId is being removed, and if the input #i is
+  // copied to a callee sub-graph (#opId has callees), then signal to the
+  // tensor in the callee that is copied to that it is no longer being copied
+  // to.
+  for (InIndex i : coin.toRemove()) {
+
+    if (op_.isCopyToCalleeInIndex(i)) {
+
+      // Tensor being copied to in callee:
+      auto toAmend     = op_.dstInCallee(i.get());
+      auto tId         = toAmend.tId();
+      auto calleeIndex = toAmend.calleeIndex();
+      op(tId.opId())
+          .removeInCopy(
+              tId.outIndex(),
+              CallEvent(opId, op_.callee(calleeIndex), calleeIndex));
+    }
+  }
+
+  // perform any op specific removal work.
+  op(opId).computeOpRemoveInputs(coin);
 }
 
 } // namespace compute

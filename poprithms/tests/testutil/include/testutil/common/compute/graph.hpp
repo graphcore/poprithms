@@ -42,29 +42,6 @@ public:
   schedulableDerivedSpecificConstraints(const OpIds &) const final {
     unimplemented("schedulableDerivedSpecificConstraints");
   }
-  void verifyComputeDerivedOpValid(OpId) const final {
-    unimplemented("verifyComputeDerivedOpValid");
-  }
-  void verifyComputeDerivedGraphValid() const final {
-    unimplemented("verifyComputeDerivedGraphValid");
-  }
-
-  bool isConstInit(OpId) const final { unimplemented("isConstInit"); }
-  HostTensor constInitValue(OpId) const { unimplemented("constInitValue"); }
-  bool isVarInit(OpId) const final { unimplemented("isVarInit"); }
-
-  void
-  multiOutTypeSpecificRemoveInputs(OpId,
-                                   const ContiguousInIndexSubset &) final {
-    unimplemented("multiOutTypeSpecificRemoveInputs");
-  }
-
-  void multiOutTypeSpecificRemoveOutputs(OpId,
-                                         const ContiguousOutIndexSubset &,
-                                         const OptionalTensorIds &) final {
-
-    unimplemented("multiOutTypeSpecificRemoveOutputs");
-  }
 };
 
 } // namespace test

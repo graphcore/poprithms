@@ -220,8 +220,13 @@ OutIndex CopyOuts::outIndex(CalleeIndex calleeIndex,
     }
   }
 
-  throw error("No output " + tId.str() + " for callee index " +
-              std::to_string(calleeIndex.get()));
+  std::ostringstream oss;
+  oss << "There is no output " << tId.str() << " for callee index "
+      << calleeIndex << ". The outputs at callee index " << calleeIndex
+      << " are: ";
+  util::append(oss, outSources(calleeIndex));
+  oss << '.';
+  throw error(oss.str());
 }
 
 uint64_t CopyOuts::nCallees() const {

@@ -618,18 +618,36 @@ public:
   /**
    * \return true if the op #opId initializes a constant tensor.
    * */
-  virtual bool isConstInit(OpId) const = 0;
+  bool isConstInit(OpId) const;
 
   /**
    * \return The constant value that the op #opId initializes.
    * */
-  virtual HostTensor constInitValue(OpId) const = 0;
+  HostTensor constInitValue(OpId) const;
 
   /**
    * \return true if the op #opId initializes a variable (=non-constant)
    * tensor.
    * */
-  virtual bool isVarInit(OpId) const = 0;
+  bool isVarInit(OpId) const;
+
+  /**
+   * If #isUserManaged is true, then the host tensor #tId will store a raw
+   * pointer instead of lifetime managed memory.
+   *
+   * \sa VarInit::isUserManagedHost.
+   * */
+  void setUserManagedHost(const TensorId &tId, bool isUserManaged);
+
+  /**
+   * Create a reference to a tensor #tId in the sub-graph #destination.
+   *
+   * \sa Tensor::refTo_
+   *
+   * Note on methods with underscore suffix '_': this denotes that the
+   * returned tensor aliases in the input tensor #tId.
+   * */
+  TensorId refFrom_(const TensorId &, SubGraphId destination);
 
   /**
    * Insert an op of type TRefFromOp, which has zero inputs and have #srcId as
@@ -656,6 +674,27 @@ protected:
 
 private:
   /**
+   * Handle the case where the op #opId has outputs at indices defined by
+   * #coin removed. Substitutes for consumers of the removed outputs are
+   * provided in #subs.
+   *
+   * This method ensures that the op attributes related to copies into and out
+   * of callees are adjusted correctly, and that derived references are
+   * adjusted too.
+   * */
+  void multiOutTypeSpecificRemoveOutputs(OpId opId,
+                                         const ContiguousOutIndexSubset &coin,
+                                         const OptionalTensorIds &subs) final;
+
+  /**
+   * Ensure that the op attributes related to input and outputs of ops with
+   * callees are correctly adjusted when inputs defined by #coin to op #opId
+   * are removed.
+   * */
+  void
+  multiOutTypeSpecificRemoveInputs(OpId opId,
+                                   const ContiguousInIndexSubset &coin) final;
+  /**
    * the op with id #id (const and non-const versions). Design note: splitting
    * the const and non-const versions across access scopes (i.e. making the
    * const version public) makes use by non-const objects messy, hence the
@@ -667,7 +706,7 @@ private:
   /**
    * Verify that the attributes of a single op are valid.
    * */
-  virtual void verifyComputeDerivedOpValid(OpId) const = 0;
+  void verifyComputeDerivedOpValid(OpId opId) const;
   void verifySchedulableDerivedOpValid(OpId) const final;
   void verifyValidAtComputeLevel(OpId) const;
   void verifyValidFromComputeLevel(OpId) const;
@@ -675,7 +714,7 @@ private:
   /**
    * Verify that the attributes of the entire graph are valid.
    * */
-  virtual void verifyComputeDerivedGraphValid() const = 0;
+  void verifyComputeDerivedGraphValid() const;
   void verifySchedulableDerivedGraphValid() const final;
 
   void schedulableTypeSpecificRemoveOp(
