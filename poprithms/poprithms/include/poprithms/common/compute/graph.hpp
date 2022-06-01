@@ -107,6 +107,14 @@ public:
   DeviceId deviceId(const TensorId &tId) const;
 
   /**
+   * Construct optional tensors for each of the optional ids in #optIds.
+   * Unset optional ids get mapped to unset optional tensors, and (set) tensor
+   * ids get mapped to  tensors by merging the ids with this graph (recall
+   * that a tensor is essentially a (TensorId, Graph *) pair.).
+   * */
+  OptionalTensors getOptionalTensors(const OptionalTensorIds &optIds);
+
+  /**
    * The devices of the tensors #tIds.
    * */
   DeviceIds deviceIds(const TensorIds &tIds) const;

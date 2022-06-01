@@ -821,6 +821,16 @@ SubGraph Graph::createSubGraph(const std::string &n) {
   return SubGraph(sgId, *this);
 }
 
+OptionalTensors Graph::getOptionalTensors(const OptionalTensorIds &otis) {
+  OptionalTensors q(otis.size());
+  for (uint64_t i = 0; i < otis.size(); ++i) {
+    if (otis[i].has_value()) {
+      q[i] = Tensor(otis[i].value(), this);
+    }
+  }
+  return q;
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms
