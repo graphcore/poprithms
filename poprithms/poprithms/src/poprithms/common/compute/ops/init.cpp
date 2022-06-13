@@ -7,6 +7,7 @@
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/ops/init.hpp>
+#include <poprithms/common/compute/ops/nop.hpp>
 
 namespace poprithms {
 namespace common {

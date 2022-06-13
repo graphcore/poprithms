@@ -34,10 +34,6 @@ public:
   bool multiOutTypeSpecificEqualTo(
       const poprithms::common::multiout::Graph &rhs) const final;
 
-  OpId insertBinBoundary(SubGraphId) final {
-    unimplemented("insertBinBoundary");
-  }
-
   std::map<OpId, OpIds>
   schedulableDerivedSpecificConstraints(const OpIds &) const final {
     unimplemented("schedulableDerivedSpecificConstraints");

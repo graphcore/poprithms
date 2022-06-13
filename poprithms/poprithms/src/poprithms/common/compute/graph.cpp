@@ -17,6 +17,7 @@
 #include <poprithms/common/compute/ipu.hpp>
 #include <poprithms/common/compute/op.hpp>
 #include <poprithms/common/compute/ops/init.hpp>
+#include <poprithms/common/compute/ops/nop.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
 #include <poprithms/common/compute/remote.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
@@ -1009,6 +1010,19 @@ void Graph::multiOutTypeSpecificRemoveInputs(
 
   // perform any op specific removal work.
   op(opId).computeOpRemoveInputs(coin);
+}
+
+// This is the final override of the virtual method declared in the base
+// class, common::schedulable::Graph::insertBinBoundary.
+//
+// As per the definition in schedulable:Graph, this virtual method must:
+//   ' ...Insert a "null" Op which serves no purpose other than to separate
+//   bins of Ops"... '
+//
+// The Nop fits this requirement, so we use a Nop as a boundary to separate
+// groups of ops when scheduling.
+OpId Graph::insertBinBoundary(SubGraphId sgId) {
+  return createComputeOp<Nop>({}, sgId, {});
 }
 
 } // namespace compute

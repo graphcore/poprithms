@@ -658,6 +658,11 @@ public:
   template <class TRefFromOp>
   TensorId tRefFrom(const TensorId &srcId, SubGraphId destination);
 
+  /**
+   * \sa The base schedulable::Graph class which defines this method.
+   * */
+  OpId insertBinBoundary(SubGraphId) final;
+
 protected:
   OpId insertComputeOp(std::unique_ptr<Op>);
 
