@@ -127,4 +127,8 @@ TEST(CommonComputeBasicFunctionality, SubGraphTensor0) {
   EXPECT_TRUE(t0_in_sg1.graphIsSet());
   EXPECT_EQ(g.opIds<ConstInit>(sg0).size(), 2);
   EXPECT_EQ(g.opIds<RefFrom>(sg1).size(), 1);
+
+  auto t2 = t0.reshape_({1, 1, 1});
+  EXPECT_EQ(t2.shape().rank_i64(), 3ll);
+  EXPECT_THROW(t0.reshape_({4, 5, 6}), poprithms::error::error);
 }

@@ -12,6 +12,7 @@ class MockTensorTester {
 public:
   static void getRank(const mock::poprithms::memory::alias::MockTensor &t) {
     auto x = t.shape().rank_u64();
+    (void)x;
   }
 };
 

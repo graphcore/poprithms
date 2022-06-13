@@ -50,7 +50,7 @@ using program::callstack::CallEvent;
  *
  * The suffix '_' rule for tensors:
  *
- * >>> A method with a trailing '_' returns a tensor which aliases itself.
+ * > A method with a trailing '_' returns a tensor which aliases itself.
  *
  * For example in the code,
  *
@@ -101,16 +101,69 @@ public:
   T dstInCaller(const CallEvent &ce) const;
 
   /**
+   * \return The (shape, dtype, deviceid) triplet of this tensor.
+   * */
+  TensorInfo info() const;
+
+  /**
+   * \return The shape of this tensor.
+   * */
+  Shape shape() const;
+
+  /**
    * \sa Graph::dstInCaller.
    * */
   T dstInCaller(OpId call) const;
 
   bool graphIsSet() const { return pGraph_; }
 
+  /**
+   * \return An alias of this tensor with shape #s. The number of elements of
+   *         #s must be the same as the number of elements of this tensor.
+   * */
+  T reshape_(const Shape &s) const;
+
   RTensor(const TensorId &, Graph *);
 
 protected:
   Graph &graph() const { return *pGraph_; }
+
+  /**
+   * Create an op of type TOp in this tensor's graph. The new op will have
+   * inputs #inIds, and the outputs will have (shape, dtype, deviceId)
+   * provided by #outInfos. Additional op attributes are #opAtts.
+   * */
+  template <class TOp, class... Args>
+  OpId createComputeOp(const TensorIds &inIds,
+                       const TensorInfos &outInfos,
+                       Args &&...opAtts) const;
+
+  template <class TOp, class... Args>
+  T createTensor(const TensorIds &ins,
+                 const TensorInfos &outs,
+                 Args &&...args) const {
+    return {{createComputeOp<TOp>(ins, outs, std::forward<Args>(args)...), 0},
+            &graph()};
+  }
+
+  template <class TOp, class... Args>
+  T createUnaryWithSameInfo(Args &&...args) const {
+    return createTensor<TOp>({id()}, {info()}, std::forward<Args>(args)...);
+  }
+
+  template <class TOp, class... Args>
+  T createWithNumpyShape(const TensorIds &ins, Args &&...args) const {
+    return createTensor<TOp>(
+        ins,
+        {info().withShape(Shape::numpyVariadic(graph().shapes(ins)))},
+        std::forward<Args>(args)...);
+  }
+
+  template <class TOp, class... Args>
+  T createUnaryWithNewShape(const Shape &s, Args &&...args) const {
+    return createTensor<TOp>(
+        {id()}, {info().withShape(s)}, std::forward<Args>(args)...);
+  }
 
 private:
   TensorId id_;

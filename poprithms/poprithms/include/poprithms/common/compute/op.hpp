@@ -7,6 +7,7 @@
 #include <poprithms/autodiff/core/togradgraph.hpp>
 #include <poprithms/common/compute/device.hpp>
 #include <poprithms/common/compute/devicetype.hpp>
+#include <poprithms/common/compute/gradopinids.hpp>
 #include <poprithms/common/compute/initialvalues.hpp>
 #include <poprithms/common/compute/memoryaliasmapper.hpp>
 #include <poprithms/common/compute/simtensormap.hpp>
@@ -77,9 +78,6 @@ using Upper = Shape::Upper;
 
 using Shapes = std::vector<Shape>;
 using DTypes = std::vector<DType>;
-
-using GradOpInIds =
-    poprithms::autodiff::automatic::OpIn<TensorId, OptionalTensorId>;
 
 class Op;
 

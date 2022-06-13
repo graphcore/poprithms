@@ -77,7 +77,7 @@ getSchedule_i64(const Edges<int64_t> &fwdEdges, ErrorIfCycle, VerifyEdges);
  *
  * Schedulable node(s) which do not have the highest priority value of all
  * schedulable nodes are not considered for scheduling. The 'secondary'
- * decision, which is used when the there's a tie of priorities, is method
+ * decision, which is used when there's a tie of priorities, is method
  * specific:
  *
  * filo   : the most recently found schedulable node will be scheduled

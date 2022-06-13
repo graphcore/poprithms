@@ -98,9 +98,10 @@ set(common_compute_sources
   ${src_dir}/common/compute/subgraph.cpp
   ${src_dir}/common/compute/tensor.cpp
 
-  ${src_dir}/common/compute/ops/withoutcallees.cpp
   ${src_dir}/common/compute/ops/init.cpp
   ${src_dir}/common/compute/ops/reffrom.cpp
+  ${src_dir}/common/compute/ops/viewchange.cpp
+  ${src_dir}/common/compute/ops/withoutcallees.cpp
 )
 add_library(poprithms-common-compute-objlib OBJECT ${common_compute_sources})
 add_library(poprithms-common-compute SHARED

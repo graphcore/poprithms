@@ -75,7 +75,7 @@ public:
     /// All inputs and outputs are on devices of the same type.
     SameDeviceType,
     /// All inputs and outputs are on the same device.
-    SameDevice
+    SameDevice,
   };
 
   /**
