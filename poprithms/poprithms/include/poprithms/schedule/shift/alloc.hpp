@@ -36,7 +36,7 @@ public:
   Alloc()  = delete;
 
   AllocAddress getAddress() const { return address; }
-  AllocWeight getWeight() const { return weight; }
+  const AllocWeight &getWeight() const { return weight; }
   void setWeight(const AllocWeight &w) { weight = w; }
 
   // The Ops which require this Alloc to be live when they are scheduled

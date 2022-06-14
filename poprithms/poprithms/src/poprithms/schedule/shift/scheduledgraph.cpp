@@ -160,7 +160,13 @@ std::vector<A>
 getInRangeStdSort(const ScheduleIndex start, const ScheduleIndex end, F &&f) {
 
   std::vector<A> addresses;
-  // No obvious size to reserve for addresses, so not performing a reserve.
+
+  // Reserve the final peak size of the addresses vector:
+  uint64_t nToReserve = 0;
+  for (ScheduleIndex i = start; i < end; ++i) {
+    nToReserve += f(i).size();
+  }
+  addresses.reserve(nToReserve);
 
   for (ScheduleIndex i = start; i < end; ++i) {
     for (A a : f(i)) {
@@ -168,7 +174,7 @@ getInRangeStdSort(const ScheduleIndex start, const ScheduleIndex end, F &&f) {
     }
   }
 
-  // At this point, addresses is not sorted and may contain duplicated.
+  // At this point, addresses is not sorted and may contain duplicates.
   // Options are to 1) insert into std::set and return set's range, or 2)
   // std::sort and the use std::unique. Some experiments showed that 2 is
   // faster.
@@ -176,6 +182,7 @@ getInRangeStdSort(const ScheduleIndex start, const ScheduleIndex end, F &&f) {
   std::sort(addresses.begin(), addresses.end());
   auto last = std::unique(addresses.begin(), addresses.end());
   addresses.erase(last, addresses.cend());
+
   return addresses;
 }
 
@@ -263,6 +270,7 @@ constexpr const char *const spaces = "         ";
 template <class ForwardIt, class T>
 ForwardIt
 custom_lower_bound(ForwardIt first, ForwardIt last, const T &value) {
+
   return std::lower_bound(first, last, value);
 
   // while below is observed to be marginally faster in experiments, I'm
@@ -472,7 +480,7 @@ std::vector<AllocWeight> ScheduledGraph::getDeltaLiveness() const {
   for (AllocAddress allocAddress = 0; allocAddress < nAllocs();
        ++allocAddress) {
     if (getAlloc(allocAddress).nOps() > 0) {
-      auto w = getAlloc(allocAddress).getWeight();
+      auto &&w = getAlloc(allocAddress).getWeight();
       auto firstSched =
           static_cast<uint64_t>(allocToFirstSchedule(allocAddress));
       auto finalSched =
@@ -702,9 +710,12 @@ ScheduledGraph::getRippleCosts(const ScheduleIndex start0,
 
   // initialize registry and toIncrement
   auto initialAllocAddresses = getAllocAddresses(x0, o0);
-  liveAllocAddresses.reserve(
+
+  const uint64_t nAllocsToReserve =
       initialAllocAddresses.size() +
-      static_cast<uint64_t>(std::abs(boundEnd - start0)));
+      static_cast<uint64_t>(std::abs(boundEnd - start0));
+  liveAllocAddresses.reserve(nAllocsToReserve);
+
   for (auto allocAddress : initialAllocAddresses) {
     const auto &schedInds = allocToSchedule(allocAddress);
     auto firstX =
@@ -712,7 +723,7 @@ ScheduledGraph::getRippleCosts(const ScheduleIndex start0,
     auto firstO       = custom_lower_bound(firstX, schedInds.cend(), o0);
     int isPre         = firstX != schedInds.cbegin();
     int isPost        = firstO != schedInds.cend();
-    const auto wAlloc = getAlloc(allocAddress).getWeight();
+    auto &&wAlloc     = getAlloc(allocAddress).getWeight();
     AllocWeight wIncr = sign * (isPre - isPost) * wAlloc;
     liveAllocAddresses.push_back(allocAddress);
     rippleScratch[allocAddress] = {start0, AllocWeight::zero(), wIncr, true};
@@ -727,7 +738,7 @@ ScheduledGraph::getRippleCosts(const ScheduleIndex start0,
     const auto &start1Allocs = scheduleToAllocs(start1 + dirOffset);
     for (auto a : start1Allocs) {
       if (rippleScratch[a].live) {
-        auto record = rippleScratch[a];
+        const auto &record = rippleScratch[a];
         w -= record.entryWeight;
         auto incrTime = sign * (start1 - record.entryTime) - 1;
         w -= incrTime * record.incrWeight;
@@ -847,11 +858,10 @@ int ScheduledGraph::getShiftCostDistanceFactor(
 
   // rotate the problem so that start0 < start1
   if (start1 < start0) {
-    auto old0 = start0;
-    auto old1 = start1;
-    start0    = old1;
-    start1    = old1 + nToShift;
-    nToShift  = old0 - old1;
+    auto oldStart0 = start0;
+    start0         = start1;
+    start1 += nToShift;
+    nToShift = oldStart0 - start0;
   }
 
   int fwdShiftFactor = 0;
@@ -939,6 +949,7 @@ int ScheduledGraph::getShiftCostDistanceFactor(
 
     // .o
     if (a0 < x0) {
+
       auto lastPreO = *(firstPostX - 1);
 
       // .o with NONE in x
@@ -995,6 +1006,7 @@ int ScheduledGraph::getShiftCostDistanceFactor(
       }
     }
   }
+
   return fwdShiftFactor;
 }
 
