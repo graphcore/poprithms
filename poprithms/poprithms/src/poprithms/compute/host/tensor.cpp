@@ -956,46 +956,17 @@ Tensor Tensor::dimShuffle_() const {
   return dimShuffle_(Permutation::reverse(rank_u64()));
 }
 
-namespace {
-std::vector<uint64_t> getCanonicalDims(const std::vector<uint64_t> &dims,
-                                       const Shape &s0) {
-
-  // Number of times (mod(2)) that a dimension appears in dims.
-  std::vector<bool> dims_(s0.rank_u64(), false);
-  for (auto d : dims) {
-    if (d >= s0.rank_u64()) {
-      std::ostringstream oss;
-      oss << "Error in getCanonicalDims(dims=";
-      util::append(oss, dims);
-      oss << ", Shape s0=" << s0 << "). "
-          << "s0 is of rank " << s0.rank_u64()
-          << ", which is not greater than " << d << " : invalid dimension. ";
-
-      throw error(oss.str());
-    }
-    dims_[d] = !dims_[d];
-  }
-
-  std::vector<uint64_t> canon;
-  for (uint64_t d = 0; d < s0.rank_u64(); ++d) {
-    if (dims_[d]) {
-      canon.push_back(d);
-    }
-  }
-  return canon;
-}
-} // namespace
-
 Tensor Tensor::reverse(const std::vector<uint64_t> &dims) const {
   return {shape(),
           dtype(),
-          tData().reverse(shape(), getCanonicalDims(dims, shape()))};
+          tData().reverse(shape(), shape().getCanonicalReverseIndices(dims))};
 }
 
 Tensor Tensor::reverse_(const std::vector<uint64_t> &dims) const {
-  return {shape(),
-          dtype(),
-          tData().reverse_(shape(), getCanonicalDims(dims, shape()))};
+  return {
+      shape(),
+      dtype(),
+      tData().reverse_(shape(), shape().getCanonicalReverseIndices(dims))};
 }
 
 Tensor Tensor::reverse(uint64_t d) const {

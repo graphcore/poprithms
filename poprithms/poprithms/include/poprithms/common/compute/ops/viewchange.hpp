@@ -3,10 +3,13 @@
 #define POPRITHMS_COMMON_COMPUTE_OPS_VIEWCHANGE_HPP
 
 #include <poprithms/common/compute/ops/withoutcallees.hpp>
+#include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
 namespace common {
 namespace compute {
+
+using poprithms::util::Permutation;
 
 /**
  * An op which does no computation, just presents a new view into the
@@ -105,18 +108,77 @@ public:
   virtual DisjointRegions applyTo(const Region &reg) const = 0;
 };
 
+/**
+ * Permute the dimensions of a tensor.
+ * */
+class DimShuffle_ final : public UnaryViewChange_ {
+public:
+  /**
+   * \param p The permutation to apply to the input tensor.
+   * */
+  DimShuffle_(const State &s, const Permutation &p)
+      : UnaryViewChange_(s), p_(p) {}
+
+  /**
+   * The permutation to apply to the input tensor.
+   * */
+  const Permutation &permutation() const { return p_; }
+
+  std::string typeString() const final;
+
+  DisjointRegions applyTo(const Region &) const final;
+
+  void growAliasMapper(MemoryAliasMapper &) const final;
+
+  /**
+   * Verify that the Permutation of this op has the correct rank for the input
+   * tensor.
+   * */
+  void computeDerivedVerifyValid() const final;
+
+  /**
+   * Perform an aliasing dimShuffle on the unique tensor in #ins using this
+   * op's Permutation.
+   * */
+  HostTensors initializeOut(const HostTensors &ins) const final;
+
+  /**
+   * \return true of this op is an identity view-change. That is, if the input
+   *        and output have the same shape and the (row-major) order of the
+   *        elements is unchanged.
+   * */
+  static bool isIdentity(const Shape &inShape,
+                         const Shape &outShape,
+                         const Permutation &);
+
+  void initializeSimOut(SimTensorMap &htm) const final {
+    initializeReplicatedSimOut(htm);
+  }
+
+  UpOp cloneWithState(const Op::State &) const final;
+
+  /**
+   * The gradient of a dimension shuffle operation is the inverse dimension
+   * shuffle.
+   * */
+  OptionalTensorIds backpropagate(Graph &, const GradOpInIds &) const final;
+
+private:
+  /**
+   * \return true of the DimShuffle_ op #rhs (this method is only called when
+   *         #rhs is a DimShuffle_) has the same permutation.
+   * */
+  bool computeTypeSpecificEqualTo(const Op &rhs) const final;
+
+  Permutation p_;
+};
+
+/**
+ * Reshape a tensor.
+ * */
 class Reshape_ final : public UnaryViewChange_ {
 public:
   Reshape_(const Op::State &s) : UnaryViewChange_(s) {}
-
-  /**
-   * As this op class has no additional attributes, any reshape op which is
-   * equivalent to it at the base op level (compute::Op) will always be
-   * equivalent to it overall.
-   * */
-  bool computeTypeSpecificEqualTo(const compute::Op &) const final {
-    return true;
-  }
 
   std::string typeString() const final { return "Reshape_"; }
 
@@ -138,10 +200,71 @@ public:
     initializeReplicatedSimOut(htm);
   }
 
-  void growAliasMapper(MemoryAliasMapper &b) const final {
-    b.insert({b.graph().reshape(b.id(inTensorId(0)), outShape(0))},
-             outTensorIds());
+  void growAliasMapper(MemoryAliasMapper &b) const final;
+
+  static bool isIdentity(const Shape &inShape, const Shape &outShape);
+
+private:
+  /**
+   * As this op class has no additional attributes, any reshape op which is
+   * equivalent to it at the base op level (compute::Op) will always be
+   * equivalent to it overall.
+   * */
+  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
+};
+
+/**
+ * Reverse a tensor along one or several dimensions.
+ * */
+class Reverse_ final : public UnaryViewChange_ {
+
+public:
+  Reverse_(const Op::State &, const Dimensions &);
+
+  /**
+   * The dimensions to reverse.
+   * */
+  const Dimensions &dimensions() const { return dimensions_; }
+
+  std::string typeString() const final;
+
+  void computeDerivedVerifyValid() const final;
+
+  /**
+   * Reverse the dimensions of the Region #r.
+   * */
+  DisjointRegions applyTo(const Region &r) const final;
+
+  /**
+   * Insert a reverse op into the alias::Graph of #mam.
+   * */
+  void growAliasMapper(MemoryAliasMapper &mam) const final;
+
+  HostTensors initializeOut(const HostTensors &) const final;
+
+  void initializeSimOut(SimTensorMap &htm) const final {
+    initializeReplicatedSimOut(htm);
   }
+
+  /**
+   * \return true if the reverse dimensions in #revDims are all in singleton
+   *         dimensions of the input shape #inShape.
+   * */
+  static bool isIdentity(const Shape &inShape,
+                         const Shape &outShape,
+                         const Dimensions &revDims);
+
+  std::unique_ptr<Op> cloneWithState(const Op::State &) const final;
+
+  /**
+   * The gradient of a reversal operation is the same reversal operation.
+   * */
+  OptionalTensorIds backpropagate(Graph &, const GradOpInIds &) const final;
+
+private:
+  bool computeTypeSpecificEqualTo(const Op &) const final;
+
+  Dimensions dimensions_;
 };
 
 } // namespace compute

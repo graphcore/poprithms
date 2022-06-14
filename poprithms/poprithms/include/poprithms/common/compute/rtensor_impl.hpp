@@ -55,13 +55,7 @@ OpId RTensor<T>::createComputeOp(const TensorIds &inIds_,
 }
 
 template <typename T> T RTensor<T>::reshape_(const Shape &s) const {
-
-  // If this reshape does not change the shape we can just return this tensor
-  // (same id).
-  if (s == shape()) {
-    return T(id(), &graph());
-  }
-  return createUnaryWithNewShape<Reshape_>(s);
+  return createUnaryViewChange<Reshape_>(s);
 }
 
 template <typename T> Shape RTensor<T>::shape() const {
@@ -70,6 +64,21 @@ template <typename T> Shape RTensor<T>::shape() const {
 
 template <typename T> TensorInfo RTensor<T>::info() const {
   return graph().tensorInfo(id());
+}
+
+template <typename T> T RTensor<T>::dimShuffle_(const Permutation &p) const {
+  return createUnaryViewChange<DimShuffle_>(p.apply(shape().get()), p);
+}
+
+template <typename T> T RTensor<T>::reverse_(const Dimensions &dims_) const {
+
+  // Canonicalize the reverse dimensions (ascending order, repetitions
+  // reduced modulo 2).
+  const auto revDimsCanonical =
+      shape().getCanonicalReverseIndices(dims_.get());
+
+  return createUnaryViewChange<Reverse_>(
+      shape().get(), Dimensions(std::move(revDimsCanonical)));
 }
 
 } // namespace compute

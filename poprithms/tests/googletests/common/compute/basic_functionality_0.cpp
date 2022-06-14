@@ -7,6 +7,7 @@
 #include <poprithms/common/compute/op.hpp>
 #include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
+#include <poprithms/common/compute/ops/viewchange.hpp>
 
 namespace {
 using ::testing::AtLeast;
@@ -131,4 +132,47 @@ TEST(CommonComputeBasicFunctionality, SubGraphTensor0) {
   auto t2 = t0.reshape_({1, 1, 1});
   EXPECT_EQ(t2.shape().rank_i64(), 3ll);
   EXPECT_THROW(t0.reshape_({4, 5, 6}), poprithms::error::error);
+}
+
+TEST(CommonComputeBasicFunctionality, InsertViewChangeIdentity) {
+
+  test::Graph g;
+  auto sg0 = g.createSubGraph("sg0");
+  auto t0  = sg0.constant(
+      HostTensor::uniformFloat32(-1, 1, {2, 1, 3, 1, 4}, 1011), g.host());
+
+  // ConstInit.
+  EXPECT_EQ(g.nOps(), 1);
+  auto t1 = t0.dimShuffle_({{0, 2, 4, 1, 3}});
+
+  // DimShuffle.
+  EXPECT_EQ(g.nOps(), 2);
+
+  // Identities, so expect not to have any new ops added.
+  t1.dimShuffle_({{0, 1, 2, 3, 4}});
+  EXPECT_EQ(g.nOps(), 2);
+
+  auto t3 = t0.dimShuffle_({{0, 3, 2, 1, 4}});
+  EXPECT_EQ(g.nOps(), 2);
+  EXPECT_EQ(t3.id(), t0.id());
+
+  // Identity reversals:
+  t0.reverse_(3);
+  EXPECT_EQ(g.nOps(), 2);
+  t0.reverse_(Dimensions({0, 1, 0}));
+  EXPECT_EQ(g.nOps(), 2);
+
+  // A non-identity reversal:
+  t0.reverse_(2);
+  EXPECT_EQ(g.nOps(), 3);
+
+  // Identity reshape:
+  t0.reshape_(t0.shape());
+  EXPECT_EQ(g.nOps(), 3);
+
+  // Check that dimensions are canonicalized correctly. Even number of 4's,
+  // odd number of 2's.
+  auto foo = t0.reverse_(Dimensions({2, 4, 2, 2, 4}));
+  EXPECT_EQ(g.dynamicCast<Reverse_>(foo.id().opId())->dimensions(),
+            Dimensions({2}));
 }

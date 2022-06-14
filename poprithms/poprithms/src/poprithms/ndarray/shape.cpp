@@ -1641,9 +1641,13 @@ Shape::getCanonicalReverseIndices(const std::vector<uint64_t> &where) const {
     }
   }
 
+  if (nelms_u64() == 0) {
+    return {};
+  }
+
   std::vector<uint64_t> flipped;
   for (uint64_t d = 0; d < rank_u64(); ++d) {
-    if (flips[d]) {
+    if (flips[d] && dim(d) >= 1) {
       flipped.push_back(d);
     }
   }
@@ -2242,6 +2246,49 @@ Shape::moveSliceBeforeReshape(const Shape &reshape,
     inter1.at(dims1[index]) = sliced0.dim(dims0[index]);
   }
   return {true, Shape(inter1), Dimensions(std::get<1>(x))};
+}
+
+bool Shape::reversePreservesOrder(const Dimensions &dims) const {
+
+  for (auto d : dims.get()) {
+    if (d >= rank_u64()) {
+      std::ostringstream oss;
+      oss << "Invalid dimension (" << d << ") for shape " << *this
+          << " of rank " << rank_u64() << '.';
+      throw error(oss.str());
+    }
+  }
+
+  /**
+   * If there are any dimensions of size 0, or if all the dimensions are
+   * singletons, it is definitely order preserving.
+   * */
+  if (nelms() <= 1) {
+    return true;
+  }
+
+  // If any of the reverse dimensions is greater than 1, return false.
+  auto &&ds = dims.get();
+  return std::all_of(
+      ds.cbegin(), ds.cend(), [this](auto x) { return dim(x) <= 1; });
+}
+
+bool Shape::dimShufflePreservesOrder(const Permutation &p) const {
+
+  /**
+   * If there are any dimensions of size 0, or if all the dimensions are
+   * singletons, it is definitely order preserving.
+   * */
+  if (nelms() <= 1) {
+    return true;
+  }
+  return p.subPermutation(nonSingletonDimensions()).isIdentity();
+}
+
+Dimensions Shape::dimensions() const {
+  std::vector<uint64_t> ds(rank_u64());
+  std::iota(ds.begin(), ds.end(), 0);
+  return Dimensions(ds);
 }
 
 } // namespace ndarray

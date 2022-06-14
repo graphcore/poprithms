@@ -1095,7 +1095,9 @@ public:
    *                contain repeats.
    *
    * \return A sorted subset of indices, where all values in indices which
-   *         appear an even number of times do not appear.
+   *         appear an even number of times do not appear. All dimensions in
+   *         #indices which are singletons are removed, as reversing a
+   *         singleton dimension has no effect on a tensor.
    * */
   std::vector<uint64_t>
   getCanonicalReverseIndices(const std::vector<uint64_t> &indices) const;
@@ -1270,6 +1272,32 @@ public:
   bool operator>(const Shape &rhs) const { return shp > rhs.shp; }
   bool operator<=(const Shape &rhs) const { return shp <= rhs.shp; }
   bool operator>=(const Shape &rhs) const { return shp >= rhs.shp; }
+
+  /**
+   * Return true if, when the dimensions #revDims of a tensor of this shape
+   * are reversed, the row-major order of the elements of the tensor change.
+   *
+   * There row-major order changes only if some of the dimensions in #revDims
+   * correspond to non-singleton dimensions. This method assumes that #revDims
+   * are all unique.
+   * */
+  bool reversePreservesOrder(const Dimensions &revDims) const;
+
+  /**
+   * Suppose the permutation #p is applied to a tensor of this shape. This
+   * method returns true if the row-major order of the elements in the
+   * resulting tensor are different.
+   *
+   * In the absence of singleton dimensions, this is true if and only if #p is
+   * the identity permutation (0 1 2 ... N-1), and singleton dimensions can be
+   * ignored.
+   * */
+  bool dimShufflePreservesOrder(const Permutation &) const;
+
+  /**
+   * The dimensions of this shape, [0,...,rank).
+   * */
+  Dimensions dimensions() const;
 };
 
 std::ostream &operator<<(std::ostream &, const Shape &);

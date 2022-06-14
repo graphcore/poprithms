@@ -11,6 +11,7 @@
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/ops/viewchange.hpp>
 #include <poprithms/common/compute/opverifier.hpp>
+#include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace common {
@@ -45,6 +46,68 @@ void Reshape_::computeDerivedVerifyValid() const {
 }
 
 /**
+ * DimShuffle_
+ * */
+HostTensors DimShuffle_::initializeOut(const HostTensors &ins) const {
+  return {ins[0].dimShuffle_(permutation())};
+}
+
+void DimShuffle_::computeDerivedVerifyValid() const {
+  OpVerifier(*this).verifyNonVariadicFromAtts(
+      1, 1, {OpVerifier::Att::SameDevice, OpVerifier::Att::SameDType});
+
+  if (p_.size() != inRank(0)) {
+    std::ostringstream oss;
+    oss << "The permutation of the DimShuffle_ has size " << p_.size()
+        << " but the inpute tensor has rank " << inRank(0) << '.';
+    throw error(oss.str());
+  }
+}
+
+void DimShuffle_::growAliasMapper(MemoryAliasMapper &b) const {
+  b.insert({b.graph().dimShuffle(b.id(inTensorId(0)), permutation())},
+           outTensorIds());
+}
+
+bool DimShuffle_::computeTypeSpecificEqualTo(const Op &rhs) const {
+  return p_ == static_cast<const DimShuffle_ &>(rhs).p_;
+}
+
+bool DimShuffle_::isIdentity(const Shape &in0,
+                             const Shape &out0,
+                             const Permutation &p) {
+
+  /**
+   * Does the permutation #p have no effect when applied to a tensor of shape
+   * #in0?
+   * */
+  return (in0 == out0) && in0.dimShufflePreservesOrder(p);
+}
+
+UpOp DimShuffle_::cloneWithState(const State &s) const {
+  return std::make_unique<DimShuffle_>(s, permutation());
+}
+
+std::string DimShuffle_::typeString() const {
+  return poprithms::util::cat::strcat("DimShuffle_(p=", permutation(), ')');
+}
+
+DisjointRegions DimShuffle_::applyTo(const Region &r) const {
+  return r.dimShuffle(permutation());
+}
+
+OptionalTensorIds DimShuffle_::backpropagate(Graph &g,
+                                             const GradOpInIds &gIns) const {
+
+  // Move from the tensor id based paradigm to a tensor based paradigm:
+  GradOpIns gIn(g, gIns);
+
+  auto outTensor = gIn.gradOfOutput(0).dimShuffle_(permutation().inverse());
+
+  return {outTensor.id()};
+}
+
+/**
  * Reshape_
  * */
 HostTensors Reshape_::initializeOut(const HostTensors &ins) const {
@@ -69,6 +132,70 @@ OptionalTensorIds Reshape_::backpropagate(Graph &g,
 
 DisjointRegions Reshape_::applyTo(const Region &r) const {
   return r.reshape(outShape(0));
+}
+
+void Reshape_::growAliasMapper(MemoryAliasMapper &b) const {
+  b.insert({b.graph().reshape(b.id(inTensorId(0)), outShape(0))},
+           outTensorIds());
+}
+
+bool Reshape_::isIdentity(const Shape &in0, const Shape &out0) {
+  return in0 == out0;
+}
+
+/**
+ * Reverse_
+ * */
+HostTensors Reverse_::initializeOut(const HostTensors &ins) const {
+  return {ins[0].reverse_(dimensions().get())};
+}
+
+bool Reverse_::isIdentity(const Shape &in0,
+                          const Shape &,
+                          const Dimensions &dims) {
+
+  // Does reversing a tensor a shape #in0 along dimensions #dims have no
+  // effect?
+  return in0.reversePreservesOrder(dims);
+}
+
+UpOp Reverse_::cloneWithState(const State &s) const {
+  return std::make_unique<Reverse_>(s, dimensions());
+}
+
+Reverse_::Reverse_(const Op::State &s, const Dimensions &dimensions)
+    : UnaryViewChange_(s), dimensions_(dimensions) {}
+
+std::string Reverse_::typeString() const {
+  return poprithms::util::cat::strcat("Reverse_(dims=", dimensions(), ')');
+}
+
+void Reverse_::computeDerivedVerifyValid() const {
+  OpVerifier(*this).verifyNonVariadicFromAtts(
+      1, 1, {OpVerifier::Att::SameDevice, OpVerifier::Att::SameDType});
+}
+
+DisjointRegions Reverse_::applyTo(const Region &r) const {
+  return r.reverse(dimensions().get());
+}
+
+bool Reverse_::computeTypeSpecificEqualTo(const Op &rhs) const {
+  return dimensions_ == static_cast<const Reverse_ &>(rhs).dimensions_;
+}
+
+void Reverse_::growAliasMapper(MemoryAliasMapper &b) const {
+  b.insert({b.graph().reverse(b.id(inTensorId(0)), dimensions().get())},
+           outTensorIds());
+}
+
+OptionalTensorIds Reverse_::backpropagate(Graph &g,
+                                          const GradOpInIds &gIns) const {
+
+  GradOpIns gIn(g, gIns);
+  auto t0 = gIn.gradOfOutput(0).reverse_(dimensions());
+  OptionalTensor ot(t0);
+
+  return {ot};
 }
 
 } // namespace compute
