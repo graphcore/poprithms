@@ -101,6 +101,7 @@ set(common_compute_sources
   ${src_dir}/common/compute/ops/init.cpp
   ${src_dir}/common/compute/ops/ops.cpp
   ${src_dir}/common/compute/ops/reffrom.cpp
+  ${src_dir}/common/compute/ops/reduce.cpp
   ${src_dir}/common/compute/ops/viewchange.cpp
   ${src_dir}/common/compute/ops/withoutcallees.cpp
 )
