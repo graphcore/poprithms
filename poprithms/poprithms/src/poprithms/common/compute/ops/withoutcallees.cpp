@@ -192,9 +192,10 @@ WithoutCalleesTensorCentric::backpropagate(Graph &g,
   // Move from a tensor id based object to a tensor based object.
   GradOpIns gIn(g, gIns);
 
-  // Call the tensor-based backpropagate.
+  // Call the tensor based backpropagate.
   auto out = bprop(gIn);
 
+  // Return the optional tensor ids of the optional input gradients.
   return OptionalTensor::fromOptionalTensors(out);
 }
 

@@ -98,6 +98,7 @@ set(common_compute_sources
   ${src_dir}/common/compute/subgraph.cpp
   ${src_dir}/common/compute/tensor.cpp
 
+  ${src_dir}/common/compute/ops/elementwise.cpp
   ${src_dir}/common/compute/ops/init.cpp
   ${src_dir}/common/compute/ops/ops.cpp
   ${src_dir}/common/compute/ops/reffrom.cpp
