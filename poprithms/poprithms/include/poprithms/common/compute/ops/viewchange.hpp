@@ -3,6 +3,7 @@
 #define POPRITHMS_COMMON_COMPUTE_OPS_VIEWCHANGE_HPP
 
 #include <poprithms/common/compute/ops/withoutcallees.hpp>
+#include <poprithms/common/compute/opverifier.hpp>
 #include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
@@ -22,9 +23,9 @@ using poprithms::util::Permutation;
  * Ops which inherit from the ViewChange_ op mostly correspond to the tensor
  * view-changes available in the poplar::Tensor API.
  * */
-class ViewChange_ : public WithoutCallees {
+class ViewChange_ : public WithoutCalleesTensorCentric {
 public:
-  ViewChange_(const Op::State &s) : WithoutCallees(s) {}
+  ViewChange_(const Op::State &s) : WithoutCalleesTensorCentric(s) {}
 
   void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
   void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
@@ -161,7 +162,7 @@ public:
    * The gradient of a dimension shuffle operation is the inverse dimension
    * shuffle.
    * */
-  OptionalTensorIds backpropagate(Graph &, const GradOpInIds &) const final;
+  OptionalTensors bprop(const GradOpIns &) const final;
 
 private:
   /**
@@ -192,7 +193,7 @@ public:
 
   DisjointRegions applyTo(const Region &) const final;
 
-  OptionalTensorIds backpropagate(Graph &g, const GradOpInIds &) const final;
+  OptionalTensors bprop(const GradOpIns &) const final;
 
   std::unique_ptr<Op> cloneWithState(const Op::State &) const final;
 
@@ -259,12 +260,58 @@ public:
   /**
    * The gradient of a reversal operation is the same reversal operation.
    * */
-  OptionalTensorIds backpropagate(Graph &, const GradOpInIds &) const final;
+  OptionalTensors bprop(const GradOpIns &) const final;
 
 private:
   bool computeTypeSpecificEqualTo(const Op &) const final;
 
   Dimensions dimensions_;
+};
+
+/**
+ * Exand a tensor. This is a broadcasting view-change.
+ * */
+class Expand_ final : public UnaryViewChange_ {
+public:
+  Expand_(const Op::State &s);
+
+  void computeDerivedVerifyValid() const final;
+
+  /**
+   * This op has no additional attributes, so the string for it is simply the
+   * name of the op.
+   * */
+  std::string typeString() const final { return "Expand_"; }
+
+  HostTensors initializeOut(const HostTensors &) const final;
+
+  UpOp cloneWithState(const Op::State &s) const final;
+
+  void initializeSimOut(SimTensorMap &htm) const final {
+    initializeReplicatedSimOut(htm);
+  }
+
+  void growAliasMapper(MemoryAliasMapper &b) const final;
+
+  DisjointRegions applyTo(const Region &) const final;
+
+  /**
+   * Perform a sum-reduction of the gradient of the output, reducing to the
+   * shape of the input (un-expanded) tensor.
+   * */
+  OptionalTensors bprop(const GradOpIns &) const final;
+
+  /**
+   * An expand op is an identity view-change if and only if the input and
+   * output shapes are identical.
+   * */
+  static bool isIdentity(const Shape &i, const Shape &o) { return i == o; }
+
+private:
+  // This op introduces no additional attributes, so this method always
+  // returns true (it is only called when the base classes have been
+  // established to be equivalent).
+  bool computeTypeSpecificEqualTo(const compute::Op &) const final;
 };
 
 } // namespace compute

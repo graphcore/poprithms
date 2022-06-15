@@ -185,6 +185,19 @@ void WithoutCallees::runReplicatedSim(SimTensorMap &hts) const {
   }
 }
 
+OptionalTensorIds
+WithoutCalleesTensorCentric::backpropagate(Graph &g,
+                                           const GradOpInIds &gIns) const {
+
+  // Move from a tensor id based object to a tensor based object.
+  GradOpIns gIn(g, gIns);
+
+  // Call the tensor-based backpropagate.
+  auto out = bprop(gIn);
+
+  return OptionalTensor::fromOptionalTensors(out);
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

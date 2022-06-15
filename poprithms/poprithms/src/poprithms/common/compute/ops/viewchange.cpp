@@ -96,15 +96,8 @@ DisjointRegions DimShuffle_::applyTo(const Region &r) const {
   return r.dimShuffle(permutation());
 }
 
-OptionalTensorIds DimShuffle_::backpropagate(Graph &g,
-                                             const GradOpInIds &gIns) const {
-
-  // Move from the tensor id based paradigm to a tensor based paradigm:
-  GradOpIns gIn(g, gIns);
-
-  auto outTensor = gIn.gradOfOutput(0).dimShuffle_(permutation().inverse());
-
-  return {outTensor.id()};
+OptionalTensors DimShuffle_::bprop(const GradOpIns &gIn) const {
+  return {gIn.gradOfOutput(0).dimShuffle_(permutation().inverse())};
 }
 
 /**
@@ -120,14 +113,8 @@ UpOp Reshape_::cloneWithState(const State &s) const {
   return std::make_unique<Reshape_>(s);
 }
 
-OptionalTensorIds Reshape_::backpropagate(Graph &g,
-                                          const GradOpInIds &gIns) const {
-
-  GradOpIns gIn(g, gIns);
-
-  // Reshape (inplace) the gradient of the output to have the shape of the
-  // input.
-  return {gIn.gradOfOutput(0).reshape_(inShape(0)).id()};
+OptionalTensors Reshape_::bprop(const GradOpIns &gIn) const {
+  return {gIn.gradOfOutput(0).reshape_(inShape(0))};
 }
 
 DisjointRegions Reshape_::applyTo(const Region &r) const {
@@ -188,14 +175,51 @@ void Reverse_::growAliasMapper(MemoryAliasMapper &b) const {
            outTensorIds());
 }
 
-OptionalTensorIds Reverse_::backpropagate(Graph &g,
-                                          const GradOpInIds &gIns) const {
+OptionalTensors Reverse_::bprop(const GradOpIns &gIn) const {
+  return {gIn.gradOfOutput(0).reverse_(dimensions())};
+}
 
-  GradOpIns gIn(g, gIns);
-  auto t0 = gIn.gradOfOutput(0).reverse_(dimensions());
-  OptionalTensor ot(t0);
+/**
+ * Expand_
+ * */
+poprithms::compute::host::Tensors
+Expand_::initializeOut(const poprithms::compute::host::Tensors &ins) const {
+  return {ins[0].expand_(outShape(0))};
+}
 
-  return {ot};
+DisjointRegions Expand_::applyTo(const Region &r) const {
+  return r.expand(outShape(0));
+}
+
+UpOp Expand_::cloneWithState(const State &s) const {
+  return std::make_unique<Expand_>(s);
+}
+
+Expand_::Expand_(const State &s) : UnaryViewChange_(s) {
+  inShape(0).assertCanExpandTo(outShape(0));
+}
+
+OptionalTensors Expand_::bprop(const GradOpIns & /* gIn */) const {
+  // TODO(T64299)
+  // return {gIn.gradOfOutput(0).reduce(inShape(0), CommutativeOp::Sum)};
+  unimplemented("Expand_::bprop_");
+}
+
+bool Expand_::computeTypeSpecificEqualTo(const compute::Op &) const {
+  return true;
+}
+
+void Expand_::growAliasMapper(MemoryAliasMapper &b) const {
+  b.insert({b.graph().expand(b.id(inTensorId(0)), outShape(0))},
+           outTensorIds());
+}
+
+void Expand_::computeDerivedVerifyValid() const {
+  OpVerifier(*this).verifyNonVariadicFromAtts(
+      1, 1, {OpVerifier::Att::SameDevice, OpVerifier::Att::SameDType});
+
+  // assert that the input shape can be expanded to the output shape.
+  outShape(0).assertNumpyDominates(inShape(0));
 }
 
 } // namespace compute

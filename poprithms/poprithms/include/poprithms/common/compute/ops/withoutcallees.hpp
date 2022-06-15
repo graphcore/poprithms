@@ -2,7 +2,9 @@
 #ifndef POPRITHMS_COMMON_COMPUTE_OPS_WITHOUTCALLEES_HPP
 #define POPRITHMS_COMMON_COMPUTE_OPS_WITHOUTCALLEES_HPP
 
+#include <poprithms/common/compute/gradopins.hpp>
 #include <poprithms/common/compute/op.hpp>
+#include <poprithms/common/compute/tensor.hpp>
 
 namespace poprithms {
 namespace common {
@@ -149,6 +151,30 @@ private:
   backpropagate(Graph &graph, const GradOpInIds &gradOpInIds) const = 0;
 
   [[noreturn]] void invalidAsNoCallees() const;
+};
+
+/**
+ * The methods in the base class WithoutCallees do not use the tensor class --
+ * arguments and return values are tensor ids and never tensors. This method
+ * wraps these id-centric methods in tensor-centric methods. This makes for
+ * more slick implementations.
+ * */
+class WithoutCalleesTensorCentric : public WithoutCallees {
+
+public:
+  WithoutCalleesTensorCentric(const State &s) : WithoutCallees(s) {}
+
+  /**
+   * This method combines #gradOpInIds with #graph to create tensors, which
+   * are passed to the method #bprop. The tensors returned from #bprop are
+   * then converted back to tensor ids, and returned.
+   * */
+  OptionalTensorIds backpropagate(Graph &, const GradOpInIds &) const final;
+
+  /**
+   * Tensor-centric back-propagation.
+   * */
+  virtual OptionalTensors bprop(const GradOpIns &) const = 0;
 };
 
 } // namespace compute
