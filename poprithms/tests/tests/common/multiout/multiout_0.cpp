@@ -921,6 +921,15 @@ void testOnPathTo0() {
   }
 }
 
+void testZeroOutputs0() {
+  test::Graph g;
+  auto x = g.insert({}, 1);
+  g.insert({{x, 0}}, 0);
+  if (g.getMultioutForwardEdgeMap_u64({x}).nOps() != 2) {
+    throw poprithms::test::error("Expected 2 ops in the edge map");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -942,5 +951,6 @@ int main() {
   testForwardEdgeMap0();
   testForwardEdgeMap1();
   testOnPathTo0();
+  testZeroOutputs0();
   return 0;
 }

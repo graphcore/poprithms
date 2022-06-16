@@ -33,15 +33,28 @@ Graph::getMultioutForwardEdgeMap_u64(const OpIds &mustInclude) const {
     }
   }
 
+  // for ops which have no outputs, we add their inputs to ensure they are
+  // traversed:
+  for (auto opId : mustInclude) {
+    if (nOutTensors(opId) == 0) {
+      for (auto i : inTensorIds(opId)) {
+        init.push_back(i);
+      }
+    }
+  }
+
   // depth first search in both directions, to obtain the (data) connected
   // components containing #mustInclude.
   auto tIds = depthFirstBiDirTensors<Graph>(*this, init);
 
-  // get all creators of tensors found in the depth dirst bi-directional
-  // search:
+  // get all creators and consumers of tensors found in the depth first
+  // bi-directional search:
   std::set<OpId> opIdsSet;
   for (const auto &tId : tIds) {
     opIdsSet.insert(tId.opId());
+    for (auto cId : consumptionIds(tId)) {
+      opIdsSet.insert(cId.opId());
+    }
   }
 
   // construct the FwdEdgeMap for the connected components found:
