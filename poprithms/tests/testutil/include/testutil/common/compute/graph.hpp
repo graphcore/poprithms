@@ -8,6 +8,9 @@
 #include <poprithms/common/compute/hosttensor.hpp>
 #include <poprithms/common/compute/op.hpp>
 #include <poprithms/common/compute/ops/withoutcallees.hpp>
+#include <poprithms/common/compute/slickgraph.hpp>
+#include <poprithms/common/compute/subgraph.hpp>
+#include <poprithms/common/compute/tensor.hpp>
 #include <poprithms/common/multiout/ioindices.hpp>
 #include <poprithms/common/multiout/op.hpp>
 
@@ -16,29 +19,8 @@ namespace common {
 namespace compute {
 namespace test {
 
-/**
- * A minimal completion of the abstract compute::Graph class.
- * */
-class Graph : public poprithms::common::compute::Graph {
-
-private:
-  [[noreturn]] void noImpl() const {
-    throw poprithms::test::error("not implemented");
-  }
-
-public:
-  Graph() = default;
-  Graph(uint64_t nTilesPerReplica, compute::ReplicationFactor rf)
-      : poprithms::common::compute::Graph(nTilesPerReplica, rf) {}
-
-  bool multiOutTypeSpecificEqualTo(
-      const poprithms::common::multiout::Graph &rhs) const final;
-
-  std::map<OpId, OpIds>
-  schedulableDerivedSpecificConstraints(const OpIds &) const final {
-    unimplemented("schedulableDerivedSpecificConstraints");
-  }
-};
+using Graph =
+    poprithms::common::compute::TSlickGraph<Tensor, OptionalTensor, SubGraph>;
 
 } // namespace test
 } // namespace compute

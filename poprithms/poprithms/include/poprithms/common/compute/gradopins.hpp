@@ -5,6 +5,7 @@
 #include <poprithms/autodiff/automatic/gradopin.hpp>
 #include <poprithms/common/compute/gradopinids.hpp>
 #include <poprithms/common/compute/graph.hpp>
+#include <poprithms/common/compute/slickgraph.hpp>
 #include <poprithms/common/compute/tensor.hpp>
 
 namespace poprithms {
@@ -22,9 +23,15 @@ public:
    * */
   GradOpIns(Graph &graph, const GradOpInIds &gInIds)
       : poprithms::autodiff::automatic::OpIn<Tensor, OptionalTensor>(
-            graph.getOptionalTensors(gInIds.getIns()),
-            graph.getOptionalTensors(gInIds.getOuts()),
-            graph.getOptionalTensors(gInIds.getGradsOfOuts())) {}
+            TSlickConverter::getOptionalTensors<OptionalTensors, Tensor>(
+                graph,
+                gInIds.getIns()),
+            TSlickConverter::getOptionalTensors<OptionalTensors, Tensor>(
+                graph,
+                gInIds.getOuts()),
+            TSlickConverter::getOptionalTensors<OptionalTensors, Tensor>(
+                graph,
+                gInIds.getGradsOfOuts())) {}
 };
 } // namespace compute
 } // namespace common

@@ -15,6 +15,7 @@
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/host.hpp>
 #include <poprithms/common/compute/ipu.hpp>
+#include <poprithms/common/compute/memoryaliasmapper.hpp>
 #include <poprithms/common/compute/op.hpp>
 #include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/compute/ops/nop.hpp>
@@ -818,19 +819,11 @@ DeviceId Graph::deviceId(SubGraphId sgId) const {
   return deviceIdByUnanimity(all);
 }
 
-SubGraph Graph::createSubGraph(const std::string &n) {
-  auto sgId = createSubGraphId(n);
-  return SubGraph(sgId, *this);
-}
-
-OptionalTensors Graph::getOptionalTensors(const OptionalTensorIds &otis) {
-  OptionalTensors q(otis.size());
-  for (uint64_t i = 0; i < otis.size(); ++i) {
-    if (otis[i].has_value()) {
-      q[i] = Tensor(otis[i].value(), this);
-    }
-  }
-  return q;
+bool Graph::multiOutTypeSpecificEqualTo(const multiout::Graph &rhs) const {
+  const auto r                  = dynamic_cast<const Graph *>(&rhs);
+  const auto atComputeLevel     = computeTypeSpecificEqualTo(*r);
+  const auto atSchedulabelLevel = schedulableTypeSpecificEqualTo(*r);
+  return atSchedulabelLevel && atComputeLevel;
 }
 
 bool Graph::isConstInit(OpId opId) const {
@@ -1031,6 +1024,12 @@ bool Graph::modifies(OpId opId, InIndex inIndex) const {
 
 bool Graph::aliases(OpId opId, InIndex inIndex, OutIndex outIndex) const {
   return op(opId).aliases(inIndex, outIndex);
+}
+
+std::map<OpId, OpIds>
+Graph::schedulableDerivedSpecificConstraints(const OpIds &opIds) const {
+  return poprithms::common::compute::AliasGraphQuerier::
+      makeModifiersFinalConsumers(*this, opIds);
 }
 
 } // namespace compute

@@ -9,13 +9,8 @@ namespace common {
 namespace compute {
 namespace test {
 
-bool Graph::multiOutTypeSpecificEqualTo(
-    const poprithms::common::multiout::Graph &rhs) const {
-  const auto r                  = static_cast<const Graph &>(rhs);
-  const auto atComputeLevel     = computeTypeSpecificEqualTo(r);
-  const auto atSchedulabelLevel = schedulableTypeSpecificEqualTo(r);
-  return atSchedulabelLevel && atComputeLevel;
-}
+// nothing to compile for the test graph currently.
+
 } // namespace test
 } // namespace compute
 } // namespace common

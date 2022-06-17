@@ -13,8 +13,6 @@
 #include <poprithms/common/compute/op.hpp>
 #include <poprithms/common/compute/remote.hpp>
 #include <poprithms/common/compute/replication.hpp>
-#include <poprithms/common/compute/subgraph.hpp>
-#include <poprithms/common/compute/tensor.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/error/error.hpp>
@@ -73,14 +71,6 @@ public:
   virtual ~Graph() override;
 
   /**
-   * Create a sub-graph with name #sgName. The SubGraph class is a thin
-   * wrapper around (1) a SubGraphId and a (2) Graph, which acts as syntactic
-   * sugar for creating sub-graphs. A SubGraph is to a SubGraphId as a Tensor
-   * is to a TensorId.
-   * */
-  SubGraph createSubGraph(const std::string &sgName);
-
-  /**
    * The numerical type of the elements of tensor #tId.
    * */
   DType dtype(const TensorId &tId) const;
@@ -105,14 +95,6 @@ public:
    * The device of tensor #tId.
    * */
   DeviceId deviceId(const TensorId &tId) const;
-
-  /**
-   * Construct optional tensors for each of the optional ids in #optIds.
-   * Unset optional ids get mapped to unset optional tensors, and (set) tensor
-   * ids get mapped to  tensors by merging the ids with this graph (recall
-   * that a tensor is essentially a (TensorId, Graph *) pair.).
-   * */
-  OptionalTensors getOptionalTensors(const OptionalTensorIds &optIds);
 
   /**
    * The devices of the tensors #tIds.
@@ -151,11 +133,11 @@ public:
   const Op &computeOp(OpId id) const;
 
   /**
-   * Insert a new op into the graph, with inputs #ins in the sub-graph #sgId,
-   * and outputs with shape, type and device defined by #outInfos. All
-   * additional op attributes are matched to #args.
+   * Insert a new op of type OP into the graph, with inputs #ins in the
+   * sub-graph #sgId, and outputs with shape, type and device defined by
+   * #outInfos. All additional op attributes are matched to #args.
    * */
-  template <class T, class... Args>
+  template <class OP, class... Args>
   OpId createComputeOp(const TensorIds &ins,
                        SubGraphId sgId,
                        const TensorInfos &outInfos,
@@ -174,14 +156,14 @@ public:
   template <typename OP> OP *mutableCastOrThrow(OpId);
 
   /**
-   * All ops in the sub-graph #sgId which can be cast to type T0.
+   * All ops in the sub-graph #sgId which can be cast to type TOp.
    * */
-  template <typename T0> OpIds opIds(SubGraphId) const;
+  template <typename TOp> OpIds opIds(SubGraphId) const;
 
   /**
-   * All ops (in all sub-graphs) which can be cast to type T0.
+   * All ops (in all sub-graphs) which can be cast to type TOp.
    * */
-  template <typename T0> OpIds opIds() const;
+  template <typename TOp> OpIds opIds() const;
 
   /**
    * The device which the tensor #tId is on.
@@ -690,6 +672,19 @@ protected:
 
 private:
   /**
+   * The governing rule here is that if an op #a modifies input tensor #t, and
+   * op #b consumes an alias of #t, and there is no ordering between #a and #b
+   * imposed by data edges (the DAG created by considering just tensors and
+   * their consumers and producers), then #a must run after #b. Put more
+   * simply, "modifiers run last".
+   *
+   * This method returns all of the implicit constraints required to satisfy
+   * the above rule. The map values are all modifiers (like #a above).
+   * */
+  std::map<OpId, OpIds>
+  schedulableDerivedSpecificConstraints(const OpIds &) const final;
+
+  /**
    * Handle the case where the op #opId has outputs at indices defined by
    * #coin removed. Substitutes for consumers of the removed outputs are
    * provided in #subs.
@@ -741,6 +736,9 @@ private:
       const TensorId &before,
       const TensorId &after) const final;
 
+  bool multiOutTypeSpecificEqualTo(
+      const poprithms::common::multiout::Graph &) const final;
+
   // These's methods are protected in the parent class, but should not be used
   // beyond this class and are therefore made private:
   using schedulable::Graph::insertSchedulableOp;
@@ -753,7 +751,7 @@ private:
   SubGraphIds runnable_;
 };
 
-template <class T, class... Args>
+template <class TOp, class... Args>
 OpId Graph::createComputeOp(const TensorIds &inIds,
                             SubGraphId sgId,
                             const TensorInfos &outs,
@@ -768,10 +766,10 @@ OpId Graph::createComputeOp(const TensorIds &inIds,
   auto state =
       Op::State::getStartingState(nxtOpId(), sgId, inIds, outs, *this);
 
-  auto opId = insertComputeOp(std::unique_ptr<T>(new T(state, args...)));
+  auto opId = insertComputeOp(std::unique_ptr<TOp>(new TOp(state, args...)));
   return opId;
 }
-template <class T>
+template <class TOp>
 TensorId Graph::tRefFrom(const TensorId &srcId,
                          const SubGraphId destination) {
 
@@ -794,7 +792,7 @@ TensorId Graph::tRefFrom(const TensorId &srcId,
   }
 
   const auto opId =
-      createComputeOp<T>({}, destination, {tensorInfo(srcId)}, rootId);
+      createComputeOp<TOp>({}, destination, {tensorInfo(srcId)}, rootId);
 
   const TensorId dst = op(opId).outTensorId(OutIndex(0));
 
@@ -803,54 +801,54 @@ TensorId Graph::tRefFrom(const TensorId &srcId,
   return dst;
 }
 
-template <typename T0> OpIds Graph::opIds(SubGraphId subGraphId) const {
+template <typename TOp> OpIds Graph::opIds(SubGraphId subGraphId) const {
   OpIds ids;
   for (auto opId : poprithms::common::schedulable::Graph::opIds(subGraphId)) {
-    if (dynamicCast<T0>(opId)) {
+    if (dynamicCast<TOp>(opId)) {
       ids.push_back(opId);
     }
   }
   return ids;
 }
 
-template <typename T0> OpIds Graph::opIds() const {
+template <typename TOp> OpIds Graph::opIds() const {
   OpIds ids;
   for (auto opId : opIds()) {
-    if (dynamicCast<T0>(opId)) {
+    if (dynamicCast<TOp>(opId)) {
       ids.push_back(opId);
     }
   }
   return ids;
 }
 
-template <typename T> const T *Graph::dynamicCast(OpId opId) const {
-  return dynamic_cast<const T *>(&op(opId));
+template <typename TOp> const TOp *Graph::dynamicCast(OpId opId) const {
+  return dynamic_cast<const TOp *>(&op(opId));
 }
 
-template <typename T> const T *Graph::castOrThrow(OpId opId) const {
-  auto cst = dynamic_cast<const T *>(&op(opId));
+template <typename TOp> const TOp *Graph::castOrThrow(OpId opId) const {
+  auto cst = dynamic_cast<const TOp *>(&op(opId));
   if (!cst) {
     std::ostringstream oss;
     oss << "Failed to cast op " << op(opId)
-        << " to type with typeid name:" << typeid(T).name();
+        << " to type with typeid name:" << typeid(TOp).name();
     throw poprithms::error::error("common::compute", oss.str());
   }
   return cst;
 }
 
-template <typename T> T *Graph::mutableCastOrThrow(OpId opId) {
-  auto cst = dynamic_cast<T *>(&op(opId));
+template <typename TOp> TOp *Graph::mutableCastOrThrow(OpId opId) {
+  auto cst = dynamic_cast<TOp *>(&op(opId));
   if (!cst) {
     std::ostringstream oss;
     oss << "Failed to cast op " << op(opId)
-        << " to type with typeid name:" << typeid(T).name();
+        << " to type with typeid name:" << typeid(TOp).name();
     throw poprithms::error::error("common::compute", oss.str());
   }
   return cst;
 }
 
-template <typename T> T *Graph::dynamicMutableCast(OpId opId) {
-  return dynamic_cast<T *>(&op(opId));
+template <typename TOp> TOp *Graph::dynamicMutableCast(OpId opId) {
+  return dynamic_cast<TOp *>(&op(opId));
 }
 
 } // namespace compute
