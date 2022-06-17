@@ -1025,6 +1025,14 @@ OpId Graph::insertBinBoundary(SubGraphId sgId) {
   return createComputeOp<Nop>({}, sgId, {});
 }
 
+bool Graph::modifies(OpId opId, InIndex inIndex) const {
+  return op(opId).modifies(inIndex);
+}
+
+bool Graph::aliases(OpId opId, InIndex inIndex, OutIndex outIndex) const {
+  return op(opId).aliases(inIndex, outIndex);
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

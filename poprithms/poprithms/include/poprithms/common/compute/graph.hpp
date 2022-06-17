@@ -663,6 +663,17 @@ public:
    * */
   OpId insertBinBoundary(SubGraphId) final;
 
+  /**
+   * \return true if the op #opId modifies the input at index #i.
+   * */
+  bool modifies(OpId, InIndex) const;
+
+  /**
+   * \return true if input at index #i of op #opId is aliased to the output
+   * #o.
+   * */
+  bool aliases(OpId opId, InIndex i, OutIndex o) const;
+
 protected:
   OpId insertComputeOp(std::unique_ptr<Op>);
 
