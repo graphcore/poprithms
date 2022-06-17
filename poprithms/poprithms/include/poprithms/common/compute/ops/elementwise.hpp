@@ -35,7 +35,7 @@ public:
    * RefFrom op class).
    * */
   TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
-  void resetRootRef(OutIndex, const TensorId &) { invalid(); }
+  void resetRootRef(OutIndex, const TensorId &) final { invalid(); }
 
   /**
    * Check that there are 2 inputs, 1 output, all inputs and outputs have the
@@ -90,38 +90,37 @@ public:
   void growAliasMapper(MemoryAliasMapper &) const final;
 };
 
-class Add final : public BinaryElementwiseOutplace {
+/**
+ * Aliasing (inplace) binary elementwise op.
+ *
+ * The output is an alias of the input at index #0.
+ * */
+class BinaryElementwiseInplace_ : public BinaryElementwise {
 public:
-  Add(const Op::State &s) : BinaryElementwiseOutplace(s) {}
+  /**
+   * The output is aliased to the input #0.
+   * */
+  bool aliases(InIndex i, OutIndex) const final { return i == 0; }
+
+  BinaryElementwiseInplace_(const Op::State &s) : BinaryElementwise(s) {}
 
   /**
-   * Update the single tensor in #outs to be the sum of the 2 tensors in #ins.
+   * The output is an alias of the input at index 0.
    * */
-  void compute(const HostTensors &ins, const HostTensors &outs) const final;
+  void growAliasMapper(MemoryAliasMapper &) const final;
+  HostTensors initializeOut(const HostTensors &ins) const final;
 
   /**
-   * Sum-reduce the gradient of the output to each of the 2 input shapes.
+   * Check that the first input numpy-dominates the second input. Then,
+   * checked derived class validity.
    * */
-  static OptionalTensors
-  addBackpropagate(const GradOpIns &, const Shape &in0, const Shape &in1);
-  OptionalTensors bprop(const GradOpIns &) const final;
+  void binaryElementwiseDerivedVerifyValid() const final;
 
-  /**
-   * The gradient is propagated from the output index to both of the input
-   * indices.
-   * */
-  bool gradientPropagates(OutIndex, InIndex) const final { return true; }
+protected:
+  virtual void binaryElementwiseInplaceDerivedVerifyValid() const = 0;
 
-  /**
-   * The add op does not add any new attributes to its base class, so the
-   * following methods are of the simplest form.
-   * */
-  std::string typeString() const final { return "Add"; }
-  UpOp cloneWithState(const State &) const final;
-  void binaryElementwiseDerivedVerifyValid() const final{};
-  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
-  std::vector<InIndex> autodiffRequiredIns() const final { return {}; }
-  std::vector<OutIndex> autodiffRequiredOuts() const final { return {}; }
+  // Used by ops which do not have autodiff.
+  std::string noInplaceAutodiff() const;
 };
 
 } // namespace compute

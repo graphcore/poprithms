@@ -7,6 +7,7 @@
 #include <common/compute/error.hpp>
 
 #include <poprithms/common/compute/graph.hpp>
+#include <poprithms/common/compute/ops/add.hpp>
 #include <poprithms/common/compute/ops/elementwise.hpp>
 #include <poprithms/common/compute/opverifier.hpp>
 #include <poprithms/util/stringutil.hpp>
@@ -28,8 +29,35 @@ void BinaryElementwise::computeDerivedVerifyValid() const {
   binaryElementwiseDerivedVerifyValid();
 }
 
-void BinaryElementwiseOutplace::growAliasMapper(MemoryAliasMapper &b) const {
-  createVariables(b);
+void BinaryElementwiseOutplace::growAliasMapper(
+    MemoryAliasMapper &mam) const {
+  createVariables(mam);
+}
+
+/**
+ * BinaryElementwiseInplace_
+ * */
+
+void BinaryElementwiseInplace_::growAliasMapper(
+    MemoryAliasMapper &mam) const {
+  createAlias(mam, inTensorId(0));
+}
+
+HostTensors
+BinaryElementwiseInplace_::initializeOut(const HostTensors &ins) const {
+  return {ins[0]};
+}
+
+std::string BinaryElementwiseInplace_::noInplaceAutodiff() const {
+  std::ostringstream oss;
+  oss << "Binary Inplace Op " << *this
+      << "does not (currently) support autodiff. ";
+  throw error(oss.str());
+}
+
+void BinaryElementwiseInplace_::binaryElementwiseDerivedVerifyValid() const {
+  inShape(0).assertNumpyDominates(inShape(1));
+  binaryElementwiseInplaceDerivedVerifyValid();
 }
 
 /**
@@ -56,6 +84,18 @@ OptionalTensors Add::addBackpropagate(const GradOpIns &gIn,
 
 OptionalTensors Add::bprop(const GradOpIns &gIn) const {
   return addBackpropagate(gIn, inShape(0), inShape(1));
+}
+
+/**
+ * Add_
+ * */
+
+UpOp Add_::cloneWithState(const State &s) const {
+  return std::make_unique<Add_>(s);
+}
+
+OptionalTensors Add_::bprop(const GradOpIns &gIn) const {
+  return Add::addBackpropagate(gIn, inShape(0), inShape(1));
 }
 
 } // namespace compute
