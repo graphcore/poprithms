@@ -3,11 +3,15 @@
 #define POPRITHMS_COMMON_COMPUTE_TENSOR_HPP
 
 #include <poprithms/common/compute/rtensor.hpp>
+#include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/toptionaltensor.hpp>
 
 namespace poprithms {
 namespace common {
 namespace compute {
+
+using poprithms::common::multiout::OptionalTensorId;
+using poprithms::common::multiout::OptionalTensorIds;
 
 class Graph;
 class Tensor;
@@ -15,6 +19,12 @@ class SubGraph;
 extern template class RTensor<Tensor>;
 
 template <typename T> class RSubGraph;
+
+class Tensor;
+using Tensors = std::vector<Tensor>;
+
+using OptionalTensor  = poprithms::common::multiout::TOptionalTensor<Tensor>;
+using OptionalTensors = std::vector<OptionalTensor>;
 
 /**
  * See the RTensor template class for information about this class.
@@ -25,11 +35,6 @@ public:
   Tensor() = delete;
   Tensor(const TensorId &, Graph *);
 };
-
-using Tensors = std::vector<Tensor>;
-
-using OptionalTensor  = poprithms::common::multiout::TOptionalTensor<Tensor>;
-using OptionalTensors = std::vector<OptionalTensor>;
 
 } // namespace compute
 

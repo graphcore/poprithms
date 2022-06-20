@@ -199,10 +199,8 @@ Expand_::Expand_(const State &s) : UnaryViewChange_(s) {
   inShape(0).assertCanExpandTo(outShape(0));
 }
 
-OptionalTensors Expand_::bprop(const GradOpIns &) const {
-  // TODO(T64299)
-  // return {gIn.gradOfOutput(0).reduce(inShape(0), CommutativeOp::Sum)};
-  unimplemented("Expand_::bprop_");
+OptionalTensors Expand_::bprop(const GradOpIns &gIn) const {
+  return {gIn.gradOfOutput(0).reduce(inShape(0), CommutativeOp::Sum)};
 }
 
 bool Expand_::computeTypeSpecificEqualTo(const compute::Op &) const {

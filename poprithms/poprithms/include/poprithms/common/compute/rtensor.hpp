@@ -42,6 +42,7 @@ using ndarray::Shape;
 using ndarray::Shapes;
 using ndarray::TensorInfo;
 using ndarray::TensorInfos;
+using poprithms::compute::host::CommutativeOp;
 using poprithms::ndarray::Dimension;
 using poprithms::ndarray::Dimensions;
 using poprithms::ndarray::Offset;
@@ -82,6 +83,8 @@ public:
   T srcInCaller(const CallEvent &cse) const;
 
   TensorId id() const { return id_; }
+
+  operator TensorId() const { return id(); }
 
   /**
    * Create a reference to this tensor in the sub-graph \a subGraphId. This
@@ -153,11 +156,114 @@ public:
    * */
   T reverse_(uint64_t d) const { return reverse_(Dimensions({d})); }
 
-  RTensor(const TensorId &, Graph *);
+  /**
+   * Broadcast this tensor along the dimensions necessary to create a tensor
+   * of shape #expandedShape.
+   *
+   * \param expandedShape The shape of the expanded view of this tensor.
+   *                      #expandedShape must numpy-dominate the shape of this
+   *                      tensor. For example this tensor might have shape
+   *                      (4,1) and #expandedShape might be (3,4,5).
+   * */
+  T expand_(const Shape &expandedShape) const;
 
-protected:
+  /**
+   * \return A scalar Tensor, whose value is the reduction of all elements
+   *         in the Tensor using the commutative op #cop.
+   */
+
+  T reduce(CommutativeOp cop) const;
+
+  /**
+   * \return A Tensor of the same rank as this tensor, but reduced to size 1
+   *         along Dimensions \a dims.
+   * */
+  T reduce(const Dimensions &dims, CommutativeOp) const;
+
+  /**
+   * \return A tensor of the same rank as this tensor, but reduced to size 1
+   *         in Dimension #d.
+   * */
+  T reduce(Dimension d, CommutativeOp) const;
+
+  /**
+   * \return The reduction of this tensor, with shape #out. The shape of this
+   *         tensor (s) must satisfy s.numpyBinary(out) = s. See the Shape
+   *         class for details.
+   * */
+  T reduce(const Shape &out, CommutativeOp) const;
+
+  /**
+   * Sum-reduce this tensor.
+   * */
+  T reduceSum() const { return reduce(CommutativeOp::Sum); }
+  T reduceSum(const Dimensions &dims) const {
+    return reduce(dims, CommutativeOp::Sum);
+  }
+  T reduceSum(Dimension d) const { return reduce(d, CommutativeOp::Sum); }
+  T reduceSum(const Shape &s) const { return reduce(s, CommutativeOp::Sum); }
+
+  /**
+   * Min-reduce this tensor.
+   * */
+  T reduceMin() const { return reduce(CommutativeOp::Min); }
+  T reduceMin(const Dimensions &dims) const {
+    return reduce(dims, CommutativeOp::Min);
+  }
+  T reduceMin(Dimension d) const { return reduce(d, CommutativeOp::Min); }
+  T reduceMin(const Shape &s) const { return reduce(s, CommutativeOp::Min); }
+
+  /**
+   * Max-reduce this tensor.
+   * */
+  T reduceMax() const { return reduce(CommutativeOp::Max); }
+  T reduceMax(const Dimensions &dims) const {
+    return reduce(dims, CommutativeOp::Max);
+  }
+  T reduceMax(Dimension d) const { return reduce(d, CommutativeOp::Max); }
+  T reduceMax(const Shape &s) const { return reduce(s, CommutativeOp::Max); }
+
+  /**
+   * Product-reduce this tensor.
+   * */
+  T reduceProduct() const { return reduce(CommutativeOp::Product); }
+  T reduceProduct(const Dimensions &dims) const {
+    return reduce(dims, CommutativeOp::Product);
+  }
+  T reduceProduct(Dimension d) const {
+    return reduce(d, CommutativeOp::Product);
+  }
+  T reduceProduct(const Shape &s) const {
+    return reduce(s, CommutativeOp::Product);
+  }
+
+  /**
+   * Create a tensor for the tensor id #id in the graph #g. If the graph #g
+   * does not have a tensor with id #id, the behaviour is undefined.
+   * */
+  RTensor(const TensorId &, Graph *g);
+
   Graph &graph() const { return *pGraph_; }
 
+  /**
+   * Binary elementwise operations using numpy broadcasting rules, see
+   * https://numpy.org/doc/stable/user/basics.broadcasting.html for more
+   * information.
+   *
+   * As with all other methods, the '_' suffix denotes an inplace operation.
+   * This tensor's shape must numpy-dominate the second argument's, and the
+   * output has the shape as this tensor.
+   * */
+  T add(const RTensor<T> &) const;
+  T add_(const RTensor<T> &) const;
+
+  /**
+   * Elementwise multiply this tensor with #rhs.
+   * */
+  T mul(const RTensor<T> &rhs) const;
+  T mul_(const RTensor<T> &rhs) const;
+
+protected:
   /**
    * Create an op of type TOp in this tensor's graph. The new op will have
    * inputs #inIds, and the outputs will have (shape, dtype, deviceId)
@@ -218,6 +324,14 @@ private:
   TensorId id_;
   Graph *pGraph_;
 };
+
+template <typename T> T operator*(const RTensor<T> &a, const RTensor<T> &b) {
+  return a.mul(b);
+}
+
+template <typename T> T operator+(const RTensor<T> &a, const RTensor<T> &b) {
+  return a.add(b);
+}
 
 } // namespace compute
 } // namespace common

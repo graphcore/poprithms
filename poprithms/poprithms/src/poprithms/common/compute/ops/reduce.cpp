@@ -52,16 +52,12 @@ UpOp ReduceSum::cloneWithState(const State &s) const {
   return std::make_unique<ReduceSum>(s, dimensions());
 }
 
+// TODO(T64547) Inplace expand. Should also consider the gradients generated
+// by the view-changing ops themselves.
 OptionalTensors ReduceSum::bprop(const GradOpIns &gIn) const {
-
-  (void)gIn;
-  unimplemented("ReduceSum::bprop");
-
-  // TODO(T64299). should this expand be inplace? Should reconsider all of the
-  // aliasing backprop tensors.
-  // auto t0 = gIn.gradOfOutput(0).expand_(inShape(0));
-  // OptionalTensor t1(t0);
-  // return {t1};
+  auto t0 = gIn.gradOfOutput(0).expand_(inShape(0));
+  OptionalTensor t1(t0);
+  return {t1};
 }
 
 /**
