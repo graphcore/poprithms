@@ -229,6 +229,53 @@ void testImplicitCastError() {
   }
 }
 
+void testOperatorNotEqual0() {
+
+  //
+  // 1 2         1       0 1
+  // 3 4   !=    4  ->   1 0
+  // 5 6         5       0 1
+
+  auto a = Tensor::int32({3, 2}, {1, 2, 3, 4, 5, 6});
+  auto b = Tensor::int32({3, 1}, {1, 4, 5});
+  auto c = (a != b);
+  c.assertAllEquivalent(Tensor::boolean({3, 2}, {0, 1, 1, 0, 0, 1}),
+                        "See the mask diagram");
+
+  bool caught{false};
+  std::string errm{"sdfoisdfsodifhsd"};
+  try {
+    c.assertAllEquivalent(Tensor::boolean({3, 2}, {0, 0, 0, 1, 1, 1}), errm);
+  } catch (const poprithms::error::error &e) {
+    caught              = true;
+    std::string message = e.what();
+    if (message.find(errm) == std::string::npos) {
+      std::cout << message << std::endl;
+      throw poprithms::test::error("Failed to find context in error message");
+    }
+  }
+  if (!caught) {
+    throw poprithms::test::error("Failed to catch error");
+  }
+}
+
+void testOperatorNotEqual1() {
+
+  auto a = Tensor::float32(3.001);
+  auto b = Tensor::float32({3}, {2.000, 3.0, 3.001});
+
+  if ((a != b).toInt32().reduceSum().getInt32(0) != 2) {
+    std::ostringstream oss;
+    oss << a << b << (a != b) << ". Exactly 2 elements in b  are not 3.001";
+    throw poprithms::test::error(oss.str());
+  }
+  if (((a != b).toInt16() + (a == b).toInt16()).reduceSum().getInt16(0) !=
+      3) {
+    throw poprithms::test::error(
+        "all values should be 1 (and there are 3 values)");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -245,8 +292,9 @@ int main() {
   testAllClose1();
   testScalarFromElement();
   testAllValuesTheSame();
-
   testImplicitCastError();
+  testOperatorNotEqual0();
+  testOperatorNotEqual1();
 
   return 0;
 }

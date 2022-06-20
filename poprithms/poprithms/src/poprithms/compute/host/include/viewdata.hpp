@@ -436,6 +436,9 @@ public:
   AllocBooleanSP equalTo(const BaseData &rhs) const final {
     return toOriginData()->equalTo(rhs);
   }
+  AllocBooleanSP notEqualTo(const BaseData &rhs) const final {
+    return toOriginData()->notEqualTo(rhs);
+  }
 
   uint64_t nelms_u64() const final {
     return rowMajorOriginDataIndices.size();

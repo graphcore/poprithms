@@ -815,6 +815,12 @@ Tensor Tensor::operator==(const Tensor &rhs) const {
   return {co.shape, DType::Boolean, co.arg0.tData().equalTo(co.arg1.tData())};
 }
 
+Tensor Tensor::operator!=(const Tensor &rhs) const {
+  auto co = getRowMajorPair(*this, rhs);
+  return {
+      co.shape, DType::Boolean, co.arg0.tData().notEqualTo(co.arg1.tData())};
+}
+
 Tensor Tensor::copy() const {
   return {shape(), dtype(), tData().toOriginData()};
 }
@@ -1290,11 +1296,19 @@ bool Tensor::allClose(const Tensor &b, double relTol, double absTol) const {
 
 void Tensor::assertAllClose(const Tensor &b,
                             double relTol,
-                            double absTol) const {
+                            double absTol,
+                            const std::string &context) const {
   if (!allClose(b, relTol, absTol)) {
 
-    auto absDiff    = subtract(b).abs();
-    auto absDiffMax = absDiff.reduceMax({});
+    auto absDiffMax = [this, &b]() {
+      // There is no subtraction defined on boolean tensors (copied from numpy
+      // design).
+      if (dtype() == DType::Boolean || b.dtype() == DType::Boolean) {
+        return operator!=(b).reduceMax({});
+      } else {
+        return subtract(b).abs().reduceMax({});
+      }
+    }();
 
     std::ostringstream oss;
     oss << "Failed in assertAllClose(.). "
@@ -1302,6 +1316,9 @@ void Tensor::assertAllClose(const Tensor &b,
         << *this << ", \nand b is " << b << ". Failed with relTol=" << relTol
         << " and absTol=" << absTol << ". The maximum absolute difference is "
         << absDiffMax.getFloat64(0) << ". ";
+    if (!context.empty()) {
+      oss << "Context to method: '" << context << "'.";
+    }
     throw error(oss.str());
   }
 }

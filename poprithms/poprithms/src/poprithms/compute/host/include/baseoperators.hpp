@@ -333,8 +333,9 @@ public:
 
 template <typename T, class Enable = void> class EqualTo {};
 
-// Comparison of floats and doubles with operator== generates compiler
-// warnings. We get around this by checking >= and <=.
+// Comparison of floats and doubles with operator== and operator!= generates
+// compiler warnings. We get around this by checking combinations of >=, >,
+// <=, and <.
 template <class T>
 class EqualTo<T, typename std::enable_if_t<std::is_floating_point_v<T>>> {
 public:
@@ -350,6 +351,26 @@ class EqualTo<T,
 public:
   bool operator()(T a, T b) const { return a == b; }
   static std::string name() { return name_<T>("EqualTo"); }
+};
+
+template <typename T, class Enable = void> class NotEqualTo {};
+
+template <class T>
+class NotEqualTo<T, typename std::enable_if_t<std::is_floating_point_v<T>>> {
+public:
+  bool operator()(T a, T b) const { return a > b || a < b; }
+  static std::string name() { return name_<T>("NotEqualTo"); }
+};
+
+template <class T>
+class NotEqualTo<
+    T,
+    typename std::enable_if_t<std::is_integral_v<T> ||
+                              std::is_same<T, IeeeHalf>::value>> {
+
+public:
+  bool operator()(T a, T b) const { return a != b; }
+  static std::string name() { return name_<T>("NotEqualTo"); }
 };
 
 template <class T>

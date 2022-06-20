@@ -74,7 +74,7 @@ public:
   }
 
   /**
-   * The enum associated to this op's reduction type. 
+   * The enum associated to this op's reduction type.
    * */
   virtual CommutativeOp cop() const = 0;
 

@@ -492,14 +492,18 @@ public:
   /**
    * Throw a descriptive error if \a allClose evaluates to false.
    * */
-  void assertAllClose(const Tensor &rhs, double relTol, double absTol) const;
+  void assertAllClose(const Tensor &rhs,
+                      double relTol,
+                      double absTol,
+                      const std::string &context = {}) const;
 
   bool allEquivalent(const Tensor &rhs) const {
     return allClose(rhs, 0., 0.);
   }
 
-  void assertAllEquivalent(const Tensor &rhs) const {
-    assertAllClose(rhs, 0., 0.);
+  void assertAllEquivalent(const Tensor &rhs,
+                           const std::string &context = {}) const {
+    assertAllClose(rhs, 0., 0., context);
   }
 
   /**
@@ -1162,6 +1166,7 @@ public:
   Tensor operator>(const Tensor &rhs) const;
   Tensor operator>=(const Tensor &rhs) const;
   Tensor operator==(const Tensor &rhs) const;
+  Tensor operator!=(const Tensor &rhs) const;
 
   /**
    * Elementwise unary operations. The versions with the suffix '_' acts

@@ -309,6 +309,10 @@ public:
     return binary<EqualTo<T>, bool>(rhs);
   }
 
+  AllocBooleanSP notEqualTo(const BaseData &rhs) const final {
+    return binary<NotEqualTo<T>, bool>(rhs);
+  }
+
   void add_(const BaseData &rhs) const final { binary_<Adder<T>>(rhs); }
   void subtract_(const BaseData &rhs) const final {
     binary_<Subtracter<T>>(rhs);

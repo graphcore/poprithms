@@ -110,6 +110,7 @@ public:
   virtual AllocBooleanSP greaterThanOrEqualTo(const BaseData &) const = 0;
   virtual AllocBooleanSP lessThanOrEqualTo(const BaseData &) const    = 0;
   virtual AllocBooleanSP equalTo(const BaseData &) const              = 0;
+  virtual AllocBooleanSP notEqualTo(const BaseData &) const           = 0;
 
   /**
    * Binary modifiers.
