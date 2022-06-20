@@ -60,7 +60,12 @@ void Checker::check(const std::function<Tensor(const Tensor &)> &fwd,
                         purePerturbation.mul(phiPure(run));
 
     perturbation = perturbation.mul(perturbationSize * perturbation.l2norm());
-    const auto lossPlus  = fwd(in0 + perturbation);
+    const auto lossPlus = fwd(in0 + perturbation);
+
+    if (lossPlus.nelms() != 1) {
+      throw poprithms::test::error(
+          "The method 'fwd' must produce a tensor with 1 element");
+    }
     const auto lossMinus = fwd(in0 - perturbation);
     const auto deltaLoss = (lossPlus - lossMinus);
     finiteMethod.push_back(deltaLoss.getFloat64(0));

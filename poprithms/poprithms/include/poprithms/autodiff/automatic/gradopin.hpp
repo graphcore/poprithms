@@ -30,7 +30,7 @@ using poprithms::common::multiout::OutIndex;
 template <class Tensor, class OptionalTensor> class OpIn {
 
 public:
-  using Optionals = std::vector<OptionalTensor>;
+  using OptionalTensors = std::vector<OptionalTensor>;
 
   /**
    * \param fwdIns the optional inputs of the forward op. Certain ops may
@@ -41,9 +41,9 @@ public:
    *
    * \param gradOuts the optional gradients of the outputs of the forward op.
    * */
-  OpIn(const Optionals &fwdIns_,
-       const Optionals &fwdOuts_,
-       const Optionals &gradOuts_)
+  OpIn(const OptionalTensors &fwdIns_,
+       const OptionalTensors &fwdOuts_,
+       const OptionalTensors &gradOuts_)
       : ins(fwdIns_), outs(fwdOuts_), gradOuts(gradOuts_) {
 
     // Confirm that the number of outputs and gradients of outputs is the
@@ -73,14 +73,26 @@ public:
   bool hasInput(InIndex i) const { return ins.at(i.get()).has_value(); }
   Tensor input(InIndex i) const { return ins.at(i.get()).value(); }
 
-  const Optionals &getIns() const { return ins; }
-  const Optionals &getOuts() const { return outs; }
-  const Optionals &getGradsOfOuts() const { return gradOuts; }
+  const OptionalTensors &getIns() const { return ins; }
+  const OptionalTensors &getOuts() const { return outs; }
+  const OptionalTensors &getGradsOfOuts() const { return gradOuts; }
+
+  /**
+   * All optional tensors, ins, outs, and grads.
+   * */
+  OptionalTensors all() const {
+    OptionalTensors all;
+    all.reserve(ins.size() + outs.size() + gradOuts.size());
+    for (const auto &ots : {ins, outs, gradOuts}) {
+      all.insert(all.end(), ots.cbegin(), ots.cend());
+    }
+    return all;
+  }
 
 private:
-  Optionals ins;
-  Optionals outs;
-  Optionals gradOuts;
+  OptionalTensors ins;
+  OptionalTensors outs;
+  OptionalTensors gradOuts;
 };
 
 } // namespace automatic
