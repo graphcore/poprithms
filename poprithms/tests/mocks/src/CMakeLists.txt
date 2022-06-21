@@ -7,6 +7,7 @@ add_library(poprithms_mock SHARED
 
 target_link_libraries(poprithms_mock
   PRIVATE
+    poprithms
     GTest::gtest
     GTest::gmock
     Boost::boost
