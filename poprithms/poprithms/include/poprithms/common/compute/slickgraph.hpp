@@ -113,6 +113,18 @@ public:
     TensorIds tIds = tensorIds(sgId);
     return tensors(tIds);
   }
+
+  /**
+   * Get the ids of the tensors in #tensors.
+   * */
+  static TensorIds getIds(const TTensors &tensors) {
+    TensorIds tensorIds;
+    tensorIds.reserve(tensors.size());
+    for (const auto &t : tensors) {
+      tensorIds.push_back(t.id());
+    }
+    return tensorIds;
+  }
 };
 
 } // namespace compute

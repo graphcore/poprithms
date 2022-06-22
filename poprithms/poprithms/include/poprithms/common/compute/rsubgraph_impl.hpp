@@ -22,6 +22,14 @@ T RSubGraph<T>::constant(const HostTensor &t, DeviceId deviceId) {
   return {TensorId(opId, OutIndex(0)), &graph()};
 }
 
+template <typename T>
+T RSubGraph<T>::variable(DType t, const Shape &s, DeviceId d) {
+  auto opId =
+      graph().template createComputeOp<poprithms::common::compute::VarInit>(
+          {}, id(), {{s, d, t}});
+  return {{opId, 0}, &graph()};
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

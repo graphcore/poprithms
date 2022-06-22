@@ -90,11 +90,13 @@ set(common_compute_sources
   ${src_dir}/common/compute/devicetype.cpp
   ${src_dir}/common/compute/error.cpp
   ${src_dir}/common/compute/graph.cpp
+  ${src_dir}/common/compute/iexecutable.cpp
   ${src_dir}/common/compute/initialvalues.cpp
   ${src_dir}/common/compute/memoryaliasmapper.cpp
   ${src_dir}/common/compute/op.cpp
   ${src_dir}/common/compute/opverifier.cpp
   ${src_dir}/common/compute/scheduler.cpp
+  ${src_dir}/common/compute/simexecutable.cpp
   ${src_dir}/common/compute/simtensormap.cpp
   ${src_dir}/common/compute/subgraph.cpp
   ${src_dir}/common/compute/tensor.cpp

@@ -528,8 +528,13 @@ HostTensors Op::badValOuts() const {
 
     // Choosing any non-zero value for initializing tensors with:
     auto type  = outDType(o);
-    bool isPos = poprithms::ndarray::isUnsignedFixedPoint(type);
-    double val = (isPos * 2. - 1) * 99.;
+    double val = -99.;
+    if (poprithms::ndarray::isUnsignedFixedPoint(type)) {
+      val = 99;
+    }
+    if (type == DType::Boolean) {
+      val = true;
+    }
 
     outs.push_back(HostTensor::ones(outDType(o), outShape(o)).mul_(val));
   }

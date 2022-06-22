@@ -6,9 +6,11 @@
 #include <vector>
 
 #include <poprithms/common/compute/hosttensor.hpp>
+#include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/ndarray/deviceid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
+#include <poprithms/ndarray/tensorinfo.hpp>
 
 namespace poprithms {
 namespace common {
@@ -20,6 +22,8 @@ using poprithms::ndarray::DeviceId;
 using poprithms::ndarray::DeviceIds;
 using poprithms::ndarray::DType;
 using poprithms::ndarray::DTypes;
+using poprithms::ndarray::Shape;
+using poprithms::ndarray::Shapes;
 
 class Graph;
 
@@ -54,6 +58,19 @@ public:
    * */
   T constant(DType t, double v, DeviceId d) {
     return constant(HostTensor::scalar(t, v), d);
+  }
+
+  /**
+   * Create a variable tensor (T) in this sub-graph.
+   *
+   * \param t   The numerical type of the tensor.
+   * \param s   Then shape of the tensor.
+   * \param d   The device which the tensor is on.
+   * */
+  T variable(DType t, const Shape &s, DeviceId d);
+
+  T variable(const TensorInfo &info) {
+    return variable(info.dtype(), info.shape(), info.deviceId());
   }
 
   RSubGraph(SubGraphId id, Graph &graph) : id_(id), pGraph_(&graph) {}

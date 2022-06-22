@@ -119,23 +119,19 @@ T RTensor<T>::reduce(const Dimensions &d, CommutativeOp cop) const {
 
   switch (cop) {
   case (CommutativeOp::Sum): {
-    return createUnaryWithNewShape<poprithms::common::compute::ReduceSum>(
-        outShape, d);
+    return createUnaryWithNewShape<ReduceSum>(outShape, d);
   }
 
   case (CommutativeOp::Min): {
-    return createUnaryWithNewShape<poprithms::common::compute::ReduceMin>(
-        outShape, d);
+    return createUnaryWithNewShape<ReduceMin>(outShape, d);
   }
 
   case (CommutativeOp::Max): {
-    return createUnaryWithNewShape<poprithms::common::compute::ReduceMax>(
-        outShape, d);
+    return createUnaryWithNewShape<ReduceMax>(outShape, d);
   }
 
   case (CommutativeOp::Product): {
-    return createUnaryWithNewShape<poprithms::common::compute::ReduceProduct>(
-        outShape, d);
+    return createUnaryWithNewShape<ReduceProduct>(outShape, d);
   }
   default:
     throw poprithms::error::error("common::compute",
@@ -152,12 +148,10 @@ template <typename T> T RTensor<T>::mul(const RTensor<T> &rhs) const {
 }
 
 template <typename T> T RTensor<T>::add_(const RTensor<T> &rhs) const {
-  return createWithNumpyShape<poprithms::common::compute::Add_>(
-      {id(), rhs.id()});
+  return createWithNumpyShape<Add_>({id(), rhs.id()});
 }
 template <typename T> T RTensor<T>::add(const RTensor<T> &rhs) const {
-  return createWithNumpyShape<poprithms::common::compute::Add>(
-      {id(), rhs.id()});
+  return createWithNumpyShape<Add>({id(), rhs.id()});
 }
 
 } // namespace compute

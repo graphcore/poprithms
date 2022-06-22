@@ -1,5 +1,6 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 #include <gmock/gmock.h>
+#include <sstream>
 
 #include <testutil/common/compute/graph.hpp>
 
@@ -8,6 +9,7 @@
 #include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
 #include <poprithms/common/compute/ops/viewchange.hpp>
+#include <poprithms/common/compute/scheduler.hpp>
 
 namespace {
 using ::testing::AtLeast;
@@ -175,4 +177,32 @@ TEST(CommonComputeBasicFunctionality, InsertViewChangeIdentity) {
   auto foo = t0.reverse_(Dimensions({2, 4, 2, 2, 4}));
   EXPECT_EQ(g.dynamicCast<Reverse_>(foo.id().opId())->dimensions(),
             Dimensions({2}));
+}
+
+TEST(CommonComputeBasicFunctionality, Scheduler) {
+
+  // Test of circular referencing.
+  {
+    test::Graph g;
+    auto sg0 = g.createSubGraph("sg0");
+    auto sg1 = g.createSubGraph("sg1");
+
+    auto t0 = sg0.constant(HostTensor::uniformFloat32(-1, 1, {2, 3}, 1011),
+                           g.host());
+    auto t1 = t0.refTo_(sg1);
+    auto t2 = t1.reduceMin();
+    t2.refTo_(sg0);
+
+    // there is a cycle in the graph
+    EXPECT_THROW(Scheduler::scheduleByRefs(g), poprithms::error::error);
+  }
+
+  // Test of graph with no compute.
+  {
+    test::Graph g;
+    auto sg0 = g.createSubGraph("sg0");
+    auto t0  = sg0.constant(DType::Float32, 1., g.host());
+    t0.reshape_({1, 1, 1}).expand_({1, 2, 3, 4, 5});
+    EXPECT_EQ(Scheduler::vanillaComputeSchedule(g, sg0).size(), 0);
+  }
 }
