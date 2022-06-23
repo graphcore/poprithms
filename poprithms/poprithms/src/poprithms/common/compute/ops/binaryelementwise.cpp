@@ -66,15 +66,6 @@ void BinaryElementwiseInplace_::simpleBinaryElementwiseInplaceVerifyValid()
   inShape(0).assertNumpyDominates(inShape(1));
 }
 
-/**
- * Design note: Why does Add not inherit from
- * BinaryElementwiseOutplaceWithAutodiffer? Because its AD::backpropagate
- * has additional arguments (the 2 input shapes). While it is possible to
- * coerce certain methods into the requred form using variadic
- * templates and std::apply, this requires C++17 and some advanced C++.
- * The design decision was that this complecity isn't worth the obscure
- * code.
- * */
 void Add::compute(const HostTensors &ins, const HostTensors &outs) const {
   outs[0].update_(ins[0] + ins[1]);
 }
@@ -112,6 +103,134 @@ void Mul_::compute(const HostTensors &ins, const HostTensors &outs) const {
 
 UpOp Mul_::cloneWithState(const State &s) const {
   return std::make_unique<Mul_>(s);
+}
+
+bool Pow_::gradientPropagates(OutIndex, InIndex) const {
+  noInplaceAutodiff();
+}
+poprithms::common::compute::OptionalTensors
+Pow_::bprop(const GradOpIns &) const {
+  noInplaceAutodiff();
+}
+
+std::vector<InIndex> Pow_::autodiffRequiredIns() const {
+  noInplaceAutodiff();
+}
+std::vector<OutIndex> Pow_::autodiffRequiredOuts() const {
+  noInplaceAutodiff();
+}
+
+/**
+ * Div
+ * */
+void Div::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].update_(ins[0].divide(ins[1]));
+}
+
+UpOp Div::cloneWithState(const State &s) const {
+  return std::make_unique<Div>(s);
+}
+
+/**
+ * Div_
+ * */
+void Div_::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].divide_(ins[1]);
+}
+
+UpOp Div_::cloneWithState(const State &s) const {
+  return std::make_unique<Div_>(s);
+}
+
+/**
+ * Pow
+ * */
+void Pow::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].update_(ins[0].pow(ins[1]));
+}
+UpOp Pow::cloneWithState(const State &s) const {
+  return std::make_unique<Pow>(s);
+}
+
+/**
+ * Pow_
+ * */
+void Pow_::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].pow_(ins[1]);
+}
+UpOp Pow_::cloneWithState(const State &s) const {
+  return std::make_unique<Pow_>(s);
+}
+
+/**
+ * GreaterThan
+ * */
+void GreaterThan::compute(const HostTensors &ins,
+                          const HostTensors &outs) const {
+  outs[0].update_((ins[0] > ins[1]));
+}
+UpOp GreaterThan::cloneWithState(const State &s) const {
+  return std::make_unique<GreaterThan>(s);
+}
+
+void GreaterThan::boolReturnAutodiff() const {
+  std::ostringstream oss;
+  oss << "The op " << *this
+      << " returns a boolean tensor, and so is not differentiable. ";
+  throw error(oss.str());
+}
+
+/**
+ * Sub
+ * */
+void Sub::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].update_(ins[0] - ins[1]);
+}
+
+UpOp Sub::cloneWithState(const State &s) const {
+  return std::make_unique<Sub>(s);
+}
+
+/**
+ * Sub_
+ * */
+void Sub_::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].subtract_(ins[1]);
+}
+
+UpOp Sub_::cloneWithState(const State &s) const {
+  return std::make_unique<Sub_>(s);
+}
+
+void GreaterThan::computeDerivedVerifyValid() const {
+
+  OpVerifier(*this).verifyNonVariadicFromAtts(
+      2, 1, {OpVerifier::Att::InsSameDType, OpVerifier::Att::SameDeviceType});
+
+  if (outDType(OutIndex(0)) != DType::Boolean) {
+    std::ostringstream oss;
+    oss << "invalid GreaterThan output in GreaterThan constructor. "
+        << "State's output type is " << outDType(0);
+    oss << ". Expected output type to be Boolean";
+    throw error(oss.str());
+  }
+
+  if (inShape(0).numpyBinary(inShape(1)) != outShape(0)) {
+    throw error("Input shapes do not combine with numpy broadcasting to "
+                "output shape.");
+  }
+}
+
+/**
+ * CopyFrom_
+ * */
+UpOp CopyFrom_::cloneWithState(const State &s) const {
+  return std::make_unique<CopyFrom_>(s);
+}
+
+void CopyFrom_::compute(const HostTensors &ins,
+                        const HostTensors &outs) const {
+  outs[0].update_(ins[Source().get()]);
 }
 
 } // namespace compute

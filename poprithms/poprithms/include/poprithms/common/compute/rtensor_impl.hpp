@@ -8,6 +8,7 @@
 #include <poprithms/common/compute/ops/binaryelementwise.hpp>
 #include <poprithms/common/compute/ops/reduce.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
+#include <poprithms/common/compute/ops/unaryelementwise.hpp>
 #include <poprithms/common/compute/ops/viewchange.hpp>
 #include <poprithms/common/compute/rtensor.hpp>
 #include <poprithms/error/error.hpp>
@@ -15,6 +16,66 @@
 namespace poprithms {
 namespace common {
 namespace compute {
+
+template <typename T>
+T RTensor<T>::constant(const poprithms::compute::host::Tensor &t) const {
+  return subGraph().constant(t, deviceId());
+}
+
+template <typename T>
+T RTensor<T>::constant(SubGraphId sgId, double v) const {
+  return RSubGraph<T>(sgId, graph()).constant(dtype(), v, deviceId());
+}
+
+template <typename T> RSubGraph<T> RTensor<T>::subGraph() const {
+  return RSubGraph<T>(subGraphId(), graph());
+}
+
+template <typename T> T RTensor<T>::constant(DType d, double v) const {
+  return constant(poprithms::compute::host::scalar(d, v));
+}
+
+template <typename T> T RTensor<T>::div_(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Div_>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::div(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Div>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::pow_(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Pow_>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::pow(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Pow>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::copyFrom_(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<CopyFrom_>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::greaterThan(const RTensor<T> &rhs) const {
+
+  TensorInfo oi(Shape::numpyVariadic({shape(), rhs.shape()}),
+                deviceId(),
+                DType::Boolean);
+  return createTensor<GreaterThan>({id(), rhs.id()}, oi);
+}
+
+template <typename T> T RTensor<T>::sub_(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Sub_>({id(), rhs.id()});
+}
+template <typename T> T RTensor<T>::sub(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Sub>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::log_() const {
+  return createUnaryWithSameInfo<Log_>();
+}
+template <typename T> T RTensor<T>::log() const {
+  return createUnaryWithSameInfo<Log>();
+}
 
 template <typename T> T RTensor<T>::dstInCaller(const CallEvent &ce) const {
   TensorId dst = graph().dstInCaller(id_, ce);
@@ -64,10 +125,6 @@ template <typename T> T RTensor<T>::expand_(const Shape &s) const {
   return createUnaryViewChange<Expand_>(s);
 }
 
-template <typename T> Shape RTensor<T>::shape() const {
-  return graph().shape(id());
-}
-
 template <typename T> TensorInfo RTensor<T>::info() const {
   return graph().tensorInfo(id());
 }
@@ -105,8 +162,10 @@ T RTensor<T>::reduce(Dimension d, const CommutativeOp cop) const {
 
 template <typename T>
 T RTensor<T>::reduce(const Dimensions &d, CommutativeOp cop) const {
+
   if (d.empty()) {
-    return {id(), &graph()};
+    // we cannot just return this tensor, because there must at least be a
+    // copy here.
   }
   auto outShape = shape().get();
   for (uint64_t i = 0; i < d.get().size(); ++i) {

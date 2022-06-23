@@ -14,6 +14,8 @@ namespace {
 using namespace poprithms;
 using namespace poprithms::autodiff;
 using namespace poprithms::autodiff::automatic;
+using poprithms::compute::host::OptionalTensor;
+using poprithms::compute::host::Tensor;
 
 void testLog0() {
 
@@ -50,19 +52,34 @@ void testLog0() {
   }
 }
 
-void testMul0() {
+// 'h0' and 'h1' are the input tensors, around which the perturbation tests
+// are performed. 'apply' is a binary function.
+template <typename Bwd, typename Fwd>
+void testBinaryElementwise0(Fwd &&apply, Tensor h0, Tensor h1) {
 
-  using namespace poprithms::compute::host;
+  struct AutodiffHelper {
+  public:
+    AutodiffHelper(const Shape &s0_, const Shape &s1_) : s0(s0_), s1(s1_) {}
+    Shape inShape(InIndex i) const { return i == 0 ? s0 : s1; }
+    static Tensor constantLike(const Tensor &t, double v) {
+      return t.scalarOfSameType(v);
+    }
+    Shape s0;
+    Shape s1;
+  } autodiffHelper(h0.shape(), h1.shape());
 
-  const auto h0  = Tensor::float64({3, 1}, {1.5, 2, -1});
-  const auto h1  = Tensor::float64({1, 2}, {3, -4});
-  const auto out = h0 * h1;
+  auto bp = [&autodiffHelper](const auto &gIn) {
+    return Bwd::backpropagate(gIn, autodiffHelper);
+  };
+
+  const auto out = apply(h0, h1);
 
   // Gradient for reduceSum:
-  const auto gradOut = Tensor::float64(1).expand({3, 2});
+  const auto gradOut =
+      Tensor::float64(1).expand(h0.shape().numpyBinary(h1.shape()));
 
   OpIn<Tensor, OptionalTensor> gIn({h0, h1}, {out}, {gradOut});
-  auto grads         = MulAutodiffer::backpropagate(gIn);
+  auto grads         = bp(gIn);
   const auto grad_h0 = grads.at(0).value();
   const auto grad_h1 = grads.at(1).value();
 
@@ -72,22 +89,28 @@ void testMul0() {
   uint32_t seed           = 1011;
 
   // Check correctness for arg0.
-  auto f0 = [h1](const Tensor &t0) { return (t0 * h1).reduceSum(); };
+  auto f0 = [&apply, h1](const Tensor &t0) {
+    return apply(t0, h1).reduceSum();
+  };
   finitedifference::Checker::check(
       f0, h0, grad_h0, perturbationSize, seed, eps0, threshold);
 
   // Check correctness for arg1.
-  auto f1 = [h0](const Tensor &t1) { return (h0 * t1).reduceSum(); };
+  auto f1 = [&apply, h0](const Tensor &t1) {
+    return apply(h0, t1).reduceSum();
+  };
   finitedifference::Checker::check(
       f1, h1, grad_h1, perturbationSize, seed, eps0, threshold);
 
-  // Verify that if the gradient computed is a bit different, the test fails:
+  // Verify that when the gradient is computed a bit different, the test
+  // fails:
   bool caught{false};
   try {
     finitedifference::Checker::check(
         f0,
         h0,
-        grad_h0.mul(Tensor::uniformFloat64(0, 0.001, {3, 1}, 1000).add(1)),
+        grad_h0.mul(
+            Tensor::uniformFloat64(0, 0.001, h0.shape(), 1000).add(1)),
         perturbationSize,
         seed,
         eps0,
@@ -102,9 +125,33 @@ void testMul0() {
   }
 }
 
+void testBinaryOps0() {
+  {
+    const auto h0 = Tensor::float64({3, 1}, {1.5, -0.5, 1});
+    const auto h1 = Tensor::float64({1, 2}, {3, -2});
+
+    testBinaryElementwise0<DivAutodiffer>(
+        [](const auto &a, const auto &b) { return a / b; }, h0, h1);
+
+    testBinaryElementwise0<MulAutodiffer>(
+        [](const auto &a, const auto &b) { return a * b; }, h0, h1);
+
+    testBinaryElementwise0<SubAutodiffer>(
+        [](const auto &a, const auto &b) { return a - b; }, h0, h1);
+  }
+  {
+
+    // For h0^h1, h0 must be positive.
+    const auto h0 = Tensor::float64({4, 1}, {1.5, 0.5, 1, 0.1});
+    const auto h1 = Tensor::float64({1, 1, 3}, {3, -2, -0.5});
+
+    testBinaryElementwise0<PowAutodiffer>(
+        [](const auto &a, const auto &b) { return a.pow(b); }, h0, h1);
+  }
+}
 } // namespace
 
 int main() {
   testLog0();
-  testMul0();
+  testBinaryOps0();
 }

@@ -7,7 +7,10 @@
 
 #include <poprithms/autodiff/guide/objective.hpp>
 #include <poprithms/common/compute/devicetype.hpp>
+#include <poprithms/common/compute/hosttensor.hpp>
+#include <poprithms/common/compute/op.hpp>
 #include <poprithms/common/compute/replication.hpp>
+#include <poprithms/common/compute/rsubgraph.hpp>
 #include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
@@ -30,6 +33,8 @@ using common::compute::DeviceTypes;
 using common::compute::ReplicationFactor;
 using common::multiout::OpId;
 using common::multiout::OpIds;
+using common::multiout::OutIndex;
+using common::multiout::OutIndices;
 using common::multiout::TensorId;
 using common::multiout::TensorIds;
 using common::schedulable::SubGraphId;
@@ -114,10 +119,69 @@ public:
    * */
   TensorInfo info() const;
 
+  RSubGraph<T> subGraph() const;
+
+  /**
+   * \return The op which tensor is an output of.
+   * */
+  const Op &op() const { return graph().computeOp(opId()); }
+
+  /**
+   * \return The id of the op which this tensor is an output of.
+   * */
+  OpId opId() const { return id().opId(); }
+
   /**
    * \return The shape of this tensor.
    * */
-  Shape shape() const;
+  const Shape &shape() const { return op().outShape(outIndex()); }
+
+  /**
+   * \return The output index which this tensor's op outputs this tensor.
+   * */
+  OutIndex outIndex() const { return id().outIndex(); }
+
+  /**
+   * \return The id of the sub-graph to which this tensor belongs.
+   * */
+  SubGraphId subGraphId() const { return graph().subGraphId(id()); }
+
+  /**
+   * \return The total number of elements in this tensor.
+   * */
+  uint64_t nelms_u64() const { return graph().nelms_u64(id()); }
+
+  /**
+   * \return The id of the (unique) device that this tensor belongs to.
+   * */
+  DeviceId deviceId() const { return graph().deviceId(id()); }
+
+  /**
+   * \return The type of the device this tensor is on.
+   * */
+  DeviceType deviceType() const { return graph().deviceType(deviceId()); }
+
+  /**
+   * \return true if this tensor is on an ipu.
+   * */
+  bool isIpuTensor() const { return deviceType() == DeviceType::Ipu; }
+
+  /**
+   * \return The size of the tensor in the dimension #i.
+   * */
+  int64_t dim(uint64_t i) const { return shape().dim(i); }
+  uint64_t dim_u64(uint64_t i) const { return shape().dim_u64(i); }
+
+  /**
+   * \return The number of dimensions n this tensor.
+   * */
+  uint64_t rank_u64() const { return shape().rank_u64(); }
+  uint64_t rank_i64() const { return shape().rank_i64(); }
+
+  /**
+   * \return The numerical type of the elements of this tensor.
+   * */
+  DType dtype() const { return graph().dtype(id()); }
 
   /**
    * \sa Graph::dstInCaller.
@@ -246,6 +310,37 @@ public:
   Graph &graph() const { return *pGraph_; }
 
   /**
+   * Methods to generate Tensors which are the same as this tensor except for
+   * one or several of value, device, & subgraph.
+   *
+   * These methods are similar to the PyTorch "new" method:
+   *   b = a.new(13, 19, 23).long()
+   */
+
+  /**
+   * Create a constant with the same device and subgraph as this tensor.
+   * */
+  T constant(const HostTensor &) const;
+  T constant(DType d, double v) const;
+
+  /**
+   * A constant tensor with the same device, subgraph, and type as this
+   * tensor.
+   * */
+  T constant(double v) const { return constant(dtype(), v); }
+
+  /**
+   * This static method creates a constant tensor which is like in #t, but
+   * with value #v.
+   * */
+  static T constantLike(const RTensor<T> &t, double v);
+
+  /**
+   * Create a constant tensor with the same device and type as this tensor.
+   * */
+  T constant(SubGraphId, double) const;
+
+  /**
    * Binary elementwise operations using numpy broadcasting rules, see
    * https://numpy.org/doc/stable/user/basics.broadcasting.html for more
    * information.
@@ -262,6 +357,44 @@ public:
    * */
   T mul(const RTensor<T> &rhs) const;
   T mul_(const RTensor<T> &rhs) const;
+
+  /**
+   * Subtract #rhs from this tensor.
+   * */
+  T sub(const RTensor<T> &rhs) const;
+  T sub_(const RTensor<T> &rhs) const;
+
+  /**
+   * Divide this tensor by #rhs.
+   * */
+  T div(const RTensor<T> &rhs) const;
+  T div_(const RTensor<T> &rhs) const;
+
+  /**
+   * \return This tensor to the power of #rhs.
+   * */
+  T pow(const RTensor<T> &rhs) const;
+  T pow_(const RTensor<T> &rhs) const;
+
+  /**
+   * Copy the values in #rhs to this tensor. This tensor operation supports
+   * numpy broadcasting, so #rhs must have a shape which is numpy
+   * broadcastable to this tensor's shape.
+   * */
+  T copyFrom_(const RTensor<T> &rhs) const;
+  T update_(const RTensor<T> &rhs) const { return copyFrom_(rhs); }
+
+  /**
+   * \return A boolean tensor which is true where this tensor is greater than
+   *         #rhs. This tensor operation supports numpy broadcasting.
+   * */
+  T greaterThan(const RTensor<T> &rhs) const;
+
+  /**
+   * The natural logarithm of this tensor.
+   * */
+  T log_() const;
+  T log() const;
 
 protected:
   /**
@@ -331,6 +464,14 @@ template <typename T> T operator*(const RTensor<T> &a, const RTensor<T> &b) {
 
 template <typename T> T operator+(const RTensor<T> &a, const RTensor<T> &b) {
   return a.add(b);
+}
+
+template <typename T> T operator/(const RTensor<T> &a, const RTensor<T> &b) {
+  return a.div(b);
+}
+
+template <typename T> T operator-(const RTensor<T> &a, const RTensor<T> &b) {
+  return a.sub(b);
 }
 
 } // namespace compute

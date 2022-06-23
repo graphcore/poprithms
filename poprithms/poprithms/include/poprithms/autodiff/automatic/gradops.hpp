@@ -40,11 +40,11 @@ public:
    *                and returns a tensor.
    *
    * \tparam OptionalTensor a class with a subset of the API of
-   *                       std::optional<Tensor>.
+   *                        std::optional<Tensor>.
    * */
-  template <typename Tensor, typename OptionalTensor>
+  template <typename Tensor, typename OptionalTensor, typename... Args>
   static typename std::vector<OptionalTensor>
-  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn) {
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const Args &...) {
 
     const auto inputToLog   = gIn.input(0);
     const auto gradOfOutput = gIn.gradOfOutput(0);
@@ -79,15 +79,16 @@ public:
 
   /**
    * Equations (2) and (3).
+   *
+   * \tparam OpHelper: An object with a method #inShape(InIndex) for getting
+   *                   the input shapes of the add op being differentiated.
    * */
-  template <typename Tensor, typename OptionalTensor>
+  template <typename Tensor, typename OptionalTensor, typename OpHelper>
   static typename std::vector<OptionalTensor>
-  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn,
-                const Shape &in0,
-                const Shape &in1) {
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const OpHelper &op) {
     auto grad = gIn.gradOfOutput(0);
-    auto g0   = grad.reduceSum(in0);
-    auto g1   = grad.reduceSum(in1);
+    auto g0   = grad.reduceSum(op.inShape(InIndex(0)));
+    auto g1   = grad.reduceSum(op.inShape(InIndex(1)));
     return {OptionalTensor(g0), OptionalTensor(g1)};
   }
 };
@@ -111,16 +112,152 @@ public:
   /**
    * Equations (2) and (3).
    * */
-  template <typename Tensor, typename OptionalTensor>
+  template <typename Tensor, typename OptionalTensor, typename... Args>
   static typename std::vector<OptionalTensor>
-  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn) {
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const Args &...) {
     auto grad = gIn.gradOfOutput(0);
     auto in0  = gIn.input(0);
     auto in1  = gIn.input(1);
     auto g0   = (grad * in1).reduceSum(in0.shape());
     auto g1   = (grad * in0).reduceSum(in1.shape());
-
     return {OptionalTensor(g0), OptionalTensor(g1)};
+  }
+};
+
+/**
+ * Differentiate,
+ * (1)    out = numerator / denominator.
+ *
+ * Ignoring numpy broadcast for now,
+ * (2)     dLoss / dDenominator = dLoss / dOut * dOut / dDenominator
+ * (3)                          = dOut  * - numerator / denominator ** 2
+ * (4)                          = dOut * -1 * out / denominator.
+ *
+ * With numpy broadcasting, (4) gets reduced to the shape of denominator.
+ *
+ * Eqn. (4) is the gradient of the denominator, the gradient of the numerator
+ * is (5)     dLoss / dNumerator = (dLoss / dOut) / numerator.
+ *
+ * */
+class DivAutodiffer {
+
+public:
+  // Note that the numerator is not required to compute the gradients. This
+  // means that the inplace version of division can be differentiated.
+  static std::vector<InIndex> autodiffRequiredIns() { return {1}; }
+
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {0}; }
+
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+
+  template <typename Tensor, typename OptionalTensor, typename OpHelper>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const OpHelper &op) {
+
+    // Equation (4):
+    auto denominator = gIn.input(1);
+    auto dOut        = gIn.gradOfOutput(0);
+    auto out         = gIn.output(0);
+    auto dDenominator =
+        OpHelper::constantLike(dOut, -1.) * dOut * out / denominator;
+
+    // The gradient of the numerator:
+    auto dNumerator = dOut / denominator;
+
+    return {dNumerator.reduceSum(op.inShape(0)),
+            dDenominator.reduceSum(op.inShape(1))};
+  }
+};
+
+/**
+ * Gradient of the power operator.
+ *
+ * Compute the gradient of the inputs #base and #expo in:
+ *
+ *   out = base^expo
+ *       = exp(log(base) * expo).
+ *
+ *   dLoss / dBase  = dLoss / dOut * dOut / dBase
+ *                  = dLoss / dOut * (expo) * base^(expo-1)
+ *
+ *   dLoss / dExpo  = dLoss / dOut * dOut / dExpo
+ *                  = dLoss / dOut * log(base) * base^expo.
+ **/
+
+class PowAutodiffer {
+
+public:
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+  static std::vector<InIndex> autodiffRequiredIns() { return {0, 1}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {1}; }
+
+  template <typename Tensor, typename OptionalTensor, typename OpHelper>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const OpHelper &) {
+
+    auto outGrad  = gIn.gradOfOutput(0);
+    auto base     = gIn.input(0);
+    auto exponent = gIn.input(1);
+
+    // The output should be available, if autodiffRequiredOuts of this class
+    // is used.
+    auto out = gIn.hasOutput(0) ? gIn.output(0) : base.pow(exponent);
+
+    auto dBase = outGrad * exponent *
+                 base.pow(exponent - OpHelper::constantLike(outGrad, 1.0));
+    auto dExponent = outGrad * base.log() * out;
+
+    return {dBase.reduceSum(base.shape()),
+            dExponent.reduceSum(exponent.shape())};
+  }
+};
+
+/**
+ * As per AddAutodiffer, but with the gradient of the second input multiplied
+ * by -1.
+ * */
+class SubAutodiffer {
+
+public:
+  static std::vector<InIndex> autodiffRequiredIns() { return {}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {}; }
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+
+  template <typename Tensor, typename OptionalTensor, typename OpHelper>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const OpHelper &op) {
+    auto gOut = gIn.gradOfOutput(0);
+    return {gOut.reduceSum(op.inShape(0)),
+            OpHelper::constantLike(gOut, -1) * gOut.reduceSum(op.inShape(1))};
+  }
+};
+
+/**
+ * Differentiation through an op which copies the input at one index
+ * (SourceOfCopy) to the input at one or several others.
+ * */
+template <int SourceOfCopy> class CopyAutodiffer {
+public:
+  static std::vector<InIndex> autodiffRequiredIns() { return {}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {}; }
+
+  static bool gradientPropagates(OutIndex, InIndex i) {
+
+    // For an input which is the copy destination, a zero gradient is always
+    // progatated back (i.e. not propagated by the definition of this
+    // function). This is because the value of input at a destination index
+    // does not effect the value of the output (which is just a copy of
+    // Source).
+    return i == SourceOfCopy;
+  }
+
+  template <typename Tensor, typename OptionalTensor, typename OpHelper>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const OpHelper &op) {
+    std::vector<OptionalTensor> gradIns(op.nInTensors());
+    gradIns[SourceOfCopy] =
+        gIn.gradOfOutput(0).reduceSum(op.inShape(InIndex(SourceOfCopy)));
+    return gradIns;
   }
 };
 

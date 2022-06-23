@@ -17,7 +17,7 @@ using namespace poprithms::common::compute;
 
 } // namespace
 
-TEST(CommonComputeBasicSimExecutor, Bascic0) {
+TEST(CommonComputeBasicSimExecutor, BasicReduceProduct) {
   using namespace poprithms::common::compute;
   test::Graph g;
 

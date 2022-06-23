@@ -3,16 +3,11 @@
 #define POPRITHMS_COMMON_COMPUTE_OPS_BINARYELEMENTWISE_HPP
 
 #include <poprithms/autodiff/automatic/gradops.hpp>
-#include <poprithms/common/compute/op.hpp>
-#include <poprithms/common/compute/ops/withoutcallees.hpp>
-#include <poprithms/common/multiout/ioindices.hpp>
+#include <poprithms/common/compute/ops/withautodiff.hpp>
 
 namespace poprithms {
 namespace common {
 namespace compute {
-
-using poprithms::common::multiout::InIndices;
-using poprithms::common::multiout::OutIndices;
 
 /**
  * An elementwise op with
@@ -113,61 +108,17 @@ protected:
   void simpleBinaryElementwiseInplaceVerifyValid() const;
 };
 
-/**
- * An op class which leverages the automatic differentiation methods of
- * another class, AD, to define the autodiff specific virtual methods.
- *
- * \tparam AD the class which defines the autodiff methods.
- * */
-template <class AD>
-class BinaryElementwiseOutplaceWithAutodiffer
-    : public BinaryElementwiseOutplace {
-public:
-  BinaryElementwiseOutplaceWithAutodiffer(const State &s)
-      : BinaryElementwiseOutplace(s) {}
-
-  InIndices autodiffRequiredIns() const final {
-    return AD::autodiffRequiredIns();
-  }
-
-  OutIndices autodiffRequiredOuts() const final {
-    return AD::autodiffRequiredOuts();
-  }
-
-  OptionalTensors bprop(const GradOpIns &g) const final {
-    return AD::backpropagate(g);
-  }
-
-  bool gradientPropagates(OutIndex o, InIndex i) const final {
-    return AD::gradientPropagates(o, i);
-  }
-};
-
-class Add final : public BinaryElementwiseOutplace {
+class Add final : public WithAutodiff<autodiff::automatic::AddAutodiffer,
+                                      BinaryElementwiseOutplace> {
 
 public:
-  Add(const State &s) : BinaryElementwiseOutplace(s) {}
+  Add(const State &s) : WithAutodiff(s) {}
 
 private:
-  using AD = poprithms::autodiff::automatic::AddAutodiffer;
-
   /**
    * Update the single tensor in #outs to be the sum of the 2 tensors in #ins.
    * */
   void compute(const HostTensors &ins, const HostTensors &outs) const final;
-
-  bool gradientPropagates(OutIndex o, InIndex i) const final {
-    return AD::gradientPropagates(o, i);
-  }
-  InIndices autodiffRequiredIns() const final {
-    return AD::autodiffRequiredIns();
-  }
-  OutIndices autodiffRequiredOuts() const final {
-    return AD::autodiffRequiredOuts();
-  };
-  OptionalTensors bprop(const GradOpIns &gIn) const final {
-    return AD::backpropagate(gIn, inShape(0), inShape(1));
-  }
 
   /**
    * The add op does not add any new attributes to its base class, so the
@@ -186,36 +137,23 @@ private:
 
 /**
  * Add the input at index 1 to the input at index 0, inplace.
+ *
+ * This op, even though it is inplace, can propagate the output gradient to
+ * the 2 inputs, because neither of the inputs are used, and so it doesn't
+ * matter that the first input has had its value changed.
  * */
-class Add_ final : public BinaryElementwiseInplace_ {
+class Add_ final : public WithAutodiff<autodiff::automatic::AddAutodiffer,
+                                       BinaryElementwiseInplace_> {
 
 public:
-  Add_(const State &s) : BinaryElementwiseInplace_(s) {}
+  Add_(const State &s) : WithAutodiff(s) {}
 
 private:
-  using AD = poprithms::autodiff::automatic::AddAutodiffer;
+  using AD = autodiff::automatic::AddAutodiffer;
   UpOp cloneWithState(const State &) const final;
 
   std::string typeString() const final { return "Add_"; }
   bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
-
-  /**
-   * This op, even though it is inplace, can propagate the output gradient to
-   * the 2 inputs, because neither of the inputs are used and so it doesn't
-   * matter that the first input has been overriden.
-   * */
-  bool gradientPropagates(OutIndex o, InIndex i) const final {
-    return AD::gradientPropagates(o, i);
-  }
-  InIndices autodiffRequiredIns() const final {
-    return AD::autodiffRequiredIns();
-  }
-  OutIndices autodiffRequiredOuts() const final {
-    return AD::autodiffRequiredOuts();
-  };
-  OptionalTensors bprop(const GradOpIns &gIn) const final {
-    return AD::backpropagate(gIn, inShape(0), inShape(1));
-  }
 
   void compute(const HostTensors &ins, const HostTensors &outs) const final {
     outs[0].add_(ins[1]);
@@ -229,13 +167,13 @@ private:
 /**
  * Multiply 2 tensors together.
  * */
-class Mul final : public BinaryElementwiseOutplaceWithAutodiffer<
-                      poprithms::autodiff::automatic::MulAutodiffer> {
+class Mul final : public WithAutodiff<autodiff::automatic::MulAutodiffer,
+                                      BinaryElementwiseOutplace> {
 public:
-  Mul(const State &s) : BinaryElementwiseOutplaceWithAutodiffer(s) {}
+  Mul(const State &s) : WithAutodiff(s) {}
 
 private:
-  std::unique_ptr<Op> cloneWithState(const State &) const final;
+  UpOp cloneWithState(const State &) const final;
   std::string typeString() const final { return "Mul"; }
   void compute(const HostTensors &, const HostTensors &) const final;
 
@@ -247,15 +185,14 @@ private:
 };
 
 /**
- * Multiply 2 tensors together, setting the the value of the first input to
- * the computed product.
+ * Multiply 2 tensors together, inplace on the first tensor.
  * */
 class Mul_ final : public BinaryElementwiseInplace_ {
 public:
   Mul_(const State &s) : BinaryElementwiseInplace_(s) {}
 
 private:
-  std::unique_ptr<Op> cloneWithState(const State &) const final;
+  UpOp cloneWithState(const State &) const final;
   std::string typeString() const final { return "Mul_"; }
   void compute(const HostTensors &, const HostTensors &) const final;
 
@@ -266,7 +203,9 @@ private:
   bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
 
   /**
-   * This inplace op cannot be differentiated.
+   * This inplace op cannot be differentiated, as input values are required
+   * for the backwards op but the first input value is written to inplace by
+   * this op.
    * */
   bool gradientPropagates(OutIndex, InIndex) const final {
     noInplaceAutodiff();
@@ -276,6 +215,204 @@ private:
   }
   InIndices autodiffRequiredIns() const final { noInplaceAutodiff(); }
   OutIndices autodiffRequiredOuts() const final { noInplaceAutodiff(); }
+};
+
+/**
+ * Divide one tensor by another, inplace. This op is the operator '/=' with
+ * numpy broadcasting.
+ *
+ * This inplace op does support automatic differentiation: to compute the
+ * gradients of the inputs does not require the value of the modified input
+ * (the numerator). The gradients of the numerator and denominator can be
+ * computed with just the output (quotient) and the denominator, values which
+ * are available after the division has been performed.
+ *
+ * \sa DivAutodiffer.
+ * */
+
+class Div_ final : public WithAutodiff<autodiff::automatic::DivAutodiffer,
+                                       BinaryElementwiseInplace_> {
+public:
+  Div_(const State &s) : WithAutodiff(s) {}
+
+private:
+  UpOp cloneWithState(const State &) const final;
+  std::string typeString() const final { return "Div_"; }
+
+  void compute(const HostTensors &, const HostTensors &) const final;
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseInplaceVerifyValid();
+  }
+
+  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
+};
+
+/**
+ * Divide one tensor by another.
+ * */
+class Div final : public WithAutodiff<autodiff::automatic::DivAutodiffer,
+                                      BinaryElementwiseOutplace> {
+public:
+  Div(const State &s) : WithAutodiff(s) {}
+
+private:
+  UpOp cloneWithState(const State &) const final;
+  std::string typeString() const final { return "Div"; }
+  void compute(const HostTensors &, const HostTensors &) const final;
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseOutplaceVerifyValid();
+  }
+
+  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
+};
+
+/**
+ * First tensor to the power of the second tensor.
+ * */
+class Pow final : public WithAutodiff<autodiff::automatic::PowAutodiffer,
+                                      BinaryElementwiseOutplace> {
+public:
+  Pow(const State &s) : WithAutodiff(s) {}
+
+private:
+  UpOp cloneWithState(const State &) const final;
+  std::string typeString() const final { return "Pow"; }
+  void compute(const HostTensors &, const HostTensors &) const final;
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseOutplaceVerifyValid();
+  }
+
+  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
+};
+
+class Pow_ final : public BinaryElementwiseInplace_ {
+public:
+  Pow_(const State &s) : BinaryElementwiseInplace_(s) {}
+
+private:
+  UpOp cloneWithState(const State &) const final;
+  std::string typeString() const final { return "Pow_"; }
+  void compute(const HostTensors &, const HostTensors &) const final;
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseInplaceVerifyValid();
+  }
+  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
+
+  /**
+   * There is not differentiation for this inplace op, as both inputs are
+   * required.
+   * */
+  OptionalTensors bprop(const GradOpIns &) const final;
+  bool gradientPropagates(OutIndex, InIndex) const final;
+  std::vector<InIndex> autodiffRequiredIns() const final;
+  std::vector<OutIndex> autodiffRequiredOuts() const final;
+};
+
+/**
+ * Binary operation which compares 2 tensors, with numpy broadcasting. The
+ * output tensor is a boolean tensor.
+ * */
+class GreaterThan final : public BinaryElementwiseOutplace {
+public:
+  GreaterThan(const State &s) : BinaryElementwiseOutplace(s) {}
+
+private:
+  UpOp cloneWithState(const State &) const final;
+  std::string typeString() const final { return "GreaterThan"; }
+  void compute(const HostTensors &, const HostTensors &) const final;
+  void computeDerivedVerifyValid() const final;
+
+  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
+
+  /**
+   * As the output is boolean, this op is never differentiable.
+   * */
+  bool gradientPropagates(OutIndex, InIndex) const final { return false; }
+  OptionalTensors bprop(const GradOpIns &) const final {
+    boolReturnAutodiff();
+  }
+  std::vector<InIndex> autodiffRequiredIns() const final {
+    boolReturnAutodiff();
+  }
+  std::vector<OutIndex> autodiffRequiredOuts() const final {
+    boolReturnAutodiff();
+  }
+
+  [[noreturn]] void boolReturnAutodiff() const;
+};
+
+/**
+ * Subtraction operation.
+ * */
+class Sub final : public WithAutodiff<autodiff::automatic::SubAutodiffer,
+                                      BinaryElementwiseOutplace> {
+public:
+  Sub(const State &s) : WithAutodiff(s) {}
+  UpOp cloneWithState(const State &) const final;
+  std::string typeString() const final { return "Sub"; }
+  void compute(const HostTensors &, const HostTensors &) const final;
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseOutplaceVerifyValid();
+  }
+
+  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
+};
+
+/**
+ * Subtraction operation, inplace. Note that autodiff is supported, as neither
+ * of the inputs to the op are required in the backwards pass.
+ * */
+class Sub_ final : public WithAutodiff<autodiff::automatic::SubAutodiffer,
+                                       BinaryElementwiseInplace_> {
+public:
+  Sub_(const State &s) : WithAutodiff(s) {}
+  UpOp cloneWithState(const State &) const final;
+  std::string typeString() const final { return "Sub_"; }
+  void compute(const HostTensors &, const HostTensors &) const final;
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseInplaceVerifyValid();
+  }
+
+  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
+};
+
+static const constexpr int CopyFromSourceIndex{1};
+/**
+ * Copy the values from one tensor to another.
+ * */
+class CopyFrom_ final
+    : public WithAutodiff<
+          autodiff::automatic::CopyAutodiffer<CopyFromSourceIndex>,
+          BinaryElementwiseInplace_> {
+public:
+  CopyFrom_(const State &s) : WithAutodiff(s) {}
+  UpOp cloneWithState(const State &) const final;
+  std::string typeString() const final { return "CopyFrom_"; }
+  /**
+   * The input index of the tensor which is updated (copied to).
+   * */
+  static InIndex Destination() { return 0; }
+  TensorId destinationId() const { return inTensorId(Destination()); }
+
+  /**
+   * The input index od the tensor which is copied from.
+   * */
+  static InIndex Source() { return CopyFromSourceIndex; }
+  TensorId sourceId() const { return inTensorId(Source()); }
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseInplaceVerifyValid();
+  }
+
+  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
+
+  void compute(const HostTensors &, const HostTensors &) const final;
 };
 
 } // namespace compute
