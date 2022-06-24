@@ -51,7 +51,7 @@ public:
   Node(Node &&)      = default;
   Node(const Node &) = default;
 
-  Node &operator=(Node &&) = default;
+  Node &operator=(Node &&)      = default;
   Node &operator=(const Node &) = default;
 
   Node(const State &ob, const Origins &oris)

@@ -58,7 +58,7 @@ public:
   Graph(Graph &&)      = default;
   Graph(const Graph &) = default;
 
-  Graph &operator=(Graph &&) = default;
+  Graph &operator=(Graph &&)      = default;
   Graph &operator=(const Graph &) = default;
 
   template <typename T> Graph(const std::vector<std::vector<T>> &fwd) {

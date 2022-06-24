@@ -131,9 +131,9 @@ bool Op::bubbleDimShuffleBack(const Shape &inShape0, Op &op0, Op &op1) {
     const auto oldReverse = op0;
     op0                   = oldDimShuffle;
     op1                   = {Type::Reverse,
-           outShape1,
-           Dimensions(p.mapForward(oldReverse.attr().dimensions().get()))
-               .sorted()};
+                             outShape1,
+                             Dimensions(p.mapForward(oldReverse.attr().dimensions().get()))
+                                 .sorted()};
     return true;
   }
 
@@ -424,8 +424,8 @@ bool Op::bubbleReverseBack(const Shape &inShape0, Op &op0, Op &op1) {
     const auto oldDimShuffle = op0;
     const auto p             = op0.attr().permutation();
     op0                      = {Type::Reverse,
-           inShape0,
-           Dimensions(p.mapBackward(oldReverse.attr().dimensions().get()))};
+                                inShape0,
+                                Dimensions(p.mapBackward(oldReverse.attr().dimensions().get()))};
     op1                      = oldDimShuffle;
     return true;
   }

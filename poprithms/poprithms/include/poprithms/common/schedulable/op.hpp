@@ -31,12 +31,12 @@ class Graph;
 class Op : public common::multiout::Op {
 
 public:
-  virtual ~Op() = default;
+  virtual ~Op()             = default;
   Op &operator=(const Op &) = default;
-  Op &operator=(Op &&) = default;
-  Op(const Op &)       = default;
-  Op(Op &&)            = default;
-  Op()                 = delete;
+  Op &operator=(Op &&)      = default;
+  Op(const Op &)            = default;
+  Op(Op &&)                 = default;
+  Op()                      = delete;
 
   /** All Op member variables */
   struct State {

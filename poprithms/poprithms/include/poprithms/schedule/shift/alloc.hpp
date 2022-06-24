@@ -30,7 +30,7 @@ public:
   Alloc(Alloc &&)      = default;
 
   Alloc &operator=(const Alloc &) = default;
-  Alloc &operator=(Alloc &&) = default;
+  Alloc &operator=(Alloc &&)      = default;
 
   ~Alloc() = default;
   Alloc()  = delete;

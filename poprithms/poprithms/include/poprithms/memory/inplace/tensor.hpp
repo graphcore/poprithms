@@ -50,11 +50,11 @@ public:
   /** Create a Constant Tensor in a Graph */
   static Tensor constant(Graph &, const Shape &);
 
-  Tensor()        = delete;
+  Tensor()                          = delete;
   Tensor &operator=(const Tensor &) = default;
-  Tensor &operator=(Tensor &&) = default;
-  Tensor(const Tensor &)       = default;
-  Tensor(Tensor &&)            = default;
+  Tensor &operator=(Tensor &&)      = default;
+  Tensor(const Tensor &)            = default;
+  Tensor(Tensor &&)                 = default;
 
   bool operator==(const Tensor &rhs) const {
     return id() == rhs.id() && graph_ == rhs.graph_;

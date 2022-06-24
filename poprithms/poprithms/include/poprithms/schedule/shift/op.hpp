@@ -30,7 +30,7 @@ public:
   Op(Op &&)      = default;
 
   Op &operator=(const Op &) = default;
-  Op &operator=(Op &&) = default;
+  Op &operator=(Op &&)      = default;
 
   ~Op() = default;
   Op()  = delete;

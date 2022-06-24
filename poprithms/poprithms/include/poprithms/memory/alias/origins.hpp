@@ -37,9 +37,9 @@ public:
    * */
   Origins(const Shape &sh) : shape(sh) {}
 
-  Origins(Origins &&)      = default;
-  Origins(const Origins &) = default;
-  Origins &operator=(Origins &&) = default;
+  Origins(Origins &&)                 = default;
+  Origins(const Origins &)            = default;
+  Origins &operator=(Origins &&)      = default;
   Origins &operator=(const Origins &) = default;
 
   /** Register an allocation.

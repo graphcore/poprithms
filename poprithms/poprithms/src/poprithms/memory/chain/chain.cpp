@@ -743,7 +743,7 @@ Chain::Chain(const Chain &) = default;
 Chain::Chain(Chain &&)      = default;
 
 Chain &Chain::operator=(const Chain &) = default;
-Chain &Chain::operator=(Chain &&) = default;
+Chain &Chain::operator=(Chain &&)      = default;
 
 void Chain::append(const Chain &rhs) {
 

@@ -95,10 +95,10 @@ class Graph : public common::multiout::Graph {
 
 public:
   virtual ~Graph() override;
-  Graph()              = default;
-  Graph(Graph &&)      = default;
-  Graph(const Graph &) = default;
-  Graph &operator=(Graph &&) = default;
+  Graph()                         = default;
+  Graph(Graph &&)                 = default;
+  Graph(const Graph &)            = default;
+  Graph &operator=(Graph &&)      = default;
   Graph &operator=(const Graph &) = default;
 
   void verifyMultioutDerivedGraphValid() const final {}

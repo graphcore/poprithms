@@ -89,7 +89,7 @@ public:
   ScheduledGraph(ScheduledGraph &&)      = default;
 
   ScheduledGraph &operator=(const ScheduledGraph &) = default;
-  ScheduledGraph &operator=(ScheduledGraph &&) = default;
+  ScheduledGraph &operator=(ScheduledGraph &&)      = default;
 
   ScheduledGraph(Graph &&,
                  const Settings &,

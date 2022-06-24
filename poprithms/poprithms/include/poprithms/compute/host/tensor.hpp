@@ -1417,10 +1417,10 @@ public:
   OptionalTensor() : t(Tensor::int32(0)), isSet_(false) {}
   OptionalTensor(const Tensor &t_) : t(t_), isSet_(true) {}
   OptionalTensor(Tensor &&t_) : t(std::move(t_)), isSet_(true) {}
-  OptionalTensor(const OptionalTensor &) = default;
-  OptionalTensor(OptionalTensor &&)      = default;
+  OptionalTensor(const OptionalTensor &)            = default;
+  OptionalTensor(OptionalTensor &&)                 = default;
   OptionalTensor &operator=(const OptionalTensor &) = default;
-  OptionalTensor &operator=(OptionalTensor &&) = default;
+  OptionalTensor &operator=(OptionalTensor &&)      = default;
 
   /** Return the Tensor t */
   const Tensor &value() const;

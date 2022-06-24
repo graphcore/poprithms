@@ -38,7 +38,7 @@ public:
   Mapper(Mapper &&)      = default;
 
   Mapper &operator=(const Mapper &) = default;
-  Mapper &operator=(Mapper &&) = default;
+  Mapper &operator=(Mapper &&)      = default;
 
   virtual ~Mapper() = default;
 

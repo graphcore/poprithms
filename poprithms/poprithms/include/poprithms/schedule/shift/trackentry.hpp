@@ -18,7 +18,7 @@ public:
   TrackEntry(TrackEntry &&)      = default;
 
   TrackEntry &operator=(const TrackEntry &) = default;
-  TrackEntry &operator=(TrackEntry &&) = default;
+  TrackEntry &operator=(TrackEntry &&)      = default;
 
   // when registered
   ScheduleIndex entryTime;

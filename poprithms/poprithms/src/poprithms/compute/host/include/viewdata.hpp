@@ -154,10 +154,10 @@ public:
         rowMajorOriginDataIndices(std::move(indices_)),
         rowMajorOriginDataOffsets(std::move(offsets_)) {}
 
-  ViewData(const ViewData &) = default;
-  ViewData(ViewData &&)      = default;
+  ViewData(const ViewData &)            = default;
+  ViewData(ViewData &&)                 = default;
   ViewData &operator=(const ViewData &) = default;
-  ViewData &operator=(ViewData &&) = default;
+  ViewData &operator=(ViewData &&)      = default;
 
   ViewData(std::shared_ptr<const OriginData<T>> rm,
            std::vector<int64_t> &&offsets_)

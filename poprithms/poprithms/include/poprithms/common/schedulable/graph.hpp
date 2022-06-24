@@ -45,10 +45,10 @@ using common::multiout::TensorIds;
 class Graph : public common::multiout::Graph {
 
 public:
-  Graph()              = default;
-  Graph(Graph &&)      = default;
-  Graph(const Graph &) = default;
-  Graph &operator=(Graph &&) = default;
+  Graph()                         = default;
+  Graph(Graph &&)                 = default;
+  Graph(const Graph &)            = default;
+  Graph &operator=(Graph &&)      = default;
   Graph &operator=(const Graph &) = default;
   virtual ~Graph() override       = default;
 

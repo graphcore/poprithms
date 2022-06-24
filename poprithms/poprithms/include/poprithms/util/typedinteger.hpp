@@ -40,10 +40,10 @@ class TypedIntegerBase {};
 
 template <char T, typename INT> class TypedInteger : public TypedIntegerBase {
 public:
-  TypedInteger()                      = default;
-  TypedInteger(TypedInteger &&x)      = default;
-  TypedInteger(const TypedInteger &x) = default;
-  TypedInteger &operator=(TypedInteger &&x) = default;
+  TypedInteger()                                 = default;
+  TypedInteger(TypedInteger &&x)                 = default;
+  TypedInteger(const TypedInteger &x)            = default;
+  TypedInteger &operator=(TypedInteger &&x)      = default;
   TypedInteger &operator=(const TypedInteger &x) = default;
 
   template <typename INT2> TypedInteger(INT2 v_) : v(static_cast<INT>(v_)) {

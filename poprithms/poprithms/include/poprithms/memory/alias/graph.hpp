@@ -65,11 +65,11 @@ private:
 class Graph {
 
 public:
-  Graph()              = default;
-  Graph(const Graph &) = default;
-  Graph(Graph &&)      = default;
+  Graph()                         = default;
+  Graph(const Graph &)            = default;
+  Graph(Graph &&)                 = default;
   Graph &operator=(const Graph &) = default;
-  Graph &operator=(Graph &&) = default;
+  Graph &operator=(Graph &&)      = default;
 
   // defined in source file to support members which are pointers to forward
   // declared Classes (Node).

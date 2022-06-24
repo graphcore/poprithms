@@ -32,7 +32,7 @@ public:
   TensorInfo(TensorInfo &&)      = default;
 
   TensorInfo &operator=(const TensorInfo &) = default;
-  TensorInfo &operator=(TensorInfo &&) = default;
+  TensorInfo &operator=(TensorInfo &&)      = default;
 
   TensorInfo()  = delete;
   ~TensorInfo() = default;

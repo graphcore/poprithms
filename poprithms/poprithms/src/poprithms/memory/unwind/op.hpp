@@ -58,10 +58,10 @@ public:
 
   virtual ~Op();
   Op &operator=(const Op &) = default;
-  Op &operator=(Op &&) = default;
-  Op(const Op &)       = default;
-  Op(Op &&)            = default;
-  Op()                 = delete;
+  Op &operator=(Op &&)      = default;
+  Op(const Op &)            = default;
+  Op(Op &&)                 = default;
+  Op()                      = delete;
 
   Op(const State &ob)
       : common::multiout::Op(ob.baseState),

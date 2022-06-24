@@ -48,7 +48,7 @@ public:
   Shape(Shape &&)      = default;
 
   Shape &operator=(const Shape &) = default;
-  Shape &operator=(Shape &&) = default;
+  Shape &operator=(Shape &&)      = default;
 
   Shape(const std::initializer_list<int64_t> &s)
       : Shape(std::vector<int64_t>(s)) {}

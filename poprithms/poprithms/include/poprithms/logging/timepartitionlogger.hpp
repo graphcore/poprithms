@@ -29,10 +29,10 @@ public:
   ~ScopedStopwatch();
 
   /** Moveable but not copyable. */
-  ScopedStopwatch(ScopedStopwatch &&) = default;
+  ScopedStopwatch(ScopedStopwatch &&)            = default;
   ScopedStopwatch &operator=(ScopedStopwatch &&) = default;
 
-  ScopedStopwatch(const ScopedStopwatch &) = delete;
+  ScopedStopwatch(const ScopedStopwatch &)            = delete;
   ScopedStopwatch &operator=(const ScopedStopwatch &) = delete;
 
 private:

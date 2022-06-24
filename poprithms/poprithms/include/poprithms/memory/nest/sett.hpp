@@ -120,7 +120,7 @@ public:
   Sett(Sett &&)      = default;
 
   Sett &operator=(const Sett &) = default;
-  Sett &operator=(Sett &&) = default;
+  Sett &operator=(Sett &&)      = default;
 
   /**
    * Construct a Sett from a sequence of Stripes

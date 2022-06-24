@@ -36,7 +36,7 @@ public:
   SubGraphId(SubGraphId &&)      = default;
 
   SubGraphId &operator=(const SubGraphId &) = default;
-  SubGraphId &operator=(SubGraphId &&) = default;
+  SubGraphId &operator=(SubGraphId &&)      = default;
 
   /**
    * methods to return SugGraphId as different integer types.

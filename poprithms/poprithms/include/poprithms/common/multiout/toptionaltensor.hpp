@@ -28,11 +28,11 @@ public:
    * */
   TOptionalTensor() = default;
 
-  ~TOptionalTensor()                       = default;
-  TOptionalTensor(const TOptionalTensor &) = default;
-  TOptionalTensor(TOptionalTensor &&)      = default;
+  ~TOptionalTensor()                                  = default;
+  TOptionalTensor(const TOptionalTensor &)            = default;
+  TOptionalTensor(TOptionalTensor &&)                 = default;
   TOptionalTensor &operator=(const TOptionalTensor &) = default;
-  TOptionalTensor &operator=(TOptionalTensor &&) = default;
+  TOptionalTensor &operator=(TOptionalTensor &&)      = default;
 
   /**
    * Construct an optional tensor from tensor #tensor.

@@ -33,7 +33,7 @@ public:
   InitialValues(InitialValues &&rhs)      = default;
 
   InitialValues &operator=(const InitialValues &) = default;
-  InitialValues &operator=(InitialValues &&) = default;
+  InitialValues &operator=(InitialValues &&)      = default;
 
   /**
    * Set the initial value of output #o for replica #replica to #initVal.

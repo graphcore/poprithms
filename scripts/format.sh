@@ -30,9 +30,9 @@ PROC_COUNT=9
 if ! command -v gc-clang-format &> /dev/null
 then
 cf_version=$(python3 get_clang_format_version.py)
-if [[ "${cf_version}" -lt 13 ]];
+if [[ "${cf_version}" -lt 14 ]];
 then 
-echo "gc-clang-format, or a clang-format version greater than 13.0.0, must be used to format poprithms C++ code."
+echo "gc-clang-format, or a clang-format version greater than 14.0.0, must be used to format poprithms C++ code."
 exit
 fi
 printf "  -->  Inplace clang-formatting all .cpp and .hpp files\n"

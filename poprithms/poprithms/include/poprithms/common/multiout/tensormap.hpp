@@ -30,7 +30,7 @@ public:
   TensorMap(std::vector<std::vector<Value>> &&v) : values(std::move(v)) {}
   TensorMap() = default;
 
-  TensorMap &operator=(TensorMap &&) = default;
+  TensorMap &operator=(TensorMap &&)      = default;
   TensorMap &operator=(const TensorMap &) = default;
 
   TensorMap(const TensorMap &) = default;

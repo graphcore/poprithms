@@ -202,9 +202,9 @@ SubGraphId Graph::subGraphId(const TensorId &tId) const {
   return subGraphId(tId.opId());
 }
 
-Graph::Graph(Graph &&)      = default;
-Graph::Graph(const Graph &) = default;
-Graph &Graph::operator=(Graph &&) = default;
+Graph::Graph(Graph &&)                 = default;
+Graph::Graph(const Graph &)            = default;
+Graph &Graph::operator=(Graph &&)      = default;
 Graph &Graph::operator=(const Graph &) = default;
 Graph::~Graph()                        = default;
 

@@ -106,7 +106,7 @@ public:
   Region(Region &&)         = default;
 
   Region &operator=(const Region &) = default;
-  Region &operator=(Region &&) = default;
+  Region &operator=(Region &&)      = default;
 
   /**
    * \param shape The rectangular volume which contains this Region
@@ -518,7 +518,7 @@ public:
   DisjointRegions(DisjointRegions &&regs)  = default;
 
   DisjointRegions &operator=(const DisjointRegions &) = default;
-  DisjointRegions &operator=(DisjointRegions &&) = default;
+  DisjointRegions &operator=(DisjointRegions &&)      = default;
 
   bool disjoint(const DisjointRegions &rhs) const;
 

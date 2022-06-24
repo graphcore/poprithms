@@ -73,7 +73,7 @@ target_link_libraries(my_library PRIVATE poprithms)
 
 
 ### Formatting the C++ code
-The project uses clang-format version 14.
+The project currently uses clang-format version 14.
 
 ### Troubleshooting
 
