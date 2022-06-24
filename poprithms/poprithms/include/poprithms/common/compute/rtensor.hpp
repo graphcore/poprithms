@@ -30,7 +30,6 @@ class Graph;
 
 using common::compute::DeviceType;
 using common::compute::DeviceTypes;
-using common::compute::ReplicationFactor;
 using common::multiout::OpId;
 using common::multiout::OpIds;
 using common::multiout::OutIndex;
@@ -50,8 +49,6 @@ using ndarray::TensorInfos;
 using poprithms::compute::host::CommutativeOp;
 using poprithms::ndarray::Dimension;
 using poprithms::ndarray::Dimensions;
-using poprithms::ndarray::Offset;
-using poprithms::ndarray::Offsets;
 using poprithms::util::Permutation;
 using program::callstack::CallEvent;
 
@@ -197,11 +194,49 @@ public:
   T reshape_(const Shape &s) const;
 
   /**
+   * \return This tensor, copied and reshaped to have shape #s.
+   * */
+  T reshape(const Shape &s) const { return reshape_(s).copy(); }
+
+  /**
+   * Utility tensor reshaping operations. As usual, the methods which have
+   * suffix '_' are aliasing. See the equivalent ndarray::Shape methods for
+   * more information on the shapes of the resulting tensors.
+   * */
+  T flatten() const { return reshape(shape().flatten()); }
+  T flatten_() const { return reshape_(shape().flatten()); }
+  T squeeze() const { return reshape(shape().squeeze()); }
+  T squeeze_() const { return reshape_(shape().squeeze()); }
+  T squeeze(const std::vector<uint64_t> &dims) const;
+  T squeeze_(const std::vector<uint64_t> &dims) const;
+  T unsqueeze(uint64_t d) const { return reshape(shape().unsqueeze(d)); }
+  T unsqueeze_(uint64_t d) const { return reshape_(shape().unsqueeze(d)); }
+  T flattenTo2d(uint64_t d) const { return reshape(shape().flattenTo2d(d)); }
+  T flattenTo2d_(uint64_t d) const {
+    return reshape_(shape().flattenTo2d(d));
+  }
+
+  /**
    * \return An alias of this tensor. The returned tensor has the same rank as
    *         this tensor, but with the dimensions of this tensor permuted by
    *         #permutation.
    * */
   T dimShuffle_(const Permutation &permutation) const;
+
+  /**
+   * \return A copy of this tensor, with its dimensions shuffled.
+   * */
+  T dimShuffle(const Permutation &p) const { return dimShuffle_(p).copy(); }
+
+  /**
+   * Utility tensor dimension shuffling methods. As usual, we use the suffix
+   * '_' to denote aliasing tensor methods. See the Permutation class for more
+   * information on which dimensions are shuffled with each of these methods.
+   * */
+  T dimShuffleFinalTwo() const;
+  T dimShuffleFinalTwo_() const;
+  T dimRoll(uint64_t from, uint64_t to) const;
+  T dimRoll_(uint64_t from, uint64_t to) const;
 
   /**
    * \return An alias of tensor (that it is an alias is implied by the '_'
@@ -221,6 +256,13 @@ public:
   T reverse_(uint64_t d) const { return reverse_(Dimensions({d})); }
 
   /**
+   * Reverse this tensor, and copy it. See the equivalent aliasing '_' methods
+   * for more information.
+   * */
+  T reverse(uint64_t d) const;
+  T reverse(const Dimensions &dims) const;
+
+  /**
    * Broadcast this tensor along the dimensions necessary to create a tensor
    * of shape #expandedShape.
    *
@@ -231,11 +273,102 @@ public:
    * */
   T expand_(const Shape &expandedShape) const;
 
+  T expand(const Shape &s) const { return expand_(s).copy(); }
+
+  /**
+   * Expand this tensor along a single dimension #dimension. The dimension
+   * #dimensions of this tensor must be a singleton, and it is expanded to
+   * size #N.
+   * */
+  T broadcast_(int64_t N, uint64_t dimension) const {
+    return expand_(shape().broadcast(N, dimension));
+  }
+
+  /**
+   * Concatenate the tensors #ts along dimension #axis.
+   * */
+  static T concat_(const std::vector<T> &ts, uint64_t axis);
+
   /**
    * \return A scalar Tensor, whose value is the reduction of all elements
    *         in the Tensor using the commutative op #cop.
    */
 
+  /**
+   * Tensor slicing operations. As usual, the suffix '_' denotes aliasing
+   * view-changes.
+   *
+   * \param lower The lower bounds of the slice.
+   *
+   * \param upper The upper bounds of the slice.
+   *
+   * #lower and #upper must be of the same rank as this tensor. The resulting
+   * slice will have shape '#upper - #lower'. For each dimension of this
+   * dimension #d, lower[d] < dim(d) <= upper[d].
+   * */
+  T slice(const Lower &, const Upper &) const;
+  T slice_(const Lower &, const Upper &) const;
+
+  /**
+   * Slice in a single dimension #d.
+   * */
+  T slice(Dimension d, int64_t lower, int64_t upper) const;
+  T slice_(Dimension d, int64_t lower, int64_t upper) const;
+
+  /**
+   * Slice along a subset of dimensions, #dims.
+   * */
+  T slice(const Dimensions &dims,
+          const std::vector<uint64_t> &lower,
+          const std::vector<uint64_t> &upper) const;
+
+  T slice_(const Dimensions &dims,
+           const std::vector<uint64_t> &,
+           const std::vector<uint64_t> &) const;
+
+  /**
+   * Slice this tensor in dimension 0, returning a tensor which is 1 rank
+   * lower than this tensor.
+   * */
+  T at(int64_t d) const {
+    return slice(Dimension(0), d, d + 1).squeeze_({0});
+  }
+  T at_(int64_t d) const {
+    return slice_(Dimension(0), d, d + 1).squeeze_({0});
+  }
+
+  /**
+   * Pad this tensor with a constant, broadcast zero. Example.
+   *
+   * Suppose that this tensor is 2x3 with values
+   *
+   *  [[1 2 3]
+   *   [4 5 6]]
+   *
+   * and suppose lower is (0,1) and upper is (0,0). Then the resulting tensor
+   * has values
+   *
+   * [[0 1 2 3]
+   *  [0 4 5 6]].
+   *  */
+  T padWithBroadcastConstZero_(const Lower &lower, const Upper &upper) const;
+
+  /**
+   * Copy this tensor to the device #deviceId, which should be a device of the
+   * same type as this tensor's.
+   * */
+  T copy(DeviceId deviceId) const;
+
+  /**
+   * Create a copy of this tensor on the same device.
+   * */
+  T copy() const { return copy(deviceId()); }
+  T identity() const { return copy(); }
+
+  /**
+   * Reduce this tensor to a rank-0 tensor (a scalar) by using the reduction
+   * operation #cop.
+   * */
   T reduce(CommutativeOp cop) const;
 
   /**
@@ -310,7 +443,7 @@ public:
   Graph &graph() const { return *pGraph_; }
 
   /**
-   * Methods to generate Tensors which are the same as this tensor except for
+   * Methods to generate tensors which are the same as this tensor except for
    * one or several of value, device, & subgraph.
    *
    * These methods are similar to the PyTorch "new" method:
@@ -339,6 +472,48 @@ public:
    * Create a constant tensor with the same device and type as this tensor.
    * */
   T constant(SubGraphId, double) const;
+
+  /**
+   * Create a new variable (non-constant) tensor like this tensor, but on
+   * device #devId.
+   * */
+  T variable(DeviceId devId) const;
+
+  /**
+   * Create a new variable (non-constant) tensor like this tensor, but of
+   * numerical type #dtype.
+   * */
+  T variable(DType dtype) const;
+
+  /**
+   * Create a new variable (non-constant) tensor like this tensor, but of
+   * numerical type #dtype and shape #shape.
+   * */
+  T variable(DType dtype, const Shape &shape) const;
+
+  /**
+   * Create a new variable (non-constant) tensor like this tensor, but in the
+   * sub-graph #sgId.
+   * */
+  T variable(SubGraphId sgId) const;
+
+  /**
+   * Create a new variable (non-constant) tensor like this tensor, but of
+   * shape #shape.
+   * */
+  T variable(const Shape &shape) const;
+
+  /**
+   * Create a new variable (non-constant) tensor like this tensor, but of
+   * shape #shape and on device #deviceId.
+   * */
+  T variable(const Shape &shape, DeviceId deviceId) const;
+
+  /**
+   * Create a new variable (non-constant) tensor like this tensor in every
+   * respect.
+   * */
+  T variable() const;
 
   /**
    * Binary elementwise operations using numpy broadcasting rules, see
@@ -472,6 +647,10 @@ template <typename T> T operator/(const RTensor<T> &a, const RTensor<T> &b) {
 
 template <typename T> T operator-(const RTensor<T> &a, const RTensor<T> &b) {
   return a.sub(b);
+}
+
+template <typename T> T concat_(const std::vector<T> &ts, uint64_t axis) {
+  return RTensor<T>::concat_(ts, axis);
 }
 
 } // namespace compute

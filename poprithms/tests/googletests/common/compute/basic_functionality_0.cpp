@@ -172,6 +172,10 @@ TEST(CommonComputeBasicFunctionality, InsertViewChangeIdentity) {
   t0.reshape_(t0.shape());
   EXPECT_EQ(g.nOps(), 3);
 
+  // Identity slice:
+  t0.slice_({0, 0, 0, 0, 0}, {2, 1, 3, 1, 4});
+  EXPECT_EQ(g.nOps(), 3);
+
   // Check that dimensions are canonicalized correctly. Even number of 4's,
   // odd number of 2's.
   auto foo = t0.reverse_(Dimensions({2, 4, 2, 2, 4}));
@@ -205,4 +209,14 @@ TEST(CommonComputeBasicFunctionality, Scheduler) {
     t0.reshape_({1, 1, 1}).expand_({1, 2, 3, 4, 5});
     EXPECT_EQ(Scheduler::vanillaComputeSchedule(g, sg0).size(), 0);
   }
+}
+
+TEST(CommonComputeBasicFunctionality, BadConcats0) {
+  test::Graph g;
+  auto sg0 = g.createSubGraph("sg0");
+  auto v0  = sg0.variable(DType::Int32, {3, 4}, g.host());
+  auto v1  = sg0.variable(DType::Int32, {4, 5}, g.host());
+  EXPECT_THROW(Tensor::concat_({v0, v1}, 0), poprithms::error::error);
+  EXPECT_THROW(Tensor::concat_({v0, v0}, 2), poprithms::error::error);
+  EXPECT_THROW(Tensor::concat_({}, 0), poprithms::error::error);
 }

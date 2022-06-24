@@ -25,7 +25,7 @@ using poprithms::util::Permutation;
  * */
 class ViewChange_ : public WithoutCalleesTensorCentric {
 public:
-  ViewChange_(const Op::State &s) : WithoutCalleesTensorCentric(s) {}
+  ViewChange_(const State &s) : WithoutCalleesTensorCentric(s) {}
 
   void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
   void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
@@ -71,54 +71,23 @@ public:
   bool gradientPropagates(OutIndex, InIndex) const final { return true; }
 
   /**
-   * Map the regions #regs forward through this op. There is one Region per
-   * input, so the size of regs is the same as the number of inputs of this
-   * op.
-   *
-   * \sa poprithms::nest::Region
-   * */
-  virtual DisjointRegions apply(const std::vector<Region> &regs) const = 0;
-
-  /**
    * Only RefFrom ops can have root references which are not the output
    * tensors themselves.
    * */
   TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
 
-  void resetRootRef(OutIndex, const TensorId &) { invalid(); }
-};
-
-/**
- * A view-change op with a single input (currently all view-changing ops
- * except for Concat which has a variadic number of inputs).
- * */
-class UnaryViewChange_ : public ViewChange_ {
-public:
-  UnaryViewChange_(const State &s) : ViewChange_(s) {}
-
-  /**
-   * As there is only 1 input to this op, #regions will always be a vector
-   * with just 1 Region. The logic of mapping 1 input region to an output
-   * region is implemented in #applyTo, which this method calls.
-   * */
-  DisjointRegions apply(const std::vector<Region> &regions) const final;
-
-  /**
-   * Map the input region #reg to an output region.
-   * */
-  virtual DisjointRegions applyTo(const Region &reg) const = 0;
+  void resetRootRef(OutIndex, const TensorId &) final { invalid(); }
 };
 
 /**
  * Permute the dimensions of a tensor.
  * */
-class DimShuffle_ final : public UnaryViewChange_ {
+class DimShuffle_ final : public ViewChange_ {
 public:
   /**
    * \param p The permutation to apply to the input tensor.
    * */
-  DimShuffle_(const State &s, const Permutation &p)
-      : UnaryViewChange_(s), p_(p) {}
+  DimShuffle_(const State &s, const Permutation &p) : ViewChange_(s), p_(p) {}
 
   /**
    * The permutation to apply to the input tensor.
@@ -126,8 +95,6 @@ public:
   const Permutation &permutation() const { return p_; }
 
   std::string typeString() const final;
-
-  DisjointRegions applyTo(const Region &) const final;
 
   void growAliasMapper(MemoryAliasMapper &) const final;
 
@@ -156,7 +123,7 @@ public:
     initializeReplicatedSimOut(htm);
   }
 
-  UpOp cloneWithState(const Op::State &) const final;
+  UpOp cloneWithState(const State &) const final;
 
   /**
    * The gradient of a dimension shuffle operation is the inverse dimension
@@ -177,9 +144,9 @@ private:
 /**
  * Reshape a tensor.
  * */
-class Reshape_ final : public UnaryViewChange_ {
+class Reshape_ final : public ViewChange_ {
 public:
-  Reshape_(const Op::State &s) : UnaryViewChange_(s) {}
+  Reshape_(const State &s) : ViewChange_(s) {}
 
   std::string typeString() const final { return "Reshape_"; }
 
@@ -191,11 +158,9 @@ public:
 
   void computeDerivedVerifyValid() const final;
 
-  DisjointRegions applyTo(const Region &) const final;
-
   OptionalTensors bprop(const GradOpIns &) const final;
 
-  std::unique_ptr<Op> cloneWithState(const Op::State &) const final;
+  std::unique_ptr<Op> cloneWithState(const State &) const final;
 
   void initializeSimOut(SimTensorMap &htm) const final {
     initializeReplicatedSimOut(htm);
@@ -208,8 +173,8 @@ public:
 private:
   /**
    * As this op class has no additional attributes, any reshape op which is
-   * equivalent to it at the base op level (compute::Op) will always be
-   * equivalent to it overall.
+   * equivalent to it at the base op level (common::compute::Op) will always
+   * be equivalent to it overall.
    * */
   bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
 };
@@ -217,10 +182,10 @@ private:
 /**
  * Reverse a tensor along one or several dimensions.
  * */
-class Reverse_ final : public UnaryViewChange_ {
+class Reverse_ final : public ViewChange_ {
 
 public:
-  Reverse_(const Op::State &, const Dimensions &);
+  Reverse_(const State &, const Dimensions &);
 
   /**
    * The dimensions to reverse.
@@ -230,11 +195,6 @@ public:
   std::string typeString() const final;
 
   void computeDerivedVerifyValid() const final;
-
-  /**
-   * Reverse the dimensions of the Region #r.
-   * */
-  DisjointRegions applyTo(const Region &r) const final;
 
   /**
    * Insert a reverse op into the alias::Graph of #mam.
@@ -255,7 +215,7 @@ public:
                          const Shape &outShape,
                          const Dimensions &revDims);
 
-  std::unique_ptr<Op> cloneWithState(const Op::State &) const final;
+  std::unique_ptr<Op> cloneWithState(const State &) const final;
 
   /**
    * The gradient of a reversal operation is the same reversal operation.
@@ -271,9 +231,9 @@ private:
 /**
  * Exand a tensor. This is a broadcasting view-change.
  * */
-class Expand_ final : public UnaryViewChange_ {
+class Expand_ final : public ViewChange_ {
 public:
-  Expand_(const Op::State &s);
+  Expand_(const State &s);
 
   void computeDerivedVerifyValid() const final;
 
@@ -285,15 +245,13 @@ public:
 
   HostTensors initializeOut(const HostTensors &) const final;
 
-  UpOp cloneWithState(const Op::State &s) const final;
+  UpOp cloneWithState(const State &s) const final;
 
   void initializeSimOut(SimTensorMap &htm) const final {
     initializeReplicatedSimOut(htm);
   }
 
   void growAliasMapper(MemoryAliasMapper &b) const final;
-
-  DisjointRegions applyTo(const Region &) const final;
 
   /**
    * Perform a sum-reduction of the gradient of the output, reducing to the
@@ -311,7 +269,137 @@ private:
   // This op introduces no additional attributes, so this method always
   // returns true (it is only called when the base classes have been
   // established to be equivalent).
-  bool computeTypeSpecificEqualTo(const compute::Op &) const final;
+  bool computeTypeSpecificEqualTo(const Op &) const final;
+};
+
+/**
+ * Statically slice a tensor.
+ * */
+class Slice_ final : public ViewChange_ {
+public:
+  /**
+   * \param lower  The lower bounds of the slice. The rank of this vector must
+   *               be the same as the input tensor's.
+   *
+   * \param upper  The upper bounds of the slice. The rank of this vector must
+   *               be the same as the input tensor's.
+   *
+   * The returned tensor will have shape 'lower - upper'. That is, all
+   * elements between the bounds #lower and #upper are retained.
+   * */
+  Slice_(const State &s, const Lower &lower, const Upper &upper);
+
+  /**
+   * The lower bounds of the slice.
+   * */
+  const Lower &lower() const { return lower_; }
+
+  /**
+   * The upper bounds of the slice.
+   * */
+  const Upper &upper() const { return upper_; }
+
+private:
+  /**
+   * \return true if #sliceOp has the same lower and upper bounds. Note that
+   *         this method is only called when it is known that #sliceOp is
+   *         of type Slice.
+   * */
+  bool computeTypeSpecificEqualTo(const Op &sliceOp) const final;
+
+  std::string typeString() const final;
+
+  void computeDerivedVerifyValid() const;
+
+  HostTensors initializeOut(const HostTensors &) const final;
+
+  void initializeSimOut(SimTensorMap &htm) const final {
+    initializeReplicatedSimOut(htm);
+  }
+
+  /**
+   * Backpropagation of the slice op. The current implementation pads the
+   * sliced tensor with a broadcast zero constant, back up to the shape of the
+   * slice's input. This might need changing if it required that the gradient
+   * is non-constant.
+   * */
+  OptionalTensors bprop(const GradOpIns &) const final;
+
+  void growAliasMapper(MemoryAliasMapper &b) const final;
+
+  std::unique_ptr<Op> cloneWithState(const State &s) const final;
+
+  std::vector<uint64_t> lower_u64() const {
+    return {lower_.cbegin(), lower_.cend()};
+  }
+  std::vector<uint64_t> upper_u64() const {
+    return {upper_.cbegin(), upper_.cend()};
+  }
+
+private:
+  Lower lower_;
+  Upper upper_;
+};
+
+/**
+ * Concatenate tensors together along a specified dimension.
+ * */
+class Concat_ final : public ViewChange_ {
+public:
+  Concat_(const State &s, uint64_t axis)
+      : ViewChange_(s), axis_(axis),
+        partitionPoints_(Shape::concatPartitionPoints(s.inShapes(), axis)) {}
+
+  /**
+   * \return The axis of concatenation.
+   * */
+  uint64_t axis() const { return axis_; }
+
+  /**
+   * \return To slice the input at index #i out of the concatenated tensor,
+   *         these are the lower bounds to use.
+   * */
+  std::vector<int64_t> lowerSlice(InIndex) const;
+
+  /**
+   * \return To slice the input at index #i out of the concatenated tensor,
+   *         these are the upper bounds to use.
+   * */
+  std::vector<int64_t> upperSlice(InIndex) const;
+
+  /**
+   * Given a tensor #toSlice which is the same shape as the output of this op,
+   * slice it into tensors which are the same shapes as this op's input
+   * tensors.
+   * */
+  Tensors slice_(const Tensor &toSlice) const;
+
+private:
+  /**
+   * Slice the gradient of the output into tensors with identical shapes to
+   * this ops inputs.
+   * */
+  OptionalTensors bprop(const GradOpIns &) const final;
+
+  void computeDerivedVerifyValid() const final;
+
+  void growAliasMapper(MemoryAliasMapper &b) const final;
+
+  std::unique_ptr<Op> cloneWithState(const State &) const final;
+  std::string typeString() const final;
+  bool computeTypeSpecificEqualTo(const compute::Op &rhs) const final;
+
+  HostTensors initializeOut(const HostTensors &) const final;
+
+  void initializeSimOut(SimTensorMap &htm) const final {
+    initializeReplicatedSimOut(htm);
+  }
+
+  uint64_t axis_;
+
+  // the indices along the axis of concatenation where the concatenated
+  // Tensors touch.
+  std::vector<int64_t> partitionPoints_;
 };
 
 } // namespace compute

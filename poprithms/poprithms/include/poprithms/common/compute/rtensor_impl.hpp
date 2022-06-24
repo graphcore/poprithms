@@ -213,6 +213,193 @@ template <typename T> T RTensor<T>::add(const RTensor<T> &rhs) const {
   return createWithNumpyShape<Add>({id(), rhs.id()});
 }
 
+template <typename T>
+T RTensor<T>::padWithBroadcastConstZero_(const Lower &l,
+                                         const Upper &u) const {
+
+  auto z = constant(0.);
+
+  // progressively pad the tensor, one dimension at a time. The padding on all
+  // edges is all an alias of the constant 'z' above.
+
+  auto t = T(id(), &graph());
+  for (uint64_t d = 0; d < rank_u64(); ++d) {
+
+    // concatate the tensors (lower_padding, t, upper_padding). If the padding
+    // is zero, then leave it off.
+    std::vector<T> toConcat;
+    if (l.at(d) > 0) {
+      toConcat.push_back(z.expand_(t.shape().resizeSingleDim(l.at(d), d)));
+    }
+
+    toConcat.push_back(t);
+
+    if (u.at(d) > 0) {
+      toConcat.push_back(z.expand_(t.shape().resizeSingleDim(u.at(d), d)));
+    }
+
+    t = concat_(toConcat, d);
+  }
+
+  return t;
+}
+
+template <typename T>
+T RTensor<T>::slice_(const Lower &l, const Upper &u) const {
+
+  const auto outShape = shape().slice(l, u);
+
+  // Check for a slice which doesn't slice anything out. The second condition
+  // here is to confirm that the bounds are valid (lower is 0s).
+  if (outShape == shape() && Shape(u) == shape()) {
+    return {id(), &graph()};
+  }
+
+  return createUnaryWithNewShape<Slice_>(outShape, l, u);
+}
+
+template <typename T>
+T RTensor<T>::slice_(const Dimensions &dims,
+                     const std::vector<uint64_t> &starts_,
+                     const std::vector<uint64_t> &ends_) const {
+  auto lu = shape().getFullSliceBounds(dims, starts_, ends_);
+  return slice_(lu.first, lu.second);
+}
+
+template <typename T>
+T RTensor<T>::slice(const Dimensions &a,
+                    const std::vector<uint64_t> &b,
+                    const std::vector<uint64_t> &c) const {
+  return slice_(a, b, c).copy();
+}
+
+template <typename T> T RTensor<T>::copy(DeviceId target) const {
+
+  const auto targetType = graph().device(target).deviceType();
+  if (targetType != deviceType()) {
+    std::ostringstream oss;
+    oss << "Tensor::copy(target=" << target
+        << ") is invalid, as this tensor, " << id()
+        << " has a different device type. "
+        << "This method can only copy Ipu->Ipu. " << deviceType() << "->"
+        << targetType;
+    throw poprithms::error::error("common::compute", oss.str());
+  }
+
+  auto targetTensor = variable(target);
+  return targetTensor.copyFrom_(*this);
+}
+
+template <typename T>
+T RTensor<T>::slice(const Lower &l, const Upper &u) const {
+  return slice_(l, u).copy();
+}
+
+template <typename T>
+T RTensor<T>::slice(Dimension d, int64_t l, int64_t u) const {
+  return slice_(d, l, u).copy();
+}
+
+template <typename T>
+T RTensor<T>::slice_(Dimension d, int64_t l, int64_t u) const {
+  if (l < 0 || u < 0) {
+    std::ostringstream oss;
+    oss << "Invalid call, Tensor::slice_ (Dimension = " << d.get()
+        << ", l = " << l << ", u = " << u << "). "
+        << "The lower (l) and upper (u) bounds must both be non-negative. ";
+    throw poprithms::error::error("common::compute", oss.str());
+  }
+
+  const auto fullSliceBounds = shape().getFullSliceBounds(
+      d, static_cast<uint64_t>(l), static_cast<uint64_t>(u));
+
+  return slice_(std::get<0>(fullSliceBounds), std::get<1>(fullSliceBounds));
+}
+
+template <typename T> T RTensor<T>::reverse(const Dimensions &ds) const {
+  return reverse_(ds).copy();
+}
+
+template <typename T> T RTensor<T>::reverse(uint64_t d) const {
+  return reverse_(d).copy();
+}
+
+template <typename T> T RTensor<T>::dimShuffleFinalTwo() const {
+  return dimShuffle(Permutation::reverseFinalTwo(rank_u64()));
+}
+
+template <typename T>
+T RTensor<T>::dimRoll(uint64_t from, uint64_t to) const {
+  return dimShuffle(Permutation::dimRoll(rank_u64(), {from, to}));
+}
+
+template <typename T>
+T RTensor<T>::dimRoll_(uint64_t from, uint64_t to) const {
+  return dimShuffle_(Permutation::dimRoll(rank_u64(), {from, to}));
+}
+
+template <typename T> T RTensor<T>::dimShuffleFinalTwo_() const {
+  return dimShuffle_(Permutation::reverseFinalTwo(rank_u64()));
+}
+
+template <typename T>
+T RTensor<T>::squeeze(const std::vector<uint64_t> &dims) const {
+  return reshape(shape().squeeze(dims));
+}
+
+template <typename T>
+T RTensor<T>::squeeze_(const std::vector<uint64_t> &dims) const {
+  return reshape_(shape().squeeze(dims));
+}
+
+template <typename T> T RTensor<T>::variable(const Shape &s0) const {
+  return subGraph().variable(dtype(), s0, deviceId());
+}
+
+template <typename T>
+T RTensor<T>::variable(const Shape &s0, DeviceId dId) const {
+  return subGraph().variable(dtype(), s0, dId);
+}
+
+template <typename T> T RTensor<T>::variable(DType t, const Shape &s) const {
+  return subGraph().variable(t, s, deviceId());
+}
+
+template <typename T> T RTensor<T>::variable(SubGraphId sgId) const {
+  return RSubGraph<T>(sgId, graph()).variable(dtype(), shape(), deviceId());
+}
+
+template <typename T> T RTensor<T>::variable() const {
+  return subGraph().variable(dtype(), shape(), deviceId());
+}
+
+template <typename T> T RTensor<T>::variable(DeviceId did) const {
+  return subGraph().variable(dtype(), shape(), did);
+}
+
+template <typename T>
+T RTensor<T>::concat_(const std::vector<T> &ts, uint64_t axis) {
+
+  if (ts.size() == 0) {
+    throw poprithms::error::error(
+        "common::compute", "cannot concatenate empty vector of Tensors");
+  }
+
+  // If there is just 1 tensor being concatenated, return it.
+  if (ts.size() == 1) {
+    return T(ts[0].id(), &ts[0].graph());
+  }
+
+  auto &m  = ts[0].graph();
+  auto ids = TSlickConverter::getIds(ts);
+  auto out = ts[0].template createTensor<Concat_>(
+      ids,
+      {m.tensorInfo(ts[0]).withShape(Shape::concat(m.shapes(ids), axis))},
+      axis);
+
+  return out;
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

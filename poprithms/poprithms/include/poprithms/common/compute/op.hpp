@@ -181,6 +181,7 @@ public:
     const std::vector<TensorIds> derivedRefs;
 
     Shape inShape(uint64_t i) const { return baseState.baseState.inShape(i); }
+    Shapes inShapes() const { return baseState.baseState.inShapes(); }
 
     bool operator==(const State &rhs) const;
     bool operator!=(const State &rhs) const { return !operator==(rhs); }

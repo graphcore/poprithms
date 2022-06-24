@@ -48,13 +48,22 @@ public:
     otIds.reserve(ots.size());
     for (const auto &ot : ots) {
       if (ot.has_value()) {
-        otIds.push_back({ot.value().id()});
+        otIds.push_back(ot.value().id());
       } else {
         // unset tensor id gets mapped to unset tensor.
         otIds.push_back({});
       }
     }
     return otIds;
+  }
+
+  template <typename CT> static TOptionalTensors fromTensors(const CT &ts) {
+    TOptionalTensors opts;
+    opts.reserve(ts.size());
+    for (const auto &t : ts) {
+      opts.push_back(TOptionalTensor(t));
+    }
+    return opts;
   }
 
   /**
