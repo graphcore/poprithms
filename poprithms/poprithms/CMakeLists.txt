@@ -108,10 +108,13 @@ set(common_compute_sources
   ${src_dir}/common/compute/ops/reduce.cpp
   ${src_dir}/common/compute/ops/unaryelementwise.cpp
   ${src_dir}/common/compute/ops/viewchange.cpp
+  ${src_dir}/common/compute/ops/withcallees.cpp
   ${src_dir}/common/compute/ops/withoutcallees.cpp
 )
 add_library(poprithms-common-compute-objlib OBJECT ${common_compute_sources})
 add_library(poprithms-common-compute SHARED
+  $<TARGET_OBJECTS:poprithms-autodiff-automatic-objlib>
+  $<TARGET_OBJECTS:poprithms-autodiff-base-objlib>
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
