@@ -251,6 +251,9 @@ void rapidFireTest0(uint64_t nScopes, uint64_t nSwitches) {
     j += (i * i % 3 + i * (i + 1));
   }
 
+  // Some compilers think j is an unused variable.
+  (void)j;
+
   std::cout << "Getting summary" << std::endl;
 
   std::cout << s.str(0.0) << std::endl;

@@ -21,7 +21,7 @@ namespace alias {
  * tensors in another (external) graph. The tensors in the external graph have
  * ids of template parameter type ExternTensorId.
  *
- * We assume that there are no duplicates in either direction. That is there
+ * We assume that there are no duplicates in either direction. That is, there
  * is at most 1 ExternTensorId for an alias TensorId, and at most 1 alias
  * TensorId for each ExternTensorId.
  *

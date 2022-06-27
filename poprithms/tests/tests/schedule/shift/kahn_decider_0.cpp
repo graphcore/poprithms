@@ -131,7 +131,6 @@ void test1() {
   for (auto fFixed : fracsFixed) {
     KahnDecider::Priorities pris;
     for (uint64_t i = 0; i < g.nOps(); ++i) {
-      // if (foo.opToSchedule(i) < fFixed * g.nOps()) {
       if (i < fFixed * g.nOps()) {
         pris.push_back(
             {OpAddress(i),

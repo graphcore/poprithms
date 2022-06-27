@@ -1176,10 +1176,16 @@ public:
   Tensor abs_() const;
 
   /**
-   * \return a Tensor if the same type as this tensor, which have value +1 if
-   *         it negative, 0 if it is 0, and +1 if it is positive.
+   * Return a tensor of the same type as this tensor, with value
+   *
+   *        -1 if x < 0
+   * f(x) =  0 if x = 0
+   *        +1 if x > 0.
+   *
+   * This method is also referred to as 'signum'.
    * */
   Tensor sign() const;
+  Tensor sign_() const;
 
   /**
    * e (2.71828...) to the power of this Tensor. This method is only available

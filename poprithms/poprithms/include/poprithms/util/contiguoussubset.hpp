@@ -111,7 +111,10 @@ public:
     us.erase(us.cbegin() + currentInsertIndex, us.cend());
   }
 
+  // The number of elements in the remaining subset
   uint64_t nSubset() const { return toFullset.size(); }
+
+  uint64_t nRemoved() const { return isRetainedMask.size() - nSubset(); }
 
   T inSubset(T t) const { return toSubset.at(get_u64(t)); }
 
