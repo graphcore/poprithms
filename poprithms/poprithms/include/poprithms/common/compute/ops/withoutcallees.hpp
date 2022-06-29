@@ -32,6 +32,7 @@ public:
    * callee-subgraph.
    * */
   bool isCopyToCalleeInIndex(InIndex) const final { return false; }
+  uint64_t nInputsCopiedToCallees() const final { return 0ull; }
 
   /**
    * These are all invalid calls for ops which have no callee sub-graphs, and

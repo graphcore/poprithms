@@ -269,6 +269,11 @@ public:
   virtual TensorId srcInCallee(OutIndex o, CalleeIndex ci) const = 0;
 
   /**
+   * \return The sources, one per callee sub-graph, of the output at index #o.
+   * */
+  OptionalTensorIds srcsInCallees(OutIndex o) const;
+
+  /**
    * \param ctId A tensor in the calling sub-graph (an input to this op) and a
    *        callee sub-graph index.
    *
@@ -281,6 +286,16 @@ public:
    *         For ops without any callee sub-graphs, this will always be false.
    * */
   virtual bool isCopyToCalleeInIndex(InIndex i) const = 0;
+
+  /**
+   * The total number of inputs which are copied to callee sub-graphs. For ops
+   * without any callee sub-graphs (\sa WithoutCallees) this will always be
+   * zero.
+   *
+   * This must be the total number of input indices for which
+   * #isCopyToCalleeInIndex is true.
+   * */
+  virtual uint64_t nInputsCopiedToCallees() const = 0;
 
   /**
    * \return The tensor in a callee sub-graph to which the input at index #i
@@ -717,6 +732,22 @@ protected:
    *
    * This method is protected, as it is only ever called into by op
    * implementations of initializeSimOut.
+   *
+   * For most ops, initializing output tensors for the simulator follows this
+   * chain of calls:
+   *
+   *  1) initializeSimOut
+   *       ->
+   *  2)   initializeReplicatedSimOut
+   *       (which inserts a loop over the replication factor)
+   *          ->
+   *  3)      initializeOut
+   *          (the actual implementation of host tensor initialization: it
+   *           might be an alias of an input, or a new allocation.)
+   *
+   * There are exceptions, where this chain is not applicable and so ops
+   * implement initializeSimOut directly. Examples are RefFrom_, and ops which
+   * copy between host and ipu.
    * */
   void initializeReplicatedSimOut(SimTensorMap &simTensors) const;
 

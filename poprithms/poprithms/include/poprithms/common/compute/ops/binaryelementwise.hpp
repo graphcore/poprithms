@@ -382,7 +382,55 @@ public:
   bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
 };
 
+/**
+ * Remainder operation.  Example:
+ *
+ * input 0 : [1 2 3 4]
+ * input 1 : [3]
+ * output  : [1 2 0 1]
+ *
+ * The Remainder op has no attributes. It can have floating point inputs. It
+ * always propagates a zero gradient to its input.
+ *
+ * This is identical to C++ fmod.
+ * */
+class Remainder final
+    : public Attributeless<ZeroAutodiff<BinaryElementwiseOutplace>,
+                           Remainder> {
+public:
+  Remainder(const State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName = "Remainder";
+  void compute(const HostTensors &ins, const HostTensors &outs) const final {
+    outs[0].update_(ins[0].mod(ins[1]));
+  }
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseOutplaceVerifyValid();
+  }
+};
+
+/**
+ * Remainder operation, inplace.
+ * */
+class Remainder_ final
+    : public Attributeless<ZeroAutodiff<BinaryElementwiseInplace_>,
+                           Remainder_> {
+
+public:
+  Remainder_(const State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName = "Remainder_";
+
+  void compute(const HostTensors &ins, const HostTensors &) const final {
+    ins[0].mod_(ins[1]);
+  }
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseInplaceVerifyValid();
+  }
+};
+
 static const constexpr int CopyFromSourceIndex{1};
+
 /**
  * Copy the values from one tensor to another.
  * */

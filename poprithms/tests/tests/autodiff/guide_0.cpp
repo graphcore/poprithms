@@ -372,7 +372,7 @@ void testTraversals0() {
   if (travs.inIndicesTraversed(x4) != InIndices{0, 1}) {
     throw poprithms::test::error(
         "x4's 0'th output is the 'loss'. Both of x4's inputs effect x4's "
-        "0'th output, and are on a path from the target of differentation.");
+        "0'th output, and are on a path from the target of differentiation.");
   }
 
   if (travs.outIndicesTraversed(x4) != OutIndices{0}) {

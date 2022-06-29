@@ -4,12 +4,11 @@
 
 #include <poprithms/autodiff/automatic/gradopin.hpp>
 #include <poprithms/ndarray/shape.hpp>
+#include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
 namespace autodiff {
 namespace automatic {
-
-using poprithms::ndarray::Shape;
 
 /**
  * Helper template class for differentiating log (natural base).
@@ -125,6 +124,64 @@ public:
 };
 
 /**
+ * Differentiation through a matrix multiplication (matmul). The matmul can
+ * follow numpy broadcasting rules except that the inputs must be rank-2 or
+ * greater.
+ *
+ * Example. Consider C = A * B. Where the tensors have shapes:
+ *
+ * C : (3,4,5,6,7)
+ * A : (1,5,6,10)
+ * B : (3,4,1,10,7).
+ *
+ * The gradients of A and B in terms of the gradient of C are easily shown to
+ * be:
+ *
+ * (1)  dA = matmul(dC, B.transpose).reduceSum(A.shape())
+ * (2)  DB = matmul(A.transpose, dC).reduceSum(B.shape())
+ *
+ * where dC is the gradient of C, and X.transpose is X with the final 2
+ * dimensions swapped.
+ * */
+class MatMulAutodiffer {
+
+public:
+  /**
+   * Both the inputs are required (see (1) and (2)).
+   * */
+  static std::vector<InIndex> autodiffRequiredIns() { return {0, 1}; }
+
+  /**
+   * The output of the matmul (C) is not required to compute the gradients of
+   * A and B.
+   * */
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {}; }
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+
+  template <typename Tensor, typename OptionalTensor, typename... Args>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const Args &...) {
+
+    auto A  = gIn.input(0);
+    auto B  = gIn.input(1);
+    auto dC = gIn.gradOfOutput(0);
+
+    auto dA = dC.matmul(dimShuffleFinalTwo(B)).reduceSum(A.shape());
+    auto dB = dimShuffleFinalTwo(A).matmul(dC).reduceSum(B.shape());
+
+    return {dA, dB};
+  }
+
+private:
+  // A.transpose == dimShuffleFinalTwo(A).
+  template <typename Tensor>
+  static Tensor dimShuffleFinalTwo(const Tensor &t) {
+    return t.dimShuffle(
+        poprithms::util::Permutation::reverseFinalTwo(t.rank_u64()));
+  }
+};
+
+/**
  * Differentiate,
  * (1)    out = numerator / denominator.
  *
@@ -170,6 +227,61 @@ public:
 };
 
 /**
+ * Differentiation through the unary operation which negates all values.
+ * */
+class NegAutodiffer {
+public:
+  static std::vector<InIndex> autodiffRequiredIns() { return {}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {}; }
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+
+  template <typename Tensor, typename OptionalTensor, typename... Args>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const Args &...) {
+    // Negate the gradient of the output to get the gradient of the input.
+    return {gIn.gradOfOutput(0).neg()};
+  }
+};
+
+/**
+ * Differentiate through y = e^x (where e is the transcendental 2.71828...).
+ * */
+class ExpAutodiffer {
+public:
+  static std::vector<InIndex> autodiffRequiredIns() { return {}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {0}; }
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+
+  template <typename Tensor, typename OptionalTensor, typename... Args>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const Args &...) {
+    // dIn = out * dOut.
+    return {gIn.gradOfOutput(0) * gIn.output(0)};
+  }
+};
+
+/**
+ * Differentiate through the square root operator.
+ * */
+class SqrtAutodiffer {
+public:
+  static std::vector<InIndex> autodiffRequiredIns() { return {}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {0}; }
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+
+  template <typename Tensor, typename OptionalTensor, typename OpHelper>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const OpHelper &op) {
+
+    // dIn = dOut * 1/2 * 1 / sqrt(In)
+    //     = dOut * 1/2 / out.
+    auto gradOut = gIn.gradOfOutput(0);
+    auto half    = op.constantLike(gradOut, 0.5);
+    return {half * gradOut / gIn.output(0)};
+  }
+};
+
+/**
  * Gradient of the power operator.
  *
  * Compute the gradient of the inputs #base and #expo in:
@@ -189,7 +301,7 @@ class PowAutodiffer {
 public:
   static bool gradientPropagates(OutIndex, InIndex) { return true; }
   static std::vector<InIndex> autodiffRequiredIns() { return {0, 1}; }
-  static std::vector<OutIndex> autodiffRequiredOuts() { return {1}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {0}; }
 
   template <typename Tensor, typename OptionalTensor, typename OpHelper>
   static typename std::vector<OptionalTensor>
@@ -213,8 +325,8 @@ public:
 };
 
 /**
- * As per AddAutodiffer, but with the gradient of the second input multiplied
- * by -1.
+ * Differentiate through the subtraction operator. This is like AddAutodiffer,
+ * but with the gradient of the second input multiplied by -1.
  * */
 class SubAutodiffer {
 
@@ -229,6 +341,24 @@ public:
     auto gOut = gIn.gradOfOutput(0);
     return {gOut.reduceSum(op.inShape(0)),
             OpHelper::constantLike(gOut, -1) * gOut.reduceSum(op.inShape(1))};
+  }
+};
+
+/**
+ * Propagate zero to all inputs.
+ * */
+class ZeroPropagationAutodiffer {
+
+public:
+  static std::vector<InIndex> autodiffRequiredIns() { return {}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {}; }
+  static bool gradientPropagates(OutIndex, InIndex) { return false; }
+
+  template <typename Tensor, typename OptionalTensor, typename OpHelper>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &, const OpHelper &) {
+    throw poprithms::error::error("autodiff::automatic",
+                                  "should not be called");
   }
 };
 

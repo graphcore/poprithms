@@ -60,6 +60,72 @@ public:
   }
 };
 
+/**
+ * For some ops, attempts at differentiation should result in an error. An
+ * example is inplace ops which require an input value to compute a gradient
+ * of an input -- the input is not available because it gets modified by the
+ * op.
+ *
+ * Note that this is different to ops which always propagate a zero gradient.
+ * An example of such an op is one which sets the value of its output to some
+ * value which is independent of the input value.
+ *
+ * This class is for ops which should error when they are differentiated. An
+ * example is inplace sin.
+ * */
+template <class Base> class NoAutodiff : public Base {
+
+public:
+  NoAutodiff(const Op::State &s) : Base(s) {}
+
+  InIndices autodiffRequiredIns() const final {
+    throw poprithms::error::error("common::compute", whyNoAutodiff());
+  }
+
+  OutIndices autodiffRequiredOuts() const final {
+    throw poprithms::error::error("common::compute", whyNoAutodiff());
+  }
+
+  OptionalTensors bprop(const GradOpIns &) const final {
+    throw poprithms::error::error("common::compute", whyNoAutodiff());
+  }
+
+  bool gradientPropagates(OutIndex, InIndex) const final {
+    throw poprithms::error::error("common::compute", whyNoAutodiff());
+  }
+
+private:
+  // What is the reason that the op cannot be backpropagated through?
+  virtual std::string whyNoAutodiff() const = 0;
+};
+
+/**
+ * An op which always propagates a zero value for its input gradient(s). This
+ * should not be confused with NoAutodiff.
+ * */
+template <typename Base>
+using ZeroAutodiff =
+    WithAutodiff<autodiff::automatic::ZeroPropagationAutodiffer, Base>;
+
+/**
+ * Ops without any attributes can use generic clone and comparison methods.
+ * Ops inheriting from this class must have the static member OP::OpTypeName
+ * defined.
+ * */
+template <class Base, class OP> class Attributeless : public Base {
+public:
+  Attributeless(const Op::State &s) : Base(s) {}
+
+private:
+  UpOp cloneWithState(const Op::State &s) const final {
+    return std::unique_ptr<Op>(new OP(s));
+  }
+
+  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
+
+  std::string typeString() const final { return OP::OpTypeName; }
+};
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

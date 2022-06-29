@@ -28,6 +28,13 @@ namespace compute {
 
 class Graph;
 
+class MatMulOptions {
+  // Currently there are no options for matmul, this is a just placeholder for
+  // the future.
+public:
+  bool operator==(const MatMulOptions &) const { return true; }
+};
+
 using common::compute::DeviceType;
 using common::compute::DeviceTypes;
 using common::multiout::OpId;
@@ -527,6 +534,8 @@ public:
   T add(const RTensor<T> &) const;
   T add_(const RTensor<T> &) const;
 
+  T increment_(int64_t v) const { return add_(constant(v)); }
+
   /**
    * Elementwise multiply this tensor with #rhs.
    * */
@@ -552,6 +561,21 @@ public:
   T pow_(const RTensor<T> &rhs) const;
 
   /**
+   * \return The remainder when this tensor is divided by #rhs. #rhs must have
+   *         the same dtype as this tensor.
+   *
+   * This elementwise operation is identical to fmod for floating point
+   * numbers, as defined for C++.
+   * */
+  T rem(const RTensor<T> &rhs) const;
+  T rem_(const RTensor<T> &rhs) const;
+
+  T modulo_(uint64_t v) const { return rem_(constant(v)); }
+  T modulo(uint64_t v) const { return rem(constant(v)); }
+
+  T tickModulo_(uint64_t m) const { return increment_(1).modulo_(m); }
+
+  /**
    * Copy the values in #rhs to this tensor. This tensor operation supports
    * numpy broadcasting, so #rhs must have a shape which is numpy
    * broadcastable to this tensor's shape.
@@ -566,10 +590,90 @@ public:
   T greaterThan(const RTensor<T> &rhs) const;
 
   /**
+   * Matrix multiply, using numpy broadcasting rules, see
+   * https://numpy.org/doc/stable/reference/generated/numpy.matmul.html
+   *
+   * \param arg1 the right-hand side argument of the matrix multiply.
+   * */
+  T matmul(const RTensor<T> &rhs, DType outType, const MatMulOptions &) const;
+
+  T matmul(const RTensor<T> &arg1) const {
+    return matmul(arg1, arg1.dtype(), {});
+  }
+
+  /**
    * The natural logarithm of this tensor.
    * */
   T log_() const;
   T log() const;
+
+  /**
+   * Negate all elements of this tensor.
+   * */
+  T neg_() const;
+  T neg() const;
+
+  /**
+   * Cast this tensor to a tensor of type #outType.
+   * */
+  T to(DType outType) const;
+
+  /** Unary elementwise operations */
+  T zero_() const { return fill_(HostTensor::scalar(dtype(), 0)); }
+
+  /**
+   * The absolute value of this tensor.
+   * */
+  T abs_() const;
+  T abs() const;
+
+  /**
+   * The sine of this tensor.
+   * */
+  T sin_() const;
+  T sin() const;
+
+  /**
+   * The cosine of this tensor.
+   * */
+  T cos_() const;
+  T cos() const;
+
+  /**
+   * The sign, or signum, of this tensor:
+   *
+   *             = -1 if x < 0
+   * signum(x)   =  0 if x = 0
+   *             = +1 if x > 0.
+   *
+   * The returned tensor has the same dtype as this tensor.
+   **/
+  T signum_() const;
+  T signum() const;
+
+  /**
+   * The square root of this tensor.
+   * */
+  T sqrt_() const;
+  T sqrt() const;
+
+  /**
+   * e^(this tensor) where e is the transcendental value 2.718...
+   * */
+  T exp_() const;
+  T exp() const;
+
+  /**
+   * The rectified linear unit of this tensor.
+   * */
+  T relu_() const { return mul_(greaterThan(constant(0)).to(dtype())); }
+  T relu() const { return mul(greaterThan(constant(0)).to(dtype())); }
+
+  /**
+   * Fill this tensor with the scalar value #vScalar.
+   * */
+  T fill_(const HostTensor &vScalar) const;
+  T setToZero_() const { return fill_(HostTensor::scalar(dtype(), 0)); }
 
 protected:
   /**
@@ -651,6 +755,10 @@ template <typename T> T operator-(const RTensor<T> &a, const RTensor<T> &b) {
 
 template <typename T> T concat_(const std::vector<T> &ts, uint64_t axis) {
   return RTensor<T>::concat_(ts, axis);
+}
+
+template <typename T> T matmul(const RTensor<T> &t0, const RTensor<T> &t1) {
+  return t0.matmul(t1);
 }
 
 } // namespace compute

@@ -120,7 +120,8 @@ public:
   /**
    * The number of inputs which are copied to callee sub-graphs.
    * */
-  uint64_t nInCopies() const { return inDsts_.size(); }
+  uint64_t nInputsCopiedToCallees() const final { return inDsts_.size(); }
+  uint64_t nInCopies() const { return nInputsCopiedToCallees(); }
 
   /**
    * The copy destinations in callee sub-graphs of the inputs at indices

@@ -1,6 +1,7 @@
 // Copyright 2022 Graphcore Ltd. All rights reserved.
 
 #include <algorithm>
+#include <iostream>
 #include <sstream>
 
 #include <testutil/autodiff/finitedifference.hpp>
@@ -11,6 +12,7 @@
 
 namespace {
 
+using poprithms::ndarray::Shape;
 using namespace poprithms;
 using namespace poprithms::autodiff;
 using namespace poprithms::autodiff::automatic;
@@ -149,9 +151,75 @@ void testBinaryOps0() {
         [](const auto &a, const auto &b) { return a.pow(b); }, h0, h1);
   }
 }
+
+void testMatMul0(Tensor h0, Tensor h1) {
+
+  auto bp = [](const auto &gIn) {
+    return MatMulAutodiffer::backpropagate(gIn);
+  };
+
+  auto apply = [](const auto &a, const auto &b) { return a.matmul(b); };
+
+  const auto out = apply(h0, h1);
+
+  // Gradient for reduceSum:
+  const auto gradOut =
+      Tensor::float64(1).expand(h0.shape().matmul(h1.shape()));
+
+  OpIn<Tensor, OptionalTensor> gIn({h0, h1}, {out}, {gradOut});
+  auto grads = bp(gIn);
+
+  const auto grad_h0 = grads.at(0).value();
+  const auto grad_h1 = grads.at(1).value();
+
+  if (grad_h0.shape() != h0.shape() || grad_h1.shape() != h1.shape()) {
+    throw poprithms::test::error("Gradients have incorrect shape");
+  }
+
+  double perturbationSize = 0.001;
+  double eps0             = 1e-9;
+  double threshold        = 1e-5;
+  uint32_t seed           = 1011;
+
+  // Check correctness for arg0.
+  auto f0 = [&apply, h1](const Tensor &t0) {
+    return apply(t0, h1).reduceSum();
+  };
+
+  finitedifference::Checker::check(
+      f0, h0, grad_h0, perturbationSize, seed, eps0, threshold);
+
+  // Check correctness for arg1.
+  auto f1 = [&apply, h0](const Tensor &t1) {
+    return apply(h0, t1).reduceSum();
+  };
+  finitedifference::Checker::check(
+      f1, h1, grad_h1, perturbationSize, seed, eps0, threshold);
+}
+
+void testMatMuls0() {
+  {
+    const auto h0 = Tensor::uniformFloat64(-10, 10, {2, 1, 3, 2, 3}, 1011);
+    const auto h1 = Tensor::uniformFloat64(-10, 10, {4, 1, 3, 4}, 1011);
+    testMatMul0(h0, h1);
+  }
+
+  {
+    const auto h0 = Tensor::uniformFloat64(-10, 10, {2, 3}, 1011);
+    const auto h1 = Tensor::uniformFloat64(-10, 10, {3, 4}, 1011);
+    testMatMul0(h0, h1);
+  }
+
+  {
+    const auto h0 = Tensor::uniformFloat64(-10, 10, {2, 3}, 1011);
+    const auto h1 = Tensor::uniformFloat64(-10, 10, {1, 1, 2, 1, 3, 4}, 1011);
+    testMatMul0(h0, h1);
+  }
+}
 } // namespace
 
 int main() {
   testLog0();
   testBinaryOps0();
+  testMatMuls0();
 }

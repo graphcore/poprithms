@@ -91,9 +91,9 @@ void BinaryElementwiseInplace_::noInplaceAutodiff() const {
   oss << "Attempt to backpropagate through inplace op " << *this
       << " is invalid. This is because an input value of " << *this
       << "is not available, having been modified inplace. "
-      << "Consider for example c = a.mul_(b). "
-      << "To compute db requireds dc and a. "
-      << "But the value of a was updated during the inplace multiplication.";
+      << "Consider for example c = a.mul_(b): "
+      << "To compute db requires dc and a. "
+      << "But the value of a gets updated during the inplace multiplication.";
   throw error(oss.str());
 }
 

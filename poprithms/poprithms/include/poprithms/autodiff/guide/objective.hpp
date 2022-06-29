@@ -14,7 +14,7 @@ namespace guide {
 /**
  * A high-level descriptor of the required outcome of differentiating a graph.
  *
- * What is overall objective of the differentation?
+ * What is overall objective of the differentiation?
  *
  * 1) Which tensors have gradients provided for? These are the starting points
  * of the back-propagation. The vanilla case is the loss scalar tensor, whose

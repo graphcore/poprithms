@@ -103,7 +103,9 @@ set(common_compute_sources
 
   ${src_dir}/common/compute/ops/binaryelementwise.cpp
   ${src_dir}/common/compute/ops/init.cpp
+  ${src_dir}/common/compute/ops/matmul.cpp
   ${src_dir}/common/compute/ops/ops.cpp
+  ${src_dir}/common/compute/ops/reduce.cpp
   ${src_dir}/common/compute/ops/reffrom.cpp
   ${src_dir}/common/compute/ops/reduce.cpp
   ${src_dir}/common/compute/ops/unaryelementwise.cpp
@@ -116,6 +118,8 @@ add_library(poprithms-common-compute SHARED
   $<TARGET_OBJECTS:poprithms-autodiff-automatic-objlib>
   $<TARGET_OBJECTS:poprithms-autodiff-base-objlib>
   $<TARGET_OBJECTS:poprithms-compute-host-objlib>
+  $<TARGET_OBJECTS:poprithms-autodiff-base-objlib>
+  $<TARGET_OBJECTS:poprithms-autodiff-automatic-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
   $<TARGET_OBJECTS:poprithms-memory-chain-objlib>
@@ -394,6 +398,8 @@ add_library(poprithms-memory-alias-objlib OBJECT ${memory_alias_sources})
 add_library(poprithms-memory-alias SHARED
   $<TARGET_OBJECTS:poprithms-memory-alias-objlib>
   $<TARGET_OBJECTS:poprithms-memory-nest-objlib>
+  $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
+  $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 

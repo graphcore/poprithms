@@ -620,6 +620,7 @@ public:
 
 Tensor Tensor::matmul(const Tensor &rhs) const {
 
+  verifySameType(*this, rhs);
   const ndarray::GroupedMatMulPack<MatMulMolder, Tensor> mmp(*this, rhs);
 
   Tensors dots;
@@ -2171,7 +2172,6 @@ Tensor Tensor::randomBoolean(const Shape &s, uint32_t seed) {
 }
 
 Tensor Tensor::sign() const {
-
   if (dtype() == DType::Boolean) {
     return copy();
   }
@@ -2185,6 +2185,8 @@ Tensor Tensor::sign() const {
   const auto lt = operator<(zero).to(dtype());
   return gt - lt;
 }
+
+Tensor Tensor::sign_() const { return update_(sign()); }
 
 bool Tensor::allValuesTheSame() const {
   // Case where there are no elements. Reverse the question to: Can you find 2

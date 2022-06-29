@@ -6,12 +6,14 @@
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/ops/binaryelementwise.hpp>
+#include <poprithms/common/compute/ops/matmul.hpp>
 #include <poprithms/common/compute/ops/reduce.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
 #include <poprithms/common/compute/ops/unaryelementwise.hpp>
 #include <poprithms/common/compute/ops/viewchange.hpp>
 #include <poprithms/common/compute/rtensor.hpp>
 #include <poprithms/error/error.hpp>
+#include <poprithms/ndarray/groupedmatmulpack.hpp>
 
 namespace poprithms {
 namespace common {
@@ -51,6 +53,14 @@ template <typename T> T RTensor<T>::pow(const RTensor<T> &rhs) const {
   return createWithNumpyShape<Pow>({id(), rhs.id()});
 }
 
+template <typename T> T RTensor<T>::rem_(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Remainder_>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::rem(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Remainder>({id(), rhs.id()});
+}
+
 template <typename T> T RTensor<T>::copyFrom_(const RTensor<T> &rhs) const {
   return createWithNumpyShape<CopyFrom_>({id(), rhs.id()});
 }
@@ -70,11 +80,64 @@ template <typename T> T RTensor<T>::sub(const RTensor<T> &rhs) const {
   return createWithNumpyShape<Sub>({id(), rhs.id()});
 }
 
+template <typename T> T RTensor<T>::fill_(const HostTensor &vScalar) const {
+  return createUnaryWithSameInfo<Fill_>(vScalar);
+}
+
 template <typename T> T RTensor<T>::log_() const {
   return createUnaryWithSameInfo<Log_>();
 }
 template <typename T> T RTensor<T>::log() const {
   return createUnaryWithSameInfo<Log>();
+}
+
+template <typename T> T RTensor<T>::exp_() const {
+  return createUnaryWithSameInfo<Exp_>();
+}
+template <typename T> T RTensor<T>::exp() const {
+  return createUnaryWithSameInfo<Exp>();
+}
+
+template <typename T> T RTensor<T>::sqrt_() const {
+  return createUnaryWithSameInfo<Sqrt_>();
+}
+template <typename T> T RTensor<T>::sqrt() const {
+  return createUnaryWithSameInfo<Sqrt>();
+}
+
+template <typename T> T RTensor<T>::signum_() const {
+  return createUnaryWithSameInfo<Signum_>();
+}
+template <typename T> T RTensor<T>::signum() const {
+  return createUnaryWithSameInfo<Signum>();
+}
+
+template <typename T> T RTensor<T>::neg_() const {
+  return createUnaryWithSameInfo<Neg_>();
+}
+template <typename T> T RTensor<T>::neg() const {
+  return createUnaryWithSameInfo<Neg>();
+}
+
+template <typename T> T RTensor<T>::cos_() const {
+  return createUnaryWithSameInfo<Cos_>();
+}
+template <typename T> T RTensor<T>::cos() const {
+  return createUnaryWithSameInfo<Cos>();
+}
+
+template <typename T> T RTensor<T>::abs_() const {
+  return createUnaryWithSameInfo<Abs_>();
+}
+template <typename T> T RTensor<T>::abs() const {
+  return createUnaryWithSameInfo<Abs>();
+}
+
+template <typename T> T RTensor<T>::sin_() const {
+  return createUnaryWithSameInfo<Sin_>();
+}
+template <typename T> T RTensor<T>::sin() const {
+  return createUnaryWithSameInfo<Sin>();
 }
 
 template <typename T> T RTensor<T>::dstInCaller(const CallEvent &ce) const {
@@ -323,6 +386,9 @@ template <typename T> T RTensor<T>::reverse(const Dimensions &ds) const {
 template <typename T> T RTensor<T>::reverse(uint64_t d) const {
   return reverse_(d).copy();
 }
+template <typename T> T RTensor<T>::to(DType t) const {
+  return createTensor<Cast>({id()}, {info().withDType(t)});
+}
 
 template <typename T> T RTensor<T>::dimShuffleFinalTwo() const {
   return dimShuffle(Permutation::reverseFinalTwo(rank_u64()));
@@ -359,6 +425,10 @@ template <typename T> T RTensor<T>::variable(const Shape &s0) const {
 template <typename T>
 T RTensor<T>::variable(const Shape &s0, DeviceId dId) const {
   return subGraph().variable(dtype(), s0, dId);
+}
+
+template <typename T> T RTensor<T>::variable(DType t) const {
+  return subGraph().variable(t, shape(), deviceId());
 }
 
 template <typename T> T RTensor<T>::variable(DType t, const Shape &s) const {
@@ -398,6 +468,43 @@ T RTensor<T>::concat_(const std::vector<T> &ts, uint64_t axis) {
       axis);
 
   return out;
+}
+
+namespace {
+
+template <typename T> class MatmulTensorMoldingHelper {
+public:
+  static Shape shape(const T &t) { return t.shape(); }
+  static int64_t dim(const T &t, uint64_t d) { return t.dim(d); }
+  static T unsqueeze(const T &t, uint64_t d) { return t.unsqueeze_(d); }
+  static T reshape(const T &t, const Shape &s) { return t.reshape_(s); }
+  static T expand(const T &t, const Shape &s) { return t.expand_(s); }
+};
+
+template <typename T> T getT(RTensor<T> t) { return T(t.id(), &t.graph()); }
+} // namespace
+
+template <typename T>
+T RTensor<T>::matmul(const RTensor<T> &rhs,
+                     DType outType,
+                     const MatMulOptions &matMulOptions) const {
+
+  // reshapes and expands.
+  auto matMulPack =
+      poprithms::ndarray::GroupedMatMulPack<MatmulTensorMoldingHelper<T>, T>(
+          getT(*this), getT(rhs));
+
+  // output is rank-3.
+  const Shape outShape{
+      matMulPack.nGroups(), matMulPack.M_i64(), matMulPack.N_i64()};
+
+  const TensorInfo outInfo(outShape, deviceId(), outType);
+
+  const auto out3d = createTensor<MatMul>(
+      {matMulPack.lhs3d(), matMulPack.rhs3d()}, {outInfo}, matMulOptions);
+
+  // reshape to correct grouped matmul output shape.
+  return out3d.reshape_(matMulPack.outShape());
 }
 
 } // namespace compute

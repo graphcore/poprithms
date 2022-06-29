@@ -21,7 +21,7 @@ A quick guide to using poprithms autodiff in your project:
    create an Op in your project's graph. This is where you must implement your 
    'calculus' -- we don't do any calculus for you :-). 
 
-5) Finally, with 1, 2, and 4 above, you perform auto-differentation with the 
+5) Finally, with 1, 2, and 4 above, you perform auto-differentiation with the 
    core::Autodiff class. See for example the example in the test directory (core_0.cpp);
 
 Some notes:

@@ -20,6 +20,7 @@
 #include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/compute/ops/nop.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
+#include <poprithms/common/compute/ops/withcallees.hpp>
 #include <poprithms/common/compute/remote.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/util/copybyclone_impl.hpp>
@@ -455,7 +456,12 @@ std::vector<poprithms::util::StringColumn> Graph::getComputeColumns(
   Strings deviceStrings(nRows, "");
   Strings dtypeStrings(nRows, "");
   Strings rootRefOf(nRows, "");
+
+  // The sources of the copies out of callees.
+  Strings outSources(nRows, "");
+
   bool hasOutRefs{false};
+  bool hasOutSources{false};
 
   uint64_t rowIndex{0};
   for (auto opId : opIds_) {
@@ -469,12 +475,21 @@ std::vector<poprithms::util::StringColumn> Graph::getComputeColumns(
       deviceStrings[rowIndex] = device(devId).str();
       auto outRefs            = op_.derivedRefs(o);
       hasOutRefs |= !outRefs.empty();
-      rootRefOf[rowIndex] = getStr(outRefs);
+      rootRefOf[rowIndex]  = getStr(outRefs);
+      auto &&srcsInCallees = op_.srcsInCallees(o);
+      if (!srcsInCallees.empty()) {
+        hasOutSources        = true;
+        outSources[rowIndex] = getStr(srcsInCallees);
+      }
       ++rowIndex;
     }
     if (op_.nOutTensors() == 0) {
       ++rowIndex;
     }
+  }
+
+  if (hasOutSources) {
+    cols.push_back({"Out Sources", std::move(outSources), colParams});
   }
 
   cols.push_back({"Device", std::move(deviceStrings), colParams});
@@ -873,8 +888,8 @@ void Graph::multiOutTypeSpecificRemoveOutputs(
     const ContiguousOutIndexSubset &coin,
     const OptionalTensorIds &subs) {
 
-  // if output is being removed, return.
-  if (coin.nSubset() == 0) {
+  // if no output is being removed, return.
+  if (coin.nRemoved() == 0) {
     return;
   }
 
@@ -946,6 +961,7 @@ void Graph::multiOutTypeSpecificRemoveOutputs(
   // Here we transfer the source of the out-copy from (opId, #o) to the
   // substitute provided to this method.
   for (auto o : coin.toRemove()) {
+
     for (auto ce : op(opId).outCopies(o)) {
       auto removedId = CalleeTensorId({opId, o}, ce.index());
       auto sub       = getSub(o);

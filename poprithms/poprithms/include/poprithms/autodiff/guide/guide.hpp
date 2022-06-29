@@ -24,7 +24,7 @@ using poprithms::common::multiout::OutIndices;
 
 /**
  * A class which creates and stores a high-level (calculus-free) description
- * of how differentation will proceed.
+ * of how differentiation will proceed.
  *
  * Once the Guide is constructed (with the unique constructor below), there
  * are methods which can be queried for high-level information about the flow
@@ -35,7 +35,7 @@ class Guide {
 
 public:
   /**
-   * \param generator The overall objective of the differentation. contains
+   * \param generator The overall objective of the differentiation. contains
    *
    *                  (1) Tensors to target. That is, the non-gradient tensors
    *                      for which gradients are required.

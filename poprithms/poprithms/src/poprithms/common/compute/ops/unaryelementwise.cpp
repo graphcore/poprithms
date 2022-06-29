@@ -10,71 +10,119 @@
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/ops/unaryelementwise.hpp>
 #include <poprithms/common/compute/opverifier.hpp>
+#include <poprithms/ndarray/tensorinfo.hpp>
 #include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace common {
 namespace compute {
 
-void UnaryElementwiseInplace_::noInplaceAutodiff() const {
-  std::ostringstream oss;
-  oss << "Unary Elementwise Inplace Ops do not currently support "
-         "autodiff. "
-      << "Failure for Op " << *this << '.';
-  throw error(oss.str());
+void UnaryElementwise::computeDerivedVerifyValid() const {
+
+  switch (outType()) {
+  case OutType::Preserving: {
+    OpVerifier(*this).verifyNonVariadicFromAtts(
+        1, 1, {OpVerifier::Att::SameDType, OpVerifier::Att::SameDevice});
+    return;
+  }
+
+  case OutType::Bool: {
+    OpVerifier(*this).verifyNonVariadicFromAtts(
+        1, 1, {OpVerifier::Att::SameDevice});
+
+    if (outDType(0) != ndarray::DType::Boolean) {
+      throw error("Expected output of " + str() + " to be Boolean.");
+    }
+    return;
+  }
+
+  case OutType::Other: {
+    OpVerifier(*this).verifyNonVariadicFromAtts(
+        1, 1, {OpVerifier::Att::SameDevice});
+    return;
+  }
+
+  default: {
+    throw error("Unrecognised OutType.");
+  }
+  }
+
+  if (inShape(0) != outShape(0)) {
+    throw error("Expected input and output shapes of " + str() +
+                " to be the same");
+  }
+
+  unaryElementwiseDerivedVerifyValid();
 }
 
-/**
- * UnaryElementwiseInplace_
- * */
 HostTensors
 UnaryElementwiseInplace_::initializeOut(const HostTensors &ins) const {
   return ins;
 }
 
-bool UnaryElementwiseInplace_::gradientPropagates(OutIndex, InIndex) const {
-  noInplaceAutodiff();
-}
-
-OptionalTensors UnaryElementwiseInplace_::bprop(const GradOpIns &) const {
-  noInplaceAutodiff();
-}
-
-std::vector<InIndex> UnaryElementwiseInplace_::autodiffRequiredIns() const {
-  noInplaceAutodiff();
-}
-std::vector<OutIndex> UnaryElementwiseInplace_::autodiffRequiredOuts() const {
-  noInplaceAutodiff();
-}
-
-/**
- * UnaryElementwiseOutplace
- * */
 HostTensors
 UnaryElementwiseOutplace::initializeOut(const HostTensors &) const {
   return {HostTensor::zeros(outDType(0), outShape(0))};
 }
 
-/**
- * Log
- * */
-void Log::compute(const HostTensors &ins, const HostTensors &outs) const {
-  outs[0].update_(ins[0].log());
+std::string Log_::whyNoAutodiff() const {
+  std::ostringstream oss;
+  oss << "Inplace log op " << *this << " does not support autodiff, "
+      << "as the input gets written to. "
+      << "The grad could be computed from the output "
+      << "(dIn = dOut*exp(-out)) "
+      << "but numerical accuracy might be poor. ";
+  throw error(oss.str());
 }
 
-UpOp Log::cloneWithState(const State &s) const {
-  return std::make_unique<Log>(s);
+void Log::unaryCompute(const HostTensor &i, const HostTensor &o) const {
+  o.update_(i.log());
 }
 
-/**
- * Log_
- * */
-void Log_::compute(const HostTensors &, const HostTensors &outs) const {
-  outs[0].log_();
+void Log_::unaryCompute(const HostTensor &, const HostTensor &o) const {
+  o.log_();
 }
 
-UpOp Log_::cloneWithState(const State &s) const {
-  return std::make_unique<Log_>(s);
+void Cast::unaryCompute(const HostTensor &ins, const HostTensor &outs) const {
+  outs.update_(ins.to(outDType(0)));
+}
+
+bool Cast::gradientPropagates(OutIndex, InIndex) const {
+  if (poprithms::ndarray::isFixedPoint(outDType(0))) {
+    std::ostringstream oss;
+    oss << "Failure detected in gradientPropagates of " << *this;
+    oss << ". Expected the output of the cast to "
+        << "be a floating point tensor. ";
+    throw error(oss.str());
+  }
+  // propagates if the input is floating point.
+  return !poprithms::ndarray::isFixedPoint(inDType(0));
+}
+
+OptionalTensors Cast::bprop(const GradOpIns &gIn) const {
+  return {gIn.gradOfOutput(0).to(inDType(0))};
+}
+
+std::string Fill_::typeString() const {
+  return poprithms::util::cat::strcat("Fill_(", val_, ")");
+}
+
+UpOp Fill_::cloneWithState(const State &s) const {
+  return std::make_unique<Fill_>(s, val_);
+}
+
+bool Fill_::computeTypeSpecificEqualTo(const Op &rhs) const {
+  const Fill_ &rhs_ = static_cast<const Fill_ &>(rhs);
+  return val_.numericallyIdenticalTo(rhs_.val_);
+}
+
+void Fill_::unaryElementwiseDerivedVerifyValid() const {
+  if (val_.rank_u64() != 0) {
+    std::ostringstream oss;
+    oss << "Expected the fill value of " << *this << ", which is " << val_
+        << ", to have only 1 element and be of rank-0. ";
+    throw error(oss.str());
+  }
 }
 
 } // namespace compute

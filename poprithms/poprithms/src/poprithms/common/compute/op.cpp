@@ -596,6 +596,16 @@ void Op::createAlias(MemoryAliasMapper &b, const TensorId &id) const {
   throw error(oss.str());
 }
 
+OptionalTensorIds Op::srcsInCallees(OutIndex o) const {
+  OptionalTensorIds ids(nCallees());
+  for (uint32_t ci = 0; ci < nCallees(); ++ci) {
+    if (isCopiedOut(o, ci)) {
+      ids[ci] = srcInCallee(o, ci);
+    }
+  }
+  return ids;
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms
