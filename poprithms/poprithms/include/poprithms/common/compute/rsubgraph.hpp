@@ -6,7 +6,6 @@
 #include <vector>
 
 #include <poprithms/common/compute/hosttensor.hpp>
-//#include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/ndarray/deviceid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
@@ -25,7 +24,6 @@ using poprithms::ndarray::DTypes;
 using poprithms::ndarray::Shape;
 using poprithms::ndarray::Shapes;
 using poprithms::ndarray::TensorInfo;
-using poprithms::ndarray::TensorInfos;
 
 class Graph;
 

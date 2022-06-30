@@ -6,6 +6,7 @@
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/ops/binaryelementwise.hpp>
+#include <poprithms/common/compute/ops/encode.hpp>
 #include <poprithms/common/compute/ops/matmul.hpp>
 #include <poprithms/common/compute/ops/reduce.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
@@ -89,6 +90,18 @@ template <typename T> T RTensor<T>::log_() const {
 }
 template <typename T> T RTensor<T>::log() const {
   return createUnaryWithSameInfo<Log>();
+}
+template <typename T>
+T RTensor<T>::encodeOneHot01_(const RTensor<T> &indices) const {
+  return createTensor<EncodeOneHot01_>({id(), indices.id()}, {info()});
+}
+
+template <typename T>
+T RTensor<T>::encodeOneHotOffOn_(const RTensor<T> &indices,
+                                 const RTensor<T> &off,
+                                 const RTensor<T> &on) const {
+  return createTensor<EncodeOneHotOffOn_>(
+      {id(), indices.id(), off.id(), on.id()}, {info()});
 }
 
 template <typename T> T RTensor<T>::exp_() const {
@@ -272,6 +285,7 @@ template <typename T> T RTensor<T>::mul(const RTensor<T> &rhs) const {
 template <typename T> T RTensor<T>::add_(const RTensor<T> &rhs) const {
   return createWithNumpyShape<Add_>({id(), rhs.id()});
 }
+
 template <typename T> T RTensor<T>::add(const RTensor<T> &rhs) const {
   return createWithNumpyShape<Add>({id(), rhs.id()});
 }

@@ -90,7 +90,7 @@ void BinaryElementwiseInplace_::noInplaceAutodiff() const {
   std::ostringstream oss;
   oss << "Attempt to backpropagate through inplace op " << *this
       << " is invalid. This is because an input value of " << *this
-      << "is not available, having been modified inplace. "
+      << " is not available, having been modified inplace. "
       << "Consider for example c = a.mul_(b): "
       << "To compute db requires dc and a. "
       << "But the value of a gets updated during the inplace multiplication.";

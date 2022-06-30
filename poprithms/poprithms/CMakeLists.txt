@@ -102,6 +102,7 @@ set(common_compute_sources
   ${src_dir}/common/compute/tensor.cpp
 
   ${src_dir}/common/compute/ops/binaryelementwise.cpp
+  ${src_dir}/common/compute/ops/encode.cpp
   ${src_dir}/common/compute/ops/init.cpp
   ${src_dir}/common/compute/ops/matmul.cpp
   ${src_dir}/common/compute/ops/ops.cpp

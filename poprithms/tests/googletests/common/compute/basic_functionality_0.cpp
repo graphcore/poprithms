@@ -2,14 +2,13 @@
 #include <gmock/gmock.h>
 #include <sstream>
 
-#include <testutil/common/compute/graph.hpp>
-
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/op.hpp>
 #include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
 #include <poprithms/common/compute/ops/viewchange.hpp>
 #include <poprithms/common/compute/scheduler.hpp>
+#include <poprithms/common/compute/slickgraph.hpp>
 
 namespace {
 using ::testing::AtLeast;
@@ -36,7 +35,7 @@ variable(Graph &g, SubGraphId sgId, DeviceId dId, const Shape &s, DType t) {
 
 TEST(CommonComputeBasicFunctionality, ConstInit0) {
   using namespace poprithms::common::compute;
-  test::Graph g;
+  SlickGraph g;
   auto sgId = g.createSubGraphId("sg0");
 
   double v0{1.5};
@@ -81,7 +80,7 @@ TEST(CommonComputeBasicFunctionality, ConstInit1) {
   using namespace poprithms::common::compute;
 
   auto getGraph = [](float v) {
-    test::Graph g;
+    SlickGraph g;
     auto sgId   = g.createSubGraphId("sg0");
     auto const0 = constant(g, sgId, DeviceId(0), HostTensor::float32(v));
 
@@ -97,7 +96,7 @@ TEST(CommonComputeBasicFunctionality, ConstInit1) {
 }
 
 TEST(CommonComputeBasicFunctionality, VarInit0) {
-  test::Graph g;
+  SlickGraph g;
 
   auto deviceId = g.host();
   auto sgId     = g.createSubGraphId("sg0");
@@ -120,7 +119,7 @@ TEST(CommonComputeBasicFunctionality, VarInit0) {
 
 TEST(CommonComputeBasicFunctionality, SubGraphTensor0) {
 
-  test::Graph g;
+  SlickGraph g;
   auto sg0 = g.createSubGraph("sg0");
   auto sg1 = g.createSubGraph("sg1");
   auto t0  = sg0.constant(HostTensor::int32(5), g.host());
@@ -138,7 +137,7 @@ TEST(CommonComputeBasicFunctionality, SubGraphTensor0) {
 
 TEST(CommonComputeBasicFunctionality, InsertViewChangeIdentity) {
 
-  test::Graph g;
+  SlickGraph g;
   auto sg0 = g.createSubGraph("sg0");
   auto t0  = sg0.constant(
       HostTensor::uniformFloat32(-1, 1, {2, 1, 3, 1, 4}, 1011), g.host());
@@ -187,7 +186,7 @@ TEST(CommonComputeBasicFunctionality, Scheduler) {
 
   // Test of circular referencing.
   {
-    test::Graph g;
+    SlickGraph g;
     auto sg0 = g.createSubGraph("sg0");
     auto sg1 = g.createSubGraph("sg1");
 
@@ -203,7 +202,7 @@ TEST(CommonComputeBasicFunctionality, Scheduler) {
 
   // Test of graph with no compute.
   {
-    test::Graph g;
+    SlickGraph g;
     auto sg0 = g.createSubGraph("sg0");
     auto t0  = sg0.constant(DType::Float32, 1., g.host());
     t0.reshape_({1, 1, 1}).expand_({1, 2, 3, 4, 5});
@@ -212,7 +211,7 @@ TEST(CommonComputeBasicFunctionality, Scheduler) {
 }
 
 TEST(CommonComputeBasicFunctionality, BadConcats0) {
-  test::Graph g;
+  SlickGraph g;
   auto sg0 = g.createSubGraph("sg0");
   auto v0  = sg0.variable(DType::Int32, {3, 4}, g.host());
   auto v1  = sg0.variable(DType::Int32, {4, 5}, g.host());

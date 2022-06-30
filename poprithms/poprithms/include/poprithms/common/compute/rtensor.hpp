@@ -602,6 +602,26 @@ public:
   }
 
   /**
+   * Encode this tensor with 0's and 1's. This tensor must be of shape (N, C),
+   * with #indices of shape (N,). The elements of indices must all be in the
+   * range 0 <= v < C. #indices must be of an integral type. This tensor is
+   * encoded, inplace, with a single 1 per row, the specific row defined by
+   * #indices. Specifically if we call this tensor 't', then t[r][indices[r]]
+   * is encoded with value 1.
+   * */
+  T encodeOneHot01_(const RTensor<T> &indices) const;
+
+  /**
+   * Similar to encodeOneHot01_ but instead of '0' the value of the scalar
+   * tensor 'off' is used, and instead of '1' the value of the scalar tensor
+   * 'on' is used. #off and #on must have the same numerical type as this
+   * tensor.
+   * */
+  T encodeOneHotOffOn_(const RTensor<T> &indices,
+                       const RTensor<T> &off,
+                       const RTensor<T> &on) const;
+
+  /**
    * The natural logarithm of this tensor.
    * */
   T log_() const;

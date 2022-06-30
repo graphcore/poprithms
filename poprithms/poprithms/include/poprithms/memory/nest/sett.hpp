@@ -741,7 +741,7 @@ public:
 
   /**
    * \param s a vector of disjoint Setts. If the Setts in s are not all
-   * disjoint, the behavior is if the object constructed is undefined.
+   *         disjoint, the behavior of the object constructed is undefined.
    * */
   explicit DisjointSetts(const std::vector<Sett> &s) : setts_(s) {}
 

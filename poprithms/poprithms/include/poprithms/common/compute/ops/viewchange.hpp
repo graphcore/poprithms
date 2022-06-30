@@ -152,7 +152,7 @@ public:
 
   /**
    * Initialize the output tensor to be an alias of the input (the first and
-   * only elements if #ins).
+   * only element of #ins).
    * */
   HostTensors initializeOut(const HostTensors &ins) const final;
 
@@ -294,10 +294,18 @@ public:
    * */
   const Lower &lower() const { return lower_; }
 
+  std::vector<uint64_t> lower_u64() const {
+    return {lower_.cbegin(), lower_.cend()};
+  }
+
   /**
    * The upper bounds of the slice.
    * */
   const Upper &upper() const { return upper_; }
+
+  std::vector<uint64_t> upper_u64() const {
+    return {upper_.cbegin(), upper_.cend()};
+  }
 
 private:
   /**
@@ -328,13 +336,6 @@ private:
   void growAliasMapper(MemoryAliasMapper &b) const final;
 
   std::unique_ptr<Op> cloneWithState(const State &s) const final;
-
-  std::vector<uint64_t> lower_u64() const {
-    return {lower_.cbegin(), lower_.cend()};
-  }
-  std::vector<uint64_t> upper_u64() const {
-    return {upper_.cbegin(), upper_.cend()};
-  }
 
 private:
   Lower lower_;

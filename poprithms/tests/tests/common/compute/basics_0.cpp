@@ -5,13 +5,11 @@
 #include <memory>
 #include <sstream>
 
-#include <testutil/common/compute/graph.hpp>
-
-#include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/initialvalues.hpp>
 #include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
 #include <poprithms/common/compute/simtensormap.hpp>
+#include <poprithms/common/compute/slickgraph.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/error/error.hpp>
 #include <poprithms/util/interval.hpp>
@@ -122,13 +120,13 @@ public:
 /**
  * Minimal completion of compute::TestGraph to make it non-abstract.
  * */
-class TestGraph : public poprithms::common::compute::test::Graph {
+class TestGraph : public SlickGraph {
 
 private:
 public:
   TestGraph() = default;
   TestGraph(uint64_t nTilesPerReplica, ReplicationFactor rf)
-      : test::Graph(nTilesPerReplica, rf) {}
+      : SlickGraph(nTilesPerReplica, rf) {}
 
   // Insert a variable
   TensorId var(SubGraphId sgId) {

@@ -103,9 +103,11 @@ public:
 
   /**
    * Assert that a tensor of this Shape can be one-hot encoded at positions
-   * defined by a tensor of shape #indices. More specifically, this Shape must
-   * be rank-2 for example (N, C) and \a indices must be rank-1, (N,). If
-   * these conditions are not satisfied, a desciptive error is thrown.
+   * defined by a tensor of shape #indices.
+   *
+   * Specifically, this Shape must be rank-2 (N, C) and \a indices must be
+   * rank-1, (N,). If these conditions are not satisfied, a desciptive error
+   * is thrown.
    *
    * Examples of valid and invalid Shapes:
    * this     indices

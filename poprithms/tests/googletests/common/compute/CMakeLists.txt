@@ -9,7 +9,6 @@ function(add_gtest name source)
     # poprithms, so no advantage to linking to the subset used like done in other 
     # projects):
     poprithms
-    common-compute-test-util
     GTest::gtest
     GTest::gmock
     GTest::gtest_main)

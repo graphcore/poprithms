@@ -2,14 +2,13 @@
 #include <cmath>
 #include <gmock/gmock.h>
 
-#include <testutil/common/compute/graph.hpp>
-
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/op.hpp>
 #include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
 #include <poprithms/common/compute/ops/viewchange.hpp>
 #include <poprithms/common/compute/simexecutable.hpp>
+#include <poprithms/common/compute/slickgraph.hpp>
 
 namespace {
 
@@ -19,7 +18,7 @@ using namespace poprithms::common::compute;
 
 TEST(CommonComputeBasicSimExecutor, BasicReduceProduct) {
   using namespace poprithms::common::compute;
-  test::Graph g;
+  SlickGraph g;
 
   auto sg0 = g.createSubGraph("sg0");
   auto in0 = sg0.variable(DType::Int32, {2}, g.host());
@@ -34,7 +33,7 @@ TEST(CommonComputeBasicSimExecutor, BasicReduceProduct) {
 }
 
 TEST(CommonComputeBasicSimExecutor, ViewChangeOps0) {
-  test::Graph g;
+  SlickGraph g;
   auto sg0  = g.createSubGraph("sg0");
   auto in0  = sg0.variable(DType::Int32, {2, 3}, g.host());
   auto out0 = in0.slice_({0, 1}, {2, 3}).flatten_().add_(in0.constant(1.));
@@ -50,7 +49,7 @@ TEST(CommonComputeBasicSimExecutor, ViewChangeOps0) {
 }
 
 TEST(CommonComputeBasicSimExecutor, PadWithBroadcast0) {
-  test::Graph g;
+  SlickGraph g;
   auto sg0  = g.createSubGraph("sg0");
   auto in0  = sg0.variable(DType::Int32, {2, 1}, g.host());
   auto out0 = in0.padWithBroadcastConstZero_({1, 0}, {0, 1});
@@ -90,7 +89,7 @@ TEST(CommonComputeBasicSimExecutor, MatMul0) {
 
   // (1) Construct a computation graph with a matmul in it, construct a
   // SimExecutable and run it:
-  test::Graph g;
+  SlickGraph g;
   auto sg0 = g.createSubGraph("sg0");
 
   auto in0 = sg0.variable(DType::Float64, t0.shape(), g.host());
@@ -115,7 +114,7 @@ TEST(CommonComputeBasicSimExecutor, MatMulDifferentOutType) {
 
   // (1) Construct a computation graph with a matmul in it, construct a
   // SimExecutable and run it:
-  test::Graph g;
+  SlickGraph g;
   auto sg0 = g.createSubGraph("sg0");
 
   auto in0 = sg0.variable(DType::Int32, t0.shape(), g.host());
@@ -138,7 +137,7 @@ TEST(CommonComputeBasicSimExecutor, RemainderIsFmod0) {
   const auto t0 = HostTensor::uniformFloat64(-5, 5, {20}, 1011);
   const auto t1 = HostTensor::uniformFloat64(-1, 1, {20}, 1012);
 
-  test::Graph g;
+  SlickGraph g;
   auto sg0 = g.createSubGraph("sg0");
 
   auto in0  = sg0.variable(DType::Float64, t0.shape(), g.host());
@@ -166,4 +165,39 @@ TEST(CommonComputeBasicSimExecutor, RemainderIsFmod0) {
 
   observed0.assertAllEquivalent(t0.mod(t1));
   observed1.assertAllEquivalent(t0.mod(t1));
+}
+
+TEST(CommonComputeBasicSimExecutor, EncodeOneHot0) {
+  SlickGraph g;
+  auto sg0     = g.createSubGraph("sg0");
+  int64_t N    = 10;
+  int64_t C    = 3;
+  auto in0     = sg0.variable(DType::Float32, {N, C}, g.host());
+  auto in1     = in0.variable();
+  auto indices = sg0.variable(DType::Unsigned32, {N}, g.host());
+  auto off     = in0.constant(0.25);
+  auto on      = in0.constant(0.625);
+  in0          = in0.encodeOneHot01_(indices);
+  in1          = in1.encodeOneHotOffOn_(indices, off, on);
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+
+  se.setHostValue(indices, HostTensor::randomUnsigned32(0, C, {N}, 1011));
+
+  se.run(sg0);
+
+  auto x0 = se.getHostValue(in0);
+  auto x1 = se.getHostValue(in1);
+
+  x0.reduceSum({10, 1}).assertAllEquivalent(
+      HostTensor::float32(1).expand({10, 1}), "sum of 1-hot columns of x0");
+
+  x1.reduceSum({10, 1}).assertAllEquivalent(
+      HostTensor::float32(0.625 + 0.25 + 0.25).expand({10, 1}),
+      "sum of 1-hot columns of x1");
+
+  (x0 * x1).reduceSum({10, 1}).assertAllEquivalent(
+      HostTensor::float32(0.625).expand({10, 1}),
+      "sum of 1-hot columns of x0*x1");
 }
