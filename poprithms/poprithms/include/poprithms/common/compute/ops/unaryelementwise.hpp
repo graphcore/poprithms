@@ -209,7 +209,7 @@ using ZeroGradUnaryElementwiseInplace_ =
  *  - WithAutodiff<autodiff::automatic::LogAutodiffer...>: points to the class
  *                        which implements all of the autodiff logic for log.
  *
- * The 'curious' appearance of the the class name 'Log' in the base class is
+ * The 'curious' appearance of the class name 'Log' in the base class is
  * a C++ technique called CRTP.
  * */
 class Log final

@@ -675,6 +675,20 @@ public:
   T fill_(const HostTensor &vScalar) const;
   T setToZero_() const { return fill_(HostTensor::scalar(dtype(), 0)); }
 
+  T name(const std::string &n) const {
+    graph().setName(id(), n);
+    return T(id(), &graph());
+  }
+
+  static std::vector<T> tensors(const TensorIds &ids, Graph &g) {
+    std::vector<T> ts;
+    ts.reserve(ids.size());
+    for (const auto &id : ids) {
+      ts.push_back({id, &g});
+    }
+    return ts;
+  }
+
 protected:
   /**
    * Create an op of type TOp in this tensor's graph. The new op will have

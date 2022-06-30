@@ -112,6 +112,9 @@ set(common_compute_sources
   ${src_dir}/common/compute/ops/viewchange.cpp
   ${src_dir}/common/compute/ops/withcallees.cpp
   ${src_dir}/common/compute/ops/withoutcallees.cpp
+
+  ${src_dir}/common/compute/autodiff/coregraphmutator.cpp
+  ${src_dir}/common/compute/autodiff/guidegraphinfo.cpp
 )
 add_library(poprithms-common-compute-objlib OBJECT ${common_compute_sources})
 add_library(poprithms-common-compute SHARED
@@ -261,6 +264,7 @@ add_library(poprithms-autodiff-base SHARED
 # and so is bundled separatedly to the rest of the autodiff project. 
 set(autodiff_automatic_sources
   ${autodiff_src_dir}/automatic/gradinfos.cpp
+  ${autodiff_src_dir}/automatic/iautomatic.cpp
 )
 add_library(poprithms-autodiff-automatic-objlib OBJECT ${autodiff_automatic_sources})
 add_library(poprithms-autodiff-automatic SHARED
