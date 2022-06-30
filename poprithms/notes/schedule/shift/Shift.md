@@ -21,24 +21,51 @@ the sub-schedules `b  c  d` and `e  f` can be rotated, rearranging the schedule 
       ----  =======  
 ```
 
-Below is an animation of the algorithm at work on [this graph with recomputation](./recompute/demo.md).
+The algorithm will keep schedule (ii) if it has better liveness than (i). Below is an animation of the algorithm at work on [this graph with recomputation](./recompute/demo.md).
 
-It shows all of the sum-liveness reducing rotations which are applied. 
+It shows all of the sum-liveness reducing rotations which are applied, but not the liveness-increasing rotations which are considered and not applied. 
 
 Other interesting Graphs are [this random tree](./tree/demo.md), [this bifurcacting graph](./bifurcating/demo.md), [this graph on gride](./grid/demo.md), and [this random graph with non-local allocations](./adversary/demo.md)
 
 
 <img src="recompute/animation.gif" width="80%"/>
 
-The core of the algorithms is very simple, and can be expressed in Python code as:
+The core of the algorithms is simple, and can be expressed in Python code as:
 
 ```Python
+
+def isValid(start0, subLength0, subLength1):
+  """
+  Using the example above:
+
+   a  b  c  d  e  f  (i)
+      =======  ----
+   
+  start0 is 1 (the index of the operation 'b')
+  subLength0 is 3 (the number of operations in =====)
+  subLength1 is 2 (the number of operations in ----)
+  """
+
+  validRange = start0 + subLength0 + subLength1 < nOps
+
+  # Are all the topological constraints between operations satisifed after the rotation? 
+  constraintsSatisfied = allTopologicalConstraintsSatisfied(start0, subLength0, subLength1)
+
+  return validRange and constraintsSatisfied
+       
+
+def isLivenessReducing(start0, subLength0, subLength1):
+   """
+   Using the example above, does (ii) have better liveness than (i)? 
+   There is more information on this in the explanation below this code example. 
+   """
+
 def rotate():
   for subLength0 in range(nOps):
     for start0 in range(nOps): 
       for subLength1 in range(nOps):
-         if isValidAndLivenessReducing(subLength0, start0, subLength1):
-            applyRotation(subLength0, start0, subLength1)
+         if isValid(start0, subLength0, subLength1) and isLivenessReducing(start0, subLength0, subLength1):
+            applyRotation(start0, subLength0, subLength1)
             return True
   return False
 
@@ -111,3 +138,4 @@ For many examples, including all of the examples above, the local minimum obtain
 Technically, the algorithm presented is simulated annealing, with zero temperature (T=0). We could extend this to do true annealing, where sum-liveness shifts (T>0) are accepted with a certain probability, and then taper down to T=0 as the algorithm proceeds. However in my experience running with T=0 from the start does a good job in current experiments, and so there is not plan to implement the algorithm with T>0. 
 
 More information will be added later!
+
