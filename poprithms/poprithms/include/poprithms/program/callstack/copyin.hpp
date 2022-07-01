@@ -177,7 +177,7 @@ public:
   bool isDst(CalleeIndex ci, const TensorId &tId) const;
 
   /**
-   * \return The copy destinations if inputs at indices #inIndices.
+   * \return The copy destinations of inputs at indices #inIndices.
    * */
   CalleeTensorIds indexedDsts(const InIndices &inIndices) const;
 

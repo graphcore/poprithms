@@ -56,7 +56,6 @@ public:
    * */
   static OpIds vanillaComputeSchedule(const Graph &, SubGraphId sgId);
 
-private:
   /**
    * Edge map of a topologically valid lowering ordering.
    *

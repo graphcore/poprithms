@@ -17,6 +17,7 @@
 #include <poprithms/common/compute/ipu.hpp>
 #include <poprithms/common/compute/memoryaliasmapper.hpp>
 #include <poprithms/common/compute/op.hpp>
+#include <poprithms/common/compute/ops/binaryelementwise.hpp>
 #include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/compute/ops/nop.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>

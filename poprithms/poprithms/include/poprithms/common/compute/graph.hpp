@@ -29,7 +29,6 @@ namespace compute {
 
 using common::multiout::OpId;
 using common::multiout::OpIds;
-using common::multiout::OptionalTensorId;
 using common::multiout::OptionalTensorIds;
 using common::multiout::TensorId;
 using common::multiout::TensorIds;
@@ -749,6 +748,10 @@ private:
   uint64_t nTilesPerReplica_;
   ReplicationFactor replicationFactor_;
   SubGraphIds runnable_;
+
+  // Allow the BaseSubGraph class to access the private members of the
+  // this class.
+  friend class BaseSubGraph;
 };
 
 template <class TOp, class... Args>

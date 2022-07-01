@@ -73,10 +73,10 @@ void Autodiff::initPartialGradsToBeSummed() {
   }
 }
 
-TensorId Autodiff::getGrad(const TensorId &nonGrad) const {
+OptionalTensorId Autodiff::optionalGrad(const TensorId &nonGrad) const {
   const auto found = grads.find(nonGrad);
   if (found == grads.cend()) {
-    throw error("No grad for " + nonGrad.str() + " found, in getGradIdRef. ");
+    return {};
   }
   return found->second;
 }
@@ -93,10 +93,27 @@ void Autodiff::registerPartialGrad(const TensorId &nonGrad,
   found->second.push_back(grad);
 }
 
-TensorId Autodiff::getNonGrad(const TensorId &nonGrad) const {
+TensorId ToGradGraph::getGrad(const TensorId &inNonGrad) const {
+  auto opt = optionalGrad(inNonGrad);
+  if (!opt.has_value()) {
+    throw error("No grad for " + inNonGrad.str() + " found, in getGrad. ");
+  }
+  return opt.value();
+}
+
+TensorId ToGradGraph::getNonGrad(const TensorId &inNonGrad) const {
+  auto opt = optionalNonGrad(inNonGrad);
+  if (!opt.has_value()) {
+    throw error("No non-grad for " + inNonGrad.str() +
+                " found, in getNonGrad. ");
+  }
+  return opt.value();
+}
+
+OptionalTensorId Autodiff::optionalNonGrad(const TensorId &nonGrad) const {
   const auto found = nonGrads.find(nonGrad);
   if (found == nonGrads.cend()) {
-    throw error("No non-grad for " + nonGrad.str() + " found. ");
+    return {};
   }
   return found->second;
 }

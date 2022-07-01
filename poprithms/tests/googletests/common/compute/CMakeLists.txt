@@ -20,5 +20,6 @@ endfunction()
 
 add_gtest(common_compute_basic_functionality_0 basic_functionality_0.cpp)
 add_gtest(common_compute_simexecutable_0 simexecutable_0.cpp)
+add_gtest(common_compute_call_0 call_0.cpp)
 
 

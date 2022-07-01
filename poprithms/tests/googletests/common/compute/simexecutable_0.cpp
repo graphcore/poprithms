@@ -16,8 +16,8 @@ using namespace poprithms::common::compute;
 
 } // namespace
 
-TEST(CommonComputeBasicSimExecutor, BasicReduceProduct) {
-  using namespace poprithms::common::compute;
+TEST(CommonComputeSimExecutable, BasicReduceProduct) {
+
   SlickGraph g;
 
   auto sg0 = g.createSubGraph("sg0");
@@ -32,7 +32,7 @@ TEST(CommonComputeBasicSimExecutor, BasicReduceProduct) {
   se.getHostValue(out).assertAllEquivalent(HostTensor::int32(6));
 }
 
-TEST(CommonComputeBasicSimExecutor, ViewChangeOps0) {
+TEST(CommonComputeSimExecutable, ViewChangeOps0) {
   SlickGraph g;
   auto sg0  = g.createSubGraph("sg0");
   auto in0  = sg0.variable(DType::Int32, {2, 3}, g.host());
@@ -48,7 +48,7 @@ TEST(CommonComputeBasicSimExecutor, ViewChangeOps0) {
       v0.slice_({0, 1}, {2, 3}).flatten_().add(1));
 }
 
-TEST(CommonComputeBasicSimExecutor, PadWithBroadcast0) {
+TEST(CommonComputeSimExecutable, PadWithBroadcast0) {
   SlickGraph g;
   auto sg0  = g.createSubGraph("sg0");
   auto in0  = sg0.variable(DType::Int32, {2, 1}, g.host());
@@ -58,7 +58,6 @@ TEST(CommonComputeBasicSimExecutor, PadWithBroadcast0) {
   SimExecutable se(g);
 
   /**
-   *
    *  [[10]
    *   [12]]
    *
@@ -76,7 +75,7 @@ TEST(CommonComputeBasicSimExecutor, PadWithBroadcast0) {
       HostTensor::int32({3, 2}, {0, 0, 10, 0, 12, 0}));
 }
 
-TEST(CommonComputeBasicSimExecutor, MatMul0) {
+TEST(CommonComputeSimExecutable, MatMul0) {
 
   // The 2 tensors which we will multiply together with
   // (1) the compute::Graph (which we're testing).
@@ -107,7 +106,7 @@ TEST(CommonComputeBasicSimExecutor, MatMul0) {
   observed.assertAllClose(expected, 1e-5, 1e-5);
 }
 
-TEST(CommonComputeBasicSimExecutor, MatMulDifferentOutType) {
+TEST(CommonComputeSimExecutable, MatMulDifferentOutType) {
 
   const auto t0 = HostTensor::randomInt32(-5, 5, {1, 2, 2, 4}, 1011);
   const auto t1 = HostTensor::randomInt32(-5, 5, {3, 1, 4, 3}, 1011);
@@ -132,7 +131,7 @@ TEST(CommonComputeBasicSimExecutor, MatMulDifferentOutType) {
   EXPECT_EQ(observed.shape(), Shape({3, 2, 2, 3}));
 }
 
-TEST(CommonComputeBasicSimExecutor, RemainderIsFmod0) {
+TEST(CommonComputeSimExecutable, RemainderIsFmod0) {
 
   const auto t0 = HostTensor::uniformFloat64(-5, 5, {20}, 1011);
   const auto t1 = HostTensor::uniformFloat64(-1, 1, {20}, 1012);
@@ -167,7 +166,7 @@ TEST(CommonComputeBasicSimExecutor, RemainderIsFmod0) {
   observed1.assertAllEquivalent(t0.mod(t1));
 }
 
-TEST(CommonComputeBasicSimExecutor, EncodeOneHot0) {
+TEST(CommonComputeSimExecutable, EncodeOneHot0) {
   SlickGraph g;
   auto sg0     = g.createSubGraph("sg0");
   int64_t N    = 10;

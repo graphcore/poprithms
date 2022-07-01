@@ -40,16 +40,20 @@ public:
 
   /**
    * The gradient of the tensor #inNonGrad. If #inNonGrad is not a tensor in
-   * the non-gradient graph, then an error is thrown.
+   * the non-gradient graph, then for the non-optinal version an error is
+   * thrown.
    * */
-  virtual TensorId getGrad(const TensorId &inNonGrad) const = 0;
+  virtual OptionalTensorId optionalGrad(const TensorId &inNonGrad) const = 0;
+  TensorId getGrad(const TensorId &inNonGrad) const;
 
   /**
    * The non-gradient (either recomputed or checkpointed) of the tensor
    * #inNonGrad. If #inNonGrad is not a tensor in the non-gradient graph, then
-   * an error is thrown.
+   * for the non-optinonal version an error is thrown.
    * */
-  virtual TensorId getNonGrad(const TensorId &inNonGrad) const = 0;
+  virtual OptionalTensorId
+  optionalNonGrad(const TensorId &inNonGrad) const = 0;
+  TensorId getNonGrad(const TensorId &inNonGrad) const;
 };
 
 } // namespace core

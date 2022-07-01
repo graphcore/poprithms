@@ -4,6 +4,7 @@
 
 #include <poprithms/autodiff/automatic/gradops.hpp>
 #include <poprithms/common/compute/ops/withautodiff.hpp>
+#include <poprithms/common/compute/ops/withoutcallees.hpp>
 
 namespace poprithms {
 namespace common {

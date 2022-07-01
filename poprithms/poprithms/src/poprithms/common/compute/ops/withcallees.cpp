@@ -4,15 +4,52 @@
 
 #include <common/compute/error.hpp>
 
+#include <poprithms/autodiff/automatic/call.hpp>
+#include <poprithms/common/compute/autodiff/automaticmutator.hpp>
+#include <poprithms/common/compute/autodiff/automaticquerier.hpp>
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/ops/withcallees.hpp>
 #include <poprithms/common/compute/opverifier.hpp>
+#include <poprithms/common/multiout/traversal.hpp>
 
 namespace poprithms {
 namespace common {
 namespace compute {
 
 using poprithms::program::callstack::CopyIns;
+
+bool WithCallees::nonRepeatGradientPropagates(const WithCallees &wc,
+                                              OutIndex outIndex,
+                                              InIndex inIndex) {
+
+  // This is an assumption. An example of this is the #condition input to a
+  // switch op, which is not differentiatable. If in the future there's an op
+  // with callees and an input which is not copied to a callee which IS
+  // differentiable, we'll need to reconsider this. It is hard to imagine such
+  // an op.
+  if (!wc.isCopyToCalleeInIndex(inIndex)) {
+    return false;
+  }
+
+  const auto ci = wc.dstInCallee(inIndex).calleeIndex();
+
+  if (!wc.outs().hasValue(outIndex, ci)) {
+    return false;
+  }
+
+  // See if there's a differentiable path from the output at #outIndex to
+  // input at #inIndex.
+  const auto inDst  = wc.dstInCallee(inIndex).tId();
+  const auto outSrc = wc.outs().outSource(outIndex, ci);
+
+  const auto isDifferentiablePath =
+      poprithms::common::multiout::isFwdReachable(
+          wc.computeGraph(), {inDst}, outSrc, [&wc](const OpTraversal &x) {
+            return wc.computeGraph().gradientPropagates(x);
+          });
+
+  return isDifferentiablePath;
+}
 
 bool WithCallees::isCallee(SubGraphId sgId) const {
   return std::find(callees_.cbegin(), callees_.cend(), sgId) !=
@@ -428,6 +465,103 @@ void IHostRunner::copy(const TensorId &from, const TensorId &to) const {
   for (uint64_t replIndex = 0; replIndex < rf; ++replIndex) {
     tTo[replIndex].update_(tFrom[replIndex]);
   }
+}
+
+std::string Call::typeString() const {
+  return poprithms::util::cat::strcat(
+      "Call(callee=", callee(CalleeIndex(0)), ')');
+}
+
+Call::Call(const State &s,
+           const TensorIds &copyInDsts,
+           SubGraphId callee,
+           const TensorIds &copyOutSrcs)
+    : WithCallees(
+          s,
+          {callee},
+          CalleeTensorId::zip(copyInDsts, CalleeIndex(0)),
+          CopyOuts(std::map<CalleeIndex, TensorIds>{{0, copyOutSrcs}})) {}
+
+poprithms::autodiff::guide::Objective
+Call::localObjective(CalleeIndex calleeIndex,
+                     const InIndices &fromTargets,
+                     const OutIndices &inGrads) const {
+
+  if (calleeIndex != 0) {
+    throw error("For Call, CalleeIndex should always be 0");
+  }
+
+  const auto targets    = inDsts(fromTargets);
+  auto gradsProvidedFor = outs().outSources(CalleeIndex(0), inGrads);
+  auto checkpoints      = outs().outSources(CalleeIndex(0));
+
+  return poprithms::autodiff::guide::Objective::outOfGraph(
+      gradsProvidedFor, checkpoints, targets);
+}
+
+UpOp Call::cloneWithState(const State &s) const {
+  return std::make_unique<Call>(s,
+
+                                inTensorIdDsts(),
+                                callee(CalleeIndex(0)),
+                                outs().outSources(CalleeIndex(0)));
+}
+
+void Call::withCalleesTypeSpecificAssertValid() const {
+
+  if (inDsts().size() != nInTensors()) {
+    std::ostringstream oss;
+    oss << "This call op " << id() << " has " << nInTensors()
+        << " input tensors (in caller) but " << inDsts().size()
+        << " copy destinations (in callee).";
+    throw error(oss.str());
+  }
+
+  for (InIndex i = 0; i < inDsts().size(); ++i) {
+    auto s0 = computeGraph().shape(inTensorId(i));
+    auto s1 = computeGraph().shape(dstInCallee(i).tId());
+    if (s0 != s1) {
+      std::ostringstream oss;
+      oss << "Copy in shape mismatch at index " << i << " : " << s0
+          << " != " << s1;
+      throw error(oss.str());
+    }
+  }
+
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    auto s0 = computeGraph().shape(outTensorId(o));
+    auto s1 = computeGraph().shape(outs().outSource(o, CalleeIndex(0)));
+
+    if (s0 != s1) {
+      std::ostringstream oss;
+      oss << "Copy out shape mismatch at index " << o << " : " << s0
+          << " != " << s1;
+      throw error(oss.str());
+    }
+  }
+}
+
+bool Call::gradientPropagates(OutIndex outIndex, InIndex inIndex) const {
+  return nonRepeatGradientPropagates(*this, outIndex, inIndex);
+}
+
+OptionalTensorIds
+Call::growInGrads(Graph &graph,
+                  const poprithms::autodiff::core::ToGradGraph &toGradGraph,
+                  const poprithms::autodiff::automatic::GradInfos &gradInfos,
+                  SubGraphId toExtend) const {
+
+  auto gq = AutomaticQuerier(graph);
+  auto gm = AutomaticMutator(graph);
+
+  return poprithms::autodiff::automatic::CallDifferentiator::createInGrads(
+      id(), gm, gq, toGradGraph, gradInfos, toExtend);
+}
+
+void Call::hostRun(const IHostRunner &fb) const {
+  fb.copies(inTensorIds(), inTensorIdDsts());
+  fb.run(callee(CalleeIndex(0)));
+  fb.copies(outs().outSources(CalleeIndex(0)), outTensorIds());
 }
 
 } // namespace compute

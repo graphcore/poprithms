@@ -53,8 +53,8 @@ private:
   GraphMutator &graphMutator;
   guide::Guide guide;
 
-  TensorId getGrad(const TensorId &) const final;
-  TensorId getNonGrad(const TensorId &) const final;
+  OptionalTensorId optionalGrad(const TensorId &) const final;
+  OptionalTensorId optionalNonGrad(const TensorId &) const final;
 
   OptionalTensorIds optionalNonGrads(const TensorIds &ids) const final;
   OptionalTensorIds optionalGrads(const TensorIds &ids) const final;

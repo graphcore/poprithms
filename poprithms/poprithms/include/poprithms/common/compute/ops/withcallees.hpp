@@ -249,6 +249,15 @@ public:
 
   void computeDerivedVerifyValid() const final;
 
+  /**
+   * A method for ops with callees, that do not have loops. It determines, for
+   * such as op #wc, if a gradient at the output index #outIndex can propagate
+   * all the way to the input index #inIndex.
+   * */
+  static bool nonRepeatGradientPropagates(const WithCallees &wc,
+                                          OutIndex outIndex,
+                                          InIndex inIndex);
+
 private:
   /**
    * Only RefFrom_ can have an output which references a tensor in a different
@@ -313,6 +322,92 @@ private:
   void initializeSimOut(SimTensorMap &htm) const final {
     initializeReplicatedSimOut(htm);
   }
+};
+
+/**
+ * Call operation.
+ * */
+class Call final : public WithCallees {
+
+public:
+  /**
+   * \param copyInDestinations The destinations in #callee that the inputs
+   *                           are copied to. The sources of the copies are
+   *                           the inputs in this op's sub-graph, and defined
+   *                           in #state.
+   *
+   * \param callee The sub-graph which this call op calls.
+   *
+   * \param copyOutSources The tensors in #callee which are copied out.
+   * */
+  Call(const State &state,
+       const TensorIds &copyInDestinations,
+       SubGraphId callee,
+       const TensorIds &copyOutSources);
+
+private:
+  /**
+   * Outputs of call operations are always new allocations. To alias a tensor
+   * in the callee sub-graph in the calling op's sub-graph, the RefFrom_ op
+   * can be used.
+   * */
+  bool aliases(InIndex, OutIndex) const final { return false; }
+  bool modifies(InIndex) const final { return false; }
+
+  /**
+   * All inputs to a call op are copied to the callee sub-graph. In other
+   * words, there is no input like the switch op's #condition argument which
+   * is not copied to the callee sub-graph.
+   * */
+  uint64_t nNonCopyIns() const final { return 0; }
+
+  poprithms::autodiff::guide::Objective
+  localObjective(CalleeIndex,
+                 const InIndices &fromTargets,
+                 const OutIndices &inGrads) const final;
+
+  /**
+   * As there is only 1 callee sub-graph for a call op, there is only 1
+   * CallEvent associated to it.
+   * */
+  CallEvent event() const {
+    return CallEvent(id(), callee(CalleeIndex(0)), CalleeIndex(0));
+  }
+
+  /**
+   * Create gradient tensors for the inputs of this op.
+   * */
+  OptionalTensorIds
+  growInGrads(Graph &,
+              const poprithms::autodiff::core::ToGradGraph &,
+              const poprithms::autodiff::automatic::GradInfos &,
+              SubGraphId toExtend) const final;
+
+  /**
+   * There are no loop-carry dependencies for a call op, as the callee is only
+   * called once (unlike a loop-style op).
+   * */
+  bool isCarriedTo(const TensorId &) const final { return false; }
+
+  void
+  withCalleesDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
+
+  void withCalleesDerivedRemoveInputs(const ContiguousInIndexSubset &) final {
+  }
+
+  bool withCalleesTypeSpecificEqualTo(const compute::Op &) const final {
+    return true;
+  }
+
+  void withCalleesTypeSpecificAssertValid() const final;
+
+  std::string typeString() const final;
+
+  UpOp cloneWithState(const State &) const final;
+
+  void hostRun(const IHostRunner &) const final;
+
+  bool gradientPropagates(OutIndex, InIndex) const final;
 };
 
 } // namespace compute

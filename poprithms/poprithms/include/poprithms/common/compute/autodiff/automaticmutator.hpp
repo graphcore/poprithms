@@ -111,11 +111,11 @@ public:
     notImplemented("switchOp");
   }
 
-  OpId call(SubGraphId,
-            SubGraphId,
-            const std::vector<std::pair<TensorId, TensorId>> &,
-            const TensorIds &) override {
-    notImplemented("call");
+  OpId call(SubGraphId caller,
+            SubGraphId callee,
+            const std::vector<std::pair<TensorId, TensorId>> &ins,
+            const TensorIds &outs) override {
+    return SubGraph(caller, graph_).call(callee, ins, outs);
   }
 
   virtual OpId repeat(SubGraphId,

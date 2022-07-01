@@ -3,8 +3,9 @@
 #define POPRITHMS_COMMON_COMPUTE_OPS_WITHAUTODIFF_HPP
 
 #include <poprithms/autodiff/automatic/gradops.hpp>
+#include <poprithms/common/compute/gradopins.hpp>
 #include <poprithms/common/compute/op.hpp>
-#include <poprithms/common/compute/ops/withoutcallees.hpp>
+#include <poprithms/common/compute/tensor.hpp>
 #include <poprithms/common/multiout/ioindices.hpp>
 
 namespace poprithms {
