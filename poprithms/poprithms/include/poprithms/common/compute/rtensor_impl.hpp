@@ -7,6 +7,7 @@
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/ops/binaryelementwise.hpp>
 #include <poprithms/common/compute/ops/encode.hpp>
+#include <poprithms/common/compute/ops/interdevicecopy.hpp>
 #include <poprithms/common/compute/ops/matmul.hpp>
 #include <poprithms/common/compute/ops/reduce.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
@@ -484,6 +485,54 @@ T RTensor<T>::concat_(const std::vector<T> &ts, uint64_t axis) {
   return out;
 }
 
+template <typename T>
+T RTensor<T>::updateFromHost_(
+    const RTensor<T> &source,
+    const CopyBetweenHostAndIpuOptions &copyOptions) const {
+  return createTensor<CopyFromHostToIpu_>(
+      {source.id(), id()}, {{info()}}, copyOptions);
+}
+
+template <typename T>
+T RTensor<T>::updateFromIpu_(
+    const RTensor<T> &source,
+    const CopyBetweenHostAndIpuOptions &copyOptions) const {
+  return createTensor<CopyFromIpuToHost_>(
+      {source.id(), id()}, {{info()}}, copyOptions);
+}
+
+template <typename T>
+T RTensor<T>::hostToIpu(
+    DeviceId ipuDestination,
+    const CopyBetweenHostAndIpuOptions &copyOptions) const {
+  if (rank_u64() < 2) {
+    throw poprithms::error::error(
+        "common::compute",
+        "Source of host->ipu copy must be at least rank 2");
+  }
+
+  // Create an ipu tensor:
+  const auto target = variable(shape().fromDim(2), ipuDestination);
+
+  // Copy to ipu tensor:
+  return target.updateFromHost_(*this, copyOptions);
+}
+
+template <typename T>
+T RTensor<T>::ipuToHost(
+    CircularBufferCount circularBufferCount,
+    const CopyBetweenHostAndIpuOptions &copyOptions) const {
+
+  // Create a host tensor:
+  const auto target = variable(shape()
+                                   .prepend(graph().replicationFactor_u64())
+                                   .prepend(circularBufferCount.get()),
+                               graph().host());
+
+  // Copy to host tensor:
+  return target.updateFromIpu_(*this, copyOptions);
+}
+
 namespace {
 
 template <typename T> class MatmulTensorMoldingHelper {
@@ -519,6 +568,16 @@ T RTensor<T>::matmul(const RTensor<T> &rhs,
 
   // reshape to correct grouped matmul output shape.
   return out3d.reshape_(matMulPack.outShape());
+}
+
+template <typename T>
+std::vector<T> RTensor<T>::tensors(const TensorIds &ids, Graph &g) {
+  std::vector<T> ts;
+  ts.reserve(ids.size());
+  for (const auto &id : ids) {
+    ts.push_back({id, &g});
+  }
+  return ts;
 }
 
 } // namespace compute

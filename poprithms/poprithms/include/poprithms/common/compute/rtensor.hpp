@@ -35,6 +35,31 @@ public:
   bool operator==(const MatMulOptions &) const { return true; }
 };
 
+class CopyBetweenHostAndIpuOptions {
+
+public:
+  CopyBetweenHostAndIpuOptions()  = default;
+  ~CopyBetweenHostAndIpuOptions() = default;
+
+  uint64_t bufferingDepth() const { return bufferingDepth_; }
+  CopyBetweenHostAndIpuOptions &bufferingDepth(uint64_t v) {
+    bufferingDepth_ = v;
+    return *this;
+  }
+
+  bool operator==(const CopyBetweenHostAndIpuOptions &rhs) const {
+    return t() == rhs.t();
+  }
+
+  bool operator<(const CopyBetweenHostAndIpuOptions &rhs) const {
+    return t() < rhs.t();
+  }
+
+private:
+  std::tuple<uint64_t> t() const { return bufferingDepth_; }
+  uint64_t bufferingDepth_ = 1ull;
+};
+
 using common::compute::DeviceType;
 using common::compute::DeviceTypes;
 using common::multiout::OpId;
@@ -700,14 +725,57 @@ public:
     return T(id(), &graph());
   }
 
-  static std::vector<T> tensors(const TensorIds &ids, Graph &g) {
-    std::vector<T> ts;
-    ts.reserve(ids.size());
-    for (const auto &id : ids) {
-      ts.push_back({id, &g});
-    }
-    return ts;
-  }
+  static std::vector<T> tensors(const TensorIds &ids, Graph &g);
+
+  /**
+   * Update this ipu tensor by copying to it from the host tensor
+   * #sourceOnHost. The returned tensor is an alias of this ipu tensor.
+   *
+   * If this tensor has shape #s, then #sourceOnHost tensor must have shape
+   * (cbc, rf, *s) where:
+   *
+   * #cbc is the size of the circular buffer of the host tensor. Subsequent
+   *      calls to this method will copy from subsequent slices of
+   *      #sourceFromHost in dimension 0. When this method has been called
+   *      #cbc times, the copy source index returns to zero (that is why it is
+   *      a 'circular' buffer).
+   *
+   * #rf is either:
+   *    (1) the replication factor of this tensor, or
+   *    (2) 1. In this case, the host value is broadcast to all replicas.
+   *
+   * To support something  inbetween (1) and (2), where host tensors are
+   * broadcast to subsets of all replicas, (1) must be used. That is, the
+   * broadcasting must be done on host, beforehand.
+   * */
+  T updateFromHost_(const RTensor<T> &sourceOnHost,
+                    const CopyBetweenHostAndIpuOptions &opts = {}) const;
+
+  /**
+   * Copy this host tensor to ipu. \sa updateFromHost_.
+   * */
+  T hostToIpu(DeviceId ipuDestination,
+              const CopyBetweenHostAndIpuOptions & = {}) const;
+
+  /**
+   * Update this host tensor by copying to it from an ipu tensor.
+   *
+   * If #sourceOnIpu is of shape #s, then this tensor must of of shape (#cbc,
+   * #rf, *s), where #cbc is the circular buffer count of this host tensor and
+   * #rf is the replication factor of the graph. Subsequent calls to this
+   * method will write to subsequent slices in dimension 0 of the host tensor.
+   *
+   * Copying (1) from ipu to host and (2) from host to ipu, have identical
+   * shape requirements. \sa updateFromHost_ for more information.
+   * */
+  T updateFromIpu_(const RTensor<T> &sourceOnIpu,
+                   const CopyBetweenHostAndIpuOptions &opts = {}) const;
+
+  /**
+   * Copy this ipu tensor to host. \sa updateFromIpu_.
+   * */
+  T ipuToHost(CircularBufferCount,
+              const CopyBetweenHostAndIpuOptions & = {}) const;
 
 protected:
   /**

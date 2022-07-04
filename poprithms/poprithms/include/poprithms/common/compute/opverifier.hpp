@@ -79,6 +79,12 @@ public:
   };
 
   /**
+   * Verify that the tensor information of the input at index #inIndex and the
+   * output at index #outIndex are identical.
+   * */
+  void verifySameTensorInfo(InIndex inIndex, OutIndex outIndex) const;
+
+  /**
    * Verify that the op has #nIns inputs and #nOuts outputs, and that all of
    * the attributes in #atts are satisfied.
    * */

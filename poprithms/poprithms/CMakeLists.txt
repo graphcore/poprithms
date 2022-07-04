@@ -104,11 +104,11 @@ set(common_compute_sources
   ${src_dir}/common/compute/ops/binaryelementwise.cpp
   ${src_dir}/common/compute/ops/encode.cpp
   ${src_dir}/common/compute/ops/init.cpp
+  ${src_dir}/common/compute/ops/interdevicecopy.cpp
   ${src_dir}/common/compute/ops/matmul.cpp
   ${src_dir}/common/compute/ops/ops.cpp
   ${src_dir}/common/compute/ops/reduce.cpp
   ${src_dir}/common/compute/ops/reffrom.cpp
-  ${src_dir}/common/compute/ops/reduce.cpp
   ${src_dir}/common/compute/ops/unaryelementwise.cpp
   ${src_dir}/common/compute/ops/viewchange.cpp
   ${src_dir}/common/compute/ops/withcallees.cpp

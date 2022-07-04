@@ -2,6 +2,8 @@
 
 #include "error.hpp"
 
+#include <sstream>
+
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/opverifier.hpp>
 
@@ -15,6 +17,19 @@ void OpVerifier::verifyNonVariadicFromAtts(
     const std::vector<Att> &atts) const {
   op.verifyNInAndOutTensors(nIn, nOut);
   verifyFromAtts(atts);
+}
+
+void OpVerifier::verifySameTensorInfo(InIndex inIndex,
+                                      OutIndex outIndex) const {
+  if (op.inTensorInfo(inIndex) != op.outTensorInfo(outIndex)) {
+    std::ostringstream oss;
+    oss << "Expected the input at index " << inIndex
+        << " and the output at index " << outIndex << " of op " << op
+        << " to have the same tensor informations. But the input info is "
+        << op.inTensorInfo(inIndex) << " and the output info is "
+        << op.outTensorInfo(outIndex);
+    throw error(oss.str());
+  }
 }
 
 void OpVerifier::verifyInIsFixedPoint(InIndex i) const {
