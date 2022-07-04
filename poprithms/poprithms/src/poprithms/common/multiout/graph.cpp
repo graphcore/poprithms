@@ -172,9 +172,19 @@ void Graph::verifyValidSubstitute(const TensorId &before,
   }
 }
 
-void Graph::verifyValidSubstitutes(
+void Graph::verifyValidSubstitutesForRemoval(
     const OpId opId,
     const OptionalTensorIds &substitutes) const {
+
+  if (substitutes.size() != nOutTensors(opId)) {
+    std::ostringstream oss;
+    oss << "In Graph::verifyValidSubstitutesForRemoval(...), for op "
+        << op(opId) << ". "
+        << "The op has " << nOutTensors(opId) << " outputs "
+        << " but substitutes has size " << substitutes.size();
+    oss << ". ";
+    throw error(oss.str());
+  }
 
   for (auto outIndex : outIndicesConsumed(opId)) {
     const auto optionalSubstitute = substitutes.at(outIndex.get());
@@ -215,7 +225,7 @@ void Graph::removeOp(OpId opId,
                      const OptionalTensorIds &substitutes,
                      const std::string &context) {
 
-  verifyValidSubstitutes(opId, substitutes);
+  verifyValidSubstitutesForRemoval(opId, substitutes);
 
   multiOutTypeSpecificRemoveOp(opId, substitutes);
 
@@ -300,7 +310,7 @@ void Graph::removeOutputs(OpId opToPrune,
   if (toRemove.size() != outputSubstitutes.size()) {
     std::ostringstream oss;
     oss << "Failure in removeOutputs for op " << opToPrune << ". There are "
-        << toRemove.size() << " indices which will removed, but "
+        << toRemove.size() << " indices which will be removed, but "
         << outputSubstitutes.size() << " substitute tensors provided. ";
     throw error(oss.str());
   }

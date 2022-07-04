@@ -32,7 +32,7 @@ namespace alias {
  *
  * 2) containsAliasTensor: Describes the current state of the alias graph
  *    - does the underlying alias graph (which this class does not manage)
- *    contain an alias tensor for specific external tensor?
+ *    contain an alias tensor for a specific external tensor?
  *
  * 3) growAliasTensors: Describes what nodes should be inserted into the
  *    memory::alias::Graph to correspond to the external graph.

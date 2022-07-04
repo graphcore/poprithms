@@ -25,7 +25,7 @@ HostTensors RefFrom::initializeOut(const HostTensors &) const {
 
 void RefFrom::resetRootRef(OutIndex o, const TensorId &root) {
 
-  if (o != OutIndex(o)) {
+  if (o != OutIndex(0)) {
     std::ostringstream oss;
     oss << "RootRef only has 1 output, invalid output index " << o
         << " for this op, " << *this;

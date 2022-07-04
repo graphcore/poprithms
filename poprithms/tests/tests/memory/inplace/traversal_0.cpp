@@ -32,7 +32,7 @@ class ForwardTraverse {
 public:
   ForwardTraverse(const Graph &g) : g_(g) {}
   const Graph &g_;
-  OpIds neighbors(OpId opId) {
+  OpIds neighbors(OpId opId) const {
     OpIds opIds;
     for (auto t : g_.outTensorIds(opId)) {
       for (auto c : g_.consumptionIds(t)) {

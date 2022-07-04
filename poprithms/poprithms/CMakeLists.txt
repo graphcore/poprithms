@@ -116,7 +116,10 @@ set(common_compute_sources
 
   ${src_dir}/common/compute/autodiff/coregraphmutator.cpp
   ${src_dir}/common/compute/autodiff/guidegraphinfo.cpp
+
+  ${src_dir}/common/compute/prune/prune.cpp
 )
+
 add_library(poprithms-common-compute-objlib OBJECT ${common_compute_sources})
 add_library(poprithms-common-compute SHARED
   $<TARGET_OBJECTS:poprithms-autodiff-automatic-objlib>

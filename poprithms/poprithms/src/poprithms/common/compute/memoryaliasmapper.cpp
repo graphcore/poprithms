@@ -1,10 +1,12 @@
-// Copyright (c) 2021 Graphcore Ltd. All rights reserved.
+// Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
+#include <iostream>
 #include <map>
 #include <set>
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/memoryaliasmapper.hpp>
+#include <poprithms/common/multiout/traversal.hpp>
 #include <poprithms/compute/host/regionutil.hpp>
 #include <poprithms/memory/alias/jitgrower.hpp>
 #include <poprithms/schedule/transitiveclosure/transitiveclosure.hpp>
@@ -78,13 +80,64 @@ MemoryAliasMapper::MemoryAliasMapper(const Graph &g, const TensorIds &tIds)
   extend(tIds);
 }
 
+namespace {
+
+class AliasNeighborGetterWithRefTraversal {
+private:
+  const Graph &g;
+
+public:
+  AliasNeighborGetterWithRefTraversal(const Graph &g_) : g(g_) {}
+
+  TensorIds neighbors(const TensorId &currentTensor) const {
+
+    const auto &producerOp = g.computeOp(currentTensor.opId());
+
+    // Neighbors of #currentTensor are all the following tensors:
+    //
+    // 1) References in different graphs.
+    // 2) Inputs that might be aliases.
+    // 3) Outputs (of consumers) that might be aliases.
+    //
+    // 1) References in different graphs:
+    TensorIds neighborsOfCurrent = g.refsExcludingSelf(currentTensor);
+
+    // 2) Inputs that might be aliases:
+    for (InIndex i = 0; i < producerOp.nInTensors(); ++i) {
+      if (producerOp.aliases(i, currentTensor.outIndex())) {
+      }
+      neighborsOfCurrent.push_back(producerOp.inTensorId(i));
+    }
+
+    // 3) Outputs (of consumers) that might be aliases:
+    for (auto cId : g.consumptionIds(currentTensor)) {
+      for (OutIndex o = 0; o < g.nOutTensors(cId.opId()); ++o) {
+        if (g.aliases(cId.opId(), cId.inIndex(), o)) {
+          neighborsOfCurrent.push_back({cId.opId(), o});
+        }
+      }
+    }
+
+    return neighborsOfCurrent;
+  }
+};
+} // namespace
+
+TensorIds MemoryAliasMapper::potentialAliases(const Graph &g,
+                                              const TensorIds &tIds) {
+  return poprithms::common::multiout::depthFirst(
+      AliasNeighborGetterWithRefTraversal(g), tIds, [](const TensorId &) {
+        return true;
+      });
+}
+
 bool AliasGraphQuerier::isAllConstZero(const Graph &computeGraph,
                                        const TensorId &tId) {
 
   MemoryAliasMapper mam(computeGraph, {tId});
 
-  // If any of the allocations of #tId are non-constant and not empty, return
-  // false.
+  // If any of the allocations of #tId are non-constant and not empty,
+  // return false.
   if (mam.graph().containsColor(mam.id(tId), MemoryAliasVariable) &&
       computeGraph.nelms(tId) != 0) {
     return false;
@@ -210,6 +263,17 @@ AliasGraphQuerier::makeModifiersFinalConsumers(const Graph &computeGraph,
     }
   }
   return fwdEdges;
+}
+
+TensorIds
+MemoryAliasMapper::aliasesFromExtended(const TensorIds &tIds) const {
+  std::set<TensorId> aliasTensors;
+  for (auto tId : tIds) {
+    for (auto aliId : graph().allAliases(id(tId))) {
+      aliasTensors.insert(idFromAliasId(aliId));
+    }
+  }
+  return {aliasTensors.cbegin(), aliasTensors.cend()};
 }
 
 } // namespace compute

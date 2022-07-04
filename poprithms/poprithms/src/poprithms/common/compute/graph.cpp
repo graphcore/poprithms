@@ -1,6 +1,7 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
 #include <algorithm>
+#include <iostream>
 #include <iterator>
 #include <memory>
 #include <ostream>
@@ -242,16 +243,6 @@ Graph::Graph(uint64_t nTilesPerReplica, ReplicationFactor r)
 void Graph::schedulableTypeSpecificRemoveOp(
     OpId opToRemove,
     const OptionalTensorIds &outputSubstitutes) {
-
-  const auto &op_ = op(opToRemove);
-
-  for (OutIndex o = 0; o < op_.nOutTensors(); ++o) {
-    if (!op_.isRootRef(o)) {
-      const auto root = op_.rootRef(o);
-      op(root.opId()).removeOutDerivedRef(root.outIndex(), {opToRemove, o});
-    }
-  }
-
   (void)opToRemove;
   (void)outputSubstitutes;
 }
@@ -637,18 +628,6 @@ Graph::indexedOutCopies(const TensorId &tId) const {
   return pairs;
 }
 
-TensorIds Graph::hostTensors() const {
-  TensorIds hts;
-  for (const auto opId : opIds()) {
-    for (OutIndex o = 0; o < nOutTensors(opId); ++o) {
-      if (isOnHost({opId, o})) {
-        hts.push_back({opId, o});
-      }
-    }
-  }
-  return hts;
-}
-
 OpIds Graph::opsWithCallees() const {
   OpIds o;
   for (auto opId : opIds()) {
@@ -882,17 +861,29 @@ void Graph::setUserManagedHost(const TensorId &tId, bool b) {
   asVarInit->setUserManagedHost(b);
 }
 
-// TODO(T63457) add the tests which currently depend on ops which have not yet
-// been added.
 void Graph::multiOutTypeSpecificRemoveOutputs(
     OpId opId,
     const ContiguousOutIndexSubset &coin,
     const OptionalTensorIds &subs) {
 
+  if (subs.size() != coin.nRemoved()) {
+    std::ostringstream oss;
+    oss << "The op " << op(opId) << " is having outputs removed. "
+        << "The op has " << nOutTensors(opId) << " outputs "
+        << " and the number of (optional) substitutes is " << subs.size();
+    oss << ". Coin (the output index mapper) has " << coin.nSubset()
+        << " in the post-removal subset and " << coin.nRemoved()
+        << " form removal. There should be " << coin.nRemoved()
+        << " optional substitutes.";
+    throw error(oss.str());
+  }
+
   // if no output is being removed, return.
   if (coin.nRemoved() == 0) {
     return;
   }
+
+  auto getSub = [&subs](OutIndex o) { return subs.at(o.get()).value(); };
 
   {
     // The op which is having some outputs removed:
@@ -900,20 +891,39 @@ void Graph::multiOutTypeSpecificRemoveOutputs(
 
     // For all of the outputs, if the output is a root reference of tensor(s)
     // in different sub-graphs, adjust the stored root reference of the
-    // derived tensors. This involves a shifting down of output indices to
-    // fill in the gaps.
+    // derived tensors. This involves either
+    // 1) shifting an output index down, if the output is not removed.
+    // 2) using a substitute, if the output is removed.
     //
-    // Example:
-    //   suppose this op has 3 outputs and output #0 is being removed, and
+    // Example of 1)
+    //   Suppose this op has 3 outputs and output #0 is being removed, and
     //   output #1 has a derived reference tId. Then the stored root reference
     //   of tId will change from (opId, 1) to (opId, 0).
     //
-    // If an output with a derived reference is removed, an error will be
-    // thrown. The derived reference needs to adjusted before this call to
-    // remove the root reference.
+    // Example of 2)
+    //   Suppose this op has 3 outputs and output #1 has a derived reference
+    //   to tId and output #1 is removed. Then the stored root reference of
+    //   tId will change from (opId, 1) to subs.at(1).
+    //
     for (OutIndex o = 0; o < op_.nOutTensors(); ++o) {
       for (auto dr : op_.derivedRefs(o)) {
-        op(dr.opId()).resetRootRef(dr.outIndex(), {opId, coin.inSubset(o)});
+        if (coin.isRemoved(o)) {
+          op(dr.opId()).resetRootRef(dr.outIndex(), getSub(o));
+        } else {
+          op(dr.opId()).resetRootRef(dr.outIndex(), {opId, coin.inSubset(o)});
+        }
+      }
+    }
+
+    for (OutIndex o = 0; o < op_.nOutTensors(); ++o) {
+      if (!op_.isRootRef(o)) {
+        // This op is not a RefFrom_ op, what is it?
+        if (op_.nOutTensors() != o.get() + 1) {
+          throw error(
+              "Handle case of shifting outputs down for new ref from op.");
+        }
+        const auto root = op_.rootRef(o);
+        op(root.opId()).removeOutDerivedRef(root.outIndex(), {opId, o});
       }
     }
 
@@ -934,8 +944,6 @@ void Graph::multiOutTypeSpecificRemoveOutputs(
       }
     }
   }
-
-  auto getSub = [&subs](OutIndex o) { return subs.at(o.get()).value(); };
 
   // Suppose the op #opId, which is having outputs removed, has an output #o
   // which is copied into during a call event. So #opId is probably a
@@ -1047,6 +1055,42 @@ std::map<OpId, OpIds>
 Graph::schedulableDerivedSpecificConstraints(const OpIds &opIds) const {
   return poprithms::common::compute::AliasGraphQuerier::
       makeModifiersFinalConsumers(*this, opIds);
+}
+
+TensorIds Graph::tensorIds(DeviceId devId) const {
+  TensorIds toPreserve;
+  for (auto op : opIds()) {
+    for (uint64_t o = 0; o < nOutTensors(op); ++o) {
+      if (deviceId({op, o}) == devId) {
+        toPreserve.push_back({op, o});
+      }
+    }
+  }
+  return toPreserve;
+}
+
+TensorIds Graph::tensorIds(DeviceType dt) const {
+  TensorIds toPreserve;
+  for (auto op : opIds()) {
+    for (uint64_t o = 0; o < nOutTensors(op); ++o) {
+      if (deviceType({op, o}) == dt) {
+        toPreserve.push_back({op, o});
+      }
+    }
+  }
+  return toPreserve;
+}
+
+OpIds Graph::modifiers(const TensorIds &tIds) const {
+  OpIds opIds;
+  for (const auto &tId : tIds) {
+    for (const auto &con : consumptionIds(tId)) {
+      if (op(con.opId()).modifies(con.inIndex())) {
+        opIds.push_back(con.opId());
+      }
+    }
+  }
+  return opIds;
 }
 
 } // namespace compute

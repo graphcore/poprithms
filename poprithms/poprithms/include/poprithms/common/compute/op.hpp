@@ -298,6 +298,13 @@ public:
   virtual uint64_t nInputsCopiedToCallees() const = 0;
 
   /**
+   * \return The number of inputs that are not copied to callee sub-graphs.
+   * */
+  uint64_t nNonCopyIns() const {
+    return nInTensors() - nInputsCopiedToCallees();
+  }
+
+  /**
    * \return The tensor in a callee sub-graph to which the input at index #i
    *         is copied.
    * */

@@ -216,7 +216,7 @@ template <class Node> struct DepthFirstNodes {
  * neighbors of an op are the consumers of all of its output tensors.
  * */
 template <class NeighborGetter, class Node, class AcceptanceCondition>
-std::vector<Node> depthFirst(NeighborGetter &&ng,
+std::vector<Node> depthFirst(const NeighborGetter &ng,
                              const std::vector<Node> &starts,
                              AcceptanceCondition &&accept) {
 
@@ -286,7 +286,7 @@ private:
 
 public:
   BiDirGetter(const G &g) : g_(g) {}
-  TensorIds neighbors(const TensorId &id) {
+  TensorIds neighbors(const TensorId &id) const {
     TensorIds ids = g_.inTensorIds(id.opId());
     for (const auto c : g_.consumptionIds(id)) {
       for (auto o : g_.outTensorIds(c.opId())) {
@@ -307,7 +307,6 @@ TensorIds depthFirstBiDirTensors(const G &g,
 
 template <class G>
 TensorIds depthFirstBiDirTensors(const G &g, const TensorIds &starts) {
-
   return depthFirst<BiDirGetter<G>, TensorId>(
       BiDirGetter<G>(g), starts, [](const TensorId &) { return true; });
 }

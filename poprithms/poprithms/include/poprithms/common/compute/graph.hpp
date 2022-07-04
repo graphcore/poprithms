@@ -164,6 +164,24 @@ public:
    * */
   template <typename TOp> OpIds opIds() const;
 
+  // tensorIds from a SubGraphId.
+  using schedulable::Graph::tensorIds;
+
+  /**
+   * \return The ids of all tensors on the device #devId.
+   **/
+  TensorIds tensorIds(DeviceId devId) const;
+
+  /**
+   * \return The ids of all tensors on a device of type #devType.
+   **/
+  TensorIds tensorIds(DeviceType devType) const;
+
+  /**
+   * \return All ids of all tensors on the host device.
+   * */
+  TensorIds hostTensorIds() const { return tensorIds(host()); }
+
   /**
    * The device which the tensor #tId is on.
    * */
@@ -413,11 +431,6 @@ public:
   using poprithms::common::schedulable::Graph::opIds;
 
   /**
-   * All the tensors which are on the host device.
-   * */
-  TensorIds hostTensors() const;
-
-  /**
    * The DAG consisting of all caller->callee edges. Specifically, if an op in
    * graph #g0 has a callee sub-graph g1, then there is an edge #g0->#g1, and
    * the returned vector #edges has #g1 in #edges[g0].
@@ -654,6 +667,11 @@ public:
    * #o.
    * */
   bool aliases(OpId opId, InIndex i, OutIndex o) const;
+
+  /**
+   * \return All ops which are modifying consumers of a tensor in #tIds.
+   * */
+  OpIds modifiers(const TensorIds &tIds) const;
 
 protected:
   OpId insertComputeOp(std::unique_ptr<Op>);

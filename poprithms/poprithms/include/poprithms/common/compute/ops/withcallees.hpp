@@ -81,20 +81,10 @@ public:
   InIndices calleeCopyInIndices() const;
 
   /**
-   * \return The number of inputs which are not copied to callee sub-graphs.
-   * */
-  virtual uint64_t nNonCopyIns() const = 0;
-
-  /**
-   * \return The number of inputs which are copied to callee sub-graphs.
-   * */
-  uint64_t nCopyIns() const { return nInTensors() - nNonCopyIns(); }
-
-  /**
    * All the input copies are at input indices lower than the non-copy inputs.
    * */
   bool isCopyToCalleeInIndex(InIndex i) const final {
-    return i.get() < nCopyIns();
+    return i.get() < nInputsCopiedToCallees();
   }
 
   /**
@@ -113,7 +103,7 @@ public:
   /**
    * The destination of the #i'th input copy.
    *
-   * \param i An input index, must be less than #nCopyIns.
+   * \param i An input index, must be less than #nInputsCopiedToCallees.
    * */
   CalleeTensorId dstInCallee(InIndex i) const final;
 
@@ -247,6 +237,13 @@ public:
    * */
   virtual bool isCarriedTo(const TensorId &tId) const = 0;
 
+  /**
+   * For ops which repeat a callee sub-graph, return the tensor to which #tId
+   * is carried at the end of each iteration. If #tId is not carried (\sa
+   * isCarriedTo) then an error is thrown.
+   * */
+  virtual TensorId carriedFrom(const TensorId &tId) const = 0;
+
   void computeDerivedVerifyValid() const final;
 
   /**
@@ -354,17 +351,12 @@ private:
   bool aliases(InIndex, OutIndex) const final { return false; }
   bool modifies(InIndex) const final { return false; }
 
-  /**
-   * All inputs to a call op are copied to the callee sub-graph. In other
-   * words, there is no input like the switch op's #condition argument which
-   * is not copied to the callee sub-graph.
-   * */
-  uint64_t nNonCopyIns() const final { return 0; }
-
   poprithms::autodiff::guide::Objective
   localObjective(CalleeIndex,
                  const InIndices &fromTargets,
                  const OutIndices &inGrads) const final;
+
+  TensorId carriedFrom(const TensorId &) const final { invalid(); }
 
   /**
    * As there is only 1 callee sub-graph for a call op, there is only 1

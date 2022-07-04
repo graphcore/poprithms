@@ -38,7 +38,7 @@ TensorIds Pruner::unpruneable(const callstack::Querier &querier,
     if (found == stackMap.cend()) {
       std::ostringstream oss;
       oss << "Tensor " << unpruneableTensorId
-          << " is provided as an unprueable source tensor. "
+          << " is provided as an unpruneable source tensor. "
           << "However, given the set of callable sub-graphs " << callables
           << " it is impossible to reach " << unpruneableTensorId
           << ". Is this a user error? "

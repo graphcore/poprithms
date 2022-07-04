@@ -275,10 +275,11 @@ HostTensors WithCallees::initializeOut(const HostTensors &) const {
 }
 
 CalleeTensorId WithCallees::dstInCallee(InIndex i) const {
-  if (i.get() >= nCopyIns()) {
+  if (i.get() >= nInputsCopiedToCallees()) {
     std::ostringstream oss;
     oss << "Invalid input index " << i << " in dstInCallee of op " << *this
-        << " which only has " << nCopyIns() << " input copies. ";
+        << " which only has " << nInputsCopiedToCallees()
+        << " input copies. ";
     throw error(oss.str());
   }
   return inDsts_.at(i.get());
@@ -301,7 +302,6 @@ InIndices WithCallees::calleeCopyInIndices() const {
 
 void WithCallees::computeDerivedRemoveInputs(
     const ContiguousInIndexSubset &coin) {
-
   InIndices copyInIndices = calleeCopyInIndices();
   coin.reduce(inDsts_, copyInIndices);
   withCalleesDerivedRemoveInputs(coin);
@@ -426,7 +426,7 @@ WithCallees::WithCallees(const Op::State &opState,
 InIndices WithCallees::nonCopyToCalleeIndices() const {
   InIndices inds;
   inds.reserve(nNonCopyIns());
-  for (uint64_t i = nCopyIns(); i < nInTensors(); ++i) {
+  for (uint64_t i = nInputsCopiedToCallees(); i < nInTensors(); ++i) {
     inds.push_back(InIndex(i));
   }
   return inds;
@@ -509,6 +509,9 @@ UpOp Call::cloneWithState(const State &s) const {
 
 void Call::withCalleesTypeSpecificAssertValid() const {
 
+  //  All inputs to a call op are copied to the callee sub-graph. In other
+  //  words, there is no input like the switch op's #condition argument which
+  //  is not copied to the callee sub-graph.
   if (inDsts().size() != nInTensors()) {
     std::ostringstream oss;
     oss << "This call op " << id() << " has " << nInTensors()

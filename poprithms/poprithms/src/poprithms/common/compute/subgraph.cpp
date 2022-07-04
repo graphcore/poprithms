@@ -59,6 +59,18 @@ void BaseSubGraph::registerCopies(OpId opId) {
   }
 }
 
+TensorIds BaseSubGraph::tensorIds() const { return graph().tensorIds(id()); }
+
+OpIds BaseSubGraph::constInitIds() const {
+  return graph().opIds<poprithms::common::compute::ConstInit>(id());
+}
+OpIds BaseSubGraph::varInitIds() const {
+  return graph().opIds<poprithms::common::compute::VarInit>(id());
+}
+OpIds BaseSubGraph::initIds() const {
+  return graph().opIds<poprithms::common::compute::Init>(id());
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

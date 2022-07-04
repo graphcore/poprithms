@@ -35,6 +35,9 @@ public:
   bool operator==(const MatMulOptions &) const { return true; }
 };
 
+/**
+ * Options for ops which copy between host and ipu.
+ * */
 class CopyBetweenHostAndIpuOptions {
 
 public:
@@ -106,6 +109,8 @@ using program::callstack::CallEvent;
  *          class of this project.
  * */
 template <class T> class RTensor {
+
+  using Ts = std::vector<T>;
 
 public:
   /**
@@ -777,6 +782,67 @@ public:
   T ipuToHost(CircularBufferCount,
               const CopyBetweenHostAndIpuOptions & = {}) const;
 
+  /**
+   * \return The root reference tensor of this tensor. For tensors which are
+   *         created with a call to #refTo_, this is the tensor on which
+   *         #refTo_ was called. For all other tensors, this method returns
+   *         the tensor itself. \sa RefFrom_ op.
+   * */
+  T rootRef() const { return {op().rootRef(outIndex()), &graph()}; }
+
+  /**
+   * \sa Graph::refsExcludingSelf.
+   * */
+  Ts refsExcludingSelf() const {
+    return tensors(op().refsExcludingSelf(outIndex()), graph());
+  }
+
+  /**
+   * The ids of the tensors in #ts.
+   * */
+  static TensorIds tensorIds(const std::vector<RTensor<T>> &ts);
+
+  bool isRootRef() const { return id() == rootRef().id(); }
+
+  uint64_t nDerivedRefs() const { return op().nDerivedRefs(outIndex()); }
+
+  bool hasDerivedRefs() const { return nDerivedRefs() != 0; }
+
+  void setName(const std::string &nm) const { graph().setName(id(), nm); }
+
+  T inTensor(InIndex i) const {
+    return {graph().inTensorId(opId(), i), &graph()};
+  }
+
+  /**
+   * \return A boolean tensor that is true where this tensor is strictly
+   *         positive.
+   * */
+  T isStrictlyPositive() const { return greaterThan(constant(dtype(), 0.0)); }
+
+  /**
+   * This tensor is copied from the calling scope into a callee sub-graph,
+   * defined by #ce. This method returns all of the tensors in the callee
+   * sub-graph that it is copied to.
+   * */
+  Ts dstsInCallee(const CallEvent &ce) const {
+    return tensors(graph().dstsInCallee(id(), ce), graph());
+  }
+
+  /**
+   * This tensor is the destination of a copy out of a callee subgraph. This
+   * method returns the source of this copy.
+   * */
+  T srcInCallee(uint64_t calleeIndex) const {
+    return {
+        graph().srcInCallee({opId(), subGraphId(), calleeIndex}, outIndex()),
+        &graph()};
+  }
+
+  bool isFixedPoint() const {
+    return poprithms::ndarray::isFixedPoint(dtype());
+  }
+
 protected:
   /**
    * Create an op of type TOp in this tensor's graph. The new op will have
@@ -837,6 +903,8 @@ protected:
 private:
   TensorId id_;
   Graph *pGraph_;
+
+  const Op &op(OpId opId) const { return graph().computeOp(opId); }
 };
 
 template <typename T> T operator*(const RTensor<T> &a, const RTensor<T> &b) {

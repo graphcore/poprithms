@@ -49,8 +49,48 @@ public:
 
   std::string external() const final { return "poprithms::common::compute"; }
 
+  /**
+   * \return All tensors that are aliased to a tensor in #tIds. This
+   *         includes all tensors in #tIds which have at least 1 element.
+   *
+   * Computing this set of tensors is done in 2 steps.
+   *
+   * 1) Find all tensors which \b might be aliased to a tensor in #tIds. This
+   *    is done by traversing the graph through all aliasing edges of ops.
+   *    This MemoryAliasMapper is then extended to include all these found
+   *    tensors.
+   *
+   * 2) Perform accurate alias analysis to find the subset of (1) which are
+   *    truly aliased.
+   *
+   * As an example to show that step (2) is required, consider the following:
+   * <code>
+   *   auto c = concat_({b, a},0).slice_(Dimension(0),0,1);
+   * </code>
+   *
+   * In this case #c is not aliased to #a, although the backtracking algorithm
+   * in (1) will traverse through it. Step (2) will remove a.
+   * */
+  TensorIds aliases(const TensorIds &tIds) {
+    extend(potentialAliases(computeGraph, tIds));
+    return aliasesFromExtended(tIds);
+  }
+
 private:
   const Graph &computeGraph;
+
+  /**
+   * A set of tensors which is guaranteed to contain all aliases, across all
+   * sub-graphs, of aliases of the tensors in #tIds.
+   * */
+  static TensorIds potentialAliases(const Graph &g, const TensorIds &tIds);
+
+  /**
+   * All of the aliases, in all sub-graphs, of the tensors in #tIds.
+   * This method can only be called when it is known that all aliases of #tIds
+   * are known to be in this MemoryAliasMapper.
+   * */
+  TensorIds aliasesFromExtended(const TensorIds &tIds) const;
 };
 
 /**

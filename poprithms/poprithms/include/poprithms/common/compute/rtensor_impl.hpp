@@ -580,6 +580,16 @@ std::vector<T> RTensor<T>::tensors(const TensorIds &ids, Graph &g) {
   return ts;
 }
 
+template <typename T>
+TensorIds RTensor<T>::tensorIds(const std::vector<RTensor<T>> &ts) {
+  TensorIds tIds;
+  tIds.reserve(ts.size());
+  for (auto t : ts) {
+    tIds.push_back(t.id());
+  }
+  return tIds;
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

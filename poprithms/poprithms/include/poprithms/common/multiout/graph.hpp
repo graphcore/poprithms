@@ -363,7 +363,7 @@ private:
   /**
    * \sa removeInputs.
    *
-   * Perform the removal work of derived graph classes, with method is called
+   * Perform the removal work of derived graph classes, this method is called
    * into by #removeInputs.
    *
    * \param toPrune the op whose inputs must be removed.
@@ -442,9 +442,9 @@ public:
   void verifyValidSubstitute(const TensorId &before,
                              const TensorId &after) const;
 
-  void
-  verifyValidSubstitutes(OpId toRemove,
-                         const OptionalTensorIds &outputSubstitutes) const;
+  void verifyValidSubstitutesForRemoval(
+      OpId toRemove,
+      const OptionalTensorIds &outputSubstitutes) const;
 
   /** \sa verifyValidSubstitute */
   virtual void
