@@ -4,7 +4,12 @@ Poprithms is a graph algorithms library used by ML frameworks. Algorithm specifi
 
 ### Prerequisites for building
 
-* Boost, any version. 
+* [Boost](https://www.boost.org/). Tested with versions 1.70 and 1.78, but will probably work with newer and older versions.
+
+
+### Prerequisites for building with optional extensions
+
+* [GoogleTest](https://github.com/google/googletest). Some tests and mock classes use GoogleTest. By default, these are built. To disable, toggle the cmake flag POPRITHMS_BUILD_MOCKS. 
 
 ### Configure with cmake 
 
