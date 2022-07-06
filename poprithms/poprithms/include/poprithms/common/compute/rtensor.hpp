@@ -19,6 +19,7 @@
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/ndarray/tensorinfo.hpp>
+#include <poprithms/ndarray/unfold.hpp>
 #include <poprithms/program/callstack/callstack.hpp>
 #include <poprithms/util/permutation.hpp>
 
@@ -231,6 +232,23 @@ public:
   T reshape_(const Shape &s) const;
 
   /**
+   * Reshape the dimensions in the range [dim0, dim1). See
+   * Shape::reshapePartial_ for more information.
+   * */
+  T reshapePartial_(uint64_t dim0,
+                    uint64_t dim1,
+                    const std::vector<int64_t> &newDims) {
+    return reshape_(shape().reshapePartial(dim0, dim1, newDims));
+  }
+
+  /**
+   * Flatten the dimensions in range [dim0, dim1) into a single dimension.
+   * */
+  T flatten_(uint64_t dim0, uint64_t dim1) const {
+    return reshape_(shape().flatten(dim0, dim1));
+  }
+
+  /**
    * \return This tensor, copied and reshaped to have shape #s.
    * */
   T reshape(const Shape &s) const { return reshape_(s).copy(); }
@@ -242,6 +260,7 @@ public:
    * */
   T flatten() const { return reshape(shape().flatten()); }
   T flatten_() const { return reshape_(shape().flatten()); }
+
   T squeeze() const { return reshape(shape().squeeze()); }
   T squeeze_() const { return reshape_(shape().squeeze()); }
   T squeeze(const std::vector<uint64_t> &dims) const;
@@ -372,6 +391,27 @@ public:
   }
   T at_(int64_t d) const {
     return slice_(Dimension(0), d, d + 1).squeeze_({0});
+  }
+
+  /**
+   * Upsample this tensor in dimension #d. Example:
+   *
+   * If this tensor has values (1,2,3) and N=2 and dim=0, the returned tensor
+   * has values (1,1,2,2,3,3).
+   * */
+  T upsample_(uint64_t N, Dimension dim) const {
+    auto d = dim.get();
+    return unsqueeze_(d + 1).broadcast_(N, d + 1).flatten_(d, d + 2);
+  }
+
+  /**
+   * Unfold this tensor in dimension #d, with stride #step and slices of size
+   * #size. See ndarray::Unfolder for more information.
+   * */
+  T unfold_(Dimension d, uint64_t size, uint64_t step) const {
+    using H = ndarray::TUnfoldHelper<T>;
+    return ndarray::Unfolder<T, H>::unfold(
+        T(id(), &graph()), d.get(), size, step);
   }
 
   /**

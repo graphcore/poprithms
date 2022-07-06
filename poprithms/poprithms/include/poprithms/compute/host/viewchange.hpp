@@ -72,10 +72,12 @@ public:
 
     Data(const Shape &shape_, const Number *data_)
         : shape(shape_), data(data_) {
-      // We check that data_ is not nullptr, but we cannot check that data_ is
-      // indeed the first element in a contiguous array of the required
-      // size. It is the users responsibility to ensure this.
-      assertNotNullptr(data_);
+      if (shape.nelms() != 0) {
+        // We check that data_ is not nullptr, but we cannot check that data_
+        // is indeed the first element in a contiguous array of the required
+        // size. It is the users responsibility to ensure this.
+        assertNotNullptr(data_);
+      }
     }
 
     Data(Shape &&shape_, const Number *data_)

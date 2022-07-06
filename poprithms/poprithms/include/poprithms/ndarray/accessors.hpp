@@ -28,27 +28,28 @@ std::vector<uint64_t> get_u64(const std::vector<T> &ds) {
   return vs;
 }
 
-struct BaseScalarU64 {
+template <typename T> struct BaseScalarU64 {
   BaseScalarU64(uint64_t v_) : val(v_) {}
   uint64_t get() const { return val; }
   int64_t get_i64() const { return static_cast<int64_t>(val); }
+  T operator+(uint32_t v) const { return T(val + v); }
   uint64_t val;
 };
 
 /** Strictly positive value */
-struct Stride : BaseScalarU64 {
+struct Stride : BaseScalarU64<Stride> {
   explicit Stride(uint64_t s_);
 };
 
-struct Dimension : BaseScalarU64 {
+struct Dimension : BaseScalarU64<Dimension> {
   explicit Dimension(uint64_t s_) : BaseScalarU64(s_) {}
 };
 
-struct Offset : BaseScalarU64 {
+struct Offset : BaseScalarU64<Offset> {
   explicit Offset(uint64_t s_) : BaseScalarU64(s_) {}
 };
 
-struct Dilation : BaseScalarU64 {
+struct Dilation : BaseScalarU64<Dilation> {
   explicit Dilation(uint64_t s_);
 };
 

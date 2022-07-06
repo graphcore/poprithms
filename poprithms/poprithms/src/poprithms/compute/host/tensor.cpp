@@ -475,6 +475,14 @@ Tensor Tensor::expand_(const Shape &to) const {
   return Tensor(to, dtype(), tData().expand_(shape(), to));
 }
 
+Tensor Tensor::broadcast_(Dimension d, uint64_t N) const {
+  return expand_(shape().broadcast(N, d.get()));
+}
+
+Tensor Tensor::broadcast(Dimension d, uint64_t N) const {
+  return expand(shape().broadcast(N, d.get()));
+}
+
 namespace {
 
 void verifySameType(const Tensor &lhs, const Tensor &rhs) {

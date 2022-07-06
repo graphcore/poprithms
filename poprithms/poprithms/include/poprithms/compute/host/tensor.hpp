@@ -667,6 +667,19 @@ public:
   Tensor expand_(const Shape &) const;
 
   /**
+   * Broadcast the singleton dimension #d by a factor N. If the dimension #d
+   * is not a singleton, an error is thrown.
+   *
+   * Example: if this tensor has shape (3,1), d=1, N=4, then the returned
+   * tensor has shape (3,4).
+   *
+   * As usual, the '_' suffix denotes an inplace operation (the returned
+   * tensor is an alias of this tensor).
+   * */
+  Tensor broadcast(Dimension d, uint64_t N) const;
+  Tensor broadcast_(Dimension d, uint64_t N) const;
+
+  /**
    * Take a slice of this Tensor between bounds \a l (inclusive) and \a u
    * (exclusive). \a l and \a u must have size equal to the rank of this
    * Tensor, and for all dimensions d, it is required that

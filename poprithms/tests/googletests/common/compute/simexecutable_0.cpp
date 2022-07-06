@@ -200,3 +200,47 @@ TEST(CommonComputeSimExecutable, EncodeOneHot0) {
       HostTensor::float32(0.625).expand({10, 1}),
       "sum of 1-hot columns of x0*x1");
 }
+
+TEST(CommonComputeSimExecutable, UnfoldNumerics0) {
+
+  SlickGraph g;
+  auto sg0 = g.createSubGraph("sg0");
+
+  auto x0 = sg0.hostInt32Variable({3, 4});
+  auto y  = x0.unfold_(Dimension(1), /*size=*/1, /*step=*/2);
+  auto y0 = x0.unfold_(Dimension(1), /*size=*/2, /*step=*/1);
+
+  auto us0 = x0.slice_({0, 0}, {2, 1}).upsample_(2, Dimension(1));
+  auto us1 = x0.slice_({0, 0}, {1, 2}).upsample_(2, Dimension(0));
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+
+  // 0  1  2  3
+  // 4  5  6  7
+  // 8  9 10  11
+  se.setHostValue(x0, HostTensor::arangeInt32(0, 12, 1).reshape({3, 4}));
+  se.run(sg0);
+
+  // 0 2
+  // 4 6
+  // 8 10
+  se.getHostValue(y).assertAllEquivalent(
+      HostTensor::int32({3, 2}, {0, 2, 4, 6, 8, 10}));
+
+  // 0  1  1  2  2  3
+  // 4  5  5  6  6  7
+  // 8  9  9  10 10 11
+  se.getHostValue(y0).assertAllEquivalent(HostTensor::int32(
+      {3, 6}, {0, 1, 1, 2, 2, 3, 4, 5, 5, 6, 6, 7, 8, 9, 9, 10, 10, 11}));
+
+  // 0 0
+  // 4 4
+  se.getHostValue(us0).assertAllEquivalent(
+      HostTensor::int32({2, 2}, {0, 0, 4, 4}));
+
+  // 0 1
+  // 0 1
+  se.getHostValue(us1).assertAllEquivalent(
+      HostTensor::int32({2, 2}, {0, 1, 0, 1}));
+}
