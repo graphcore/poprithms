@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <algorithm>
+#include <limits>
 #include <numeric>
 #include <sstream>
 #include <util/error.hpp>

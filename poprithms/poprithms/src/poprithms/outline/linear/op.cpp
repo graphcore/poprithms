@@ -1,4 +1,5 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <limits>
 #include <sstream>
 
 #include <outline/linear/error.hpp>
