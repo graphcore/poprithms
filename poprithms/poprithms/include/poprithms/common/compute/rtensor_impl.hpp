@@ -6,6 +6,7 @@
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/ops/binaryelementwise.hpp>
+#include <poprithms/common/compute/ops/dynamic.hpp>
 #include <poprithms/common/compute/ops/encode.hpp>
 #include <poprithms/common/compute/ops/interdevicecopy.hpp>
 #include <poprithms/common/compute/ops/matmul.hpp>
@@ -68,11 +69,11 @@ template <typename T> T RTensor<T>::copyFrom_(const RTensor<T> &rhs) const {
 }
 
 template <typename T> T RTensor<T>::greaterThan(const RTensor<T> &rhs) const {
+  return createBooleanWithNumpyShape<GreaterThan>({id(), rhs.id()});
+}
 
-  TensorInfo oi(Shape::numpyVariadic({shape(), rhs.shape()}),
-                deviceId(),
-                DType::Boolean);
-  return createTensor<GreaterThan>({id(), rhs.id()}, oi);
+template <typename T> T RTensor<T>::equalTo(const RTensor<T> &rhs) const {
+  return createBooleanWithNumpyShape<EqualTo>({id(), rhs.id()});
 }
 
 template <typename T> T RTensor<T>::sub_(const RTensor<T> &rhs) const {
@@ -588,6 +589,45 @@ TensorIds RTensor<T>::tensorIds(const std::vector<RTensor<T>> &ts) {
     tIds.push_back(t.id());
   }
   return tIds;
+}
+
+template <typename T>
+T RTensor<T>::dynamicMultiSlice(const RTensor<T> &offset,
+                                const Dimensions &dims,
+                                const Shape &sizes) const {
+
+  auto slicedShape = DynamicMultiWithDimensions_::getSlicedShape(
+      offset.shape(), shape(), dims, sizes);
+
+  const auto outInfo = info().withShape(slicedShape);
+
+  auto slice = variable(slicedShape);
+
+  return slice.dynamicMultiSlice_(*this, offset, dims);
+}
+
+template <typename T>
+T RTensor<T>::dynamicMultiSlice_(const RTensor<T> &sliceable,
+                                 const RTensor<T> &offset,
+                                 const Dimensions &dims) const {
+
+  return createTensor<DynamicMultiSlice_>(
+      {sliceable, *this, offset}, {info()}, dims);
+}
+
+template <typename T>
+T RTensor<T>::dynamicMultiUpdate_(const RTensor<T> &update,
+                                  const RTensor<T> &offset,
+                                  const Dimensions &dims) const {
+  return createTensor<DynamicMultiUpdate_>(
+      {id(), update.id(), offset.id()}, {info()}, dims);
+}
+
+template <typename T>
+T RTensor<T>::dynamicMultiUpdateMax_(const RTensor<T> &source,
+                                     const RTensor<T> &offset) const {
+  return createTensor<DynamicMultiUpdateMax_>(
+      {id(), source.id(), offset.id()}, {info()});
 }
 
 } // namespace compute

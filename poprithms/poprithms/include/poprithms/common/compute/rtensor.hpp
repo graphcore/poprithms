@@ -660,6 +660,12 @@ public:
   T greaterThan(const RTensor<T> &rhs) const;
 
   /**
+   * \return A boolean tensor which is true where this tensor is (bitwise)
+   *         equal to #rhs. This tensor operation supports numpy broadcasting.
+   * */
+  T equalTo(const RTensor<T> &rhs) const;
+
+  /**
    * Matrix multiply, using numpy broadcasting rules, see
    * https://numpy.org/doc/stable/reference/generated/numpy.matmul.html
    *
@@ -883,6 +889,127 @@ public:
     return poprithms::ndarray::isFixedPoint(dtype());
   }
 
+  /**
+   * \param offset A rank-2 fixed-point tensor. The first dimension is the
+   *               number of slices to take. The second dimensions contains
+   *               the offsets in the slice dimensions, for each of the
+   *               slices.
+   *
+   * \param dims The dimensions of this tensor to slice.
+   *
+   * \param sizes The sizes of the slices in the dimensions #dims.
+   *
+   * Shape expectations:
+   *
+   *  this tensor : (D0, D1, D2, ... DZ).
+   *  offset      : a tensor of shape (N, K).
+   *  dims        : vector with K elements.
+   *  sizes       : vector with K elements.
+   *
+   *  returned tensor : (N, D0', D1', ... DZ')
+   *
+   *  where Dj' = Dj if j is not in dims.
+   *            = D'[sizes[k]] where dims[k] = j (<= Dj).
+   *
+   * Example:
+   * - this tensor has shape (3,4,5)
+   * - offset has shape (10,2)
+   * - dims is (0,2)
+   * - sizes is (2,3)
+   * ==> the returned tensors has shape (10,2,4,3):
+   *
+   *      0 1 2
+   *      |   |
+   *      v   v  dims.
+   *     (3,4,5)
+   *      |   |
+   *      v   v
+   *     (2,4,3) replace sizes in dims with sizes.
+   *   |
+   *   v
+   *  (10,2,4,3) prepend with the number of shapes.
+   *
+   * The start:end of the slices is dynamic, although the size (end - start)
+   * is static. The start values are contained in the #offset tensor.
+   * */
+  T dynamicMultiSlice(const RTensor<T> &offset,
+                      const Dimensions &dims,
+                      const Shape &sizes) const;
+
+  /**
+   * This tensor is the slice tensor, and is updated inplace with sliceable.
+   * It has the same shape as the output of dynamicMultiSlice.
+   * */
+  T dynamicMultiSlice_(const RTensor<T> &sliceable,
+                       const RTensor<T> &offsets,
+                       const Dimensions &) const;
+
+  /**
+   * Similar to dynamicMultiSlice, but only 1 slice is taken. The output has
+   * the same rank as this tensor. #offset is a a rank-1 tensor.
+   * */
+  T dynamicSlice(const RTensor<T> &offset,
+                 const Dimensions &dims,
+                 const Shape &shape) const {
+    return dynamicMultiSlice(offset.unsqueeze_(0), dims, shape).squeeze_({0});
+  }
+
+  /**
+   * This method is very similar to #dynamicMultiSlice_, but the copy happens
+   * in the opposite direction. Whereas #dynamicMultiSlice_ does a copy
+   * from the sliceable ('low-rank and wide') tensor to the slice ('high-rank
+   * and narrow') tensor, this method does a copy from a 'slice' tensor to a
+   * 'sliceable' tensor.
+   *
+   * \param slice The source of copy. This tensor has a rank which is 1
+   *              higher than this tensor.
+   *
+   * \param offset A rank-2 tensor, where the first dimension is the number of
+   *              slices.
+   *
+   * \sa dynamicMultiSlice_.
+   * */
+  T dynamicMultiUpdate_(const RTensor<T> &slice,
+                        const RTensor<T> &offset,
+                        const Dimensions &) const;
+
+  T dynamicUpdate_(const RTensor<T> &update,
+                   const RTensor<T> &offset,
+                   const Dimensions &dims) const {
+    return dynamicMultiUpdate_(
+        update.unsqueeze_(0), offset.unsqueeze_(0), dims);
+  }
+
+  /**
+   * This 'sliceable' tensor must be of rank-2, of shape (M, S). It is updated
+   * inplace with maximum values from the 'slice' tensor #source.
+   *
+   * \param source is a tensor of shape (N, S). N can be thought of as a
+   *               'dictionary' size, and S can be thought of as the size of
+   *               words in the dictionary.
+   *
+   * \param offsets is of shape (N) where the elements are fixed-point values
+   *                in the range [0,S).
+   *
+   * Example with M=4 S=2 N=3:
+   *   this tensor is   source is     offsets is
+   *        1 2           10 12             1
+   *        3 4           11 0              2
+   *        5 6           9  20             1
+   *        7 8
+   *
+   *    then the udpated tensor is
+   *        1  2
+   *        10 20
+   *        11 6
+   *        7  8.
+   *
+   * This op is the same as PyTorch's scatter-max:
+   * https://pytorch-scatter.readthedocs.io/en/1.3.0/functions/max.html
+   * */
+  T dynamicMultiUpdateMax_(const RTensor<T> &source,
+                           const RTensor<T> &offsets) const;
+
 protected:
   /**
    * Create an op of type TOp in this tensor's graph. The new op will have
@@ -912,6 +1039,16 @@ protected:
     return createTensor<TOp>(
         ins,
         {info().withShape(Shape::numpyVariadic(graph().shapes(ins)))},
+        std::forward<Args>(args)...);
+  }
+
+  template <class TOp, class... Args>
+  T createBooleanWithNumpyShape(const TensorIds &ins, Args &&...args) const {
+    return createTensor<TOp>(
+        ins,
+        {info()
+             .withShape(Shape::numpyVariadic(graph().shapes(ins)))
+             .withDType(DType::Boolean)},
         std::forward<Args>(args)...);
   }
 

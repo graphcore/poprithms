@@ -44,11 +44,6 @@ Objective::Objective(const TensorIds &gradsProvidedFor,
     : gradsProvidedFor_(gradsProvidedFor), checkpoints_(checkpoints),
       targets_(targets), inGraph_(inGraph), gradsProvided_(gradsProvided) {
 
-  std::sort(targets_.begin(), targets_.end());
-  std::sort(checkpoints_.begin(), checkpoints_.end());
-  std::sort(gradsProvidedFor_.begin(), gradsProvidedFor_.end());
-  std::sort(gradsProvided_.begin(), gradsProvided_.end());
-
   if (inGraph_ == InGraph::Yes) {
     if (gradsProvidedFor.size() != gradsProvided.size()) {
       std::ostringstream oss;

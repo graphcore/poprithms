@@ -201,6 +201,177 @@ TEST(CommonComputeSimExecutable, EncodeOneHot0) {
       "sum of 1-hot columns of x0*x1");
 }
 
+TEST(CommonComputeSimExecutable, DynamicUpdateMax0) {
+
+  SlickGraph g;
+  auto sg0 = g.createSubGraph("sg0");
+
+  int64_t M{4};
+  int64_t S{2};
+  int64_t N{3};
+
+  auto sliceable = sg0.hostFloat32Variable({M, S});
+  auto slice     = sg0.hostFloat32Variable({N, S});
+  auto offsets   = sg0.variable(DType::Unsigned32, {N}, g.host());
+  auto updated   = sliceable.dynamicMultiUpdateMax_(slice, offsets);
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+
+  se.setHostValue<float>(sliceable, {1, 2, 3, 4, 5, 6, 7, 8});
+  se.setHostValue<float>(slice, {10, 12, 11, 0, 9, 20});
+  se.setHostValue<uint32_t>(offsets, {1, 2, 1});
+
+  se.run(sg0);
+  se.getHostValue(updated).assertAllEquivalent(
+      HostTensor::float32({M, S}, {1, 2, 10, 20, 11, 6, 7, 8}));
+}
+
+TEST(CommonComputeSimExecutable, DynamicUpdateMaxPyTorch0) {
+
+  // This is the example at
+  // https://pytorch-scatter.readthedocs.io/en/1.3.0/functions/max.html
+  //
+  //
+  // index   0  0  1  0  2  2  3  3
+  // input   5  1  7  2  3  2  1  3
+  //
+  // output    5  7  3  3
+
+  SlickGraph g;
+  auto sg0       = g.createSubGraph("sg0");
+  auto sliceable = sg0.hostFloat32Variable({4, 1});
+  auto slice     = sg0.hostFloat32Variable({8, 1});
+  auto offsets   = sg0.variable(DType::Unsigned32, {8}, g.host());
+  auto updated   = sliceable.dynamicMultiUpdateMax_(slice, offsets);
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+
+  se.setHostValue<float>(sliceable, {0, 0, 0, 0});
+  se.setHostValue<float>(slice, {5, 1, 7, 2, 3, 2, 1, 3});
+  se.setHostValue<uint32_t>(offsets, {0, 0, 1, 0, 2, 2, 3, 3});
+
+  se.run(sg0);
+  se.getHostValue(updated).assertAllEquivalent(
+      HostTensor::float32({4, 1}, {5, 7, 3, 3}));
+}
+
+TEST(CommonComputeSimExecutable, DynamicSlice0) {
+
+  SlickGraph g;
+  auto sg0       = g.createSubGraph("sg0");
+  auto sliceable = sg0.hostFloat32Variable({2});
+  int64_t nSlices{3};
+  auto offset = sg0.variable(DType::Unsigned32, {nSlices, 1}, g.host());
+  auto sliced = sliceable.dynamicMultiSlice(offset, Dimensions{0}, {1});
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+
+  se.setHostValue<uint32_t>(offset, {1, 0, 1});
+  se.setHostValue<float>(sliceable, {33, 11});
+  se.run(sg0);
+
+  se.getHostValue(sliced).assertAllEquivalent(
+      HostTensor::float32({3, 1}, {11, 33, 11}));
+}
+
+TEST(CommonComputeSimExecutable, DynamicSlice1) {
+  SlickGraph g;
+  auto sg0 = g.createSubGraph("sg0");
+
+  auto sliceable = sg0.hostFloat32Variable({7, 2, 5});
+  Dimensions dims{0, 2};
+  int64_t nSlices{3};
+  auto offset = sg0.variable(DType::Unsigned32, {nSlices, 2}, g.host());
+  Shape sizes({4, 3});
+
+  auto sliced = sliceable.dynamicMultiSlice(offset, dims, sizes);
+  EXPECT_EQ(sliced.shape(), Shape({nSlices, 4, 2, 3}));
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+
+  auto vals0 = HostTensor::uniformFloat32(-1, 1, sliceable.shape(), 1011);
+
+  // random offsets:
+  auto offsets0 = HostTensor::zeros(DType::Unsigned32, {nSlices, 2});
+  offsets0.dimShuffle_({{1, 0}}).at_(0).add_(
+      HostTensor::randomUnsigned32(0, 2, {nSlices}, 100));
+  offsets0.dimShuffle_({{1, 0}}).at_(1).add_(
+      HostTensor::randomUnsigned32(0, 3, {nSlices}, 101));
+
+  se.setHostValue(offset, offsets0);
+  se.setHostValue(sliceable, vals0);
+
+  se.run(sg0);
+
+  auto l = offsets0.at(1).getUnsigned64Vector();
+  auto u = offsets0.at(1)
+               .toUnsigned64()
+               .add(HostTensor::unsigned64({2}, sizes.get_u64()))
+               .getUnsigned64Vector();
+
+  vals0.slice(dims, l, u).assertAllEquivalent(se.getHostValue(sliced).at(1));
+}
+
+TEST(CommonComputeSimExecutable, DynamicUpdate0) {
+
+  SlickGraph g;
+  auto sg0       = g.createSubGraph("sg0");
+  auto sliceable = sg0.hostFloat32Variable({4});
+  int64_t nSlices{3};
+  auto offset = sg0.variable(DType::Unsigned32, {nSlices, 1}, g.host());
+  auto slice  = sliceable.variable({nSlices, 1});
+
+  sliceable.dynamicMultiUpdate_(slice, offset, Dimensions{0});
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+
+  se.setHostValue<uint32_t>(offset, {1, 0, 3});
+  se.setHostValue<float>(slice, {20, 30, 40});
+  se.setHostValue<float>(sliceable, {10, 10, 10, 10});
+  se.run(sg0);
+
+  se.getHostValue(sliceable).assertAllEquivalent(
+      HostTensor::float32({4}, {30, 20, 10, 40}));
+}
+
+TEST(CommonComputeSimExecutable, DynamicUpdate1) {
+
+  SlickGraph g;
+  auto sg0       = g.createSubGraph("sg0");
+  auto sliceable = sg0.hostFloat32Variable({2, 3});
+  int64_t nSlices{2};
+  auto offset = sg0.variable(DType::Unsigned32, {nSlices, 2}, g.host());
+  auto slice  = sliceable.variable({nSlices, 1, 2});
+
+  sliceable.dynamicMultiUpdate_(slice, offset, Dimensions{0, 1});
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+
+  se.setHostValue<uint32_t>(offset, {0, 1, 1, 0});
+
+  //  [[20 30]
+  //   [40 50]]
+  se.setHostValue<float>(slice, {20, 30, 40, 50});
+
+  //  [[10  10  10]
+  //   [10  10  10]]
+  //
+  // where the slices go: slice 0 at (0,1) and slice 1 at (1,0):
+  // [[. 0 0]
+  //  [1 1 .]]
+  se.setHostValue<float>(sliceable, {10, 10, 10, 10, 10, 10});
+  se.run(sg0);
+
+  se.getHostValue(sliceable).assertAllEquivalent(
+      HostTensor::float32({2, 3}, {10, 20, 30, 40, 50, 10}));
+}
+
 TEST(CommonComputeSimExecutable, UnfoldNumerics0) {
 
   SlickGraph g;

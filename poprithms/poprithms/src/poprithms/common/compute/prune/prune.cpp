@@ -33,10 +33,12 @@ CallstackQuerier::copyInDsts(OpId opId) const {
 
 bool CallstackQuerier::isCarriedTo(const TensorId &tId,
                                    const CallStack &cs) const {
-  if (!cs.empty() && wc(cs.back().caller()).isCarriedTo(tId)) {
-    return true;
+  // empty call stack means this is not inside a repeat, and so is not carried
+  // to:
+  if (cs.empty()) {
+    return false;
   }
-  return false;
+  return wc(cs.back().caller()).isCarriedTo(tId);
 }
 
 TensorId CallstackQuerier::carriedFrom(const TensorId &tId,

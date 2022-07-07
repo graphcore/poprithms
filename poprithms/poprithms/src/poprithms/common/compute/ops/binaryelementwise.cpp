@@ -16,6 +16,13 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+void BooleanBinaryElementwiseOutplace::boolReturnAutodiff() const {
+  std::ostringstream oss;
+  oss << "The op " << *this
+      << " returns a boolean tensor, and so is not differentiable. ";
+  throw error(oss.str());
+}
+
 /**
  * Non-aliasing binary elementwise op.
  *
@@ -169,15 +176,9 @@ void GreaterThan::compute(const HostTensors &ins,
                           const HostTensors &outs) const {
   outs[0].update_((ins[0] > ins[1]));
 }
-UpOp GreaterThan::cloneWithState(const State &s) const {
-  return std::make_unique<GreaterThan>(s);
-}
 
-void GreaterThan::boolReturnAutodiff() const {
-  std::ostringstream oss;
-  oss << "The op " << *this
-      << " returns a boolean tensor, and so is not differentiable. ";
-  throw error(oss.str());
+void EqualTo::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].update_((ins[0] == ins[1]));
 }
 
 /**
@@ -202,7 +203,8 @@ UpOp Sub_::cloneWithState(const State &s) const {
   return std::make_unique<Sub_>(s);
 }
 
-void GreaterThan::computeDerivedVerifyValid() const {
+void BooleanBinaryElementwiseOutplace::
+    simpleBooleanBinaryElementwiseInplaceVerifyValid() const {
 
   OpVerifier(*this).verifyNonVariadicFromAtts(
       2, 1, {OpVerifier::Att::InsSameDType, OpVerifier::Att::SameDeviceType});

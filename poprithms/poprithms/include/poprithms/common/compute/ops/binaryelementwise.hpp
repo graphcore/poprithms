@@ -317,18 +317,15 @@ private:
  * Binary operation which compares 2 tensors, with numpy broadcasting. The
  * output tensor is a boolean tensor.
  * */
-class GreaterThan final : public BinaryElementwiseOutplace {
+class BooleanBinaryElementwiseOutplace : public BinaryElementwiseOutplace {
 public:
-  GreaterThan(const State &s) : BinaryElementwiseOutplace(s) {}
+  BooleanBinaryElementwiseOutplace(const State &s)
+      : BinaryElementwiseOutplace(s) {}
+
+protected:
+  void simpleBooleanBinaryElementwiseInplaceVerifyValid() const;
 
 private:
-  UpOp cloneWithState(const State &) const final;
-  std::string typeString() const final { return "GreaterThan"; }
-  void compute(const HostTensors &, const HostTensors &) const final;
-  void computeDerivedVerifyValid() const final;
-
-  bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
-
   /**
    * As the output is boolean, this op is never differentiable.
    * */
@@ -344,6 +341,41 @@ private:
   }
 
   [[noreturn]] void boolReturnAutodiff() const;
+};
+
+/**
+ * The output is true where input #0 is greater than input #1.
+ *
+ * This class uses the Attributeless template class to 'automatically'
+ * implement some virtual methods.
+ * */
+class GreaterThan final
+    : public Attributeless<BooleanBinaryElementwiseOutplace, GreaterThan> {
+public:
+  GreaterThan(const State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName = "GreaterThan";
+
+private:
+  void compute(const HostTensors &, const HostTensors &) const final;
+  void computeDerivedVerifyValid() const final {
+    simpleBooleanBinaryElementwiseInplaceVerifyValid();
+  }
+};
+
+/**
+ * The output is true where input #0 is equal to input #1.
+ * */
+class EqualTo final
+    : public Attributeless<BooleanBinaryElementwiseOutplace, EqualTo> {
+public:
+  EqualTo(const State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName = "EqualTo";
+
+private:
+  void compute(const HostTensors &, const HostTensors &) const final;
+  void computeDerivedVerifyValid() const final {
+    simpleBooleanBinaryElementwiseInplaceVerifyValid();
+  }
 };
 
 /**
