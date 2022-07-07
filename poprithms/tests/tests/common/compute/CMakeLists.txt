@@ -18,5 +18,8 @@ add_common_test(poprithms_common_compute_basics_0
 add_common_test(poprithms_common_compute_prune_call_0 
                                          prune_call_0.cpp)
 
+add_common_test(poprithms_common_compute_differentiator_0
+                                         differentiator_0.cpp)
+
 add_common_test(poprithms_common_compute_transform_sin_example_0 
                                          transform_sin_example_0.cpp)

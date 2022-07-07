@@ -88,6 +88,8 @@ struct Objective {
   void append(std::ostream &) const;
   std::string str() const;
 
+  // Note that if the order of targets in the objective is permuted, then this
+  // comparison operator return false.
   bool operator==(const Objective &r) const { return t() == r.t(); }
   bool operator<(const Objective &r) const { return t() < r.t(); }
 

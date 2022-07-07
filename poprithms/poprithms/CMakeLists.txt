@@ -269,6 +269,7 @@ add_library(poprithms-autodiff-base SHARED
 # and so is bundled separatedly to the rest of the autodiff project. 
 set(autodiff_automatic_sources
   ${autodiff_src_dir}/automatic/call.cpp
+  ${autodiff_src_dir}/automatic/differentiator.cpp
   ${autodiff_src_dir}/automatic/gradinfos.cpp
   ${autodiff_src_dir}/automatic/iautomatic.cpp
 )
