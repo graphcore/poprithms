@@ -69,7 +69,7 @@ public:
 
   bool isInitializingOp() const final { return false; }
 
-  void runSim(SimTensorMap &) const final { unimplemented("runSim"); }
+  void runSim(ISimState &) const final { unimplemented("runSim"); }
 
   void initializeSimOut(SimTensorMap &) const final {
     unimplemented("initializeSimOut");

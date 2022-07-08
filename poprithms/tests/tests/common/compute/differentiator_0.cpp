@@ -102,7 +102,9 @@ public:
     initializeReplicatedSimOut(htm);
   }
 
-  void runSim(SimTensorMap &htm) const final { runReplicatedSim(htm); }
+  void runSim(ISimState &ss) const final {
+    runReplicatedSim(ss.simTensorMap());
+  }
 
   bool computeTypeSpecificEqualTo(const Op &) const { return true; }
 };

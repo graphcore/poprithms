@@ -1,12 +1,11 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
-#include <testutil/autodiff/testop.hpp>
-
+#include <poprithms/autodiff/testutil/testop.hpp>
 #include <poprithms/error/error.hpp>
 
 namespace poprithms {
 namespace autodiff {
-namespace test {
+namespace testutil {
 
 std::ostream &operator<<(std::ostream &os, Op::Type t) {
   os << Op::str(t);
@@ -59,7 +58,7 @@ Op::Type Op::grad(Type t) {
   throw poprithms::test::error("Unhandled type in Op::grad, " + str(t));
 }
 
-} // namespace test
+} // namespace testutil
 
 } // namespace autodiff
 } // namespace poprithms

@@ -3,6 +3,7 @@
 #define POPRITHMS_COMMON_COMPUTE_SIMTENSORMAP_HPP
 
 #include <memory>
+#include <unordered_map>
 
 #include <poprithms/common/multiout/tensormap.hpp>
 #include <poprithms/compute/host/tensor.hpp>

@@ -67,7 +67,9 @@ public:
    * */
   bool gradientPropagates(OutIndex, InIndex) const final { return true; }
 
-  void runSim(SimTensorMap &htm) const final { runReplicatedSim(htm); }
+  void runSim(ISimState &ss) const final {
+    runReplicatedSim(ss.simTensorMap());
+  }
 
   void initializeSimOut(SimTensorMap &htm) const final {
     initializeReplicatedSimOut(htm);

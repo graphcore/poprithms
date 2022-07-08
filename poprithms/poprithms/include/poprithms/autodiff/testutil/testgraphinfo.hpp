@@ -2,14 +2,13 @@
 #ifndef TESTUTIL_AUTODIFF_TESTGRAPH_HPP
 #define TESTUTIL_AUTODIFF_TESTGRAPH_HPP
 
-#include <testutil/autodiff/testop.hpp>
-
 #include <poprithms/autodiff/guide/graphinfo.hpp>
 #include <poprithms/autodiff/ids/ids.hpp>
+#include <poprithms/autodiff/testutil/testop.hpp>
 
 namespace poprithms {
 namespace autodiff {
-namespace test {
+namespace testutil {
 
 // Acts as actual graph as well as GraphInfo.
 class TestGraphInfo : public poprithms::autodiff::guide::GraphInfo {
@@ -77,7 +76,7 @@ public:
 std::ostream &operator<<(std::ostream &ost, const TestGraphInfo &);
 std::ostream &operator<<(std::ostream &ost, const Op::Flow &);
 
-} // namespace test
+} // namespace testutil
 } // namespace autodiff
 } // namespace poprithms
 

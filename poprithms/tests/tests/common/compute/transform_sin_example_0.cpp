@@ -118,11 +118,42 @@ void extendedTest() {
   graph.verifyValid();
 }
 
+// A further example of a transform, which simply removes all sin ops.
+void standAloneRemoveSinExample() {
+  auto removeSin = [](Graph &machine) {
+    for (auto opId : machine.opIds()) {
+      if (auto asSin = machine.dynamicCast<Sin>(opId)) {
+        machine.removeOp(opId, {asSin->inTensorId(0)}, "removeSin");
+      }
+    }
+  };
+
+  SlickGraph m;
+
+  const auto devId = m.host();
+  auto sg          = m.createSubGraph("sg0");
+  const auto out   = sg.variable(DType::Float32, {3, 2}, devId)
+                       .sin()
+                       .sin()
+                       .exp()
+                       .abs()
+                       .sin();
+  for (uint64_t i = 0; i < 3; ++i) {
+    out.flatten_().abs();
+  }
+
+  removeSin(m);
+  m.verifyValid();
+  if (m.opIds<Sin>().size() != 0) {
+    throw poprithms::test::error("Expected all sin ops to be removed");
+  }
+}
+
 } // namespace
 
 int main() {
   numericalTest();
   extendedTest();
-
+  standAloneRemoveSinExample();
   return 0;
 }

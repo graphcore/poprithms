@@ -1,14 +1,11 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
-#include <testutil/autodiff/finitedifference.hpp>
-
+#include <poprithms/autodiff/testutil/finitedifference.hpp>
 #include <poprithms/error/error.hpp>
 
 namespace poprithms {
 namespace autodiff {
-namespace finitedifference {
-
-using poprithms::compute::host::Tensor;
+namespace testutil {
 
 void Checker::check(const std::function<Tensor(const Tensor &)> &fwd,
                     const Tensor &in0,
@@ -105,6 +102,6 @@ void Checker::check(const std::function<Tensor(const Tensor &)> &fwd,
     }
   }
 }
-} // namespace finitedifference
+} // namespace testutil
 } // namespace autodiff
 } // namespace poprithms

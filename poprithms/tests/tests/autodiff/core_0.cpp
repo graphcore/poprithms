@@ -4,10 +4,8 @@
 #include <iostream>
 #include <sstream>
 
-#include <testutil/autodiff/testgraphmutator.hpp>
-#include <testutil/schedule/shift/shiftcommandlineoptions.hpp>
-
 #include <poprithms/autodiff/core/autodiff.hpp>
+#include <poprithms/autodiff/testutil/testgraphmutator.hpp>
 #include <poprithms/error/error.hpp>
 #include <poprithms/util/printiter.hpp>
 
@@ -16,9 +14,9 @@ namespace {
 using namespace poprithms;
 using namespace poprithms::autodiff;
 using namespace poprithms::autodiff::core;
-using poprithms::autodiff::test::Op;
-using poprithms::autodiff::test::TestGraphInfo;
-using poprithms::autodiff::test::TestGraphMutator;
+using poprithms::autodiff::testutil::Op;
+using poprithms::autodiff::testutil::TestGraphInfo;
+using poprithms::autodiff::testutil::TestGraphMutator;
 
 // A test helper class which attempts to find an op meeting a set of
 // conditions in the graph.

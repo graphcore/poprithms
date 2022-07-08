@@ -2,15 +2,14 @@
 #include <ostream>
 #include <sstream>
 
-#include <testutil/autodiff/testgraphmutator.hpp>
-
+#include <poprithms/autodiff/testutil/testgraphmutator.hpp>
 #include <poprithms/error/error.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace autodiff {
-namespace test {
+namespace testutil {
 
 OpId TestGraphMutator::clone(OpId id, const TensorIds &ins) {
   auto toClone = c.op(id);
@@ -94,6 +93,6 @@ TestGraphMutator::getInGrads(OpId opId,
   return opts;
 }
 
-} // namespace test
+} // namespace testutil
 } // namespace autodiff
 } // namespace poprithms

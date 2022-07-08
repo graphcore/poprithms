@@ -55,7 +55,7 @@ public:
    * */
   bool isInitializingOp() const final { return true; }
   CodeLocation codeLocation() const final { return CodeLocation::None; }
-  void runSim(SimTensorMap &) const final {}
+  void runSim(ISimState &) const final {}
   void compute(const HostTensors &, const HostTensors &) const final {}
 
   std::unique_ptr<poprithms::common::compute::Op>

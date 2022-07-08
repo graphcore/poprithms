@@ -4,10 +4,9 @@
 #include <iostream>
 #include <sstream>
 
-#include <testutil/autodiff/finitedifference.hpp>
-
 #include <poprithms/autodiff/automatic/gradopin.hpp>
 #include <poprithms/autodiff/automatic/gradops.hpp>
+#include <poprithms/autodiff/testutil/finitedifference.hpp>
 #include <poprithms/error/error.hpp>
 
 namespace {
@@ -19,6 +18,7 @@ using namespace poprithms::autodiff::automatic;
 using poprithms::compute::host::OptionalTensor;
 using poprithms::compute::host::Tensor;
 
+using poprithms::autodiff::testutil::Checker;
 void testLog0() {
 
   using namespace poprithms::compute::host;
@@ -33,7 +33,7 @@ void testLog0() {
   double threshold        = 1e-5;
   uint32_t seed           = 1011;
 
-  finitedifference::Checker::check(
+  Checker::check(
       f, h, grads.at(0).value(), perturbationSize, seed, eps0, threshold);
 
   // perturbation gets too large, second order gradients take effect.
@@ -41,7 +41,7 @@ void testLog0() {
     bool caught{false};
     try {
       perturbationSize = 0.1;
-      finitedifference::Checker::check(
+      Checker::check(
           f, h, grads.at(0).value(), perturbationSize, seed, eps0, threshold);
 
     } catch (const poprithms::error::error &em) {
@@ -94,21 +94,19 @@ void testBinaryElementwise0(Fwd &&apply, Tensor h0, Tensor h1) {
   auto f0 = [&apply, h1](const Tensor &t0) {
     return apply(t0, h1).reduceSum();
   };
-  finitedifference::Checker::check(
-      f0, h0, grad_h0, perturbationSize, seed, eps0, threshold);
+  Checker::check(f0, h0, grad_h0, perturbationSize, seed, eps0, threshold);
 
   // Check correctness for arg1.
   auto f1 = [&apply, h0](const Tensor &t1) {
     return apply(h0, t1).reduceSum();
   };
-  finitedifference::Checker::check(
-      f1, h1, grad_h1, perturbationSize, seed, eps0, threshold);
+  Checker::check(f1, h1, grad_h1, perturbationSize, seed, eps0, threshold);
 
   // Verify that when the gradient is computed a bit different, the test
   // fails:
   bool caught{false};
   try {
-    finitedifference::Checker::check(
+    Checker::check(
         f0,
         h0,
         grad_h0.mul(
@@ -186,15 +184,13 @@ void testMatMul0(Tensor h0, Tensor h1) {
     return apply(t0, h1).reduceSum();
   };
 
-  finitedifference::Checker::check(
-      f0, h0, grad_h0, perturbationSize, seed, eps0, threshold);
+  Checker::check(f0, h0, grad_h0, perturbationSize, seed, eps0, threshold);
 
   // Check correctness for arg1.
   auto f1 = [&apply, h0](const Tensor &t1) {
     return apply(h0, t1).reduceSum();
   };
-  finitedifference::Checker::check(
-      f1, h1, grad_h1, perturbationSize, seed, eps0, threshold);
+  Checker::check(f1, h1, grad_h1, perturbationSize, seed, eps0, threshold);
 }
 
 void testMatMuls0() {

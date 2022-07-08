@@ -352,9 +352,9 @@ void WithCallees::extendAutodiffRequiredTensors(
   }
 }
 
-void WithCallees::runSim(SimTensorMap &hts) const {
+void WithCallees::runSim(ISimState &hts) const {
   computeDerivedVerifyValid();
-  hostRun(SimHostRunner(hts, computeGraph()));
+  hostRun(SimHostRunner(hts));
 }
 
 TensorIds WithCallees::inTensorIdDsts() const {

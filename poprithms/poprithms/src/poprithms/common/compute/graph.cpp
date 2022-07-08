@@ -1092,6 +1092,24 @@ OpIds Graph::modifiers(const TensorIds &tIds) const {
   return opIds;
 }
 
+void Graph::appendScheduled(std::ostream &ost) const {
+  // Log the ops in a valid schedule order.
+  //
+  // The schedule chosen is ordered by op id, as far as possible.
+  using namespace poprithms::schedule::vanilla;
+  auto fem = getForwardEdgeMap_u64();
+  auto cpt = fem.fwdEdgesCompact();
+  Priorities<uint64_t, double> pris;
+  for (uint64_t cp = 0; cp < fem.nOps(); ++cp) {
+    pris.push_back({cp, 1. - fem.opId(cp).get()});
+  }
+
+  auto sched =
+      poprithms::schedule::vanilla::Scheduler<uint64_t, double>::filo(
+          cpt, pris, {}, ErrorIfCycle::Yes, VerifyEdges::Yes);
+  appendOpColumns(ost, fem.unpacked(sched));
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

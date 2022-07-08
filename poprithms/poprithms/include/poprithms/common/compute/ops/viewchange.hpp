@@ -49,7 +49,7 @@ public:
   /**
    * This op does no computation.
    * */
-  void runSim(SimTensorMap &) const final {}
+  void runSim(ISimState &) const final {}
 
   /**
    * This op does no computation.

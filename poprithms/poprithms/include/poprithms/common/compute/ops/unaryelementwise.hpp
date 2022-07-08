@@ -36,7 +36,9 @@ private:
    * */
   bool isInitializingOp() const final { return false; }
 
-  void runSim(SimTensorMap &htm) const final { runReplicatedSim(htm); }
+  void runSim(ISimState &ss) const final {
+    runReplicatedSim(ss.simTensorMap());
+  }
 
   CodeLocation codeLocation() const final { return locationByUnanimity(); }
 

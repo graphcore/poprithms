@@ -41,12 +41,31 @@ SimTensorMap initHostSimTensors(const Graph &m) {
 }
 } // namespace
 
+class SimState final : public ISimState {
+public:
+  SimState(SimTensorMap &stm, const SimExecutable &se)
+      : pSimTensorMap(&stm), simExecutable(se) {}
+
+  const Graph &graph() const { return simExecutable.graph(); }
+
+  const OpIds &schedule(SubGraphId sgId) const {
+    return simExecutable.schedule(sgId);
+  }
+
+  SimTensorMap &simTensorMap() const final { return *pSimTensorMap; }
+
+private:
+  SimTensorMap *pSimTensorMap;
+  const SimExecutable &simExecutable;
+};
+
 void SimExecutable::executableSpecificRun(const SubGraphId subGraphId) {
-  const auto schedule =
-      Scheduler::vanillaComputeSchedule(graph(), subGraphId);
+  const auto schedule = schedules.at(subGraphId);
+
+  SimState ss(*allVals_.uptr.get(), *this);
   using namespace poprithms::schedule;
   for (auto opId : schedule) {
-    graph().computeOp(opId).runSim(vals());
+    graph().computeOp(opId).runSim(ss);
   }
 }
 
@@ -89,7 +108,15 @@ SimExecutable::~SimExecutable() = default;
 
 SimExecutable::SimExecutable(Graph &&m)
     : IExecutable(std::move(m)),
-      allVals_(std::make_unique<SimTensorMap>(initHostSimTensors(graph()))) {}
+      allVals_(std::make_unique<SimTensorMap>(initHostSimTensors(graph()))) {
+
+  for (uint64_t sgId = 0; sgId < graph().nSubGraphs(); ++sgId) {
+
+    auto s = SubGraphId::createSubGraphId(sgId);
+
+    schedules.insert({s, Scheduler::vanillaComputeSchedule(graph(), s)});
+  }
+}
 
 } // namespace compute
 } // namespace common

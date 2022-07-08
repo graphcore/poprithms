@@ -181,7 +181,7 @@ public:
    * */
   OutIndex outIndex(const CalleeTensorId &) const final;
 
-  void runSim(SimTensorMap &) const final;
+  void runSim(ISimState &) const final;
 
   /**
    * Run this op on cpu.

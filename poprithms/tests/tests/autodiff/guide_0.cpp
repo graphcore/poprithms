@@ -1,11 +1,10 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 #include <sstream>
 
-#include <testutil/autodiff/testgraphinfo.hpp>
-
 #include <poprithms/autodiff/guide/guide.hpp>
 #include <poprithms/autodiff/guide/objective.hpp>
 #include <poprithms/autodiff/guide/traversals.hpp>
+#include <poprithms/autodiff/testutil/testgraphinfo.hpp>
 #include <poprithms/common/multiout/ioindices.hpp>
 #include <poprithms/error/error.hpp>
 #include <poprithms/util/printiter.hpp>
@@ -13,7 +12,7 @@
 namespace {
 using namespace poprithms;
 using namespace poprithms::autodiff;
-using poprithms::autodiff::test::TestGraphInfo;
+using poprithms::autodiff::testutil::TestGraphInfo;
 
 using poprithms::common::multiout::InIndices;
 using poprithms::common::multiout::OutIndices;

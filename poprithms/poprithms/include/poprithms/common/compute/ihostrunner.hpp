@@ -37,22 +37,18 @@ public:
 
 class SimHostRunner final : public IHostRunner {
 private:
-  SimTensorMap &hts;
-  const Graph &m;
+  ISimState &simState;
 
 public:
-  SimHostRunner(SimTensorMap &hts_, const Graph &graph_)
-      : hts(hts_), m(graph_) {}
-
+  SimHostRunner(ISimState &ss) : simState(ss) {}
   HostTensors tensor(const TensorId &tId) const final {
-    return hts.getValue(tId);
+    return simState.simTensorMap().getValue(tId);
   }
-
   void run(SubGraphId sgId) const final {
-    const auto schedule = Scheduler::vanillaComputeSchedule(m, sgId);
+    OpIds schedule = simState.schedule(sgId);
     using namespace poprithms::schedule;
     for (auto opId : schedule) {
-      m.computeOp(opId).runSim(hts);
+      simState.graph().computeOp(opId).runSim(simState);
     }
   }
 };

@@ -34,7 +34,7 @@ public:
 
   /** There is no computation to run for a no-op at runtime. */
   bool isInitializingOp() const final { return true; }
-  void runSim(SimTensorMap &) const final {}
+  void runSim(ISimState &) const final {}
   void compute(const HostTensors &, const HostTensors &) const final{};
 
   /**

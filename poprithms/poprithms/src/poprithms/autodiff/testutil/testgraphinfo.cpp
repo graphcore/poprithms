@@ -2,15 +2,14 @@
 #include <ostream>
 #include <sstream>
 
-#include <testutil/autodiff/testgraphinfo.hpp>
-
+#include <poprithms/autodiff/testutil/testgraphinfo.hpp>
 #include <poprithms/error/error.hpp>
 #include <poprithms/util/printiter.hpp>
 #include <poprithms/util/stringutil.hpp>
 
 namespace poprithms {
 namespace autodiff {
-namespace test {
+namespace testutil {
 
 OpId TestGraphInfo::insert(Op op_) {
 
@@ -125,6 +124,6 @@ void TestGraphInfo::append(std::ostream &ost) const {
   ost << alignedColumns(columns);
 }
 
-} // namespace test
+} // namespace testutil
 } // namespace autodiff
 } // namespace poprithms

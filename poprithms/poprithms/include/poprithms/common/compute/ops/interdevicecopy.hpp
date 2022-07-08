@@ -115,7 +115,7 @@ private:
   /**
    * Copy data for all replicas, and increment the circular buffer counter.
    * */
-  void runSim(SimTensorMap &htm) const final;
+  void runSim(ISimState &ss) const final;
 
   /**
    * Invalid as runSim is implemented directly.

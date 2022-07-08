@@ -673,11 +673,6 @@ public:
    * */
   OpIds modifiers(const TensorIds &tIds) const;
 
-protected:
-  OpId insertComputeOp(std::unique_ptr<Op>);
-
-  bool computeTypeSpecificEqualTo(const Graph &rhs) const;
-
   /**
    * Create a remote device associated to the ipu #ipu, of numerical type
    * #dtype.
@@ -686,6 +681,18 @@ protected:
                         DType dtype,
                         const Shape &,
                         const RemoteOptions &);
+
+  /**
+   * This is like the base 'append' method but it ensures that the ops the
+   * appear in a valid schedule. If this graph is not schedulable, an error is
+   * thrown.
+   * */
+  void appendScheduled(std::ostream &) const;
+
+protected:
+  OpId insertComputeOp(std::unique_ptr<Op>);
+
+  bool computeTypeSpecificEqualTo(const Graph &rhs) const;
 
 private:
   /**

@@ -60,6 +60,7 @@ template <class TTensor, class TOptionalTensor, class TSubGraph>
 class TSlickGraph : public Graph {
 public:
   using TTensors         = std::vector<TTensor>;
+  using TSubGraphs       = std::vector<TSubGraph>;
   using TOptionalTensors = std::vector<TOptionalTensor>;
 
   virtual ~TSlickGraph() override = default;
@@ -76,6 +77,17 @@ public:
     auto sgId = createSubGraphId(sgName);
     return TSubGraph(sgId, *this);
   }
+
+  TSubGraphs createSubGraphs(const std::vector<std::string> &ns) {
+    TSubGraphs sgs;
+    sgs.reserve(ns.size());
+    for (auto n : ns) {
+      sgs.push_back(createSubGraph(n));
+    }
+    return sgs;
+  }
+
+  TSubGraph subGraph(SubGraphId sgId) { return TSubGraph(sgId, *this); }
 
   /**
    * Get optional tensors by combining this graph with the optional tensor ids
@@ -126,6 +138,20 @@ public:
     return tensorIds;
   }
 };
+
+template <class TTensor, class TOptionalTensor, class TSubGraph>
+inline std::ostream &
+operator<<(std::ostream &ost,
+           const TSlickGraph<TTensor, TOptionalTensor, TSubGraph> &g) {
+
+  if (!g.isSchedulable()) {
+    g.append(ost);
+  } else {
+    g.appendScheduled(ost);
+  }
+
+  return ost;
+}
 
 } // namespace compute
 } // namespace common

@@ -22,7 +22,8 @@ void CopyBetweenHostAndIpu_::initializeSimOut(SimTensorMap &htm) const {
   htm.setValue({id(), 0}, value);
 }
 
-void CopyBetweenHostAndIpu_::runSim(SimTensorMap &hts) const {
+void CopyBetweenHostAndIpu_::runSim(ISimState &iss) const {
+  auto &hts = iss.simTensorMap();
   for (uint64_t r = 0; r < computeGraph().replicationFactor_u64(); ++r) {
     // call into the virtual method which copies either to or from host.
     runCopyHostSim(

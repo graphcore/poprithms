@@ -6,7 +6,7 @@
 
 namespace poprithms {
 namespace autodiff {
-namespace test {
+namespace testutil {
 
 class Op {
 
@@ -66,7 +66,7 @@ public:
   Type type;
 };
 
-} // namespace test
+} // namespace testutil
 } // namespace autodiff
 } // namespace poprithms
 

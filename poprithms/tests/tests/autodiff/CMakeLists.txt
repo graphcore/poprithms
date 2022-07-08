@@ -3,9 +3,7 @@ include(EnableCompilerWarnings)
 function(add_autodiff_test_executable name source)
   add_executable(${name} ${source})
   target_link_libraries(${name} 
-       poprithms-autodiff-base 
-       poprithms-autodiff-automatic 
-       autodiff-test-util 
+       poprithms-autodiff
        poprithms-common-multiout)
 endfunction()
 
@@ -26,4 +24,4 @@ add_autodiff_test(autodiff_core_0
                            core_0.cpp)
 
 add_autodiff_test(autodiff_automatic_finite_difference_0
-                           finite_difference_0.cpp)
+                                     finite_difference_0.cpp)

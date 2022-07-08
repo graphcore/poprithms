@@ -6,7 +6,7 @@
 
 namespace poprithms {
 namespace autodiff {
-namespace finitedifference {
+namespace testutil {
 
 class Checker {
 
@@ -56,8 +56,7 @@ public:
                     double threshold = 1e-5);
 };
 
-} // namespace finitedifference
+} // namespace testutil
 } // namespace autodiff
 } // namespace poprithms
-
 #endif

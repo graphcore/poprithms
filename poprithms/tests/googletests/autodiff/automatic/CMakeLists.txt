@@ -6,7 +6,7 @@ function(add_gtest name source)
   add_executable(${name} ${source})
   target_link_libraries(
     ${name}
-    poprithms-autodiff-automatic
+    poprithms-autodiff
     GTest::gtest
     GTest::gmock
     GTest::gtest_main)

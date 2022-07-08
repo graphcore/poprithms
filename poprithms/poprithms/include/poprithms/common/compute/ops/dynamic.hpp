@@ -72,6 +72,10 @@ private:
   bool aliases(InIndex i, OutIndex) const final { return i == aliasIndex(); }
   bool modifies(InIndex i) const final { return aliases(i, OutIndex(0)); }
 
+  void runSim(ISimState &ss) const final {
+    runReplicatedSim(ss.simTensorMap());
+  }
+
   /**
    * This op does computation, it is therefore not an 'initializing op'.
    * */
@@ -121,8 +125,6 @@ private:
 
   InIndex aliasIndex() const final { return Sliceable(); }
 
-  void runSim(SimTensorMap &htm) const final { runReplicatedSim(htm); }
-
   void compute(const HostTensors &, const HostTensors &) const final;
 
   void initializeSimOut(SimTensorMap &htm) const final {
@@ -169,7 +171,6 @@ public:
                               const Shape &sizes);
 
 private:
-  void runSim(SimTensorMap &htm) const final { runReplicatedSim(htm); }
   void initializeSimOut(SimTensorMap &htm) const final {
     initializeReplicatedSimOut(htm);
   }

@@ -68,7 +68,9 @@ private:
 
   CodeLocation codeLocation() const final { return locationByUnanimity(); }
 
-  void runSim(SimTensorMap &htm) const final { runReplicatedSim(htm); }
+  void runSim(ISimState &ss) const final {
+    runReplicatedSim(ss.simTensorMap());
+  }
 
   /**
    * Host tensor matrix multiplication.

@@ -44,18 +44,14 @@ using poprithms::common::multiout::ContiguousOutIndexSubset;
 using poprithms::common::multiout::InIndex;
 using poprithms::common::multiout::OpId;
 using poprithms::common::multiout::OpIds;
-using poprithms::common::multiout::OptionalTensorId;
 using poprithms::common::multiout::OptionalTensorIds;
 using poprithms::common::multiout::OutIndex;
 using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
 using poprithms::common::schedulable::SubGraphId;
 using poprithms::common::schedulable::SubGraphIds;
-using poprithms::memory::nest::DisjointRegions;
-using poprithms::memory::nest::Region;
 using poprithms::ndarray::DeviceId;
 using poprithms::ndarray::DeviceIds;
-using poprithms::ndarray::Dimensions;
 using poprithms::ndarray::DType;
 using poprithms::ndarray::DTypes;
 using poprithms::ndarray::Shape;
@@ -68,6 +64,17 @@ using poprithms::program::callstack::CalleeTensorIds;
 using poprithms::program::callstack::CallEvent;
 using poprithms::program::callstack::CallEvents;
 using poprithms::program::distributed::CodeLocation;
+
+/**
+ * Interface to a constant graph with a fixed schedule, with a host
+ * 'simulator' tensor for every tensor in the graph.
+ * */
+class ISimState {
+public:
+  virtual SimTensorMap &simTensorMap() const      = 0;
+  virtual const Graph &graph() const              = 0;
+  virtual const OpIds &schedule(SubGraphId) const = 0;
+};
 
 class Graph;
 
@@ -607,10 +614,10 @@ public:
 
 public:
   /**
-   * Update the tensors in #simTensors corresponding to the output tensors of
+   * Update the tensors in #iSimState corresponding to the output tensors of
    * this op, by running this op on cpu.
    * */
-  virtual void runSim(SimTensorMap &simTensors) const = 0;
+  virtual void runSim(ISimState &iSimState) const = 0;
 
   /**
    * Initialize the tensors in #simTensors corresponding to the output tensors

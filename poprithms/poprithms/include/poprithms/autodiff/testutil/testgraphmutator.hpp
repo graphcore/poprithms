@@ -2,13 +2,12 @@
 #ifndef TESTUTIL_AUTODIFF_TESTGRAPHMUTATOR_HPP
 #define TESTUTIL_AUTODIFF_TESTGRAPHMUTATOR_HPP
 
-#include <testutil/autodiff/testgraphinfo.hpp>
-
 #include <poprithms/autodiff/core/autodiff.hpp>
+#include <poprithms/autodiff/testutil/testgraphinfo.hpp>
 
 namespace poprithms {
 namespace autodiff {
-namespace test {
+namespace testutil {
 
 class TestGraphMutator : public core::GraphMutator {
 
@@ -43,7 +42,7 @@ private:
 
 std::ostream &operator<<(std::ostream &, Op::Type);
 
-} // namespace test
+} // namespace testutil
 } // namespace autodiff
 } // namespace poprithms
 

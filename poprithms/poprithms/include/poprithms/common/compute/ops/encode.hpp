@@ -69,7 +69,9 @@ private:
     createAlias(mam, toEncodeId());
   }
 
-  void runSim(SimTensorMap &htm) const final { runReplicatedSim(htm); }
+  void runSim(ISimState &ss) const final {
+    runReplicatedSim(ss.simTensorMap());
+  }
 
   /**
    * The output tensor is an alias of the input being encoded.

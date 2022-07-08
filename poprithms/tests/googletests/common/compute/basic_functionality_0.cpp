@@ -11,7 +11,6 @@
 #include <poprithms/common/compute/slickgraph.hpp>
 
 namespace {
-using ::testing::AtLeast;
 
 using namespace poprithms::common::compute;
 

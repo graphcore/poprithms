@@ -31,7 +31,7 @@ public:
   /**
    * Initializing ops do no computation.
    * */
-  void runSim(SimTensorMap &) const final {}
+  void runSim(ISimState &) const final {}
 
   /**
    * Initializing ops do no computation.

@@ -47,7 +47,9 @@ public:
   void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
   void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
 
-  void runSim(SimTensorMap &htm) const final { runReplicatedSim(htm); }
+  void runSim(ISimState &iss) const final {
+    runReplicatedSim(iss.simTensorMap());
+  }
 };
 
 /**

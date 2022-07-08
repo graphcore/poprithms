@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_COMMON_COMPUTE_RTENSOR_IMPL_HPP
 #define POPRITHMS_COMMON_COMPUTE_RTENSOR_IMPL_HPP
 
+#include <iostream>
 #include <sstream>
 
 #include <poprithms/common/compute/graph.hpp>

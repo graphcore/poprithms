@@ -28,6 +28,11 @@ public:
 
   virtual ~SimExecutable() override;
 
+  /**
+   * The schedule of the sub-graph #sgId.
+   * */
+  const OpIds &schedule(SubGraphId sgId) const { return schedules.at(sgId); }
+
 private:
   void executableSpecificRun(SubGraphId) final;
   HostTensor executableSpecificGetHostValue(const TensorId &) const final;
@@ -46,6 +51,9 @@ private:
 
   // All tensor values, on cpu.
   poprithms::util::CopyByClone<SimTensorMap> allVals_;
+
+  // All of the schedules, one for each sub-graph of the graph.
+  std::map<SubGraphId, OpIds> schedules;
 };
 } // namespace compute
 } // namespace common
