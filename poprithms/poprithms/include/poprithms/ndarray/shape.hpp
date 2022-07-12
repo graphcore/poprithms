@@ -701,7 +701,8 @@ public:
   /** \return A copy of this Shape, but with the dimension \a dimension
    *          resized to be N.
    */
-  Shape resizeSingleDim(int64_t N, uint64_t dimension) const;
+  Shape resizeSingleDim(int64_t N, uint64_t dimension) const &;
+  Shape &&resizeSingleDim(int64_t N, uint64_t dimension) &&;
 
   /**
    * Reverse the dimensions of this Shape.

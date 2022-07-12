@@ -397,13 +397,16 @@ TEST(CommonComputeSimExecutable, UnfoldNumerics0) {
   // 4 6
   // 8 10
   se.getHostValue(y).assertAllEquivalent(
-      HostTensor::int32({3, 2}, {0, 2, 4, 6, 8, 10}));
+      HostTensor::int32({3, 2, 1}, {0, 2, 4, 6, 8, 10}));
 
   // 0  1  1  2  2  3
   // 4  5  5  6  6  7
   // 8  9  9  10 10 11
-  se.getHostValue(y0).assertAllEquivalent(HostTensor::int32(
-      {3, 6}, {0, 1, 1, 2, 2, 3, 4, 5, 5, 6, 6, 7, 8, 9, 9, 10, 10, 11}));
+  se.getHostValue(y0).assertAllEquivalent(
+      HostTensor::int32(
+          {3, 3, 2},
+          {0, 1, 1, 2, 2, 3, 4, 5, 5, 6, 6, 7, 8, 9, 9, 10, 10, 11}),
+      "y0");
 
   // 0 0
   // 4 4

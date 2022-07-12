@@ -9,57 +9,47 @@
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/shape.hpp>
+#include <poprithms/util/permutation.hpp>
 
 namespace poprithms {
 namespace ndarray {
 
-/**
- *
- * Concatenate equally spaced slices from tensor #tIn. The slices are in
- * dimension #dim, and of width #size. The slice start positions are separated
- * by a distance #step.
- *
- * The distance between one slice ending and the next start beginning is
- * #step - #size. Note that #step - #slice may be negative. In other words,
- * the slices may overlap.
- *
- * For the case step < size (the overlapping case), we terminate unfolding
- * with the final complete unfold. For example, if
- *
- *   toUnfold = (1,2,3,4), dim=0, size=3, step=1, then the unfolded tensor is
- *   unfolded = (1,2,3,2,3,4):
- *
- *   1 2 3 4|
- *   =====  |     first unfold (1,2,3) is complete
- *     =====|     second unfold (2,3,4) is complete
- *       =====    third unfold is incomplete, and not appended to soln.
- *         =====  incomplete (ditto above).
- *          |
- *
- * For the case size >= step, incomplete slices are included. For example, if
- *
- *   toUnfold = (1,2,3,4), dim=0, size=2, step=3, then the unfolded tensor is
- *   unfolded = (1,2,4):
- *
- *   1 2 3 4|
- *   ===    |    the first unfold is complete.
- *         ===   the second unfold is incomplete. The solution contains the
- *          |    part of it within bounds.
- *          |
- *
- * \tparam T : The tensor class.
- *
- * \tparam H : The tensor manipulator, or (H)elper class. H must provide
- *             methods for slicing, broadcasting, reshaping, and concatenating
- *             a tensor (of type T). See the class TUnfoldHelper below for an
- *             example of an implemented H interface.
- *
- * \return A tensor of the same rank as #tIn, which is the same size in all
- *         dimensions except for dimension #dim. The size in dimension dim
- *         depends on #size and #step.
- * */
 template <typename T, class H> class Unfolder {
 public:
+  /**
+   * An unfold operation following the specification of PyTorch:
+   *
+   * https://pytorch.org/docs/stable/generated/torch.Tensor.unfold.html
+   *
+   * Concatenate equally spaced slices from tensor #tIn. The slices are in
+   * dimension #dim, and of width #size. The slice start positions are
+   * separated by a distance #step.
+   *
+   * The distance between one slice ending and the next one start beginning is
+   * #step - #size. Note that #step - #slice may be negative. In other words,
+   * the slices may overlap.
+   *
+   * Incomplete slices at the end of the slice range are not included.
+   *
+   * \tparam T : The tensor class.
+   *
+   * \tparam H : The tensor manipulator, or (H)elper class. H must provide
+   *             methods for slicing, broadcasting, concatenating, and
+   *             reshaping a tensor (of type T). See the class TUnfoldHelper
+   *             below for an example of an implemented H interface.
+   *
+   * \return A tensor that has a rank which is 1 greater than that of #tIn.
+   *
+   * Shape example:
+   *
+   * If #tIn has shape
+   *     (s0, s1, s2, ...., sZ) and dim=1,
+   *
+   * then the returned tensor has shape
+   *     (s0, nSlices, s2,...., sZ, size) where
+   *
+   * nSlices = (s1 - size) / step + 1.
+   * */
   static T unfold(const T &tIn, uint64_t dim, uint64_t size, uint64_t step) {
 
     if (step == 0) {
@@ -67,7 +57,20 @@ public:
                                     "Step size in unfold cannot be 0.");
     }
 
+    // The size of the dimension being unfolded.
     const uint64_t dimSize = H::dim(tIn, dim);
+
+    // The total number of complete slices which can be obtained from the
+    // dimension.
+    const auto nSlices = size > dimSize ? 0 : 1 + (dimSize - size) / step;
+
+    // The shape of the result tensor.
+    Shape outShape = shape(tIn).append(size).resizeSingleDim(nSlices, dim);
+
+    // PyTorch throws an error if size > dimSize, we do not.
+    if (size > dimSize || size == 0) {
+      return H::reshape(H::slice(tIn, dim, 0, 0), outShape.get_u64());
+    }
 
     // For the case of overlapping slices, we convert the problem into an
     // equivalent one without any overlapping slices. This is done be
@@ -90,48 +93,50 @@ public:
     // not a new variable.
     //
     if (step < size) {
-      auto ub = size * (1 + (dimSize - size) / step);
-      auto t  = tIn;
-      t       = unsqueeze(t, dim);
-      t       = H::broadcast(t, dimSize, dim);
-      t       = flatten(t, dim, dim + 2);
+      auto t = tIn;
+      t      = unsqueeze(t, dim);
+      t      = H::broadcast(t, dimSize, dim);
+      t      = flatten(t, dim, dim + 2);
 
       // solve the equivalent non-overlapping problem (depth-1 recursion).
       t = Unfolder<T, H>::unfold(t, dim, size, step + dimSize);
-      t = H::slice(t, dim, 0, ub);
+      t = H::slice(t, dim, 0, nSlices);
       return t;
+
     }
 
     // The non-overlapping case.
     else {
 
       // The number of complete stripes:
-      const uint64_t nStripes = dimSize / step;
+      const uint64_t nCompleteSteps = dimSize / step;
 
       std::vector<T> toConcat;
       toConcat.reserve(2);
 
-      if (nStripes > 0) {
-        // Gather up the complete stripes:
+      if (nCompleteSteps > 0) {
+        // Gather up the complete steps:
         auto t = tIn;
-        t      = H::slice(t, dim, 0, nStripes * step);
-        t      = reshapePartial(t, dim, dim + 1, {nStripes, step});
+        t      = H::slice(t, dim, 0, nCompleteSteps * step);
+        t      = reshapePartial(t, dim, dim + 1, {nCompleteSteps, step});
         t      = H::slice(t, dim + 1, 0, size);
-        t      = flatten(t, dim, dim + 2);
         toConcat.push_back(t);
       }
 
-      // Get the remaining elements, if there are any:
-      const auto s0 = nStripes * step;
-      const auto s1 = std::min<uint64_t>(s0 + size, dimSize);
-      if (s0 != s1) {
-        toConcat.push_back(H::slice(tIn, dim, s0, s1));
+      // Get the remaining elements, if they form a complete stripe:
+      const auto s0 = nCompleteSteps * step;
+      if (s0 + size <= dimSize) {
+        toConcat.push_back(unsqueeze(H::slice(tIn, dim, s0, s0 + size), dim));
       }
 
-      if (toConcat.size() == 1) {
-        return toConcat[0];
-      }
-      return H::concat(toConcat, dim);
+      auto concatted = [&]() {
+        if (toConcat.size() == 1) {
+          return toConcat[0];
+        }
+        return H::concat(toConcat, dim);
+      }();
+
+      return dimRoll(concatted, dim + 1, H::rank_u64(concatted) - 1);
     }
   }
 
@@ -152,6 +157,12 @@ private:
                           const std::vector<uint64_t> &newDims) {
     std::vector<int64_t> dims{newDims.cbegin(), newDims.cend()};
     return H::reshape(t, shape(t).reshapePartial(dim0, dim1, dims).get_u64());
+  }
+
+  static T dimRoll(const T &t, uint64_t from, uint64_t to) {
+    const auto r = H::rank_u64(t);
+    const auto p = Permutation::dimRoll(r, {from, to});
+    return H::dimShuffle(t, p.get());
   }
 };
 
@@ -178,7 +189,13 @@ public:
     return T::concat_(ts, axis);
   }
 
+  static T dimShuffle(const T &t, const std::vector<uint64_t> &permutation) {
+    return t.dimShuffle_({permutation});
+  }
+
   static uint64_t dim(const T &t, uint64_t d) { return t.dim(d); }
+
+  static uint64_t rank_u64(const T &t) { return t.rank_u64(); }
 
   static std::vector<uint64_t> shape(const T &t) {
     return t.shape().get_u64();

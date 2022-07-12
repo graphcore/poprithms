@@ -539,7 +539,13 @@ Shape &&Shape::broadcast(int64_t N, uint64_t dimension) && {
   return std::move(*this);
 }
 
-Shape Shape::resizeSingleDim(int64_t N, uint64_t dimension) const {
+Shape &&Shape::resizeSingleDim(int64_t N, uint64_t dimension) && {
+  assertValidDimension(dimension);
+  shp[dimension] = N;
+  return std::move(*this);
+}
+
+Shape Shape::resizeSingleDim(int64_t N, uint64_t dimension) const & {
   assertValidDimension(dimension);
   auto s       = get();
   s[dimension] = N;
