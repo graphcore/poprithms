@@ -124,7 +124,8 @@ set(common_compute_sources
   # prune sub-directory:
   ${src_dir}/common/compute/prune/prune.cpp
 
-  # testutil sub-directory: (coming soon).
+  # testutil sub-directory:
+  ${src_dir}/common/compute/testutil/misctraintester.cpp
 )
 
 add_library(poprithms-common-compute-objlib OBJECT ${common_compute_sources})

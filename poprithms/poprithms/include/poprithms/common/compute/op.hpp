@@ -457,8 +457,7 @@ public:
   /**
    * Get the initial values (if any) for each replica if the output tensor #o.
    * */
-  std::map<uint64_t, poprithms::compute::host::Tensor>
-  initialValues(OutIndex o) const;
+  std::map<uint64_t, HostTensor> initialValues(OutIndex o) const;
 
   /**
    * Set the initial value of replica #r of output tensor #o to #val. This can
@@ -612,18 +611,18 @@ public:
    * */
   bool isConstraintPhobic() const final { return isInitializingOp(); }
 
+  /**
+   * Initialize the tensors in #simTensors corresponding to the output tensors
+   * of this op.
+   * */
+  void initSimOut(SimTensorMap &) const;
+
 public:
   /**
    * Update the tensors in #iSimState corresponding to the output tensors of
    * this op, by running this op on cpu.
    * */
   virtual void runSim(ISimState &iSimState) const = 0;
-
-  /**
-   * Initialize the tensors in #simTensors corresponding to the output tensors
-   * of this op.
-   * */
-  virtual void initializeSimOut(SimTensorMap &) const = 0;
 
   /**
    * Initialize the output tensors of this op, based on the input tensors
@@ -750,14 +749,16 @@ protected:
    * For most ops, initializing output tensors for the simulator follows this
    * chain of calls:
    *
-   *  1) initializeSimOut
+   *  1) initSimOut
    *       ->
-   *  2)   initializeReplicatedSimOut
-   *       (which inserts a loop over the replication factor)
-   *          ->
-   *  3)      initializeOut
-   *          (the actual implementation of host tensor initialization: it
-   *           might be an alias of an input, or a new allocation.)
+   *  2)   initializeSimOut
+   *         ->
+   *  3)     initializeReplicatedSimOut
+   *         (which inserts a loop over the replication factor)
+   *            ->
+   *  4)        initializeOut
+   *            (the actual implementation of host tensor initialization: it
+   *            might be an alias of an input, or a new allocation.)
    *
    * There are exceptions, where this chain is not applicable and so ops
    * implement initializeSimOut directly. Examples are RefFrom_, and ops which
@@ -785,6 +786,13 @@ protected:
 
 private:
   const Graph &graph() const { return computeGraph(); }
+
+  /**
+   * Initialize the tensors in #simTensors corresponding to the output tensors
+   * of this op. This method does not set initial values if they are present
+   * (\sa initSimOut).
+   * */
+  virtual void initializeSimOut(SimTensorMap &) const = 0;
 
   bool schedulableTypeSpecificEqualTo(
       const poprithms::common::schedulable::Op &other) const final;

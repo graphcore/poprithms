@@ -950,7 +950,6 @@ DisjointSetts Sett::sampleRecurse(const Sett &x,
   const auto &i0 = indices.atDepth(0);
 
   const auto nChosen0 = indices.n(0, i0.period());
-  auto foo            = indices.getOns(0, i0.period());
 
   if (nChosen0 == 0) {
     std::ostringstream oss;

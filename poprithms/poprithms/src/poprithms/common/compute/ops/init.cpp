@@ -26,8 +26,7 @@ void Init::invalidInIndex(InIndex i) const {
 /**
  * ConstInit
  * */
-ConstInit::ConstInit(const State &s,
-                     const poprithms::compute::host::Tensor &val)
+ConstInit::ConstInit(const State &s, const HostTensor &val)
     : poprithms::common::compute::Init(s), value_(val) {
   // Note that the shape and type of val is checked in
   // computeDerivedVerifyValid. This design pattern, of running checks of an
@@ -129,8 +128,7 @@ void VarInit::setUserManagedHost(bool b) {
   userManagedHost_ = b ? UserManagedHost::Yes : UserManagedHost::No;
 }
 
-poprithms::compute::host::Tensors
-VarInit::initializeOut(const poprithms::compute::host::Tensors &) const {
+HostTensors VarInit::initializeOut(const HostTensors &) const {
   if (isUserManagedHost()) {
     return {HostTensor::uninitializedRef(outShape(0), outDType(0))};
   } else {

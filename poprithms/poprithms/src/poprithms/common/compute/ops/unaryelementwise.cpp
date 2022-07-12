@@ -104,7 +104,7 @@ OptionalTensors Cast::bprop(const GradOpIns &gIn) const {
 }
 
 std::string Fill_::typeString() const {
-  return poprithms::util::cat::strcat("Fill_(", val_, ")");
+  return poprithms::util::cat::strcat("Fill_(", val_.valueAsStr(0), ")");
 }
 
 UpOp Fill_::cloneWithState(const State &s) const {

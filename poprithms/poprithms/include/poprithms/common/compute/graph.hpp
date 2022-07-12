@@ -417,7 +417,12 @@ public:
    * points of execution of the graph. These are analagous to the set of
    * programs passed to a poplar engine. Any sub-graph can be made runnable.
    * */
-  void setRunnable(const std::vector<SubGraphId> &sgIds);
+  void setRunnable(const SubGraphIds &sgIds);
+
+  /**
+   * Reset the sub-graphs which are runnable to #newRunnables.
+   * */
+  void resetRunnable(const SubGraphIds &newRunnables);
 
   /**
    * \return true if #sgId is a runnable sub-graph, set with the method
@@ -683,9 +688,9 @@ public:
                         const RemoteOptions &);
 
   /**
-   * This is like the base 'append' method but it ensures that the ops the
-   * appear in a valid schedule. If this graph is not schedulable, an error is
-   * thrown.
+   * This method is like the base 'append' method except that it ensures that
+   * the ops appear in a valid schedule order. If this graph is not
+   * schedulable, an error is thrown.
    * */
   void appendScheduled(std::ostream &) const;
 

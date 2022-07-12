@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include <poprithms/common/multiout/tensormap.hpp>
+#include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/util/circularcounter.hpp>
 #include <poprithms/util/copybyclone.hpp>

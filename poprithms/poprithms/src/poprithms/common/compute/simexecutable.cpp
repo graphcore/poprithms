@@ -34,7 +34,7 @@ SimTensorMap initHostSimTensors(const Graph &m) {
 
   // populate all tensor vectors.
   for (auto opId : Scheduler::vanillaLoweringSchedule(m)) {
-    m.computeOp(opId).initializeSimOut(htm);
+    m.computeOp(opId).initSimOut(htm);
   }
 
   return htm;

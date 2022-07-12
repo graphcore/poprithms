@@ -20,8 +20,9 @@ using Ad = Autodiffer<SlickGraph, AutomaticMutator>;
 
 } // namespace
 
-// We check that recomputation happens when only the inputs are checkpointed.
-TEST(CommonComputeTrainMisc0, Recompute) {
+// This test checks that recomputation does happen when only the inputs to a
+// graph are checkpointed.
+TEST(CommonComputeTrainMisc0, Recompute0) {
 
   SlickGraph graph;
 
@@ -76,4 +77,179 @@ TEST(CommonComputeTrainMisc0, Recompute) {
   // We can also check the gradient against the derivation (2) above.
   auto expected = (d0.sin().add(2)).sqrt().pow(-1).mul(0.5).mul(d0.cos());
   g0.assertAllClose(expected, 1e-6, 1e-6, "compare to hand-derived gradient");
+}
+
+// Test that you can train through this inplace operation.
+TEST(CommonComputeTrainMisc0, ThroughFill0) {
+  SlickGraph m;
+  SubGraph sg0 = m.createSubGraph("sg0");
+  auto W       = sg0.hostFloat64Variable({4, 4});
+  auto out     = W.fill_(HostTensor::float64(1.)).reduceSum(Shape({}));
+  auto dW      = Ad(m).backward(out, {W})[0];
+  m.setRunnable({sg0});
+  SimExecutable cms(m);
+  cms.setHostValue(W, HostTensor::uniformFloat64(-1, 1, {4, 4}, 1011));
+  cms.run(sg0);
+  // Expect the gradient of W to be entirely 0.
+  EXPECT_EQ(cms.getHostValue(dW).allZero(), true);
+}
+
+TEST(CommonComputeTrainMisc0, ThroughAddInplace0) {
+  SlickGraph m;
+  SubGraph sg0 = m.createSubGraph("sg0");
+  auto W       = sg0.hostFloat64Variable({3});
+  auto out     = W.abs().add_(W.constant(1)).reduceSum(Shape({}));
+  auto dW      = Ad(m).backward(out, {W})[0];
+  m.setRunnable({sg0});
+  SimExecutable cms(m);
+  auto hostW = HostTensor::float64({3}, {1, -3, 2});
+  cms.setHostValue(W, hostW.copy());
+  cms.run(sg0);
+  cms.getHostValue(dW).assertAllEquivalent(
+      HostTensor::float64({3}, {+1, -1, +1}));
+}
+
+// Test that casting to an integer kills backprop.
+TEST(CommonComputeTrainMisc0, ThroughCast0) {
+  SlickGraph m;
+  SubGraph sg0 = m.createSubGraph("sg0");
+  auto W       = sg0.hostFloat64Variable({3});
+  auto out0    = W.to(DType::Float32).mul(W.constant(DType::Float32, 7));
+  auto out1 =
+      W.to(DType::Int32).mul(W.constant(DType::Int32, 11)).to(DType::Float32);
+  auto loss = (out0 + out1).reduceSum(Shape({}));
+  auto dW   = Ad(m).backward(loss, {W})[0];
+  m.setRunnable({sg0});
+  SimExecutable cms(m);
+  auto hostW = HostTensor::float64({3}, {1, 0, -1});
+  cms.setHostValue(W, hostW.copy());
+  cms.run(sg0);
+  cms.getHostValue(dW).assertAllEquivalent(
+      HostTensor::float64({3}, {+7, +7, +7}));
+}
+
+// A chain of ops which together combine to be the identity: checks that
+// identity is also identity.
+TEST(CommonComputeTrainMisc0, CancelChain0) {
+  SlickGraph m;
+  SubGraph sg0 = m.createSubGraph("sg0");
+  auto W       = sg0.hostFloat64Variable({10});
+  auto out     = W.neg().neg();
+  out          = out.relu() + out.neg().relu().neg();
+  out          = out.abs().sqrt().pow(out.constant(2)) -
+        out.neg().relu().mul(out.constant(2));
+  out       = out.exp().log();
+  auto loss = out.reduceSum(Shape({}));
+  auto dW   = Ad(m).backward(loss, {W})[0];
+  m.setRunnable({sg0});
+  SimExecutable cms(m);
+  auto hostW = HostTensor::uniformFloat64(-3, 3, {10}, 1011);
+  cms.setHostValue(W, hostW.copy());
+  cms.run(sg0);
+  cms.getHostValue(dW).assertAllClose(
+      HostTensor::float64(1).expand({10}), 1e-5, 1e-5);
+}
+
+TEST(CommonComputeTrainMisc0, ThroughDynamicSlice0) {
+  SlickGraph m;
+  SubGraph sg0   = m.createSubGraph("sg0");
+  auto sliceable = sg0.hostFloat32Variable({6});
+  int32_t nSlices{2};
+  int64_t sliceSize{2};
+  auto offset = sg0.variable(DType::Unsigned32, {nSlices, 1}, m.host());
+  auto sliced =
+      sliceable.dynamicMultiSlice(offset, Dimensions{0}, {sliceSize});
+  auto loss       = (sliced * sliced).reduceSum(Shape({}));
+  auto dSliceable = Ad(m).backward(loss, {sliceable})[0];
+  m.setRunnable({sg0});
+  SimExecutable cms(m);
+  cms.setHostValue<float>(sliceable, {5, 6, 7, 8, 9, 10});
+  cms.setHostValue<uint32_t>(offset, {4, 1});
+  cms.run(sg0);
+  cms.getHostValue(dSliceable)
+      .assertAllEquivalent(HostTensor::float32({6}, {0, 12, 14, 0, 18, 20}));
+}
+
+TEST(CommonComputeTrainMisc0, ThroughDynamicMax0) {
+  SlickGraph m;
+  SubGraph sg0 = m.createSubGraph("sg0");
+  int64_t M{3};
+  int64_t N{4};
+  int64_t S{2};
+
+  auto sliceable = sg0.hostFloat32Variable({M, S});
+  auto slice     = sliceable.variable({N, S});
+  auto offset    = sg0.variable(DType::Unsigned32, {N}, m.host());
+  auto updated   = sliceable.dynamicMultiUpdateMax_(slice, offset);
+  auto loss      = updated.pow(slice.constant(2)).reduceSum(Shape({}));
+
+  auto dSlice = Ad(m).backward(loss, {slice})[0];
+
+  m.setRunnable({sg0});
+
+  SimExecutable se(m);
+
+  //  -3  -2
+  //  -1   1
+  //   2   3
+  auto hSliceable =
+      HostTensor::float32(sliceable.shape(), {-3, -2, -1, 1, 2, 3});
+
+  // slice:
+  //        offsets:
+  //  1  4    2
+  //  1 -1    1
+  //  5  2    2
+  // -5 -5    0
+
+  auto hSlice =
+      HostTensor::float32(slice.shape(), {1, 4, 1, -1, 5, 2, -5, -5});
+
+  auto hOffset = HostTensor::unsigned32(offset.shape(), {2, 1, 2, 0});
+
+  se.setHostValue(sliceable, hSliceable);
+  se.setHostValue(slice, hSlice);
+  se.setHostValue(offset, hOffset);
+
+  se.run(sg0);
+
+  se.getHostValue(updated).assertAllEquivalent(
+      HostTensor::float32(sliceable.shape(), {-3, -2, 1, 1, 5, 4}));
+
+  se.getHostValue(dSlice).assertAllEquivalent(
+      HostTensor::float32(slice.shape(), {0, 8, 2, 0, 10, 0, 0, 0}));
+}
+
+TEST(CommonComputeTrainMisc0, ThroughDynamciUpdate0) {
+
+  SlickGraph m;
+  SubGraph sg0   = m.createSubGraph("sg0");
+  auto sliceable = sg0.hostFloat32Variable({6});
+  int32_t nSlices{2};
+  int64_t sliceSize{2};
+  auto offset = sg0.variable(DType::Unsigned32, {nSlices, 1}, m.host());
+  auto sliced = sliceable.variable({nSlices, sliceSize});
+
+  auto loss = sliceable.dynamicMultiUpdate_(sliced, offset, Dimensions{0})
+                  .pow(sliceable.constant(2))
+                  .reduceSum(Shape({}));
+
+  TensorIds targs{sliced, sliceable};
+  auto grads      = Ad(m).backward(loss, targs);
+  auto dSlice     = grads[0];
+  auto dSliceable = grads[1];
+
+  m.setRunnable({sg0});
+  SimExecutable cms(m);
+  cms.setHostValue<float>(sliceable, {5, 6, 7, 8, 9, 10});
+  cms.setHostValue<uint32_t>(offset, {4, 1});
+
+  HostTensor vSliced = HostTensor::float32({2, 2}, {1, 2, 3, 4});
+  cms.setHostValue(sliced, vSliced);
+  cms.run(sg0);
+
+  cms.getHostValue(dSliceable)
+      .assertAllEquivalent(HostTensor::float32(0).expand(sliceable.shape()));
+
+  cms.getHostValue(dSlice).assertAllEquivalent(vSliced.mul(2));
 }

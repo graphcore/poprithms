@@ -11,6 +11,19 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+void Op::initSimOut(SimTensorMap &stm) const {
+  initializeSimOut(stm);
+
+  // Some tensors might have pinned initial values:
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    if (outDeviceType(o) == DeviceType::Ipu) {
+      for (auto &&[repl, val] : initialValues(o)) {
+        stm.getValue({id(), o}).at(repl).update_(val);
+      }
+    }
+  }
+}
+
 bool Op::hasDerivedRefs() const {
   for (OutIndex o = 0; o < nOutTensors(); ++o) {
     if (hasDerivedRefs(o)) {

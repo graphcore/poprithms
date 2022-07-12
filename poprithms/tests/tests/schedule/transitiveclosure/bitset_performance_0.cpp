@@ -28,6 +28,7 @@ void simpleLoop(uint64_t repeat) {
   for (uint64_t i = 0; i < repeat; ++i) {
     j += 1;
   }
+  (void)j;
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = stop - start;
   std::cout << repeat / elapsed.count() << std::endl;

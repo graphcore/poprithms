@@ -96,6 +96,31 @@ public:
   CheckpointPairs checkpointPairs() const;
 
   /**
+   * A utility method for obtaining all of the copies of checkpoint tensors
+   * into a gradient sub-graph call.
+   *
+   * CheckpointPairs contain non-gradient tensors in
+   *  (1) the non-gradient sub-graph and
+   *  (2) the gradient sub-graph.
+   *
+   * When the gradient sub-graph is called, a tensor is copied from
+   * 'somewhere' into (2). The callable Getter object defines the 'somewhere',
+   * and retrieves the source of the copy. The input to #getter is the tensor
+   * in the non-gradient sub-graph.
+   * **/
+  template <typename Getter>
+  std::vector<std::pair<TensorId, TensorId>>
+  checkpointInCopies(Getter &&getter) const {
+    std::vector<std::pair<TensorId, TensorId>> copies;
+    for (auto cpp : checkpointPairs()) {
+      auto src = getter(cpp.inNonGradGraph);
+      auto dst = cpp.inGradGraph;
+      copies.push_back({src, dst});
+    }
+    return copies;
+  }
+
+  /**
    * \param inNonGradGraph A non-gradient tensor in the non-gradient graph.
    *
    * \return The gradient tensor in the gradient graph, to which the gradient

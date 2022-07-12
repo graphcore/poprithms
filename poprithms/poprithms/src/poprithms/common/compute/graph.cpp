@@ -709,6 +709,10 @@ bool Graph::isRunnable(SubGraphId sgId) const {
          runnable_.cend();
 }
 
+void Graph::resetRunnable(const SubGraphIds &rids) {
+  runnable_ = poprithms::util::unisorted(rids);
+}
+
 void Graph::setRunnable(const SubGraphIds &rids) {
 
   auto sorted = poprithms::util::unisorted(rids);
@@ -725,7 +729,7 @@ void Graph::setRunnable(const SubGraphIds &rids) {
     throw error(oss.str());
   }
 
-  runnable_ = poprithms::util::unisorted(rids);
+  runnable_ = std::move(sorted);
 }
 
 CallEvent Graph::callEvent(OpId opId) const {

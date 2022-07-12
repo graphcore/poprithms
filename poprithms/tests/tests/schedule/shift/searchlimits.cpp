@@ -7,18 +7,22 @@
 #include <poprithms/schedule/shift/scheduledgraph.hpp>
 
 // In this test, we check that allowing more swaps results in lower schedule
-// livenesses. We only test this swapLimitCount, a test for timeLimitSeconds
-// will be flakey. timeLimitSeconds has been tested manually for now.
+// livenesses. We only test this for swapLimitCount, a test for
+// timeLimitSeconds will be flakey. timeLimitSeconds has been tested manually
+// for now.
 
 int main() {
 
   using namespace poprithms::schedule::shift;
 
-  const int N         = 100;
-  const int E         = 10;
-  const int D         = 40;
+  const int N         = 20;
+  const int E         = 1;
+  const int D         = 5;
   const int graphSeed = 1011;
-  const std::vector<int64_t> swapLimitCounts{-100, 1, 1000};
+
+  // Note that with swapLimitCounts=1, 1 full pass of the shift algo runs.
+  // With swapLimitCounts=0, no swapping is done at all.
+  const std::vector<int64_t> swapLimitCounts{0, 1};
   std::vector<AllocWeight> livenesses;
 
   for (auto swapLimitCount : swapLimitCounts) {

@@ -440,8 +440,13 @@ template <typename T> T RTensor<T>::variable(const Shape &s0) const {
 }
 
 template <typename T>
-T RTensor<T>::variable(const Shape &s0, DeviceId dId) const {
+T RTensor<T>::variable(DeviceId dId, const Shape &s0) const {
   return subGraph().variable(dtype(), s0, dId);
+}
+
+template <typename T>
+T RTensor<T>::variable(DeviceId dId, SubGraphId sgId) const {
+  return RSubGraph<T>(sgId, graph()).variable(dtype(), shape(), dId);
 }
 
 template <typename T> T RTensor<T>::variable(DType t) const {
@@ -514,7 +519,7 @@ T RTensor<T>::hostToIpu(
   }
 
   // Create an ipu tensor:
-  const auto target = variable(shape().fromDim(2), ipuDestination);
+  const auto target = variable(ipuDestination, shape().fromDim(2));
 
   // Copy to ipu tensor:
   return target.updateFromHost_(*this, copyOptions);
@@ -526,10 +531,10 @@ T RTensor<T>::ipuToHost(
     const CopyBetweenHostAndIpuOptions &copyOptions) const {
 
   // Create a host tensor:
-  const auto target = variable(shape()
+  const auto target = variable(graph().host(),
+                               shape()
                                    .prepend(graph().replicationFactor_u64())
-                                   .prepend(circularBufferCount.get()),
-                               graph().host());
+                                   .prepend(circularBufferCount.get()));
 
   // Copy to host tensor:
   return target.updateFromIpu_(*this, copyOptions);
@@ -583,7 +588,7 @@ std::vector<T> RTensor<T>::tensors(const TensorIds &ids, Graph &g) {
 }
 
 template <typename T>
-TensorIds RTensor<T>::tensorIds(const std::vector<RTensor<T>> &ts) {
+TensorIds RTensor<T>::tensorIds(const std::vector<T> &ts) {
   TensorIds tIds;
   tIds.reserve(ts.size());
   for (auto t : ts) {

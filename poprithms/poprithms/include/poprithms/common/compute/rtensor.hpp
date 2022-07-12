@@ -394,6 +394,24 @@ public:
   }
 
   /**
+   * The method #at (above) is static. Specifically, the slice in dimension-0
+   * that #at takes is always the same [d, d+1) where #d is known at compile
+   * time.
+   *
+   * This #dynamicAt method is a dynamic equivalent of #at. The shape of the
+   * output is exactly the same as for #at. Specifically, if this tensor has
+   * shape (s0,s1,..,sZ) then the returned tensor has shape (s1,...,sZ). But
+   * instead of always taking the slice [d,d+1) for a fixed #d, the specific
+   * slice taken is a runtime variable.
+   *
+   * The tensor #d must an unsigned integer and be in the range [0, dim(0)).
+   * */
+  T dynamicAt(const RTensor<T> &d) const {
+    return dynamicMultiSlice(d.reshape_({1, 1}), Dimensions({0}), {1})
+        .squeeze_({0, 1});
+  }
+
+  /**
    * Upsample this tensor in dimension #d. Example:
    *
    * If this tensor has values (1,2,3) and N=2 and dim=0, the returned tensor
@@ -584,7 +602,13 @@ public:
    * Create a new variable (non-constant) tensor like this tensor, but of
    * shape #shape and on device #deviceId.
    * */
-  T variable(const Shape &shape, DeviceId deviceId) const;
+  T variable(DeviceId deviceId, const Shape &shape) const;
+
+  /**
+   * Create a new variable (non-constant) tensor like this tensor, but on
+   * device #deviceId and in sub-graph #sgId.
+   * */
+  T variable(DeviceId deviceId, SubGraphId sgId) const;
 
   /**
    * Create a new variable (non-constant) tensor like this tensor in every
@@ -604,7 +628,11 @@ public:
   T add(const RTensor<T> &) const;
   T add_(const RTensor<T> &) const;
 
-  T increment_(int64_t v) const { return add_(constant(v)); }
+  /**
+   * Add this tensor to a scalar of the same type, of value #v.
+   * */
+  T add_(double v) const { return add_(constant(v)); }
+  T add(double v) const { return add(constant(v)); }
 
   /**
    * Elementwise multiply this tensor with #rhs.
@@ -643,7 +671,7 @@ public:
   T modulo_(uint64_t v) const { return rem_(constant(v)); }
   T modulo(uint64_t v) const { return rem(constant(v)); }
 
-  T tickModulo_(uint64_t m) const { return increment_(1).modulo_(m); }
+  T tickModulo_(uint64_t m) const { return add_(1).modulo_(m); }
 
   /**
    * Copy the values in #rhs to this tensor. This tensor operation supports
@@ -846,7 +874,7 @@ public:
   /**
    * The ids of the tensors in #ts.
    * */
-  static TensorIds tensorIds(const std::vector<RTensor<T>> &ts);
+  static TensorIds tensorIds(const std::vector<T> &ts);
 
   bool isRootRef() const { return id() == rootRef().id(); }
 
@@ -973,12 +1001,38 @@ public:
                         const RTensor<T> &offset,
                         const Dimensions &) const;
 
-  T dynamicUpdate_(const RTensor<T> &update,
+  /**
+   * \sa dynamicMultiUpdate_
+   *
+   * \param slice A tensor which has the same rank as this tensor, and is
+   *              smaller that this tensor in the dimensions #dims.
+   *
+   * \param offset A rank-1 tensor, of the same size as #dims.
+   * */
+  T dynamicUpdate_(const RTensor<T> &slice,
                    const RTensor<T> &offset,
                    const Dimensions &dims) const {
     return dynamicMultiUpdate_(
-        update.unsqueeze_(0), offset.unsqueeze_(0), dims);
+        slice.unsqueeze_(0), offset.unsqueeze_(0), dims);
   }
+
+  /**
+   * \param index a rank-0 scalar tensor. Values are in range [0, stashSize).
+   *
+   * \return A tensor whose rank is 1 larger than this tensor's rank. It has a
+   *         shape of (stashSize, *s) where #s is the shape of this tensor.
+   * */
+  T pushToStash(uint64_t stashSize, const RTensor<T> &index) const {
+    return variable(shape().prepend(stashSize))
+        .dynamicMultiUpdate_(reshape_(shape().prependOnes(2)),
+                             index.reshape_({1, 1}),
+                             Dimensions{0});
+  }
+
+  /**
+   * The inverse operation of pushToStash.
+   * */
+  T popFromStash(const RTensor<T> &index) { return dynamicAt(index); }
 
   /**
    * This 'sliceable' tensor must be of rank-2, of shape (M, S). It is updated

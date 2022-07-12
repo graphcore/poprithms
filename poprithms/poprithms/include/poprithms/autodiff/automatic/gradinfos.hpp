@@ -58,9 +58,9 @@ public:
   /**
    * All the gradient graphs created for the objective #objective. Recall that
    * in this project there can be multiple gradient graphs of any sub-graph.
-   * It is even possible to have multiple gradie graphs for a single sub-graph
-   * and a single objective (although this might be a strange this for user to
-   * do).
+   * It is even possible to have multiple gradient graphs for a single
+   * sub-graph and a single objective (although this might be a strange this
+   * for user to do).
    * */
   SubGraphIds gradGraphsCreatedFor(const Objective &objective) const;
 
