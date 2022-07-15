@@ -26,12 +26,14 @@ void finiteDifferenceTest(
     const T &targetGrad,
     const std::unordered_map<TensorId, HostTensor> &initVals,
     const uint32_t randomSeed     = 1011,
-    const double perturbationSize = 1e-5) {
+    const double perturbationSize = 1e-5,
+    const double eps0             = 1e-9,
+    const double threshold        = 1e-5) {
 
   if (targetGrad.info() != target.info()) {
     std::ostringstream oss;
     oss << "The provided gradient has info " << targetGrad.info()
-        << ", the the tensor it is supposedly a gradient of has info "
+        << ", the tensor it is supposedly a gradient of has info "
         << target.info() << ". For this method, they must be identical.";
     throw poprithms::test::error(oss.str());
   }
@@ -56,7 +58,9 @@ void finiteDifferenceTest(
                                                 initVals.at(target).copy(),
                                                 gradOut,
                                                 perturbationSize,
-                                                randomSeed);
+                                                randomSeed,
+                                                eps0,
+                                                threshold);
 }
 
 } // namespace testutil

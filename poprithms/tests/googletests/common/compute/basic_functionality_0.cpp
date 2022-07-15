@@ -218,3 +218,48 @@ TEST(CommonComputeBasicFunctionality, BadConcats0) {
   EXPECT_THROW(Tensor::concat_({v0, v0}, 2), poprithms::error::error);
   EXPECT_THROW(Tensor::concat_({}, 0), poprithms::error::error);
 }
+
+TEST(CommonComputeBasicFunctionality, RefFrom0) {
+  SlickGraph m;
+
+  auto sg0 = m.createSubGraph("sg0");
+  auto sg1 = m.createSubGraph("sg1");
+  auto sg2 = m.createSubGraph("sg2");
+
+  const auto in0 = sg0.hostFloat32Variable({}).relu();
+  const auto in1 = sg1.hostFloat32Variable({}).sqrt();
+  const auto in2 = sg2.hostFloat32Variable({}).abs();
+
+  const auto ref0to1 = in0.refTo_(sg1.id());
+  const auto ref1to2 = in1.refTo_(sg2.id());
+  const auto ref2to0 = in2.refTo_(sg0.id());
+  (void)ref1to2;
+
+  EXPECT_FALSE(ref0to1.hasDerivedRefs());
+  EXPECT_FALSE(ref0to1.isRootRef());
+  EXPECT_TRUE(in0.hasDerivedRefs());
+
+  const auto base = sg0.hostFloat32Variable({});
+  EXPECT_TRUE(base.isRootRef());
+  EXPECT_TRUE(base.refsExcludingSelf().empty());
+  EXPECT_EQ(ref2to0.refsExcludingSelf().size(), 1);
+  EXPECT_EQ(in2.refsExcludingSelf().size(), 1);
+
+  // one variable, referenced in 3 graphs.
+  SlickGraph m2;
+  auto sgs = m2.createSubGraphs({"sg0", "sg1", "sg2", "sg3"});
+  auto v   = sgs[0].hostFloat32Variable({});
+  Tensors r0s;
+  for (auto sg : sgs) {
+    r0s.push_back(v.refTo_(sg));
+  }
+  Tensors r1s;
+  for (auto r : r0s) {
+    for (auto sg : sgs) {
+      r1s.push_back(r.refTo_(sg));
+    }
+  }
+
+  EXPECT_EQ(m2.opIds<RefFrom>().size(), 3);
+  EXPECT_NE(m, m2);
+}

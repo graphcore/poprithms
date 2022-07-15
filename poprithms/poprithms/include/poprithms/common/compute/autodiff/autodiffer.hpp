@@ -22,7 +22,8 @@ namespace compute {
 /**
  * Completion of the automatic::Differentiator interface.
  * */
-template <class TGraph, class TAutomaticMutator>
+template <class TGraph            = SlickGraph,
+          class TAutomaticMutator = AutomaticMutator>
 class Autodiffer : public poprithms::autodiff::automatic::Differentiator {
 
 private:

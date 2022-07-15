@@ -418,3 +418,25 @@ TEST(CommonComputeSimExecutable, UnfoldNumerics0) {
   se.getHostValue(us1).assertAllEquivalent(
       HostTensor::int32({2, 2}, {0, 1, 0, 1}));
 }
+
+TEST(CommonComputeSimExecutable, DataByPointer0) {
+  SlickGraph m;
+  auto sg0 = m.createSubGraph("sh0");
+  auto in0 = sg0.hostInt32Variable({1, 1, 2});
+  auto in1 = in0.hostToIpu(m.rootIpu());
+  auto y   = in1.variable();
+  m.setInitialValue(y, 0, HostTensor::int32({2}, {5, 6}));
+  auto out = (in1 + y).ipuToHost(1);
+
+  m.setRunnable({sg0});
+  m.setUserManagedHost(in0, true);
+  SimExecutable cms(m);
+
+  // A vector of 5 elements, although only the first 2 will be used.
+  std::vector<int> extern0{3, 4, 5, 6, 7};
+  cms.setHostValuePointer(in0, extern0.data());
+
+  cms.run(sg0);
+  cms.getHostValue(out).assertAllEquivalent(
+      HostTensor::float32({1, 1, 2}, {5 + 3, 6 + 4}));
+}

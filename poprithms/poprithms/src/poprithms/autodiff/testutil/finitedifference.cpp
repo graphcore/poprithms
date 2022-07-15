@@ -19,6 +19,9 @@ void Checker::check(const std::function<Tensor(const Tensor &)> &fwd,
 
   const uint64_t nRuns = 5;
 
+  auto in0_f64     = in0.to(DType::Float64);
+  auto in0grad_f64 = in0grad.to(DType::Float64);
+
   // How much does the loss change with the perturbation? This vector collects
   // the values for each random perturbation, as computed by finite
   // difference.
@@ -34,7 +37,7 @@ void Checker::check(const std::function<Tensor(const Tensor &)> &fwd,
       Tensor::uniformFloat64(-1, 1, in0.shape(), seed0).mul(perturbationSize);
   purePerturbation = purePerturbation.divide(purePerturbation.l2norm());
 
-  const auto in0gradNormalized = in0grad.divide(in0grad.l2norm());
+  const auto in0gradNormalized = in0grad_f64.divide(in0grad.l2norm());
 
   auto phiPure = [](uint64_t r) { return r / (nRuns - 1.); };
 
@@ -57,18 +60,20 @@ void Checker::check(const std::function<Tensor(const Tensor &)> &fwd,
                         purePerturbation.mul(phiPure(run));
 
     perturbation = perturbation.mul(perturbationSize * perturbation.l2norm());
-    const auto lossPlus = fwd(in0 + perturbation);
+
+    auto perturbation_native = perturbation.to(in0.dtype());
+    const auto lossPlus      = fwd(in0 + perturbation_native);
 
     if (lossPlus.nelms() != 1) {
       throw poprithms::test::error(
           "The method 'fwd' must produce a tensor with 1 element");
     }
-    const auto lossMinus = fwd(in0 - perturbation);
+    const auto lossMinus = fwd(in0 - perturbation_native);
     const auto deltaLoss = (lossPlus - lossMinus);
     finiteMethod.push_back(deltaLoss.getFloat64(0));
 
     const auto expectedDeltaLoss =
-        (in0grad * perturbation).reduceSum().getFloat64(0) * 2.0;
+        (in0grad_f64 * perturbation).reduceSum().getFloat64(0) * 2.0;
     expected.push_back(expectedDeltaLoss);
   }
 

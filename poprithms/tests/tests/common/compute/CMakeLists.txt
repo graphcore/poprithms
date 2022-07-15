@@ -24,9 +24,15 @@ add_common_test(poprithms_common_compute_error_checking_0
 add_common_test(poprithms_common_compute_miscellaneous_sim_train_0
                                          miscellaneous_sim_train_0.cpp)
 
+add_common_test(poprithms_common_compute_logging_0
+                                         logging_0.cpp)
+
 add_common_test(poprithms_common_compute_prune_call_0 
                                          prune_call_0.cpp)
 
 add_common_test(poprithms_common_compute_transform_sin_example_0 
                                          transform_sin_example_0.cpp)
+
+add_common_test(poprithms_common_compute_train_through_call_0 
+                                         train_through_call_0.cpp)
 

@@ -517,11 +517,11 @@ void testNotRetainConstraints0() {
     }
   }
 }
-
 } // namespace
 
 int main() {
 
+  // prune with call op:
   testPreserveHostTensors0();
   testCallIsPartitioned0();
   testPrune0();
