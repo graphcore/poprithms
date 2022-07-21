@@ -506,10 +506,20 @@ public:
   /**
    * Create a clone of op #opId in the sub-graph #sgId, with input tensors
    * #inTensors. The new input tensors #inTensors must have the same type and
-   * shape as #opId, and they must be in the sub-graph #sgId.
+   * shape as #opId, and they must be in the sub-graph #sgId. The output
+   * tensors will be on devices #outDeviceIds, respectively.
    *
    * Topological constraints are not transferred when cloning with this
    * method.
+   * */
+  OpId clone(OpId opId,
+             const TensorIds &inTensors,
+             SubGraphId sgId,
+             const DeviceIds &outDeviceIds);
+
+  /**
+   * Clone the op #opId, with outputs on the same devices as the outputs of
+   * #opId.
    * */
   OpId clone(OpId opId, const TensorIds &inTensors, SubGraphId sgId);
 
@@ -668,6 +678,11 @@ public:
   bool modifies(OpId, InIndex) const;
 
   /**
+   * \return true if #opId modifies one or more of its inputs.
+   * */
+  bool modifies(OpId opId) const;
+
+  /**
    * \return true if input at index #i of op #opId is aliased to the output
    * #o.
    * */
@@ -677,6 +692,23 @@ public:
    * \return All ops which are modifying consumers of a tensor in #tIds.
    * */
   OpIds modifiers(const TensorIds &tIds) const;
+
+  /**
+   * \return All ops in the sub-graph #sgId which modify one or more of their
+   *         inputs.
+   * */
+  OpIds modifiers(SubGraphId sgId) const;
+
+  /**
+   * \return All tensors in the sub-graph #sgId which are modified by one or
+   *         more of their consumers.
+   * */
+  TensorIds modified(SubGraphId) const;
+
+  /**
+   * \return true if a  consumer of #tId modifies it.
+   * */
+  bool isModified(const TensorId &tId) const;
 
   /**
    * Create a remote device associated to the ipu #ipu, of numerical type

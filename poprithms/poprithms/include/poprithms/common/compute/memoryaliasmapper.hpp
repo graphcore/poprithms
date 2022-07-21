@@ -72,7 +72,7 @@ public:
    * in (1) will traverse through it. Step (2) will remove a.
    * */
   TensorIds aliases(const TensorIds &tIds) {
-    extend(potentialAliases(computeGraph, tIds));
+    extend(potentialMultiGraphAliases(computeGraph, tIds));
     return aliasesFromExtended(tIds);
   }
 
@@ -83,7 +83,8 @@ private:
    * A set of tensors which is guaranteed to contain all aliases, across all
    * sub-graphs, of aliases of the tensors in #tIds.
    * */
-  static TensorIds potentialAliases(const Graph &g, const TensorIds &tIds);
+  static TensorIds potentialMultiGraphAliases(const Graph &g,
+                                              const TensorIds &tIds);
 
   /**
    * All of the aliases, in all sub-graphs, of the tensors in #tIds.

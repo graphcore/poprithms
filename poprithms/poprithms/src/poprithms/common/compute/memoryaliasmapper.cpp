@@ -5,6 +5,7 @@
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/memoryaliasmapper.hpp>
+#include <poprithms/common/compute/subgraph.hpp>
 #include <poprithms/common/multiout/traversal.hpp>
 #include <poprithms/compute/host/regionutil.hpp>
 #include <poprithms/memory/alias/jitgrower.hpp>
@@ -81,6 +82,48 @@ MemoryAliasMapper::MemoryAliasMapper(const Graph &g, const TensorIds &tIds)
 
 namespace {
 
+class AliasNeighborGetterWithoutRefTraversal {
+private:
+  const Graph &g;
+
+public:
+  AliasNeighborGetterWithoutRefTraversal(const Graph &g_) : g(g_) {}
+
+  TensorIds neighbors(const TensorId &currentTensor) const {
+    return get(g, currentTensor);
+  };
+
+  // Neighbors of #currentTensor are any of the following tensors that might
+  // be aliases:
+  //
+  // 1) Inputs.
+  // 2) Outputs of ops which have #currentTensor as an input. In other words,
+  //    outputs of consumers.
+  static TensorIds get(const Graph &g, const TensorId &currentTensor) {
+
+    TensorIds neighborsOfCurrent;
+
+    const auto &producerOp = g.computeOp(currentTensor.opId());
+
+    // 1) Inputs that might be aliases:
+    for (InIndex i = 0; i < producerOp.nInTensors(); ++i) {
+      if (producerOp.aliases(i, currentTensor.outIndex())) {
+      }
+      neighborsOfCurrent.push_back(producerOp.inTensorId(i));
+    }
+
+    // 2) Outputs of consumers that might be aliases:
+    for (auto cId : g.consumptionIds(currentTensor)) {
+      for (OutIndex o = 0; o < g.nOutTensors(cId.opId()); ++o) {
+        if (g.aliases(cId.opId(), cId.inIndex(), o)) {
+          neighborsOfCurrent.push_back({cId.opId(), o});
+        }
+      }
+    }
+    return neighborsOfCurrent;
+  }
+};
+
 class AliasNeighborGetterWithRefTraversal {
 private:
   const Graph &g;
@@ -90,39 +133,20 @@ public:
 
   TensorIds neighbors(const TensorId &currentTensor) const {
 
-    const auto &producerOp = g.computeOp(currentTensor.opId());
-
-    // Neighbors of #currentTensor are all the following tensors:
-    //
-    // 1) References in different graphs.
-    // 2) Inputs that might be aliases.
-    // 3) Outputs (of consumers) that might be aliases.
-    //
     // 1) References in different graphs:
-    TensorIds neighborsOfCurrent = g.refsExcludingSelf(currentTensor);
+    auto v = g.refsExcludingSelf(currentTensor);
 
-    // 2) Inputs that might be aliases:
-    for (InIndex i = 0; i < producerOp.nInTensors(); ++i) {
-      if (producerOp.aliases(i, currentTensor.outIndex())) {
-      }
-      neighborsOfCurrent.push_back(producerOp.inTensorId(i));
-    }
+    // 2,3) Inputs and outputs that might be aliases:
+    auto w = AliasNeighborGetterWithoutRefTraversal::get(g, currentTensor);
 
-    // 3) Outputs (of consumers) that might be aliases:
-    for (auto cId : g.consumptionIds(currentTensor)) {
-      for (OutIndex o = 0; o < g.nOutTensors(cId.opId()); ++o) {
-        if (g.aliases(cId.opId(), cId.inIndex(), o)) {
-          neighborsOfCurrent.push_back({cId.opId(), o});
-        }
-      }
-    }
-
-    return neighborsOfCurrent;
+    w.insert(w.end(), v.cbegin(), v.cend());
+    return w;
   }
 };
 } // namespace
 
-TensorIds MemoryAliasMapper::potentialAliases(const Graph &g,
+TensorIds
+MemoryAliasMapper::potentialMultiGraphAliases(const Graph &g,
                                               const TensorIds &tIds) {
   return poprithms::common::multiout::depthFirst(
       AliasNeighborGetterWithRefTraversal(g), tIds, [](const TensorId &) {
@@ -196,34 +220,38 @@ AliasGraphQuerier::makeModifiersFinalConsumers(const Graph &computeGraph,
     subGraphs.insert(computeGraph.subGraphId(opId));
   }
 
-  MemoryAliasMapper mam(computeGraph, {});
-  for (auto sgId : subGraphs) {
-    mam.extend(computeGraph.tensorIds(sgId));
-  }
-
   // Process each of the sub-graphs independently.
   for (auto sgId : subGraphs) {
 
-    const auto sgOpIds = computeGraph.opIds(sgId);
-    const auto tIds    = computeGraph.tensorIds(sgId);
+    // The tensors which are consumed by an op which modifies them:
+    auto modified = computeGraph.modified(sgId);
+
+    auto aliasedToModified = poprithms::common::multiout::depthFirst(
+        AliasNeighborGetterWithoutRefTraversal(computeGraph),
+        modified,
+        [](const TensorId &) { return true; });
+
+    MemoryAliasMapper mam(computeGraph, aliasedToModified);
 
     // data dependencies (tensor -> op -> tensor).
-    auto fwdEdgeMap = computeGraph.getMultioutForwardEdgeMap_u64(sgOpIds);
+    auto fwdEdgeMap = computeGraph.getMultioutForwardEdgeMap_u64(
+        computeGraph.opIds(aliasedToModified));
 
     // O(nOps^2) transitive closure.
     schedule::transitiveclosure::TransitiveClosure tcm(
         fwdEdgeMap.fwdEdgesCompact());
 
-    for (auto opId : sgOpIds) {
-      for (InIndex i = 0; i < computeGraph.nInTensors(opId); ++i) {
+    for (auto &&mId : modified) {
+      for (auto c : computeGraph.consumptionIds(mId)) {
+        auto opId = c.opId();
+        auto i    = c.inIndex();
 
         if (computeGraph.modifies(opId, i)) {
 
           /// All of the compute graph tensors in the sub-graph #sgId that
-          /// are aliased to the input #i of op #opId:
+          /// are aliased to the input #i of op #opId (i.e. #mId):
           std::vector<TensorId> aliases;
-          for (auto atId : mam.graph().allAliases(
-                   mam.id(computeGraph.inTensorId(opId, i)))) {
+          for (auto atId : mam.graph().allAliases(mam.id(mId))) {
             if (mam.hasAliasId(atId)) {
               auto ctId = mam.idFromAliasId(atId);
               if (computeGraph.subGraphId(ctId.opId()) ==
@@ -238,7 +266,9 @@ AliasGraphQuerier::makeModifiersFinalConsumers(const Graph &computeGraph,
           for (auto tId : aliases) {
             for (const auto &cId : computeGraph.consumptionIds(tId)) {
               if (cId.opId() != opId) {
-                aliasConsumers.push_back(cId.opId());
+                if (!computeGraph.computeOp(cId.opId()).isInitializingOp()) {
+                  aliasConsumers.push_back(cId.opId());
+                }
               }
             }
           }

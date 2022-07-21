@@ -112,11 +112,53 @@ void testDoubleInplace1() {
     }
   }
 }
+
+void testDoubleInplace2() {
+
+  SlickGraph m;
+  auto sg0 = m.createSubGraph("sg0");
+  auto v0  = sg0.hostInt32Variable({2, 3, 4});
+  auto bar0 =
+      v0.reverse_(1).reverse_(2).dimShuffle_({{2, 1, 0}}).cos().opId();
+  auto bar1 = v0.reverse_(0).sin().opId();
+  auto foo  = v0.relu_().opId();
+  auto bar2 = v0.slice_(Dimension(0), 1, 2).cos().opId();
+
+  auto x = m.vanillaSchedule();
+  auto z = AliasGraphQuerier::makeModifiersFinalConsumers(m, m.opIds());
+
+  // Expected:
+  //    bar0 -> foo
+  //    bar1 -> foo
+  //    bar2 -> foo.
+  // and nothing else.
+
+  decltype(z) expected{{bar0, {foo}}, {bar1, {foo}}, {bar2, {foo}}};
+
+  if (expected != z) {
+    std::ostringstream oss;
+    auto print = [&](auto &&m) {
+      for (auto [k, vs] : m) {
+        oss << "   " << k << " -> ";
+        poprithms::util::append(oss, vs);
+        oss << "\n";
+      }
+    };
+
+    oss << "Observed:\n";
+    print(z);
+    oss << "\nand expected\n";
+    print(expected);
+    oss << ".";
+    throw poprithms::test::error(oss.str());
+  }
+}
 } // namespace
 
 int main() {
   testIncompatibleInputs0();
   testDoubleInplace0();
   testDoubleInplace1();
+  testDoubleInplace2();
   return 0;
 }

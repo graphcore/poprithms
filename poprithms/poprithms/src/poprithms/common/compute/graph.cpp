@@ -103,14 +103,23 @@ TensorIds Graph::derivedRefs() const {
 }
 
 OpId Graph::clone(OpId opId, const TensorIds &inIds, SubGraphId sgId) {
+  return clone(opId, inIds, sgId, outDeviceIds(opId));
+}
+
+OpId Graph::clone(OpId opId,
+                  const TensorIds &inIds,
+                  SubGraphId sgId,
+                  const DeviceIds &outDevIds) {
 
   verifySubGraphId(inIds, sgId);
 
-  if (op(opId).inShapes() != shapes(inIds)) {
+  const auto &op_ = op(opId);
+
+  if (op_.inShapes() != shapes(inIds)) {
     std::ostringstream oss;
-    oss << "The shapes of the inputs to the op being cloned, " << op(opId)
+    oss << "The shapes of the inputs to the op being cloned, " << op_
         << ", are ";
-    poprithms::util::append(oss, op(opId).inShapes());
+    poprithms::util::append(oss, op_.inShapes());
     oss << ". The shapes of the new inputs are ";
     poprithms::util::append(oss, shapes(inIds));
     oss << ". They should be the same (shape inference is not rerun).";
@@ -119,7 +128,7 @@ OpId Graph::clone(OpId opId, const TensorIds &inIds, SubGraphId sgId) {
 
   if (dtypes(inTensorIds(opId)) != dtypes(inIds)) {
     std::ostringstream oss;
-    oss << "The dtypes of the inputs to the op being cloned, " << op(opId)
+    oss << "The dtypes of the inputs to the op being cloned, " << op_
         << ", are ";
     poprithms::util::append(oss, dtypes(inTensorIds(opId)));
     oss << ". The dtypes of the new inputs are ";
@@ -129,12 +138,19 @@ OpId Graph::clone(OpId opId, const TensorIds &inIds, SubGraphId sgId) {
   }
 
   // note that topo-cons are not copied across.
+
+  std::vector<TensorInfo> outInfos_;
+  outInfos_.reserve(op_.nOutTensors());
+  for (auto o : op_.outIndices()) {
+    outInfos_.push_back(
+        TensorInfo(op_.outShape(o), outDevIds.at(o.get()), op_.outDType(o)));
+  }
   const auto state = Op::State::getStartingState(
-      OpId(nxtOpId()), sgId, inIds, tensorInfos(outTensorIds(opId)), *this);
+      OpId(nxtOpId()), sgId, inIds, outInfos_, *this);
 
-  auto foo = op(opId).cloneWithState(state);
+  auto cloneOp = op_.cloneWithState(state);
 
-  return insertComputeOp(std::move(foo));
+  return insertComputeOp(std::move(cloneOp));
 }
 
 TensorId Graph::srcInCaller(const TensorId &inCallee,
@@ -1050,6 +1066,15 @@ bool Graph::modifies(OpId opId, InIndex inIndex) const {
   return op(opId).modifies(inIndex);
 }
 
+bool Graph::modifies(OpId opId) const {
+  for (InIndex i = 0; i < nInTensors(opId); ++i) {
+    if (op(opId).modifies(i)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool Graph::aliases(OpId opId, InIndex inIndex, OutIndex outIndex) const {
   return op(opId).aliases(inIndex, outIndex);
 }
@@ -1084,6 +1109,16 @@ TensorIds Graph::tensorIds(DeviceType dt) const {
   return toPreserve;
 }
 
+OpIds Graph::modifiers(SubGraphId sgId) const {
+  OpIds ids;
+  for (auto op : opIds(sgId)) {
+    if (modifies(op)) {
+      ids.push_back(op);
+    }
+  }
+  return ids;
+}
+
 OpIds Graph::modifiers(const TensorIds &tIds) const {
   OpIds opIds;
   for (const auto &tId : tIds) {
@@ -1112,6 +1147,27 @@ void Graph::appendScheduled(std::ostream &ost) const {
       poprithms::schedule::vanilla::Scheduler<uint64_t, double>::filo(
           cpt, pris, {}, ErrorIfCycle::Yes, VerifyEdges::Yes);
   appendOpColumns(ost, fem.unpacked(sched));
+}
+
+TensorIds Graph::modified(SubGraphId sgId) const {
+  TensorIds modified_;
+  for (auto op : opIds(sgId)) {
+    for (OutIndex o = 0; o < nOutTensors(op); ++o) {
+      if (isModified({op, o})) {
+        modified_.push_back({op, o});
+      }
+    }
+  }
+  return modified_;
+}
+
+bool Graph::isModified(const TensorId &tId) const {
+  for (auto &&c : consumptionIds(tId)) {
+    if (modifies(c.opId(), c.inIndex())) {
+      return true;
+    }
+  }
+  return false;
 }
 
 } // namespace compute
