@@ -289,7 +289,7 @@ std::unique_ptr<T> Graph::createNodeWithOutsAndId(const TensorIds &ins,
                                                   const Shape &shape,
                                                   TensorId id,
                                                   Args... args) {
-  const Node::State ob(ins, outs, getShapes(ins), id, shape);
+  const Node::State ob(ins, outs, *this, id, shape);
   auto newNode = std::make_unique<T>(ob, Origins(shape), args...);
   for (auto inId : newNode->ins()) {
     node(inId).insertOut(id);
@@ -745,8 +745,7 @@ TensorId Graph::clone(TensorId toCloneId, CloneColorMethod cloneColorMethod) {
     for (auto oldIn : toClone.ins()) {
       newIns.push_back(oldToNew[oldIn.get()]);
     }
-    Node::State newState(
-        newIns, {}, toClone.inShapes(), newId, toClone.shape());
+    Node::State newState(newIns, {}, *this, newId, toClone.shape());
 
     auto newNode = [&toClone, &newState, &oldToNew, cloneColorMethod]() {
       const auto remappedOrigins = toClone.origins().remap(oldToNew);

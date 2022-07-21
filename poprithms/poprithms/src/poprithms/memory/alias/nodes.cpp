@@ -145,10 +145,11 @@ SettFill::SettFill(const State &ob,
   }
 
   // confirm Shapes match exactly:
+  auto inShapes = ob.inShapes();
   for (uint64_t i = 0; i < ob.ins.size(); ++i) {
-    if (ob.inShapes[i].get() != region(i).nelms()) {
+    if (inShapes[i] != region(i).nelms()) {
       std::ostringstream oss;
-      oss << "The " << i << "'th input Tensor has Shape " << ob.inShapes[i]
+      oss << "The " << i << "'th input Tensor has Shape " << inShapes[i]
           << ", which cannot map to Region " << region(i)
           << " as it has number of elements (in each dimension) of ";
       util::append(oss, region(i).nelms());

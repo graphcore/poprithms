@@ -5,6 +5,15 @@ namespace poprithms {
 namespace memory {
 namespace alias {
 
+Shapes Node::State::inShapes() const {
+  std::vector<Shape> shapes;
+  shapes.reserve(ins.size());
+  for (auto i : ins) {
+    shapes.push_back(graph.shape(i));
+  }
+  return shapes;
+}
+
 void Node::insertOut(TensorId ido) {
   if (std::find(outs_.cbegin(), outs_.cend(), ido) == outs_.cend()) {
     outs_.push_back(ido);
@@ -25,8 +34,7 @@ std::vector<TensorId> Node::insAndOuts() const {
 }
 
 bool Node::operator==(const Node &rhs) const {
-  return ins_ == rhs.ins_ && outs_ == rhs.outs_ &&
-         inShapes_ == rhs.inShapes_ && id_ == rhs.id_ &&
+  return ins_ == rhs.ins_ && outs_ == rhs.outs_ && id_ == rhs.id_ &&
          typeString() == rhs.typeString();
 }
 

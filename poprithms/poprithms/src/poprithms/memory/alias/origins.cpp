@@ -90,7 +90,7 @@ std::ostream &operator<<(std::ostream &os, const Origins &o) {
 void Origins::insert(AllocId id, const DisjointRegions &regs) {
   const auto found = oMap.find(id);
   if (found == oMap.cend()) {
-    oMap.insert({id, {regs}});
+    oMap.emplace(id, std::vector<DisjointRegions>{regs});
   } else {
     found->second.push_back(regs);
   }

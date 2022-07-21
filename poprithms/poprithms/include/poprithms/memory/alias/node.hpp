@@ -6,6 +6,7 @@
 #include <memory>
 #include <sstream>
 
+#include <poprithms/memory/alias/graph.hpp>
 #include <poprithms/memory/alias/origins.hpp>
 #include <poprithms/memory/alias/tensor.hpp>
 #include <poprithms/memory/nest/region.hpp>
@@ -15,6 +16,9 @@
 namespace poprithms {
 namespace memory {
 namespace alias {
+
+using poprithms::ndarray::Shape;
+using poprithms::ndarray::Shapes;
 
 /**
  * A Node in a Graph which represents a basic Tensor with a Shape, and its
@@ -31,16 +35,18 @@ class Node {
   public:
     State(const Ids &ins_,
           const Ids &outs_,
-          const Shapes &inShapes_,
+          const Graph &graph_,
           TensorId id_,
           const Shape &sh_)
-        : ins(ins_), outs(outs_), inShapes(inShapes_), id(id_), shape(sh_) {}
+        : ins(ins_), outs(outs_), graph(graph_), id(id_), shape(sh_) {}
 
     const Ids ins;
     const Ids outs;
-    const Shapes inShapes;
+    const Graph &graph;
     const TensorId id;
     const Shape shape;
+
+    Shapes inShapes() const;
   };
 
 public:
@@ -55,7 +61,7 @@ public:
   Node &operator=(const Node &) = default;
 
   Node(const State &ob, const Origins &oris)
-      : ins_(ob.ins), outs_(ob.outs), inShapes_(ob.inShapes), id_(ob.id),
+      : ins_(ob.ins), outs_(ob.outs), pGraph_(&ob.graph), id_(ob.id),
         shape_(ob.shape), origins_(oris) {}
 
   /** String describing the exact transformation */
@@ -76,15 +82,11 @@ public:
 
   int nIns_i32() const { return static_cast<int>(ins().size()); }
 
-  State getState() const {
-    return State{ins_, outs_, inShapes_, id_, shape_};
-  }
+  State getState() const { return State{ins_, outs_, *pGraph_, id_, shape_}; }
 
   const Shape &shape() const { return shape_; }
 
-  const Shape &inShape(uint64_t i) const { return inShapes_[i]; }
-
-  const std::vector<Shape> &inShapes() const { return inShapes_; }
+  const Shape &inShape(uint64_t i) const { return graph().shape(in(i)); }
 
   void insertOut(TensorId id);
 
@@ -140,9 +142,10 @@ public:
   const Origins &origins() const { return origins_; }
 
 private:
+  const Graph &graph() const { return *pGraph_; }
   std::vector<TensorId> ins_;
   std::vector<TensorId> outs_;
-  std::vector<Shape> inShapes_;
+  const Graph *pGraph_;
   TensorId id_;
   Shape shape_;
   Origins origins_;

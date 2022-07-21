@@ -14,7 +14,8 @@ class Concat : public Node {
 public:
   Concat(const State &ob, const Origins &oris, uint64_t a)
       : Node(ob, oris), axis_(a),
-        partitionPoints_(Shape::concatPartitionPoints(ob.inShapes, axis_)) {}
+        partitionPoints_(Shape::concatPartitionPoints(ob.inShapes(), axis_)) {
+  }
 
   /** \return The axis of concatenation */
   uint64_t axis() const { return axis_; }
