@@ -658,6 +658,18 @@ public:
   T pow(const RTensor<T> &rhs) const;
   T pow_(const RTensor<T> &rhs) const;
 
+  T pow(double v) const { return pow(constant(v)); }
+  T pow_(double v) const { return pow_(constant(v)); }
+
+  T mul(double v) const { return mul(constant(v)); }
+  T mul_(double v) const { return mul_(constant(v)); }
+
+  T div(double v) const { return div(constant(v)); }
+  T div_(double v) const { return div_(constant(v)); }
+
+  T sub(double v) const { return sub(constant(v)); }
+  T sub_(double v) const { return sub_(constant(v)); }
+
   /**
    * \return The remainder when this tensor is divided by #rhs. #rhs must have
    *         the same dtype as this tensor.
@@ -1017,16 +1029,22 @@ public:
   }
 
   /**
-   * \param index a rank-0 scalar tensor. Values are in range [0, stashSize).
    *
-   * \return A tensor whose rank is 1 larger than this tensor's rank. It has a
-   *         shape of (stashSize, *s) where #s is the shape of this tensor.
+   * Update a slice in dimension-0 of this tensor.
+   *
+   * \param index a rank-0 scalar tensor. Values are in range [0, dim(0)).
+   *
+   * \param slice a tensor whose shape is this tensor's shape from
+   *              dimension 1 onwards.
+   *
+   * Example: If this tensor has shape (5,4,3) then #slice must have
+   * shape (4,3) and #index is a scalar in the range [0,5).
    * */
-  T pushToStash(uint64_t stashSize, const RTensor<T> &index) const {
-    return variable(shape().prepend(stashSize))
-        .dynamicMultiUpdate_(reshape_(shape().prependOnes(2)),
-                             index.reshape_({1, 1}),
-                             Dimensions{0});
+
+  T updateAt_(const RTensor<T> &slice, const RTensor<T> &index) const {
+    return dynamicMultiUpdate_(slice.reshape_(slice.shape().prependOnes(2)),
+                               index.reshape_({1, 1}),
+                               Dimensions{0});
   }
 
   /**

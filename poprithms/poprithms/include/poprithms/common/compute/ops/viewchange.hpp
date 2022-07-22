@@ -111,7 +111,7 @@ public:
   HostTensors initializeOut(const HostTensors &ins) const final;
 
   /**
-   * \return true of this op is an identity view-change. That is, if the input
+   * \return true if this op is an identity view-change. That is, if the input
    *        and output have the same shape and the (row-major) order of the
    *        elements is unchanged.
    * */
@@ -133,7 +133,7 @@ public:
 
 private:
   /**
-   * \return true of the DimShuffle_ op #rhs (this method is only called when
+   * \return true if the DimShuffle_ op #rhs (this method is only called when
    *         #rhs is a DimShuffle_) has the same permutation.
    * */
   bool computeTypeSpecificEqualTo(const Op &rhs) const final;

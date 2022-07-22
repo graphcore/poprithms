@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <sstream>
+#include <utility>
 
 #include <poprithms/ndarray/accessors.hpp>
 #include <poprithms/ndarray/dtype.hpp>
@@ -1066,11 +1067,23 @@ public:
   Tensor subtract_(double v) const {
     return subtract_(safeScalar(dtype(), v));
   }
+  template <typename T> Tensor sub(T &&x) {
+    return subtract(std::forward<T>(x));
+  }
+  template <typename T> Tensor sub_(T &&x) {
+    return subtract_(std::forward<T>(x));
+  }
 
   Tensor divide(const Tensor &rhs) const;
   Tensor divide_(const Tensor &rhs) const;
   Tensor divide(double v) const { return divide(safeScalar(dtype(), v)); }
   Tensor divide_(double v) const { return divide_(safeScalar(dtype(), v)); }
+  template <typename T> Tensor div(T &&x) {
+    return divide(std::forward<T>(x));
+  }
+  template <typename T> Tensor div_(T &&x) {
+    return divide_(std::forward<T>(x));
+  }
 
   Tensor mod(const Tensor &rhs) const;
   Tensor mod_(const Tensor &rhs) const;

@@ -693,7 +693,7 @@ public:
   virtual bool gradientPropagates(OutIndex o, InIndex i) const = 0;
 
   /**
-   * \return true of a non-zero gradient might be propagate from #o to any
+   * \return true if a non-zero gradient might be propagate from #o to any
    *         index.
    * */
   bool gradientPropagates(OutIndex o) const;

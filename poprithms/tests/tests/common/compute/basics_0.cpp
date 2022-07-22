@@ -8,6 +8,7 @@
 #include <poprithms/common/compute/initialvalues.hpp>
 #include <poprithms/common/compute/ops/init.hpp>
 #include <poprithms/common/compute/ops/reffrom.hpp>
+#include <poprithms/common/compute/simexecutable.hpp>
 #include <poprithms/common/compute/simtensormap.hpp>
 #include <poprithms/common/compute/slickgraph.hpp>
 #include <poprithms/compute/host/tensor.hpp>
@@ -391,6 +392,43 @@ void testSimTensorMap() {
   }
 }
 
+void testCloneRefFrom() {
+  SlickGraph g;
+  auto sg0 = g.createSubGraph("sg0");
+  auto sg1 = g.createSubGraph("sg1");
+  auto sg2 = g.createSubGraph("sg2");
+
+  auto x0  = sg0.hostFloat32Variable({});
+  auto x1  = x0.refTo_(sg1);
+  auto cl0 = g.clone(x1.opId(), {}, sg2);
+
+  if (g.computeOp(cl0).rootRef(0) != x0) {
+    throw poprithms::test::error(
+        "Expected the clone of the RefFrom_ op to retain the root");
+  }
+}
+
+void testMatMulOutType() {
+
+  SlickGraph m;
+  auto sg0 = m.createSubGraph("sg0");
+  auto in0 = sg0.hostFloat32Variable({1, 1});
+  auto out = in0.matmul(in0, DType::Float64, {});
+  m.setRunnable({sg0});
+
+  std::cout << m << std::endl;
+
+  SimExecutable cms(m);
+  cms.setHostValue<float>(in0, {7});
+  cms.run(sg0);
+
+  auto x = cms.getHostValue(out);
+  if (x.dtype() != DType::Float64) {
+    throw poprithms::test::error("Expected output to be float64");
+  }
+  x.assertAllEquivalent(HostTensor::float64({1, 1}, {49}));
+}
+
 } // namespace
 
 int main() {
@@ -404,5 +442,7 @@ int main() {
   testBadValOuts();
   testSetRunnable();
   testCastsAndGets();
+  testCloneRefFrom();
+  testMatMulOutType();
   return 0;
 }

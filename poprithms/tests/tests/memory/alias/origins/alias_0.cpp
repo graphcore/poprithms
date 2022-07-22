@@ -75,7 +75,7 @@ void test2() {
 
   if (!o0.contains(o1) || o1.contains(o0)) {
     throw poprithms::test::error(
-        "o0 contains o1, but the reverse is not true");
+        "o0 contains o1, but the inverse is not true");
   }
 }
 

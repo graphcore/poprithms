@@ -311,7 +311,7 @@ public:
   DisjointRegions settFillInto(const Region &scaffold) const;
 
   /**
-   * The reverse of settFillInto, an example is:
+   * The inverse of settFillInto, an example is:
    *
    * ink       this                     return
    *

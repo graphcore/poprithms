@@ -843,8 +843,10 @@ DisjointRegions DisjointRegions::subtract(const DisjointRegions &rhs) const {
 }
 
 int64_t DisjointRegions::totalElms() const {
-  const auto counts = nelms();
-  return std::accumulate(counts.cbegin(), counts.cend(), 0LL);
+  return std::accumulate(
+      regs_.cbegin(), regs_.cend(), 0LL, [](int64_t v, const auto &x) {
+        return v + x.totalElms();
+      });
 }
 
 void DisjointRegions::insert(const Region &r) {

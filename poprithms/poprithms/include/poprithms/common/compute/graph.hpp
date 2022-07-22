@@ -706,7 +706,7 @@ public:
   TensorIds modified(SubGraphId) const;
 
   /**
-   * \return true if a  consumer of #tId modifies it.
+   * \return true if a consumer of #tId modifies it.
    * */
   bool isModified(const TensorId &tId) const;
 
