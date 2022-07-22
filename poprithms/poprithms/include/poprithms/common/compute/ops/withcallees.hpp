@@ -2,10 +2,13 @@
 #ifndef POPRITHMS_COMMON_COMPUTE_OPS_WITHCALLEES_HPP
 #define POPRITHMS_COMMON_COMPUTE_OPS_WITHCALLEES_HPP
 
+#include <map>
+
 #include <poprithms/common/compute/ihostrunner.hpp>
 #include <poprithms/common/compute/op.hpp>
 #include <poprithms/program/callstack/copyin.hpp>
 #include <poprithms/program/callstack/copyout.hpp>
+#include <poprithms/program/callstack/stackedio.hpp>
 
 namespace poprithms {
 namespace common {
@@ -15,6 +18,7 @@ using poprithms::common::multiout::InIndex;
 using poprithms::common::multiout::InIndices;
 using poprithms::program::callstack::CopyIn;
 using poprithms::program::callstack::CopyOuts;
+using poprithms::program::callstack::StackedCopyOrder;
 
 /**
  * The base class for ops such as Call, Repeat, Switch, etc -- all the ops
@@ -400,6 +404,242 @@ private:
   void hostRun(const IHostRunner &) const final;
 
   bool gradientPropagates(OutIndex, InIndex) const final;
+};
+
+/**
+ * A repeat operation.
+ *
+ * This runs a single sub-graph for a fixed number of iterations.
+ *
+ * Inputs and outputs can be "stacked" or "flat". If they are flat, then they
+ *
+ * have the same shape in the callee and in the calling scope. If they are
+ * stacked, the tensor in the calling scope has an additional prepended
+ * dimension which is the repeat count or 'trip count'.
+ *
+ * Example: if #tInCallee has shape (4,3) and the repeat count is 5, then the
+ * corresponding input/output tensor in the calling sub-graph has shape
+ * (5,4,3) if it is a stacked input/output, and shape (4,3) if it is a flat
+ * input/output.
+ *
+ * For more information see also the sub-graph API (SubGraph::repeat).
+ * */
+class Repeat : public WithCallees {
+
+public:
+  /**
+   * Construct a repeat op.
+   * */
+  Repeat(const State &s,
+         SubGraphId callee,
+         uint64_t repeatCount,
+         const TensorIds &copyInDestinations,
+         const TensorIds &copyOutSources,
+         const TensorIds &carriedFrom,
+         const TensorIds &carriedTo,
+         StackedCopyOrder sto)
+      : WithCallees(
+            s,
+            {callee},
+            CalleeTensorId::zip(copyInDestinations, CalleeIndex(0)),
+            CopyOuts(std::map<CalleeIndex, TensorIds>{{0, copyOutSources}})),
+        repeatCount_(repeatCount), carriedFroms_(carriedFrom),
+        carriedTos_(carriedTo), sto_(sto) {}
+
+  ~Repeat() override = default;
+
+  /**
+   * With only one callee sub-graph, there is a unique CallEvent assocated to
+   * a repeat operation.
+   */
+  CallEvent event() const;
+
+  bool inputIsStackedCopy(InIndex i) const {
+    return inShape(i) != computeGraph().shape(dstInCallee(i).tId());
+  }
+
+  bool outputIsStackedCopy(OutIndex o) const {
+    return outShape(o) != computeGraph().shape(srcInCallee(o, 0));
+  }
+
+  /**
+   * This method returns false if the tensor #tId in the callee sub-graph
+   * might be different between iterations. It is conservative, in that it
+   * might not always return true when the tensor has the same value between
+   * iterations.
+   */
+  bool definitelySameValueEveryIteration(const TensorId &) const;
+
+  uint64_t nCarriedTensors() const { return carriedFroms_.size(); }
+
+  /**
+   * The input indices of carried inputs.
+   * */
+  InIndices carriedInIndices() const;
+  bool isCarriedIn(InIndex) const;
+
+  /**
+   * The input indices of stacked inputs.
+   * */
+  InIndices stackedInIndices() const;
+  bool isStackedIn(InIndex) const;
+
+  /**
+   * \return true if any of the inputs is stacked.
+   * */
+  bool hasStackedInIndices() const;
+
+  /**
+   * The flat output indices.
+   * */
+  OutIndices flatOutIndices() const;
+
+  /**
+   * The stacked output indices.
+   * */
+  OutIndices stackedOutIndices() const;
+
+  /**
+   * \return true if any of the outputs is stacked.
+   * */
+  bool hasStackedOutIndices() const;
+
+  /**
+   * \return true if the output at index #o is flat.
+   * */
+  bool isFlatOut(OutIndex o) const;
+
+  /**
+   * \return true if the output at index #o is stacked.
+   * */
+  bool isStackedOut(OutIndex o) const { return !isFlatOut(o); }
+
+  /**
+   * \return true if the tensor #tId is an output, and moreover it is flat.
+   * */
+  bool isFlatOut(const TensorId &tId) const;
+
+  /**
+   * \return true if the tensor #tId is an output, and moreover it is stacked.
+   * */
+  bool isStackedOut(const TensorId &) const;
+
+  StackedCopyOrder stackedCopyOrder() const { return sto_; }
+
+  void switchStackedCopyOrder() {
+    sto_ = (stackedCopyOrder() == StackedCopyOrder::Down)
+               ? StackedCopyOrder::Up
+               : StackedCopyOrder::Down;
+  }
+
+  /**
+   * \return The carried tensor which is copied to #carriedTo.
+   * */
+  TensorId carriedFrom(const TensorId &carriedTo) const final {
+    return carriedFroms_[getIndexInCarriedTo(carriedTo)];
+  }
+  bool isCarriedFrom(const TensorId &) const;
+
+  /**
+   * \return The tensors, 1 for each tensor in #carriedTos, which are copied
+   *         from.
+   * */
+  TensorIds carriedFroms(const TensorIds &carriedTos) const;
+
+  /**
+   * \return The carried tensor which is copied from #carriedFrom.
+   * */
+  TensorId carriedTo(const TensorId &carriedFrom) const {
+    return carriedTos_[getIndexInCarriedFrom(carriedFrom)];
+  }
+  bool isCarriedTo(const TensorId &) const final;
+
+  /** The number of times the callee is executed. */
+  uint64_t repeatCount() const { return repeatCount_; }
+
+  /**
+   * \return The tensors which are traversed through differentiable ops
+   *         between in the inputs #inIndices and #outIndices.
+   *
+   * \sa RepeatDifferentiator::gradientPropagationVisits.
+   * */
+  TensorIds gradientPropagationVisits(const InIndices &inIndices,
+                                      const OutIndices &outIndices) const;
+
+private:
+  std::string repeatString() const;
+
+  template <class Accept>
+  std::set<TensorId> visitedFwdFrom(const TensorIds &, const Accept &) const;
+
+  template <class Accept>
+  std::set<TensorId> visitedBwdFrom(const TensorIds &, const Accept &) const;
+
+  std::set<TensorId> gradientPropagatesFwdFrom(const InIndices &) const;
+
+  std::set<TensorId> gradientPropagatesBwdFrom(const OutIndices &) const;
+
+  virtual poprithms::autodiff::guide::Objective
+  localObjective(CalleeIndex,
+                 const InIndices &fromTargets,
+                 const OutIndices &inGrads) const final;
+
+  // This method effectively unrolls the callee sub-graph to check if a
+  // gradient can propagate from #o to #i.
+  bool gradientPropagates(OutIndex, InIndex) const final;
+
+  // Outputs are new allocations, so there is no input-output aliasing.
+  bool aliases(InIndex, OutIndex) const final { return false; }
+
+  // No inputs are modified by a repeat operation.
+  bool modifies(InIndex) const final { return false; }
+
+  void
+  withCalleesDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
+
+  void withCalleesDerivedRemoveInputs(const ContiguousInIndexSubset &) final;
+
+  bool withCalleesTypeSpecificEqualTo(const Op &) const final;
+
+  void withCalleesTypeSpecificAssertValid() const final;
+
+  // The index in carriedFroms_ of #tId.
+  uint64_t getIndexInCarriedFrom(const TensorId &tId) const;
+
+  // The index in carriedTos_ of #tId.
+  uint64_t getIndexInCarriedTo(const TensorId &tId) const;
+
+  // If unstacked has shape #s, verify that stacked has shape (rptCount, *s).
+  void verifyFirstIsSecondStacked(const TensorId &stacked,
+                                  const TensorId &unstacked) const;
+
+  std::string typeString() const final;
+
+  UpOp cloneWithState(const State &) const final;
+
+  void hostRun(const IHostRunner &) const final;
+
+  OptionalTensorIds
+  growInGrads(Graph &,
+              const poprithms::autodiff::core::ToGradGraph &,
+              const poprithms::autodiff::automatic::GradInfos &,
+              SubGraphId toExtend) const final;
+
+private:
+  // The number of times the callee is run.
+  uint64_t repeatCount_;
+
+  // For loop carry tensors, the sources of the carries (in the callee
+  // sub-graph).
+  TensorIds carriedFroms_;
+
+  // For loop carry tensors, the destinations of the carries (in the callee
+  // sub-graph).
+  TensorIds carriedTos_;
+
+  // Stacked tensors can be iterated through by lowest-to-highest by or
+  // highest-to-lowest index. This enum controls this direction.
+  StackedCopyOrder sto_;
 };
 
 } // namespace compute

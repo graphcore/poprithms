@@ -101,7 +101,6 @@ set(common_compute_sources
   ${src_dir}/common/compute/subgraph.cpp
   ${src_dir}/common/compute/tensor.cpp
 
-
   # ops sub-directory:
   ${src_dir}/common/compute/ops/binaryelementwise.cpp
   ${src_dir}/common/compute/ops/dynamic.cpp
@@ -125,6 +124,7 @@ set(common_compute_sources
   ${src_dir}/common/compute/prune/prune.cpp
 
   # testutil sub-directory:
+  ${src_dir}/common/compute/testutil/repeattester.cpp
   ${src_dir}/common/compute/testutil/misctraintester.cpp
 )
 
@@ -266,8 +266,8 @@ set(autodiff_sources
   ${autodiff_src_dir}/automatic/call.cpp
   ${autodiff_src_dir}/automatic/differentiator.cpp
   ${autodiff_src_dir}/automatic/gradinfos.cpp
-  ${autodiff_src_dir}/automatic/differentiator.cpp
   ${autodiff_src_dir}/automatic/iautomatic.cpp
+  ${autodiff_src_dir}/automatic/repeat.cpp
 
   ${autodiff_src_dir}/testutil/finitedifference.cpp
   ${autodiff_src_dir}/testutil/testop.cpp

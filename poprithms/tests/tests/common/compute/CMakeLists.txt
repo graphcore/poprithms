@@ -30,6 +30,9 @@ add_common_test(poprithms_common_compute_logging_0
 add_common_test(poprithms_common_compute_prune_call_0 
                                          prune_call_0.cpp)
 
+add_common_test(poprithms_common_compute_repeat_0
+                                         repeat_0.cpp)
+
 add_common_test(poprithms_common_compute_transform_sin_example_0 
                                          transform_sin_example_0.cpp)
 

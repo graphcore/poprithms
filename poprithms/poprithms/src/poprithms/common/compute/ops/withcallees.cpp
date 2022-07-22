@@ -5,16 +5,31 @@
 #include <common/compute/error.hpp>
 
 #include <poprithms/autodiff/automatic/call.hpp>
+#include <poprithms/autodiff/automatic/repeat.hpp>
 #include <poprithms/common/compute/autodiff/automaticmutator.hpp>
 #include <poprithms/common/compute/autodiff/automaticquerier.hpp>
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/ops/withcallees.hpp>
 #include <poprithms/common/compute/opverifier.hpp>
+#include <poprithms/common/multiout/skiptraversal.hpp>
 #include <poprithms/common/multiout/traversal.hpp>
 
 namespace poprithms {
 namespace common {
 namespace compute {
+
+namespace {
+
+template <typename T> void assertSizes(const T &src, const T &dst) {
+
+  if (src.size() != dst.size()) {
+    std::ostringstream oss;
+    oss << "Failure in assertSizes, src have " << src.size()
+        << " Tensors but dst has " << dst.size() << " Tensors. ";
+    throw error(oss.str());
+  }
+}
+} // namespace
 
 using poprithms::program::callstack::CopyIns;
 
@@ -155,7 +170,7 @@ void WithCallees::computeDerivedVerifyValid() const {
     }
   }
 
-  OpVerifier(*this).verifyFromAtts({OpVerifier::Att::SameDeviceType});
+  OpVerifier(*this).verifyFromAtts({});
 
   for (CalleeIndex ci = 0; ci < nCallees(); ++ci) {
     std::set<TensorId> outsAtIndex;
@@ -253,8 +268,8 @@ CodeLocation WithCallees::codeLocation() const {
 
 void WithCallees::computeDerivedRemoveOutputs(
     const ContiguousOutIndexSubset &coin) {
-  outs_.reduce(coin);
   withCalleesDerivedRemoveOutputs(coin);
+  outs_.reduce(coin);
 }
 
 std::vector<CopyIn> WithCallees::copyIns() const {
@@ -302,9 +317,10 @@ InIndices WithCallees::calleeCopyInIndices() const {
 
 void WithCallees::computeDerivedRemoveInputs(
     const ContiguousInIndexSubset &coin) {
+
+  withCalleesDerivedRemoveInputs(coin);
   InIndices copyInIndices = calleeCopyInIndices();
   coin.reduce(inDsts_, copyInIndices);
-  withCalleesDerivedRemoveInputs(coin);
 }
 
 void WithCallees::appendWithCalleesAttributes(std::ostream &ost) const {
@@ -565,6 +581,470 @@ void Call::hostRun(const IHostRunner &fb) const {
   fb.copies(inTensorIds(), inTensorIdDsts());
   fb.run(callee(CalleeIndex(0)));
   fb.copies(outs().outSources(CalleeIndex(0)), outTensorIds());
+}
+
+bool Repeat::isFlatOut(const TensorId &tId) const {
+  if (!outs().isSource(CalleeIndex(0), tId)) {
+    return false;
+  }
+  return isFlatOut(outs().outIndex(CalleeIndex(0), tId));
+}
+
+bool Repeat::isStackedOut(const TensorId &tId) const {
+  if (!outs().isSource(CalleeIndex(0), tId)) {
+    return false;
+  }
+  return isStackedOut(outs().outIndex(CalleeIndex(0), tId));
+}
+
+uint64_t Repeat::getIndexInCarriedTo(const TensorId &tId) const {
+  for (uint64_t i = 0; i < carriedTos_.size(); ++i) {
+    if (carriedTos_[i] == tId) {
+      return i;
+    }
+  }
+  std::ostringstream oss;
+  oss << "No tensor " << tId << " is carried to for this op, " << *this;
+  throw error(oss.str());
+}
+
+uint64_t Repeat::getIndexInCarriedFrom(const TensorId &tId) const {
+  for (uint64_t i = 0; i < carriedFroms_.size(); ++i) {
+    if (carriedFroms_[i] == tId) {
+      return i;
+    }
+  }
+  std::ostringstream oss;
+  oss << "No tensor " << tId << " is carried from for this op, " << *this;
+  throw error(oss.str());
+}
+
+bool Repeat::isCarriedTo(const TensorId &tId) const {
+  return std::find(carriedTos_.cbegin(), carriedTos_.cend(), tId) !=
+         carriedTos_.cend();
+}
+
+bool Repeat::isCarriedFrom(const TensorId &tId) const {
+  return std::find(carriedFroms_.cbegin(), carriedFroms_.cend(), tId) !=
+         carriedFroms_.cend();
+}
+
+bool Repeat::isCarriedIn(InIndex i) const { return !inputIsStackedCopy(i); }
+
+bool Repeat::isFlatOut(OutIndex o) const { return !outputIsStackedCopy(o); }
+
+bool Repeat::isStackedIn(InIndex i) const { return !isCarriedIn(i); }
+
+bool Repeat::hasStackedInIndices() const {
+  for (InIndex i = 0; i < nInTensors(); ++i) {
+    if (inputIsStackedCopy(i)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Repeat::hasStackedOutIndices() const {
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    if (outputIsStackedCopy(o)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+InIndices Repeat::stackedInIndices() const {
+  InIndices inds;
+  for (InIndex i = 0; i < nInTensors(); ++i) {
+    if (inputIsStackedCopy(i)) {
+      inds.push_back(i);
+    }
+  }
+  return inds;
+}
+
+InIndices Repeat::carriedInIndices() const {
+  InIndices inds;
+  for (InIndex i = 0; i < nInTensors(); ++i) {
+    if (!inputIsStackedCopy(i)) {
+      inds.push_back(i);
+    }
+  }
+  return inds;
+}
+
+OutIndices Repeat::flatOutIndices() const {
+  OutIndices inds;
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    if (!outputIsStackedCopy(o)) {
+      inds.push_back(o);
+    }
+  }
+  return inds;
+}
+
+OutIndices Repeat::stackedOutIndices() const {
+  OutIndices inds;
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    if (outputIsStackedCopy(o)) {
+      inds.push_back(o);
+    }
+  }
+  return inds;
+}
+
+template <class Accept>
+std::set<TensorId> Repeat::visitedBwdFrom(const TensorIds &tIds,
+                                          const Accept &a) const {
+  using namespace poprithms::common::multiout;
+  return depthFirstBwdWithSkips(
+      *this, computeGraph(), tIds, a, repeatCount());
+}
+
+bool Repeat::gradientPropagates(OutIndex outIndex, InIndex inIndex) const {
+
+  if (computeGraph().isFixedPoint(dstInCallee(inIndex).tId()) ||
+      computeGraph().isFixedPoint(
+          outs().outSource(outIndex, CalleeIndex(0)))) {
+    return false;
+  }
+
+  auto dsts = gradientPropagatesFwdFrom({inIndex});
+  return dsts.count(outs().outSource(outIndex, CalleeIndex(0))) != 0;
+}
+
+std::string Repeat::repeatString() const {
+  std::ostringstream oss;
+  appendWithCalleesAttributes(oss);
+  for (uint64_t n = 0; n < nCarriedTensors(); ++n) {
+    oss << "\n       " << carriedTos_[n] << " <--- " << carriedFroms_[n]
+        << " (carry back)";
+  }
+  oss << "\n";
+
+  return oss.str();
+}
+
+TensorIds Repeat::carriedFroms(const TensorIds &carriedTos) const {
+  TensorIds froms;
+  froms.reserve(carriedTos.size());
+  for (const auto &tId : carriedTos) {
+    froms.push_back(carriedFrom(tId));
+  }
+  return froms;
+}
+
+UpOp Repeat::cloneWithState(const State &s) const {
+  return std::make_unique<Repeat>(s,
+                                  callee(CalleeIndex(0)),
+                                  repeatCount(),
+                                  inTensorIdDsts(),
+                                  outs().outSources(CalleeIndex(0)),
+                                  carriedFroms_,
+                                  carriedTos_,
+                                  sto_);
+}
+
+bool Repeat::withCalleesTypeSpecificEqualTo(const compute::Op &rhs) const {
+  const auto &rhs_ = static_cast<const Repeat &>(rhs);
+  return repeatCount() == rhs_.repeatCount() &&
+         carriedFroms_ == rhs_.carriedFroms_ &&
+         carriedTos_ == rhs_.carriedTos_ && sto_ == rhs_.sto_;
+}
+
+void Repeat::withCalleesTypeSpecificAssertValid() const {
+
+  //  All inputs to a repeat op are copied to the callee sub-graph. In other
+  //  words, there is no input like the switch op's #condition argument which
+  //  is not copied to the callee sub-graph.
+  if (inDsts().size() != nInTensors()) {
+    std::ostringstream oss;
+    oss << "This repeat op " << id() << " has " << nInTensors()
+        << " input tensors (in caller) but " << inDsts().size()
+        << " copy destinations (in callee).";
+    throw error(oss.str());
+  }
+
+  if (carriedFroms_.size() != carriedTos_.size()) {
+    std::ostringstream oss;
+    oss << "The repeat op " << id() << " has " << carriedFroms_.size()
+        << " carry sources and " << carriedTos_.size()
+        << " carry destinations. These should be the same.";
+    throw error(oss.str());
+  }
+
+  for (uint64_t n = 0; n < carriedFroms_.size(); ++n) {
+    if (computeGraph().tensorInfo(carriedFroms_[n]) !=
+        computeGraph().tensorInfo(carriedTos_[n])) {
+      std::ostringstream oss;
+      oss << "The carried tensors #" << n << " (" << carriedFroms_[n]
+          << " --> " << carriedTos_[n]
+          << ") do not have the same tensor information. "
+          << computeGraph().tensorInfo(carriedFroms_[n])
+          << " != " << computeGraph().tensorInfo(carriedTos_[n]) << ".";
+      throw error(oss.str());
+    }
+
+    if (computeGraph().subGraphId(carriedTos_[n]) != callee(CalleeIndex(0))) {
+      std::ostringstream oss;
+      oss << "The carry tensor destination " << carriedTos_[n]
+          << " is not in the callee sub-graph of op " << id();
+      throw error(oss.str());
+    }
+  }
+
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    auto &&srcShape_ =
+        computeGraph().shape(outs().outSource(o, CalleeIndex(0)));
+
+    if (!isFlatOut(o)) {
+      verifyFirstIsSecondStacked(outTensorId(o),
+                                 outs().outSource(o, CalleeIndex(0)));
+    }
+
+    else {
+      if (outShape(o) != srcShape_) {
+        std::ostringstream oss;
+        oss << "Flat outputs must have the same shape, " << outShape(o)
+            << " != " << srcShape_ << " at index " << o << " of " << *this
+            << '.';
+        throw error(oss.str());
+      }
+    }
+  }
+
+  for (InIndex i = 0; i < nInTensors(); ++i) {
+    auto &&dstShape_ = computeGraph().shape(dstInCallee(i).tId());
+    if (isStackedIn(i)) {
+      verifyFirstIsSecondStacked(inTensorId(i), dstInCallee(i).tId());
+    } else {
+      if (inShape(i) != dstShape_) {
+        std::ostringstream oss;
+        oss << "Flat inputs must have the same shape, " << inShape(i)
+            << " != " << dstShape_ << " at index " << i << " of " << *this
+            << '.';
+        throw error(oss.str());
+      }
+    }
+  }
+}
+
+std::string Repeat::typeString() const {
+  std::ostringstream oss;
+  oss << "Repeat(id=" << callee(CalleeIndex(0))
+      << ",repeatCount=" << repeatCount();
+
+  if (nCarriedTensors() > 0) {
+    std::vector<std::string> carryStrings;
+    for (uint64_t i = 0; i < nCarriedTensors(); ++i) {
+      oss << ",";
+      carryStrings.push_back(carriedTos_[i].str() + "<-" +
+                             carriedFroms_[i].str());
+    }
+    oss << "carries=";
+    poprithms::util::append(oss, carryStrings);
+  }
+
+  oss << ')';
+  return oss.str();
+}
+
+bool Repeat::definitelySameValueEveryIteration(const TensorId &tId) const {
+
+  // All the tensors leading to #tId from graph inputs.
+  auto searchBack = depthFirstBackwardTensors(
+      computeGraph(), {tId}, [](const auto &) { return true; });
+
+  // Are any of the tensors leading to #tId stacked inputs? If so, then the
+  // value depends on the slice of the stacked input used.
+  for (auto enRoute : searchBack) {
+    if (isDstInCallee({enRoute, CalleeIndex(0)})) {
+      auto indexIn = inIndex({enRoute, CalleeIndex(0)});
+      if (isStackedIn(indexIn)) {
+        return false;
+      }
+    }
+  }
+
+  // Are any of the tensors leading to #tId carried-to inputs? If so, and if
+  // they're carried to from a tensor which might have a different value (we
+  // conservatively check that the carry source is just not the same tensor).
+  // then the value of #tId depends on the iteration.
+  for (auto enRoute : searchBack) {
+    if (isCarriedTo(enRoute) && carriedFrom(enRoute) != enRoute) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void Repeat::withCalleesDerivedRemoveInputs(
+    const ContiguousInIndexSubset &coin) {
+
+  TensorIds updatedCarriedFroms;
+  TensorIds updatedCarriedTos;
+  for (InIndex i = 0; i < nInTensors(); ++i) {
+    if (!coin.isRemoved(i) && isCarriedIn(i)) {
+      auto index = getIndexInCarriedTo(dstInCallee(i).tId());
+      updatedCarriedTos.push_back(carriedTos_[index]);
+      updatedCarriedFroms.push_back(carriedFroms_[index]);
+    }
+  }
+
+  // replace the old carry tensors with the new ones.
+  std::swap(carriedFroms_, updatedCarriedFroms);
+  std::swap(carriedTos_, updatedCarriedTos);
+}
+
+void Repeat::verifyFirstIsSecondStacked(const TensorId &stacked,
+                                        const TensorId &unstacked) const {
+
+  const Shape stackedShape   = computeGraph().shape(stacked);
+  const Shape unstackedShape = computeGraph().shape(unstacked);
+  poprithms::autodiff::automatic::IRepeatQuerier::verifyFirstIsSecondStacked(
+      repeatCount(), stackedShape, unstackedShape);
+}
+
+class RepeatHelper final
+    : public poprithms::autodiff::automatic::IRepeatQuerier {
+  const Repeat &r;
+
+public:
+  RepeatHelper(const Repeat &r_) : r(r_) {}
+
+  ~RepeatHelper() override = default;
+
+  StackedCopyOrder stackedCopyOrder() const final {
+    return r.stackedCopyOrder();
+  }
+
+  // repeat specific:
+  OutIndices stackedOutIndices() const final { return r.stackedOutIndices(); }
+  OutIndices flatOutIndices() const final { return r.flatOutIndices(); }
+  bool definitelySameValueEveryIteration(const TensorId &tId) const final {
+    return r.definitelySameValueEveryIteration(tId);
+  }
+  TensorId carriedTo(const TensorId &tId) const final {
+    return r.carriedTo(tId);
+  }
+
+  TensorId carriedFrom(const TensorId &tId) const final {
+    return r.carriedFrom(tId);
+  }
+  bool isCarriedFrom(const TensorId &tId) const final {
+    return r.isCarriedFrom(tId);
+  }
+
+  bool isCarriedTo(const TensorId &tId) const final {
+    return r.isCarriedTo(tId);
+  }
+  bool isStackedIn(InIndex i) const final { return r.isStackedIn(i); }
+  bool isStackedOut(const TensorId &tId) const final {
+    return r.isStackedOut(tId);
+  }
+  uint64_t repeatCount() const final { return r.repeatCount(); }
+};
+
+poprithms::autodiff::guide::Objective
+Repeat::localObjective(CalleeIndex calleeIndex,
+                       const InIndices &fromTargets,
+                       const OutIndices &inGrads) const {
+
+  if (calleeIndex != 0) {
+    throw error("callee index should be 0 in Repeat::localObjective");
+  }
+
+  AutomaticQuerier q(static_cast<const Graph &>(computeGraph()));
+  const auto r = RepeatHelper(*this);
+  return poprithms::autodiff::automatic::RepeatDifferentiator(id(), r, q)
+      .createLocalObjective(fromTargets, inGrads);
+}
+
+OptionalTensorIds Repeat::growInGrads(
+    Graph &machine,
+    const poprithms::autodiff::core::ToGradGraph &toGradGraph,
+    const poprithms::autodiff::automatic::GradInfos &gradInfos,
+    SubGraphId toExtend) const {
+  AutomaticMutator gm(machine);
+  AutomaticQuerier gq(machine);
+  RepeatHelper rp(*this);
+  auto outs =
+      poprithms::autodiff::automatic::RepeatDifferentiator(id(), rp, gq)
+          .createInGrads(gm, toGradGraph, gradInfos, toExtend);
+  return outs;
+}
+
+CallEvent Repeat::event() const {
+  return CallEvent(id(), callee(CalleeIndex(0)), CalleeIndex(0));
+}
+
+void Repeat::hostRun(const IHostRunner &fb) const {
+
+  fb.copies(inTensorIds(carriedInIndices()), inDsts(carriedInIndices()));
+
+  for (uint64_t iter = 0; iter < repeatCount(); ++iter) {
+
+    auto stackIndex = stackedCopyOrder() == StackedCopyOrder::Up
+                          ? iter
+                          : repeatCount() - 1 - iter;
+
+    for (auto i : stackedInIndices()) {
+      auto tSource = fb.tensor(inTensorId(i));
+      auto tDst    = fb.tensor(dstInCallee(i).tId());
+      assertSizes(tSource, tDst);
+      const auto rf = tSource.size();
+      for (uint64_t ri = 0; ri < rf; ++ri) {
+        tDst[ri].update_(tSource[ri].at(stackIndex));
+      }
+    }
+
+    fb.run(callee(CalleeIndex(0)));
+
+    // We must make sure this happens before the roll copies back.
+    for (auto o : stackedOutIndices()) {
+
+      auto tSource = fb.tensor(outs().outSource(o, CalleeIndex(0)));
+      auto tDst    = fb.tensor(outTensorId(o));
+      assertSizes(tSource, tDst);
+      const auto rf = tSource.size();
+      for (uint64_t ri = 0; ri < rf; ++ri) {
+        tDst[ri].at_(stackIndex).update_(tSource[ri]);
+      }
+    }
+
+    for (uint64_t n = 0; n < nCarriedTensors(); ++n) {
+      fb.copy(carriedFroms_[n], carriedTos_[n]);
+    }
+  }
+
+  fb.copies(outs().outSources(CalleeIndex(0), flatOutIndices()),
+            outTensorIds(flatOutIndices()));
+}
+
+template <class Accept>
+std::set<TensorId> Repeat::visitedFwdFrom(const TensorIds &tIds,
+                                          const Accept &a) const {
+  using namespace poprithms::common::multiout;
+  return depthFirstFwdWithSkips(
+      *this, computeGraph(), tIds, a, repeatCount());
+}
+
+std::set<TensorId>
+Repeat::gradientPropagatesFwdFrom(const InIndices &inIndices) const {
+  auto accept = [this](const auto &x) {
+    return computeGraph().gradientPropagates(x);
+  };
+  return visitedFwdFrom(inDsts(inIndices), accept);
+}
+
+TensorIds
+Repeat::gradientPropagationVisits(const InIndices &inIndices,
+                                  const OutIndices &outIndices) const {
+  AutomaticQuerier q(static_cast<const Graph &>(computeGraph()));
+  RepeatHelper r(*this);
+  return poprithms::autodiff::automatic::RepeatDifferentiator(id(), r, q)
+      .gradientPropagationVisits(inIndices, outIndices);
 }
 
 } // namespace compute

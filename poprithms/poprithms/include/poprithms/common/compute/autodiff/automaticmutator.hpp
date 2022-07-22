@@ -17,6 +17,7 @@
 #include <poprithms/common/compute/rtensor.hpp>
 #include <poprithms/common/compute/scheduler.hpp>
 #include <poprithms/common/compute/subgraph.hpp>
+#include <poprithms/common/compute/tensor.hpp>
 
 namespace poprithms {
 namespace common {
@@ -118,18 +119,20 @@ public:
     return SubGraph(caller, graph_).call(callee, ins, outs);
   }
 
-  virtual OpId repeat(SubGraphId,
-                      SubGraphId,
-                      uint64_t,
-                      const std::vector<std::pair<TensorId, TensorId>> &,
-                      const CarriedTensorIds &,
-                      const std::vector<std::pair<TensorId, IsStackedCopy>> &,
-                      StackedCopyOrder) override {
-    notImplemented("repeat");
+  virtual OpId
+  repeat(SubGraphId caller,
+         SubGraphId callee,
+         uint64_t rptCount,
+         const std::vector<std::pair<TensorId, TensorId>> &sis,
+         const CarriedTensorIds &cis,
+         const std::vector<std::pair<TensorId, IsStackedCopy>> &outs,
+         StackedCopyOrder d) override {
+    return SubGraph(caller, graph_)
+        .repeat(callee, rptCount, sis, cis.carriedTensorIds(), outs, d);
   }
 
-  TensorId encodeOneHot_(const TensorId &, const TensorId &) override {
-    notImplemented("encodeOneHot_");
+  TensorId encodeOneHot_(const TensorId &t, const TensorId &index) override {
+    return Tensor(t, &graph_).encodeOneHot01_({index, &graph_});
   }
 
   [[noreturn]] void notImplemented(const std::string &x) const {

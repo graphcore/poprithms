@@ -11,6 +11,11 @@
 #include <poprithms/ndarray/deviceid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/tensorinfo.hpp>
+#include <poprithms/program/callstack/carriedtensorid.hpp>
+#include <poprithms/program/callstack/copyin.hpp>
+#include <poprithms/program/callstack/copyout.hpp>
+#include <poprithms/program/callstack/stackedio.hpp>
+#include <poprithms/program/callstack/stackutil.hpp>
 
 namespace poprithms {
 namespace common {
@@ -18,9 +23,16 @@ namespace compute {
 
 using common::schedulable::SubGraphId;
 using common::schedulable::SubGraphIds;
+using poprithms::common::compute::RemoteOptions;
+using poprithms::common::multiout::ConsumptionId;
+using poprithms::common::multiout::ConsumptionIds;
 using poprithms::common::multiout::OpId;
+using poprithms::common::multiout::OpTraversal;
+using poprithms::common::multiout::OpTraversals;
 using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
+using poprithms::common::schedulable::SubGraphId;
+using poprithms::common::schedulable::SubGraphIds;
 using poprithms::ndarray::DeviceId;
 using poprithms::ndarray::DeviceIds;
 using poprithms::ndarray::DType;
@@ -28,6 +40,16 @@ using poprithms::ndarray::DTypes;
 using poprithms::ndarray::Shape;
 using poprithms::ndarray::Shapes;
 using poprithms::ndarray::TensorInfo;
+using poprithms::program::callstack::CalleeIndex;
+using poprithms::program::callstack::CalleeTensorId;
+using poprithms::program::callstack::CalleeTensorIds;
+using poprithms::program::callstack::CarriedTensorId;
+using poprithms::program::callstack::CarriedTensorIds;
+using poprithms::program::callstack::CopyIn;
+using poprithms::program::callstack::CopyIns;
+using poprithms::program::callstack::CopyOuts;
+using poprithms::program::callstack::IsStackedCopy;
+using poprithms::program::callstack::StackedCopyOrder;
 
 class BaseSubGraph {
 
@@ -86,6 +108,79 @@ public:
    * \return The ids of all tensors in this sub-graph.
    * */
   TensorIds tensorIds() const;
+
+  TensorIds tensorIds(DeviceType) const;
+
+  /**
+   * Insert a repeat op into this sub-graph.
+   *
+   * \param callee The callee sub-graph to run multiple times.
+   *
+   * \param repeatCount The number of iterations to run the callee sub-graph.
+   *
+   * \param stackedInputs Inputs for which there is 1 value (slice) per
+   *        iteration. If the tensor in the callee sub-graph has shape #s,
+   *        then the shape of the tensor in this sub-graph is (repeatCount,
+   *        *s). At each iteration, a slice from the tensor in the (the
+   *        caller) sub-graph is copied to the callee tensor. The order in
+   *        which the slices are iterated through is controlled by
+   *        #stackedCopyOrder. Each element in stackedInputs is a pair, with
+   *        element #0 being a stacked tensor in this sub-graph and element #1
+   *        being the target of the input copy in sub-graph #callee.
+   *
+   * \param carriedTensors These are the non-stacked inputs to the callee. See
+   *                       the CarriedTensorId class for more information.
+   *
+   * \param outputs The tensors in the callee sub-graph to be copied out after
+   *                the final iteration of the callee sub-graph. The outputs
+   *                can either be stacked, which means all of the values from
+   *                every iteration is copied out, or not, which means only
+   *                the final value of the callee tensor after the final
+   *                iteration is copied out.
+   *
+   * \param stackedCopyOrder All stacked input and output tensors are iterated
+   *        through in the same direction: either from index 0 to index
+   *        repeatCount - 1 if stackedCopyOrder is StackedCopyOrder::Up, or
+   *        from index repeatCount -1 to index 0 if stackedCopyOrder is
+   *        StackedCopyOrder::Down.
+   * */
+  OpId repeat(SubGraphId callee,
+              uint64_t repeatCount,
+              const std::vector<std::pair<TensorId, TensorId>> &stackedInputs,
+              const CarriedTensorIds &carriedTensors,
+              const std::vector<std::pair<TensorId, IsStackedCopy>> &outputs,
+              StackedCopyOrder stackedCopyOrder = StackedCopyOrder::Up);
+
+  /**
+   * Insert a repeat op into this sub-graph. All tensors in the callee
+   * sub-graph are copied out, if possible. Having all callee tensors copied
+   * out makes it easy to backpropagate through a repeat op without manually
+   * listing all checkpoint tensors required.
+   *
+   * Specifically, let #nonFlatOuts be the set of all tensors in the callee,
+   * except for user provided #flatOutputs. That is,
+   *
+   * nonFlatOuts = {all tensors in callee} \ flatOutputs.
+   *
+   * Then all tensors in #nonFlatOuts are copied out of the callee, as either
+   * (1) stacked tensors if they are not carry sources in #carriedTensors and
+   * as (2) flat tensors if they are.
+   *
+   * For information on arguments #callee, #repeatCount, #stackedInputs,
+   * #carriedTensors, and #stackedCopyOrder, see #repeat.
+   *
+   *
+   * \param flatOutputs These are the outputs which are not stacked. That is,
+   *                    only the value from the final iteration is returned.
+   *
+   * */
+  OpId repeatAllOut(
+      SubGraphId callee,
+      uint64_t repeatCount,
+      const std::vector<std::pair<TensorId, TensorId>> &stackedInputs,
+      const CarriedTensorIds &carriedTensors,
+      const TensorIds &flatOutputs,
+      StackedCopyOrder stackedCopyOrder = StackedCopyOrder::Up);
 
 protected:
   const Graph &graph() const { return *pGraph_; }
