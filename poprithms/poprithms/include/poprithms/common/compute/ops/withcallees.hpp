@@ -642,6 +642,85 @@ private:
   StackedCopyOrder sto_;
 };
 
+/**
+ * Switch operation.
+ *
+ * The operation has multiple inputs, the last of which is the conditional
+ * tensor that determines which sub-graph is run.
+ *
+ * All inputs other than the conditional tensor are copied to one callee
+ * index.
+ *
+ * The outputs are all copied from tensors in callee sub-graph which is run,
+ * according to the conditional tensor. These copies are optional : it is
+ * possible to have no callee tensor specified for an (OutIndex, CalleeIndex)
+ * pair.
+ * */
+class Switch final : public WithCallees {
+public:
+  Switch(const State &s,
+         const SubGraphIds &callees,
+         const CalleeTensorIds &inDsts,
+         const CopyOuts &copyOuts);
+
+  /**
+   * The input index of the condition tensor. It is the final input.
+   * */
+  InIndex conditionInIndex() const { return nInTensors() - 1; }
+  TensorId conditionId() const { return inTensorId(conditionInIndex()); }
+
+  std::string typeString() const final;
+
+  UpOp cloneWithState(const State &) const final;
+
+  void hostRun(const IHostRunner &) const final;
+
+private:
+  poprithms::autodiff::guide::Objective
+  localObjective(CalleeIndex,
+                 const InIndices &fromTargets,
+                 const OutIndices &inGrads) const final;
+
+  OptionalTensorIds
+  growInGrads(Graph &,
+              const poprithms::autodiff::core::ToGradGraph &,
+              const poprithms::autodiff::automatic::GradInfos &,
+              SubGraphId toExtend) const final;
+
+  bool gradientPropagates(OutIndex, InIndex) const final;
+
+  /**
+   * Outputs are new allocations.
+   * */
+  bool aliases(InIndex, OutIndex) const final { return false; }
+  bool modifies(InIndex) const final { return false; }
+
+  /**
+   * Carrying tensors is for ops which repeatedly run a callee, which switch
+   * does not.
+   * */
+  TensorId carriedFrom(const TensorId &) const final { invalid(); }
+  bool isCarriedTo(const TensorId &) const final { return false; }
+
+  /**
+   * The switch op adds no new attributes on input or output tensors, so these
+   * removal methods do nothing.
+   * */
+  void withCalleesDerivedRemoveInputs(const ContiguousInIndexSubset &) final {
+  }
+  void
+  withCalleesDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
+
+  /**
+   * The switch op adds no new attributes to its base class, so there are
+   * attributes to compare here (and so the comparison returns true, as "empty
+   * set" = "empty set").
+   * */
+  bool withCalleesTypeSpecificEqualTo(const Op &) const final { return true; }
+
+  void withCalleesTypeSpecificAssertValid() const final;
+};
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

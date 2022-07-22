@@ -6,6 +6,7 @@
 
 #include <poprithms/autodiff/automatic/call.hpp>
 #include <poprithms/autodiff/automatic/repeat.hpp>
+#include <poprithms/autodiff/automatic/switch.hpp>
 #include <poprithms/common/compute/autodiff/automaticmutator.hpp>
 #include <poprithms/common/compute/autodiff/automaticquerier.hpp>
 #include <poprithms/common/compute/graph.hpp>
@@ -1045,6 +1046,154 @@ Repeat::gradientPropagationVisits(const InIndices &inIndices,
   RepeatHelper r(*this);
   return poprithms::autodiff::automatic::RepeatDifferentiator(id(), r, q)
       .gradientPropagationVisits(inIndices, outIndices);
+}
+
+poprithms::autodiff::guide::Objective
+Switch::localObjective(CalleeIndex calleeIndex,
+                       const InIndices &fromTargets,
+                       const OutIndices &inGrads) const {
+
+  for (auto i : fromTargets) {
+    if (dstInCallee(i).calleeIndex() != calleeIndex) {
+      std::ostringstream oss;
+      oss << "Target input index copies to callee "
+          << dstInCallee(i).calleeIndex()
+          << ", not the index of the objective " << calleeIndex << ".";
+      throw error(oss.str());
+    }
+  }
+
+  const auto targets = inDsts(fromTargets);
+
+  TensorIds gradsProvidedFor;
+  for (OutIndex inGradIndex : inGrads) {
+    if (outs().hasValue(inGradIndex, calleeIndex)) {
+      gradsProvidedFor.push_back(outs().outSource(inGradIndex, calleeIndex));
+    }
+  }
+
+  TensorIds checkpoints;
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    if (outs().hasValue(o, calleeIndex)) {
+      checkpoints.push_back(outs().outSource(o, calleeIndex));
+    }
+  }
+
+  return autodiff::automatic::Objective::outOfGraph(
+      gradsProvidedFor, checkpoints, targets);
+}
+
+UpOp Switch::cloneWithState(const State &s) const {
+  return std::make_unique<Switch>(s, callees(), inDsts(), outs());
+}
+
+void Switch::withCalleesTypeSpecificAssertValid() const {
+
+  // Assert that only the condition input is not a copy in destination.
+  if (inDsts().size() + 1 != nInTensors()) {
+    throw error("Disagreement about number of switch inputs");
+  }
+
+  if (computeGraph().subGraphId(conditionId()) != subGraphId()) {
+    std::ostringstream oss;
+    oss << "Condition tensor " << conditionId()
+        << " not in switch's sub-graph, " << subGraphId() << ", it is in "
+        << computeGraph().subGraphId(conditionId());
+    throw error(oss.str());
+  }
+
+  for (InIndex i = 0; i < inDsts().size(); ++i) {
+    auto s0 = computeGraph().shape(inTensorId(i));
+    auto s1 = computeGraph().shape(dstInCallee(i).tId());
+    if (s0 != s1) {
+      std::ostringstream oss;
+      oss << "Copy in shape mismatch at index " << i << " : " << s0
+          << " != " << s1;
+      throw error(oss.str());
+    }
+  }
+
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    for (CalleeIndex ci = 0; ci < nCallees(); ++ci) {
+      if (outs().hasValue(o, ci)) {
+        if (computeGraph().shape(outs().outSource(o, ci)) != outShape(o)) {
+          throw error("Copy out shape mismatch");
+        }
+      }
+    }
+  }
+
+  if (computeGraph().nelms(conditionId()) != 1) {
+    throw error("Expected condition tensor to have 1 element");
+  }
+}
+
+OptionalTensorIds Switch::growInGrads(
+    Graph &m,
+    const poprithms::autodiff::core::ToGradGraph &toGradGraph,
+    const poprithms::autodiff::automatic::GradInfos &gradInfos,
+    SubGraphId toExtend) const {
+
+  AutomaticMutator gm(m);
+  return poprithms::autodiff::automatic::SwitchDifferentiator::createInGrads(
+      id(),
+      gm,
+      AutomaticQuerier(m),
+      toGradGraph,
+      gradInfos,
+      toExtend,
+      conditionId());
+}
+
+bool Switch::gradientPropagates(OutIndex outIndex, InIndex inIndex) const {
+  return WithCallees::nonRepeatGradientPropagates(*this, outIndex, inIndex);
+}
+
+Switch::Switch(const State &s,
+               const SubGraphIds &callees,
+               const CalleeTensorIds &inDsts,
+               const CopyOuts &copyOuts)
+    : WithCallees(s, callees, inDsts, copyOuts) {}
+
+void Switch::hostRun(const IHostRunner &fb) const {
+
+  computeDerivedVerifyValid();
+  auto condition = fb.tensor(conditionId());
+  for (auto x : condition) {
+    if (!(x - condition[0]).allZero()) {
+      throw error("Divergent control flow not permitted");
+    }
+  }
+
+  CalleeIndex ci{condition[0].getInt32(0)};
+
+  if (ci >= nCallees()) {
+    std::ostringstream oss;
+    oss << "Invalid CalleeIndex " << ci << ", only " << nCallees()
+        << " callees.";
+    throw error(oss.str());
+  }
+
+  fb.copies(inSrcs(ci), inDsts(ci));
+  fb.run(callee(ci));
+
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    auto toUpdate = fb.tensor(outTensorId(o));
+
+    // For switch op, outputs are optional
+    if (outs().hasValue(o, ci)) {
+      fb.copy(outs().outSource(o, ci), outTensorId(o));
+    }
+  }
+}
+
+std::string Switch::typeString() const {
+  return poprithms::util::cat::strcat("Switch(callees=", callees(), ')');
+}
+
+std::ostream &operator<<(std::ostream &os, const Op &op) {
+  os << op.str();
+  return os;
 }
 
 } // namespace compute

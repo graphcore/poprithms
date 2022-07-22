@@ -182,6 +182,49 @@ public:
       const TensorIds &flatOutputs,
       StackedCopyOrder stackedCopyOrder = StackedCopyOrder::Up);
 
+  /**
+   * \param callees The sub-graphs to switch between, depending on on the
+   *                runtime value of #condition.
+   *
+   * \param condition The 1-element integral tensor which determines which of
+   *                  the callees to execute.
+   *
+   * \param ins The inputs to to the callees. For every input index, there is
+   *            (1) a source tensor in the calling graph and
+   *            (2) a destination tensor in 1 of the sub-graphs at
+   *            (3) a callee index.
+   *            The copy from (1) to (2) is only performed when the value of
+   *            #condition is (3).
+   *
+   * \param completeOuts indexed by [outputIndex][calleeIndex] these are
+   *        outputs which every callee provided a tensor for. This is in
+   *        contrast to #partialOuts, which are outputs which not every callee
+   *        needs to provide an output for.
+   *
+   * \param partialOuts a vector of the partial outputs. Example: Suppose for
+   *        example that callees is of size 6 and partialOuts[i] =
+   *        {(TensorId=7, CalleeIndex=2), (TensorId=5, CalleeIndex=4)}. Then,
+   *        only when callee #2 or callee #4 are called will an output be
+   *        copied (otherwise the output copy does not happen).
+   **/
+
+  OpId switchOp(
+      const SubGraphIds &callees,
+      const TensorId &condition,
+      const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &ins,
+      const std::vector<TensorIds> &completeOuts,
+      const std::vector<CalleeTensorIds> &unmergedOuts = {});
+
+  /**
+   * A switch operation (\sa #switchOp) where all tensors not in #completeOuts
+   * is in #unmergedOuts.
+   * */
+  OpId switchAllOut(
+      const SubGraphIds &callees,
+      const TensorId &condition,
+      const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &ins,
+      const std::vector<TensorIds> &completeOuts);
+
 protected:
   const Graph &graph() const { return *pGraph_; }
   Graph &graph() { return *pGraph_; }

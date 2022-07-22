@@ -268,6 +268,7 @@ set(autodiff_sources
   ${autodiff_src_dir}/automatic/gradinfos.cpp
   ${autodiff_src_dir}/automatic/iautomatic.cpp
   ${autodiff_src_dir}/automatic/repeat.cpp
+  ${autodiff_src_dir}/automatic/switch.cpp
 
   ${autodiff_src_dir}/testutil/finitedifference.cpp
   ${autodiff_src_dir}/testutil/testop.cpp

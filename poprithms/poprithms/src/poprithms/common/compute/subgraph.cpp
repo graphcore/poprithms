@@ -1,6 +1,9 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
+#include <sstream>
 #include <unordered_set>
+
+#include <common/compute/error.hpp>
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/rsubgraph_impl.hpp>
@@ -211,6 +214,113 @@ OpId BaseSubGraph::repeatAllOut(
                 carriedInputs,
                 outputs,
                 stackedCopyOrder);
+}
+
+OpId BaseSubGraph::switchOp(
+    const SubGraphIds &callees,
+    const TensorId &condition,
+    const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &ins,
+    const std::vector<TensorIds> &completeOuts,
+    const std::vector<CalleeTensorIds> &unmergedOuts) {
+
+  if (callees.empty()) {
+    throw error("At least 1 callee required for a switch op.");
+  }
+
+  std::vector<OptionalTensorIds> outs;
+  outs.reserve(completeOuts.size() + unmergedOuts.size());
+
+  // The first outputs are "complete" : there is an
+  // output for all of the callees.
+  for (const auto &co : completeOuts) {
+    outs.push_back({});
+    for (auto c : co) {
+      outs.back().push_back(c);
+    }
+  }
+
+  // The final outputs are "incomplete" : there might be
+  // missing outputs for some callees.
+  for (auto group : unmergedOuts) {
+    outs.push_back(OptionalTensorIds(callees.size()));
+    for (auto y : group) {
+      outs.back().at(y.calleeIndex().get()) = y.tId();
+    }
+  }
+  CalleeTensorIds copyIns_;
+  TensorIds inIds;
+
+  for (const auto &si : ins) {
+    copyIns_.push_back({std::get<1>(si), std::get<2>(si)});
+    inIds.push_back(std::get<0>(si));
+  }
+
+  // Conditional tensor goes at the end:
+  inIds.push_back(condition);
+
+  auto getInfo = [this](const auto &optOuts) {
+    for (auto optOut : optOuts) {
+      if (optOut.has_value()) {
+        return graph().tensorInfo(optOut.value());
+      }
+    }
+    std::ostringstream oss;
+    oss << "Failed to obtain information for " << optOuts;
+    throw error(oss.str());
+  };
+
+  std::vector<TensorInfo> outInfos;
+  outInfos.reserve(outs.size());
+  for (const auto &opts : outs) {
+    outInfos.push_back(getInfo(opts));
+  }
+
+  CopyOuts outs_ = CopyOuts::fromOptionals(outs);
+
+  auto opId = graph().createComputeOp<Switch>(
+      inIds, id(), outInfos, callees, copyIns_, outs_);
+
+  registerCopies(opId);
+
+  return opId;
+}
+
+OpId BaseSubGraph::switchAllOut(
+    const SubGraphIds &callees,
+    const TensorId &condition,
+    const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &ins,
+    const std::vector<TensorIds> &completeOuts) {
+
+  std::vector<CalleeTensorIds> unmergedOuts;
+
+  for (const auto &co : completeOuts) {
+    if (co.size() != callees.size()) {
+      std::ostringstream oss;
+      oss << "Invalid copy outs in switchAllOut. There are " << callees.size()
+          << " callees, but " << co.size() << " tensors in the group.";
+      throw error(oss.str());
+    }
+  }
+
+  for (CalleeIndex ci = 0; ci < callees.size(); ++ci) {
+
+    // Get all the tensors which are going to be outputs for callee #ci
+    // because they're in #completeOuts.
+    std::set<TensorId> isComplete;
+    for (const auto &co : completeOuts) {
+      isComplete.insert(co.at(ci.get()));
+    }
+
+    // add all the tensors in callee #ci which are not already outputs to the
+    // set of addititional tensors.
+    for (auto tId : graph().tensorIds(callees.at(ci.get()))) {
+      if (isComplete.count(tId) == 0) {
+        unmergedOuts.push_back({{{tId, ci}}});
+      }
+    }
+  }
+
+  return switchOp(callees, condition, ins, completeOuts, unmergedOuts);
 }
 
 } // namespace compute

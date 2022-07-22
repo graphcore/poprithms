@@ -102,14 +102,15 @@ public:
     graph_.removeOp(opId, otis, reason);
   }
 
-  OpId
-  switchOp(SubGraphId,
-           const SubGraphIds &,
-           const TensorId &,
-           const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &,
-           const std::vector<std::vector<TensorId>> &,
-           const std::vector<CalleeTensorIds> &) override {
-    notImplemented("switchOp");
+  OpId switchOp(
+      SubGraphId caller,
+      const SubGraphIds &callees,
+      const TensorId &condition,
+      const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &ins,
+      const std::vector<std::vector<TensorId>> &completeOuts,
+      const std::vector<CalleeTensorIds> &unmergedOuts) override {
+    return SubGraph(caller, graph_)
+        .switchOp(callees, condition, ins, completeOuts, unmergedOuts);
   }
 
   OpId call(SubGraphId caller,
@@ -133,11 +134,6 @@ public:
 
   TensorId encodeOneHot_(const TensorId &t, const TensorId &index) override {
     return Tensor(t, &graph_).encodeOneHot01_({index, &graph_});
-  }
-
-  [[noreturn]] void notImplemented(const std::string &x) const {
-    throw poprithms::error::error("common::compute",
-                                  x + " is not implemented. Coming soon.");
   }
 };
 
