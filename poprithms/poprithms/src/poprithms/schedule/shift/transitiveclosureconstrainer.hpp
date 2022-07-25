@@ -13,7 +13,7 @@ namespace shift {
  * Transformations to a graph which insert constraints and links between Ops.
  * The transformations are all designed to preserve min_(schedules)(mean
  * liveness) while reducing |schedules|. That is, they reduce the search space
- * without removing the global minumum.
+ * without removing the global minimum.
  *
  * See the class TransitiveClosureOptimizations for more information on what
  * each of the transformations does.

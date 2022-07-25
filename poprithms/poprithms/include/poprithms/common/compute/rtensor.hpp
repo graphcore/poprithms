@@ -658,6 +658,18 @@ public:
   T pow(const RTensor<T> &rhs) const;
   T pow_(const RTensor<T> &rhs) const;
 
+  /**
+   * \return The maximum of this tensor and #rhs.
+   * */
+  T max(const RTensor<T> &rhs) const;
+  T max_(const RTensor<T> &rhs) const;
+
+  /**
+   * \return The minimum of this tensor and #rhs.
+   * */
+  T min(const RTensor<T> &rhs) const;
+  T min_(const RTensor<T> &rhs) const;
+
   T pow(double v) const { return pow(constant(v)); }
   T pow_(double v) const { return pow_(constant(v)); }
 
@@ -669,6 +681,12 @@ public:
 
   T sub(double v) const { return sub(constant(v)); }
   T sub_(double v) const { return sub_(constant(v)); }
+
+  T max(double v) const { return max(constant(v)); }
+  T max_(double v) const { return max_(constant(v)); }
+
+  T min(double v) const { return min(constant(v)); }
+  T min_(double v) const { return min_(constant(v)); }
 
   /**
    * \return The remainder when this tensor is divided by #rhs. #rhs must have
@@ -755,7 +773,6 @@ public:
   T to(DType outType) const;
 
   /** Unary elementwise operations */
-  T zero_() const { return fill_(HostTensor::scalar(dtype(), 0)); }
 
   /**
    * The absolute value of this tensor.
@@ -800,6 +817,12 @@ public:
   T exp() const;
 
   /**
+   * The inverse of this tensor, 1/(this tensor).
+   * */
+  T inv_() const;
+  T inv() const;
+
+  /**
    * The rectified linear unit of this tensor.
    * */
   T relu_() const { return mul_(greaterThan(constant(0)).to(dtype())); }
@@ -809,7 +832,17 @@ public:
    * Fill this tensor with the scalar value #vScalar.
    * */
   T fill_(const HostTensor &vScalar) const;
+
+  /**
+   * Fill this tensor with 0.
+   * */
   T setToZero_() const { return fill_(HostTensor::scalar(dtype(), 0)); }
+  T zero_() const { return setToZero_(); }
+
+  /**
+   * Fill this tensor with the lowest possible value.
+   * */
+  T setToLowest_() const;
 
   T name(const std::string &n) const {
     graph().setName(id(), n);

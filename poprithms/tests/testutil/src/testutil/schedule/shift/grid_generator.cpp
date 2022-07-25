@@ -71,7 +71,7 @@ void assertGlobalMinimumGridGraph0(const ScheduledGraph &g, uint64_t N) {
   AllocWeight expect(3 * 2 * N + (N - 2) * 1, 0);
   if (g.getMaxLiveness() != expect) {
     std::ostringstream oss;
-    oss << "In assertGlobalMinumumGridGraph0, g.getMaxLiveness() gives "
+    oss << "In assertGlobalMinimumGridGraph0, g.getMaxLiveness() gives "
         << g.getMaxLiveness() << " but "
         << "expected final max liveness to be 2*2*N + (N-2)*1 = " << expect;
     throw poprithms::test::error(oss.str());

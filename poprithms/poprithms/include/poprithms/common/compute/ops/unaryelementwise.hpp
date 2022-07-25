@@ -302,6 +302,43 @@ private:
   }
 };
 
+/**
+ * Inverse of a tensor, X (output is 1/X).
+ * */
+class Inv final
+    : public Attributeless<WithAutodiff<autodiff::automatic::InvAutodiffer,
+                                        UnaryElementwiseOutplace>,
+                           Inv> {
+
+public:
+  Inv(const Op::State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName = "Inv";
+
+private:
+  void unaryCompute(const HostTensor &i, const HostTensor &o) const final {
+    o.update_(i.inverse());
+  }
+  OutType outType() const final { return OutType::Preserving; }
+};
+
+/**
+ * Inverse of a tensor, X (output is 1/X), performed inplace on X.
+ * */
+class Inv_ final
+    : public Attributeless<WithAutodiff<autodiff::automatic::InvAutodiffer,
+                                        UnaryElementwiseInplace_>,
+                           Inv_> {
+
+public:
+  Inv_(const Op::State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName = "Inv_";
+
+private:
+  void unaryCompute(const HostTensor &i, const HostTensor &) const final {
+    i.inverse_();
+  }
+};
+
 class Sqrt final
     : public Attributeless<WithAutodiff<autodiff::automatic::SqrtAutodiffer,
                                         UnaryElementwiseOutplace>,

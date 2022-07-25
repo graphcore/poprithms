@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <memory>
 #include <random>
@@ -352,10 +353,32 @@ public:
   static std::string str() { return "Tensor::ScalarCaster"; }
 };
 
+template <class T> class TypeVals {
+public:
+  static T Lowest() { return std::numeric_limits<T>::lowest(); }
+};
+
+template <> class TypeVals<IeeeHalf> {
+public:
+  static IeeeHalf Lowest() { return -65504.0; }
+};
+
+class Tensor::LowestGetter {
+public:
+  template <typename T> static Tensor go() {
+    return tScalar<T>(TypeVals<T>::Lowest());
+  }
+  static std::string str() { return "Tensor::LowestGetter"; }
+};
+
 Tensor scalar(DType t, double v) { return Tensor::scalar(t, v); }
 
 Tensor Tensor::scalar(const DType type, const double v) {
   return typeSwitch<ScalarCaster, Tensor>(type, v);
+}
+
+Tensor Tensor::lowestScalar(DType type) {
+  return typeSwitch<LowestGetter, Tensor>(type);
 }
 
 Tensor Tensor::safeScalar(DType type, const double v) {

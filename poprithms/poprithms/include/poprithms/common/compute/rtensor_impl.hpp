@@ -38,7 +38,7 @@ template <typename T> RSubGraph<T> RTensor<T>::subGraph() const {
 }
 
 template <typename T> T RTensor<T>::constant(DType d, double v) const {
-  return constant(poprithms::compute::host::scalar(d, v));
+  return constant(poprithms::compute::host::Tensor::safeScalar(d, v));
 }
 
 template <typename T> T RTensor<T>::div_(const RTensor<T> &rhs) const {
@@ -47,6 +47,22 @@ template <typename T> T RTensor<T>::div_(const RTensor<T> &rhs) const {
 
 template <typename T> T RTensor<T>::div(const RTensor<T> &rhs) const {
   return createWithNumpyShape<Div>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::min_(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Min_>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::min(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Min>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::max_(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Max_>({id(), rhs.id()});
+}
+
+template <typename T> T RTensor<T>::max(const RTensor<T> &rhs) const {
+  return createWithNumpyShape<Max>({id(), rhs.id()});
 }
 
 template <typename T> T RTensor<T>::pow_(const RTensor<T> &rhs) const {
@@ -126,6 +142,13 @@ template <typename T> T RTensor<T>::signum_() const {
 }
 template <typename T> T RTensor<T>::signum() const {
   return createUnaryWithSameInfo<Signum>();
+}
+
+template <typename T> T RTensor<T>::inv_() const {
+  return createUnaryWithSameInfo<Inv_>();
+}
+template <typename T> T RTensor<T>::inv() const {
+  return createUnaryWithSameInfo<Inv>();
 }
 
 template <typename T> T RTensor<T>::neg_() const {
@@ -634,6 +657,10 @@ T RTensor<T>::dynamicMultiUpdateMax_(const RTensor<T> &source,
                                      const RTensor<T> &offset) const {
   return createTensor<DynamicMultiUpdateMax_>(
       {id(), source.id(), offset.id()}, {info()});
+}
+
+template <typename T> T RTensor<T>::setToLowest_() const {
+  return fill_(HostTensor::lowestScalar(dtype()));
 }
 
 } // namespace compute

@@ -307,7 +307,8 @@ private:
 
   /**
    * There is not differentiation for this inplace op, as both inputs are
-   * required.
+   * required. We could use the template class 'NoAutodiff' to reduce
+   * boilerplate here.
    * */
   OptionalTensors bprop(const GradOpIns &) const final;
   bool gradientPropagates(OutIndex, InIndex) const final;
@@ -496,6 +497,82 @@ public:
   bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
 
   void compute(const HostTensors &, const HostTensors &) const final;
+};
+
+/**
+ * Minimum value of 2 tensors.
+ * */
+class Min final : public Attributeless<
+                      WithAutodiff<autodiff::automatic::ExtremumAutodiffer,
+                                   BinaryElementwiseOutplace>,
+                      Min> {
+public:
+  Min(const State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName = "Min";
+  void compute(const HostTensors &ins, const HostTensors &outs) const final {
+    outs[0].update_(ins[0].min(ins[1]));
+  }
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseOutplaceVerifyValid();
+  }
+};
+
+/**
+ * Minimum value of 2 tensors, performed inplace on the first.
+ * */
+class Min_ final : public Attributeless<
+                       WithAutodiff<autodiff::automatic::ExtremumAutodiffer,
+                                    BinaryElementwiseInplace_>,
+                       Min_> {
+public:
+  Min_(const State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName = "Min_";
+  void compute(const HostTensors &ins, const HostTensors &outs) const final {
+    outs[0].update_(ins[0].min(ins[1]));
+  }
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseInplaceVerifyValid();
+  }
+};
+
+/**
+ * Maximum value of 2 tensors.
+ * */
+class Max final : public Attributeless<
+                      WithAutodiff<autodiff::automatic::ExtremumAutodiffer,
+                                   BinaryElementwiseOutplace>,
+                      Max> {
+public:
+  Max(const State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName = "Max";
+  void compute(const HostTensors &ins, const HostTensors &outs) const final {
+    outs[0].update_(ins[0].max(ins[1]));
+  }
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseOutplaceVerifyValid();
+  }
+};
+
+/**
+ * Maximum value of 2 tensors, performed inplace on the first.
+ * */
+class Max_ final : public Attributeless<
+                       WithAutodiff<autodiff::automatic::ExtremumAutodiffer,
+                                    BinaryElementwiseInplace_>,
+                       Max_> {
+public:
+  Max_(const State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName = "Max_";
+  void compute(const HostTensors &ins, const HostTensors &outs) const final {
+    outs[0].update_(ins[0].max(ins[1]));
+  }
+
+  void computeDerivedVerifyValid() const final {
+    simpleBinaryElementwiseInplaceVerifyValid();
+  }
 };
 
 } // namespace compute

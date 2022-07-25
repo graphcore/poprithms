@@ -23,7 +23,13 @@ class AutodiffHelper {
 public:
   AutodiffHelper(const Op &op_) : op(op_) {}
   uint64_t nInTensors() const { return op.nInTensors(); }
+
   Shape inShape(InIndex i) const { return op.inShape(i); }
+  Shape outShape(OutIndex o) const { return op.outShape(o); }
+
+  DType inDType(InIndex i) const { return op.inDType(i); }
+  DType outDType(OutIndex o) const { return op.outDType(o); }
+
   static Tensor constantLike(const Tensor &t, double v) {
     return t.constant(v);
   }

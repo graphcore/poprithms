@@ -2,6 +2,8 @@
 #ifndef POPRITHMS_AUTODIFF_AUTOMATIC_GRADOPOPS_HPP
 #define POPRITHMS_AUTODIFF_AUTOMATIC_GRADOPOPS_HPP
 
+#include <sstream>
+
 #include <poprithms/autodiff/automatic/gradopin.hpp>
 #include <poprithms/ndarray/shape.hpp>
 #include <poprithms/util/permutation.hpp>
@@ -244,6 +246,33 @@ public:
 };
 
 /**
+ * Differentiation through f(x) = 1/x. That is, the unary operation which
+ * inverts all values of a tensor.
+ * */
+class InvAutodiffer {
+public:
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+
+  /**
+   * No inputs of the forward op are required, but the output is:
+   * */
+  static std::vector<InIndex> autodiffRequiredIns() { return {}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {0}; }
+
+  template <typename Tensor, typename OptionalTensor, typename... Args>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const Args &...) {
+    // f(x)    =   1/x                   (1)
+    // df/dx   =  -1/x^2                 (2)
+    //         =  -1 * (1/x) * (1/x)     (3)
+    //         =  -1 * f(x)^2            (4) the formulation used below.
+    auto out  = gIn.output(0);
+    auto dOut = gIn.gradOfOutput(0);
+    return {dOut.neg().mul(out.pow(2))};
+  }
+};
+
+/**
  * Differentiate through y = e^x (where e is the transcendental 2.71828...).
  * */
 class ExpAutodiffer {
@@ -321,6 +350,71 @@ public:
 
     return {dBase.reduceSum(base.shape()),
             dExponent.reduceSum(exponent.shape())};
+  }
+};
+
+/**
+ * Differentation of binary ops, 'max' and 'min'.
+ *
+ * Consider the case of the 'max' operetion, where in0 and in1 are
+ * numpy-broadcastable with each other,
+ *
+ *    out = max(in0, in1).
+ *
+ * Assume for now that in0 and in1 have the same shape, and that in0 !=
+ * in1 for all elements, then
+ *
+ *    dIn1 = (in1 == out)*dOut, and
+ *    dIn0 = (in0 == out)*dOut.
+ *
+ * If only in1 is available during backpropagation, as is true if the forward
+ * operation is done inplace on in0, then the above equations can be expressed
+ * as:
+ *
+ *    mask1 = (in1 == out0)      (1)
+ *    dIn1  = mask1 * dOut       (2)
+ *    dIn0  = (1 - mask1)*dOut   (3)
+ *
+ * If the inputs do not have the same shpae, then a sum-reduction down to the
+ * input shape is required.
+ *
+ * For the case of elements where in0 == in1, the function is technically not
+ * differentiable, but we do not modify our implementation. Our implemetation
+ * has the advantage that for if
+ *
+ *    out = max(A, A)           (4)
+ *
+ * then,
+ *
+ *    dA = dOut.                (5)
+ * */
+class ExtremumAutodiffer {
+
+public:
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+
+  /**
+   * Differentiation requires the input at index 1, and the output.
+   * */
+  static std::vector<InIndex> autodiffRequiredIns() { return {1}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {0}; }
+
+  template <typename Tensor, typename OptionalTensor, typename OpHelper>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn,
+                const OpHelper &helper) {
+
+    auto outGrad = gIn.gradOfOutput(0);
+    auto in1     = gIn.input(1);
+    auto out     = gIn.output(0);
+
+    const auto dataType = helper.outDType(0);
+
+    auto mask1 = in1.equalTo(out).to(dataType);
+    auto mask0 = mask1.constant(1) - mask1;
+
+    return {(outGrad * mask0).reduceSum(helper.inShape(0)),
+            (outGrad * mask1).reduceSum(helper.inShape(1))};
   }
 };
 

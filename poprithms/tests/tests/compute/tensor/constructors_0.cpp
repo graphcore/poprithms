@@ -1,8 +1,12 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <iostream>
+#include <limits>
+#include <memory>
 #include <numeric>
+#include <sstream>
 
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/error/error.hpp>
@@ -178,6 +182,31 @@ void testTemplateConstructors0() {
   }
 }
 
+template <typename T> void lowestScalarTest0() {
+  auto foo = Tensor::lowestScalar(poprithms::ndarray::get<T>())
+                 .getNativeCharVector();
+  T v = *reinterpret_cast<T *>(&foo[0]);
+  if (v != std::numeric_limits<T>::lowest()) {
+    throw poprithms::test::error("Failed in assert for lowest scalar");
+  }
+}
+
+void testLowestScalar0() {
+  lowestScalarTest0<double>();
+  lowestScalarTest0<uint8_t>();
+  lowestScalarTest0<int64_t>();
+  lowestScalarTest0<bool>();
+
+  auto lowestFloat16 = Tensor::lowestScalar(DType::Float16);
+  auto asFloat64     = lowestFloat16.to(DType::Float64);
+
+  // Note that we don't do arithmetic in float16, so for example
+  // lowest + 1 != lowest (for true float16 they should be equal).
+  if (!std::isinf(lowestFloat16.mul(2).toFloat32().getFloat32(0))) {
+    throw poprithms::test::error("Exected lowest * 2 to be (-)infinite");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -190,5 +219,6 @@ int main() {
   testCheckErrors0();
   testCheckErrors1();
   testTemplateConstructors0();
+  testLowestScalar0();
   return 0;
 }

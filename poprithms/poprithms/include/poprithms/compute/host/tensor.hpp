@@ -1254,6 +1254,8 @@ public:
    * */
   Tensor reciprocal() const;
   Tensor reciprocal_() const;
+  Tensor inverse() const { return reciprocal(); }
+  Tensor inverse_() const { return reciprocal_(); }
 
   /**
    * relu(x) = x*(x > 0)
@@ -1345,6 +1347,11 @@ public:
   static Tensor scalar(DType type, double v);
 
   /**
+   * Construct a scalar Tensor with the lowest possible value.
+   * */
+  static Tensor lowestScalar(DType type);
+
+  /**
    * As per the method 'scalar' but checks are run that #v is a valid #type.
    * This will become the default behaviour in a later release.
    * */
@@ -1425,6 +1432,7 @@ private:
   // (DType::Unsigned64 -> uint64_t, etc.):
   class Caster;
   class ScalarCaster;
+  class LowestGetter;
   class Zeros;
   class Ones;
   class UninitializedPointer;

@@ -128,6 +128,65 @@ TEST(CommonComputeTrainMisc0, ThroughCast0) {
       HostTensor::float64({3}, {+7, +7, +7}));
 }
 
+TEST(CommonComputeTrainMisc0, ThroughInv0) {
+  SlickGraph m;
+  SubGraph sg0 = m.createSubGraph("sg0");
+  auto W       = sg0.hostFloat64Variable({3});
+  auto loss    = (W.inv() - W.constant(1) / W).reduceSum(Shape{});
+  auto dW      = Ad(m).backward(loss, {W})[0];
+  m.setRunnable({sg0});
+  SimExecutable cms(m);
+  auto hostW = HostTensor::float64({3}, {1, 2, -0.5});
+  cms.setHostValue(W, hostW.copy());
+  cms.run(sg0);
+  cms.getHostValue(dW).assertAllEquivalent(
+      HostTensor::float64({3}, {0., 0, 0}));
+}
+
+TEST(CommonComputeTrainMisc0, ThroughMaxAndMin0) {
+  enum class Extremum { Max = 0, Min };
+
+  auto test = [](Extremum e) {
+    SlickGraph m;
+    SubGraph sg0 = m.createSubGraph("sg0");
+    auto x       = sg0.hostFloat64Variable({3});
+    auto y       = x.variable();
+
+    auto hostX = HostTensor::float64({3}, {1, 0.1, -1});
+    auto hostY = HostTensor::float64({3}, {-2, 0, 5});
+
+    // 1, 0.1 5
+    auto out0 = e == Extremum::Max ? x.max(y) : x.min(y);
+
+    // 1, 0.1, 5 (y updated inplace).
+    auto out1 = e == Extremum::Min ? y.min_(x) : y.max_(x);
+
+    // in max case: loss = 2*x[0] + 2*x[1]+ 2*y[2]
+    auto loss = (out0 + out1).reduceSum(Shape{});
+
+    auto grads = Ad(m).backward(loss, {x, y});
+    m.setRunnable({sg0});
+    SimExecutable cms(m);
+    cms.setHostValue(x, hostX);
+    cms.setHostValue(y, hostY);
+    cms.run(sg0);
+
+    auto mask      = HostTensor::float64({3}, {1, 1, 0});
+    auto negMask   = HostTensor::float64({3}, {0, 0, 1});
+    auto expectedX = e == Extremum::Max ? mask.mul(2) : negMask.mul(2);
+    auto expectedY = HostTensor::float64(2) - expectedX;
+
+    auto dX = cms.getHostValue(grads[0]);
+    dX.assertAllEquivalent(expectedX);
+
+    auto dY = cms.getHostValue(grads[1]);
+    dY.assertAllEquivalent(expectedY);
+  };
+
+  test(Extremum::Max);
+  test(Extremum::Min);
+}
+
 // A chain of ops which together combine to be the identity: checks that
 // identity is also identity.
 TEST(CommonComputeTrainMisc0, CancelChain0) {
