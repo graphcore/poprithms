@@ -46,11 +46,8 @@ private:
    * The output is not a reference to a tensor in another graph. (\sa the
    * RefFrom op class).
    * */
-  void resetRootRef(OutIndex, const TensorId &) { invalid(); }
+  void resetRootRef(OutIndex, const TensorId &) final { invalid(); }
   TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
-
-  void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
-  void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
 
   void initializeSimOut(SimTensorMap &htm) const final {
     initializeReplicatedSimOut(htm);
@@ -149,6 +146,9 @@ private:
 
   // verify that val_ has only 1 element.
   void unaryElementwiseDerivedVerifyValid() const final;
+
+  void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
+  void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
 
   HostTensor val_;
 };

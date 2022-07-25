@@ -246,6 +246,21 @@ public:
 };
 
 /**
+ * Progagate gradient.
+ * */
+class IdentityAutodiffer {
+public:
+  static std::vector<InIndex> autodiffRequiredIns() { return {}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {}; }
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+  template <typename Tensor, typename OptionalTensor, typename... Args>
+  static typename std::vector<OptionalTensor>
+  backpropagate(const OpIn<Tensor, OptionalTensor> &gIn, const Args &...) {
+    return {gIn.gradOfOutput(0)};
+  }
+};
+
+/**
  * Differentiation through f(x) = 1/x. That is, the unary operation which
  * inverts all values of a tensor.
  * */

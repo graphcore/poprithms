@@ -77,20 +77,8 @@ void Add::compute(const HostTensors &ins, const HostTensors &outs) const {
   outs[0].update_(ins[0] + ins[1]);
 }
 
-UpOp Add::cloneWithState(const State &s) const {
-  return std::make_unique<Add>(s);
-}
-
-UpOp Add_::cloneWithState(const State &s) const {
-  return std::make_unique<Add_>(s);
-}
-
 void Mul::compute(const HostTensors &ins, const HostTensors &outs) const {
   outs[0].update_(ins[0].mul(ins[1]));
-}
-
-UpOp Mul::cloneWithState(const State &s) const {
-  return std::make_unique<Mul>(s);
 }
 
 void BinaryElementwiseInplace_::noInplaceAutodiff() const {
@@ -106,10 +94,6 @@ void BinaryElementwiseInplace_::noInplaceAutodiff() const {
 
 void Mul_::compute(const HostTensors &ins, const HostTensors &outs) const {
   outs[0].mul_(ins[1]);
-}
-
-UpOp Mul_::cloneWithState(const State &s) const {
-  return std::make_unique<Mul_>(s);
 }
 
 bool Pow_::gradientPropagates(OutIndex, InIndex) const {
@@ -134,10 +118,6 @@ void Div::compute(const HostTensors &ins, const HostTensors &outs) const {
   outs[0].update_(ins[0].divide(ins[1]));
 }
 
-UpOp Div::cloneWithState(const State &s) const {
-  return std::make_unique<Div>(s);
-}
-
 /**
  * Div_
  * */
@@ -145,18 +125,11 @@ void Div_::compute(const HostTensors &ins, const HostTensors &outs) const {
   outs[0].divide_(ins[1]);
 }
 
-UpOp Div_::cloneWithState(const State &s) const {
-  return std::make_unique<Div_>(s);
-}
-
 /**
  * Pow
  * */
 void Pow::compute(const HostTensors &ins, const HostTensors &outs) const {
   outs[0].update_(ins[0].pow(ins[1]));
-}
-UpOp Pow::cloneWithState(const State &s) const {
-  return std::make_unique<Pow>(s);
 }
 
 /**
@@ -188,19 +161,11 @@ void Sub::compute(const HostTensors &ins, const HostTensors &outs) const {
   outs[0].update_(ins[0] - ins[1]);
 }
 
-UpOp Sub::cloneWithState(const State &s) const {
-  return std::make_unique<Sub>(s);
-}
-
 /**
  * Sub_
  * */
 void Sub_::compute(const HostTensors &ins, const HostTensors &outs) const {
   outs[0].subtract_(ins[1]);
-}
-
-UpOp Sub_::cloneWithState(const State &s) const {
-  return std::make_unique<Sub_>(s);
 }
 
 void BooleanBinaryElementwiseOutplace::
@@ -226,9 +191,6 @@ void BooleanBinaryElementwiseOutplace::
 /**
  * CopyFrom_
  * */
-UpOp CopyFrom_::cloneWithState(const State &s) const {
-  return std::make_unique<CopyFrom_>(s);
-}
 
 void CopyFrom_::compute(const HostTensors &ins,
                         const HostTensors &outs) const {

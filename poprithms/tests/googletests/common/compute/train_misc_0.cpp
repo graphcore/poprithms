@@ -229,6 +229,33 @@ TEST(CommonComputeTrainMisc0, ThroughDynamicSlice0) {
       .assertAllEquivalent(HostTensor::float32({6}, {0, 12, 14, 0, 18, 20}));
 }
 
+TEST(CommonComputeTrainMisc0, ThroughReduceSumAcrossReplicas) {
+  SlickGraph g;
+  SubGraph sg0 = g.createSubGraph("sg0");
+  int64_t rf{2};
+  auto in0   = sg0.hostFloat32Variable({1, rf, 3});
+  auto loss0 = in0.pow(2).reduceSumAcrossReplicas().reduceSum(Shape{});
+
+  auto in1   = sg0.hostFloat32Variable({1, rf, 3});
+  auto loss1 = in1.reduceSumAcrossReplicas_().reduceSum(Shape{});
+
+  auto loss = loss0 - loss1;
+  auto dIns = Ad(g).backward(loss, {in1, in0});
+  auto dIn1 = dIns[0];
+  auto dIn0 = dIns[1];
+
+  g.setRunnable({sg0});
+  SimExecutable cms(g);
+  cms.setHostValue<float>(in0, {1, 2, 3, 4, 5, 6});
+  cms.setHostValue<float>(in1, {1, 2, 0, 1, 2, -1});
+  cms.run(sg0);
+  cms.getHostValue(dIn0).assertAllEquivalent(
+      HostTensor::float32({rf, 3}, {2, 4, 6, 8, 10, 12}));
+
+  cms.getHostValue(dIn1).assertAllEquivalent(
+      HostTensor::float32({rf, 3}, {-1, -1, -1, -1, -1, -1}));
+}
+
 TEST(CommonComputeTrainMisc0, ThroughDynamicMax0) {
   SlickGraph m;
   SubGraph sg0 = m.createSubGraph("sg0");

@@ -91,8 +91,6 @@ private:
   void growAliasMapper(MemoryAliasMapper &mam) const final {
     createAlias(mam, inTensorId(aliasIndex()));
   }
-  void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
-  void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
 
   /**
    * This op is not a RootRef_.
@@ -176,6 +174,9 @@ private:
   }
   bool computeTypeSpecificEqualTo(const compute::Op &rhs) const final;
   void computeDerivedVerifyValid() const final;
+
+  void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
+  void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
 
 private:
   Dimensions dims_;

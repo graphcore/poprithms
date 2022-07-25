@@ -530,6 +530,17 @@ public:
   }
 
   /**
+   * This tensor is on an ipu. The returned tensor is on the same device, and
+   * has the same shape. Each replica in the returned tensor is the summation
+   * of replicas of this tensor. For example if this tensor has shape (2,) and
+   * the replication factor is three, and the 3 replicas have values [1,2],
+   * [3,4], and [5,-1] respectively, then the result (on all replicas) is
+   * [9,5].
+   * */
+  T reduceSumAcrossReplicas() const;
+  T reduceSumAcrossReplicas_() const;
+
+  /**
    * Create a tensor for the tensor id #id in the graph #g. If the graph #g
    * does not have a tensor with id #id, the behaviour is undefined.
    * */

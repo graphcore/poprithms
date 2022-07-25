@@ -662,6 +662,12 @@ T RTensor<T>::dynamicMultiUpdateMax_(const RTensor<T> &source,
 template <typename T> T RTensor<T>::setToLowest_() const {
   return fill_(HostTensor::lowestScalar(dtype()));
 }
+template <typename T> T RTensor<T>::reduceSumAcrossReplicas_() const {
+  return createUnaryWithSameInfo<ReduceSumAcrossReplicas_>();
+}
+template <typename T> T RTensor<T>::reduceSumAcrossReplicas() const {
+  return createUnaryWithSameInfo<ReduceSumAcrossReplicas>();
+}
 
 } // namespace compute
 } // namespace common

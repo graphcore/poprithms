@@ -96,6 +96,38 @@ OptionalTensors ReduceProduct::bprop(const GradOpIns &) const {
   unimplemented("ReduceProduct::bprop");
 }
 
+HostTensors
+ReduceAcrossReplicasOutplace::initializeOut(const HostTensors &) const {
+  return {HostTensor::zeros(outDType(0), outShape(0))};
+}
+
+HostTensors
+ReduceAcrossReplicasInplace_::initializeOut(const HostTensors &ins) const {
+  return ins;
+}
+
+void ReduceAcrossReplicas::compute(const HostTensors &,
+                                   const HostTensors &) const {
+  throw error("ReduceAcrossReplicas::compute call invalid, as runSim is "
+              "implemented directly (access to all replicas required).");
+}
+
+void ReduceAcrossReplicas::runSim(ISimState &hts) const {
+  // Accumulate across all replicas:
+  auto reduced = HostTensor::accumulate(
+      hts.simTensorMap().getValue(inTensorId(InIndex(0))), cop());
+
+  // Update local tensors:
+  for (auto t : hts.simTensorMap().getValue({id(), 0})) {
+    t.update_(reduced);
+  }
+}
+
+void ReduceAcrossReplicas::computeDerivedVerifyValid() const {
+  OpVerifier(*this).verifyNonVariadicFromAtts(
+      1, 1, {OpVerifier::Att::SameDevice, OpVerifier::Att::SameDType});
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

@@ -2,8 +2,10 @@
 #ifndef POPRITHMS_COMMON_COMPUTE_OPS_REDUCE_HPP
 #define POPRITHMS_COMMON_COMPUTE_OPS_REDUCE_HPP
 
+#include <poprithms/autodiff/automatic/gradops.hpp>
 #include <poprithms/common/compute/gradopins.hpp>
 #include <poprithms/common/compute/op.hpp>
+#include <poprithms/common/compute/ops/withautodiff.hpp>
 #include <poprithms/common/compute/ops/withoutcallees.hpp>
 #include <poprithms/common/compute/opverifier.hpp>
 #include <poprithms/common/compute/tensor.hpp>
@@ -11,8 +13,6 @@
 namespace poprithms {
 namespace common {
 namespace compute {
-
-using poprithms::compute::host::CommutativeOp;
 
 /**
  * Reduce a tensor along a subset of its dimensions. The reduced (output)
@@ -163,6 +163,112 @@ public:
   std::vector<InIndex> autodiffRequiredIns() const final { return {0}; }
   std::vector<OutIndex> autodiffRequiredOuts() const final { return {}; }
   CommutativeOp cop() const final { return CommutativeOp::Product; }
+};
+
+/**
+ * An operation for reducing a tensor which is replicated across ipus. The
+ * output tensor has the same shape as the input tensor, as the reduction is
+ * done only in the implicit replication dimension.
+ * */
+class ReduceAcrossReplicas : public WithoutCalleesTensorCentric {
+public:
+  ReduceAcrossReplicas(const Op::State &s) : WithoutCalleesTensorCentric(s) {}
+
+private:
+  /**
+   * A unary elementwise op does computation, and is therefore not an
+   * 'initializing op'.
+   * */
+  bool isInitializingOp() const final { return false; }
+
+  CodeLocation codeLocation() const final { return locationByUnanimity(); }
+
+  /**
+   * The output is not a reference to a tensor in another graph. (\sa the
+   * RefFrom op class).
+   * */
+  void resetRootRef(OutIndex, const TensorId &) final { invalid(); }
+  TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
+
+  // Invalid, as runSim is implemented directly.
+  void compute(const HostTensors &, const HostTensors &) const final;
+
+  void computeDerivedVerifyValid() const final;
+  void runSim(ISimState &htm) const final;
+
+  virtual poprithms::compute::host::CommutativeOp cop() const = 0;
+
+  void initializeSimOut(SimTensorMap &htm) const final {
+    initializeReplicatedSimOut(htm);
+  }
+};
+
+class ReduceAcrossReplicasOutplace : public ReduceAcrossReplicas {
+public:
+  ReduceAcrossReplicasOutplace(const State &s) : ReduceAcrossReplicas(s) {}
+
+private:
+  bool aliases(InIndex, OutIndex) const final { return false; }
+  bool modifies(InIndex) const final { return false; }
+  HostTensors initializeOut(const HostTensors &) const final;
+
+  void growAliasMapper(MemoryAliasMapper &mam) const final {
+    // create new variables for the outputs.
+    createVariables(mam);
+  }
+};
+
+class ReduceAcrossReplicasInplace_ : public ReduceAcrossReplicas {
+public:
+  ReduceAcrossReplicasInplace_(const State &s) : ReduceAcrossReplicas(s) {}
+
+private:
+  bool aliases(InIndex, OutIndex) const final { return true; }
+  bool modifies(InIndex) const final { return true; }
+  HostTensors initializeOut(const HostTensors &) const final;
+
+  /**
+   * Create a new variable/allocation in the alias::Graph corresponding to the
+   * output of this op.
+   * */
+  void growAliasMapper(MemoryAliasMapper &mam) const final {
+    createAlias(mam, inTensorId(0));
+  }
+};
+
+/**
+ * Inplace sum-reduction across replicas.
+ * */
+class ReduceSumAcrossReplicas_ final
+    : public Attributeless<
+          WithAutodiff<poprithms::autodiff::automatic::IdentityAutodiffer,
+                       ReduceAcrossReplicasInplace_>,
+          ReduceSumAcrossReplicas_> {
+public:
+  static constexpr const char *OpTypeName = "ReduceSumAcrossReplicas_";
+  ReduceSumAcrossReplicas_(const State &s) : Attributeless(s) {}
+
+  poprithms::compute::host::CommutativeOp cop() const final {
+    return poprithms::compute::host::CommutativeOp::Sum;
+  }
+};
+
+/**
+ * Non-inplace sum-reduction across replicas.
+ * */
+class ReduceSumAcrossReplicas final
+    : public Attributeless<
+          WithAutodiff<poprithms::autodiff::automatic::IdentityAutodiffer,
+                       ReduceAcrossReplicasOutplace>,
+          ReduceSumAcrossReplicas> {
+
+public:
+  ReduceSumAcrossReplicas(const Op::State &s) : Attributeless(s) {}
+  static const constexpr char *OpTypeName{"ReduceSumAcrossReplicas"};
+
+  poprithms::compute::host::CommutativeOp cop() const final {
+    return poprithms::compute::host::CommutativeOp::Sum;
+  }
 };
 
 } // namespace compute

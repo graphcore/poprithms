@@ -58,9 +58,6 @@ public:
   TensorId indicesId() const { return inTensorId(Indices()); }
 
 private:
-  void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
-  void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
-
   /**
    * This op has 1 output, which needs to be modelled in an alias graph. It is
    * an alias of the input being encoded.

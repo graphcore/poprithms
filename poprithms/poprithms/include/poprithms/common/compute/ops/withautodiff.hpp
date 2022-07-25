@@ -131,6 +131,9 @@ private:
   bool computeTypeSpecificEqualTo(const Op &) const final { return true; }
 
   std::string typeString() const final { return OP::OpTypeName; }
+
+  void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
+  void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
 };
 
 } // namespace compute
