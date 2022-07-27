@@ -109,11 +109,61 @@ void testSplitRows0() {
   }
 }
 
+void testAbridged0() {
+  StringColumn col0("col0",
+                    {"bla", "bla", "bla"},
+                    '=',
+                    StringColumn::Align::Left,
+                    10,
+                    false);
+  StringColumn col1("col1",
+                    {"alpha", "beta", "gamma"},
+                    '=',
+                    StringColumn::Align::Left,
+                    10,
+                    false);
+  StringColumn col2("col2",
+                    {"123", "100", "100"},
+                    '=',
+                    StringColumn::Align::Left,
+                    10,
+                    false);
+
+  auto ally = alignedColumnsWithMonoColumnsAbridged({col0, col1, col2}, 2);
+  std::cout << ally << std::endl;
+
+  // Entry  col0
+  // -----  ====
+  // *      bla
+  //
+  // col1   col2
+  // ====   ====
+  // alpha  123
+  // beta   100
+  // gamma  100
+
+  std::vector<std::string> lines{"Entry  col0",
+                                 "-----  ====",
+                                 "*      bla",
+                                 "col1   col2",
+                                 "====   ====",
+                                 "alpha  123",
+                                 "beta   100",
+                                 "gamma  100"};
+
+  for (auto &&l : lines) {
+    if (count(ally, l) != 1) {
+      throw poprithms::test::error("Failed to find line  " + l);
+    }
+  }
+}
+
 } // namespace
 
 int main() {
   test0();
   test1();
   testSplitRows0();
+  testAbridged0();
   return 0;
 }

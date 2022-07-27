@@ -432,11 +432,9 @@ template <typename T> std::string getStr(const std::vector<T> &X) {
 }
 } // namespace
 
-void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds_) const {
-
-  const auto colParams = poprithms::util::StringColumn::Parameters()
-                             .abridgeToSingleRow(false)
-                             .thresholdWidth(50);
+std::vector<poprithms::util::StringColumn> Graph::getAllColumns(
+    const OpIds &opIds_,
+    const poprithms::util::StringColumn::Parameters &colParams) const {
 
   auto cols = getMultioutColumns(opIds_, colParams);
 
@@ -448,7 +446,18 @@ void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds_) const {
     cols.push_back(c);
   }
 
-  ost << alignedColumns(cols);
+  return cols;
+}
+
+poprithms::util::StringColumn::Parameters
+Graph::defaultStringColumnParams() const {
+  return poprithms::util::StringColumn::Parameters()
+      .abridgeToSingleRow(false)
+      .thresholdWidth(50);
+}
+
+void Graph::appendOpColumns(std::ostream &ost, const OpIds &opIds) const {
+  ost << alignedColumns(getAllColumns(opIds, defaultStringColumnParams()));
 }
 
 std::vector<poprithms::util::StringColumn> Graph::getComputeColumns(

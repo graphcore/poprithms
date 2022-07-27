@@ -44,6 +44,8 @@ using poprithms::common::multiout::OpTraversal;
 using poprithms::common::multiout::OpTraversals;
 using poprithms::common::multiout::OutIndex;
 using poprithms::common::multiout::OutIndices;
+using poprithms::util::StringColumn;
+using poprithms::util::StringColumns;
 using program::distributed::CodeLocation;
 
 /**
@@ -291,11 +293,21 @@ public:
   /**
    * The columns of the attributes specific to common::compute::Ops.
    * */
-  std::vector<poprithms::util::StringColumn>
-  getComputeColumns(const OpIds &,
-                    const poprithms::util::StringColumn::Parameters &) const;
+  StringColumns getComputeColumns(const OpIds &,
+                                  const StringColumn::Parameters &) const;
 
-  void appendOpColumns(std::ostream &, const OpIds &) const final;
+  /**
+   * The columns of all the attributes of the ops in #opIds.
+   * */
+  std::vector<StringColumn>
+  getAllColumns(const OpIds &, const StringColumn::Parameters &) const;
+
+  /**
+   * Default parameters for formatting the summary string of this graph.
+   * */
+  StringColumn::Parameters defaultStringColumnParams() const;
+
+  void appendOpColumns(std::ostream &ost, const OpIds &opIds) const final;
 
   bool hasDerivedRefs(const TensorId &tId) const {
     return op(tId.opId()).hasDerivedRefs(tId.outIndex());

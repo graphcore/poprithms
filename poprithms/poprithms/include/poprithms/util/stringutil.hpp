@@ -139,6 +139,12 @@ struct StringColumn {
     return es;
   }
 
+  /**
+   * If there are 2 entries which are different, then return false. Otherwise
+   * return true.
+   * */
+  bool entriesAllIdentical() const;
+
 private:
   std::string title_;
   std::vector<std::string> entries_;
@@ -146,6 +152,8 @@ private:
   uint64_t width_;
   Align align_;
 };
+
+using StringColumns = std::vector<StringColumn>;
 
 /**
  * Return a string of aligned columns, for example:
@@ -162,8 +170,46 @@ private:
  *     e0             foo
  *     averylongentry anotherEntry
  *
+ *
  * */
-std::string alignedColumns(const std::vector<StringColumn> &);
+std::string alignedColumns(const StringColumns &);
+
+/**
+ * An extension to the method #alignedColumns which omits all columns which
+ * have the same value (string) in every row. That is, 'mono-columns' are
+ * removed from the main table. For example, instead of the string
+ *
+ * """
+ *     title0 title1 title2 title3
+ *     ------ ------ ------ ------
+ *     a      d      f      g
+ *     b      e      f      g
+ *     c      e      f      g
+ * """
+ *
+ * The string returned by this method is,
+ *
+ * """
+ *     Entry title2 title3
+ *     ----- ------ ------
+ *     *     f      g
+ *
+ *     title0 title1
+ *     ------ ------
+ *     a      d
+ *     b      e
+ *     c      e
+ * """
+ *
+ * The first table summarizes the mono-columns, and the second (main) table
+ * contains all the columns which contain different values.
+ *
+ * \param rowThreshold If the number of rows is below this threshold, then
+ *        mono-columns are not removed from the main table.
+ *
+ * */
+std::string alignedColumnsWithMonoColumnsAbridged(const StringColumns &,
+                                                  uint64_t rowThreshold);
 
 /**
  * Some variadic string sugar

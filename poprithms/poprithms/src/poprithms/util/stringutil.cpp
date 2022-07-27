@@ -209,7 +209,74 @@ std::string withSpaceBeforeNewlineRemoved(const std::string &toSqueeze) {
 
 } // namespace
 
-std::string alignedColumns(const std::vector<StringColumn> &scs) {
+bool StringColumn::entriesAllIdentical() const {
+
+  // Impossible to have 2 entries which are different if there are 0 or 1
+  // entries only:
+  if (entries_.size() < 2) {
+    return true;
+  }
+
+  // Compare all entries to the first entry. If there is a difference, return
+  // false.
+  auto &&e0 = entries_[0];
+  return std::all_of(entries_.cbegin() + 1,
+                     entries_.cend(),
+                     [&e0](const auto &e) { return e == e0; });
+}
+
+std::string alignedColumnsWithMonoColumnsAbridged(const StringColumns &scs,
+                                                  uint64_t rowThreshold) {
+
+  if (scs.empty()) {
+    return "";
+  }
+
+  auto &&sc0 = scs[0];
+
+  if (rowThreshold < 2) {
+    std::ostringstream oss;
+    oss << "Row threshold must be at least 2, but it is " << rowThreshold
+        << ".";
+    throw error(oss.str());
+  }
+
+  if (sc0.nEntries() < rowThreshold) {
+    return alignedColumns(scs);
+  }
+
+  StringColumns nonRepeatingCols;
+  StringColumns repeatingCols{StringColumn(
+      "Entry", {"*"}, '-', StringColumn::Align::Left, 100, false)};
+
+  for (const auto &sc : scs) {
+    if (!sc.entriesAllIdentical() || sc.nEntries() < 2) {
+      nonRepeatingCols.push_back(sc);
+    } else {
+      if (!sc.entry(0).empty()) {
+        repeatingCols.push_back(StringColumn(sc.title(),
+                                             {sc.entry(0)},
+                                             sc.delimiter(),
+                                             sc.align(),
+                                             100,
+                                             false));
+      }
+    }
+  }
+
+  std::ostringstream oss;
+
+  if (repeatingCols.size() > 1) {
+    oss << alignedColumns(repeatingCols);
+    oss << "\n";
+  }
+
+  oss << alignedColumns(nonRepeatingCols);
+
+  return oss.str();
+}
+
+std::string alignedColumns(const StringColumns &scs) {
 
   if (scs.empty()) {
     return "";
@@ -231,7 +298,7 @@ std::string alignedColumns(const std::vector<StringColumn> &scs) {
                                        >> &cols) {
         std::vector<std::vector<std::string>> colSplits;
 
-        // the maximum (over colums) of the number of rows an entry is plsit
+        // the maximum (over colums) of the number of rows an entry is split
         // over. If abridgeToSingleRow is true, then this is always 1.
         uint64_t maxnRows{0};
 

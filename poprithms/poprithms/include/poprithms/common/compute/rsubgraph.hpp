@@ -225,6 +225,11 @@ public:
       const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &ins,
       const std::vector<TensorIds> &completeOuts);
 
+  /**
+   * Append a summary of this sub-graph to #ost.
+   **/
+  void append(std::ostream &ost) const;
+
 protected:
   const Graph &graph() const { return *pGraph_; }
   Graph &graph() { return *pGraph_; }

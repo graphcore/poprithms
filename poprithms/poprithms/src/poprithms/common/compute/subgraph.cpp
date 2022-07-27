@@ -1,5 +1,6 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
+#include <ostream>
 #include <sstream>
 #include <unordered_set>
 
@@ -321,6 +322,13 @@ OpId BaseSubGraph::switchAllOut(
   }
 
   return switchOp(callees, condition, ins, completeOuts, unmergedOuts);
+}
+
+void BaseSubGraph::append(std::ostream &ost) const {
+  ost << util::alignedColumnsWithMonoColumnsAbridged(
+      graph().getAllColumns(graph().opIds(id()),
+                            graph().defaultStringColumnParams()),
+      3);
 }
 
 } // namespace compute
