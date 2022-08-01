@@ -28,6 +28,8 @@ include(EnableCompilerWarnings)
 
 add_subdirectory(autodiff)
 
+add_subdirectory(coloring)
+
 add_subdirectory(schedule)
 
 add_subdirectory(compute)

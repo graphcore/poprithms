@@ -234,6 +234,7 @@ add_library(poprithms-schedule-other SHARED
 )
 
 
+
 set(outline_linear_sources
   ${src_dir}/outline/linear/error.cpp
   ${src_dir}/outline/linear/graph.cpp
@@ -246,6 +247,15 @@ add_library(poprithms-outline-objlib OBJECT ${outline_linear_sources})
 add_library(poprithms-outline SHARED
   $<TARGET_OBJECTS:poprithms-outline-objlib>
   $<TARGET_OBJECTS:poprithms-schedule-other-objlib>
+  $<TARGET_OBJECTS:poprithms-util-objlib>
+)
+
+set(coloring_sources
+  ${src_dir}/coloring/error.cpp
+)
+add_library(poprithms-coloring-objlib OBJECT ${coloring_sources})
+add_library(poprithms-coloring SHARED
+  $<TARGET_OBJECTS:poprithms-coloring-objlib>
   $<TARGET_OBJECTS:poprithms-util-objlib>
 )
 
@@ -451,6 +461,7 @@ add_library(poprithms-memory-unwind SHARED
 
 add_library(poprithms SHARED 
   $<TARGET_OBJECTS:poprithms-autodiff-objlib>
+  $<TARGET_OBJECTS:poprithms-coloring-objlib>
   $<TARGET_OBJECTS:poprithms-common-multiout-objlib>
   $<TARGET_OBJECTS:poprithms-common-schedulable-objlib>
   $<TARGET_OBJECTS:poprithms-common-compute-objlib>
@@ -483,6 +494,8 @@ foreach(tgt IN ITEMS
   poprithms-schedule-other
   poprithms-outline-objlib
   poprithms-outline
+  poprithms-coloring-objlib
+  poprithms-coloring
   poprithms-autodiff-objlib
   poprithms-autodiff
   poprithms-memory-nest-objlib
