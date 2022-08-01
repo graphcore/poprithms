@@ -6,6 +6,8 @@
 
 #include <poprithms/common/compute/ihostrunner.hpp>
 #include <poprithms/common/compute/op.hpp>
+#include <poprithms/common/multiout/skiptraversal.hpp>
+#include <poprithms/common/multiout/traversal.hpp>
 #include <poprithms/program/callstack/copyin.hpp>
 #include <poprithms/program/callstack/copyout.hpp>
 #include <poprithms/program/callstack/stackedio.hpp>
@@ -252,12 +254,19 @@ public:
 
   /**
    * A method for ops with callees, that do not have loops. It determines, for
-   * such as op #wc, if a gradient at the output index #outIndex can propagate
-   * all the way to the input index #inIndex.
+   * such an op #wc, if it is possible to traverse from output index #outIndex
+   * to input index #inIndex according to the traversal condition #c.
+   *
+   * For example, the condition #c might return true if an op is
+   * differentiable. In this case, the method checks if the gradient at the
+   * output index #outIndex can propagate all the way to the input index
+   * #inIndex.
    * */
-  static bool nonRepeatGradientPropagates(const WithCallees &wc,
-                                          OutIndex outIndex,
-                                          InIndex inIndex);
+  template <class Condition>
+  static bool nonRepeatPropagates(const WithCallees &wc,
+                                  OutIndex outIndex,
+                                  InIndex inIndex,
+                                  const Condition &c);
 
 private:
   /**
@@ -404,6 +413,8 @@ private:
   void hostRun(const IHostRunner &) const final;
 
   bool gradientPropagates(OutIndex, InIndex) const final;
+
+  bool isValueDependent(InIndex, OutIndex) const final;
 };
 
 /**
@@ -588,6 +599,8 @@ private:
   // gradient can propagate from #o to #i.
   bool gradientPropagates(OutIndex, InIndex) const final;
 
+  bool isValueDependent(InIndex, OutIndex) const final;
+
   // Outputs are new allocations, so there is no input-output aliasing.
   bool aliases(InIndex, OutIndex) const final { return false; }
 
@@ -719,6 +732,8 @@ private:
   bool withCalleesTypeSpecificEqualTo(const Op &) const final { return true; }
 
   void withCalleesTypeSpecificAssertValid() const final;
+
+  bool isValueDependent(InIndex, OutIndex) const final;
 };
 
 } // namespace compute

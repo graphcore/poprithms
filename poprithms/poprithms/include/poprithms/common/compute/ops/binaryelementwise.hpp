@@ -126,6 +126,11 @@ private:
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseOutplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -154,6 +159,11 @@ private:
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseInplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -172,6 +182,11 @@ private:
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseOutplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -203,6 +218,11 @@ private:
   }
   InIndices autodiffRequiredIns() const final { noInplaceAutodiff(); }
   OutIndices autodiffRequiredOuts() const final { noInplaceAutodiff(); }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -232,6 +252,11 @@ private:
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseInplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -251,6 +276,11 @@ private:
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseOutplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -270,6 +300,11 @@ private:
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseOutplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Pow_ final : public BinaryElementwiseInplace_ {
@@ -298,6 +333,11 @@ private:
 
   void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
   void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -347,6 +387,11 @@ private:
   void computeDerivedVerifyValid() const final {
     simpleBooleanBinaryElementwiseInplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on the input values of both inputs.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -363,6 +408,11 @@ private:
   void computeDerivedVerifyValid() const final {
     simpleBooleanBinaryElementwiseInplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on the input values of both inputs.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -375,7 +425,14 @@ class Sub final
 public:
   Sub(const State &s) : Attributeless(s) {}
   static constexpr const char *OpTypeName{"Sub"};
+
+private:
   void compute(const HostTensors &, const HostTensors &) const final;
+
+  /**
+   * The output value depends on the input values of both inputs.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseOutplaceVerifyValid();
@@ -393,7 +450,14 @@ class Sub_ final
 public:
   Sub_(const State &s) : Attributeless(s) {}
   static constexpr const char *OpTypeName{"Sub_"};
+
+private:
   void compute(const HostTensors &, const HostTensors &) const final;
+
+  /**
+   * The output value depends on the input values of both inputs.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseInplaceVerifyValid();
@@ -418,6 +482,8 @@ class Remainder final
 public:
   Remainder(const State &s) : Attributeless(s) {}
   static constexpr const char *OpTypeName = "Remainder";
+
+private:
   void compute(const HostTensors &ins, const HostTensors &outs) const final {
     outs[0].update_(ins[0].mod(ins[1]));
   }
@@ -425,6 +491,11 @@ public:
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseOutplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on the input values of both inputs.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -438,9 +509,15 @@ public:
   Remainder_(const State &s) : Attributeless(s) {}
   static constexpr const char *OpTypeName = "Remainder_";
 
+private:
   void compute(const HostTensors &ins, const HostTensors &) const final {
     ins[0].mod_(ins[1]);
   }
+
+  /**
+   * The output value depends on the input values of both inputs.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseInplaceVerifyValid();
@@ -472,6 +549,15 @@ public:
   static InIndex Source() { return CopyFromSourceIndex; }
   TensorId sourceId() const { return inTensorId(Source()); }
 
+private:
+  /**
+   * The value of the output is independent of the value at input index
+   * #Destiniation.
+   * */
+  bool isValueDependent(InIndex i, OutIndex) const final {
+    return i == Source();
+  }
+
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseInplaceVerifyValid();
   }
@@ -489,9 +575,16 @@ class Min final : public Attributeless<
 public:
   Min(const State &s) : Attributeless(s) {}
   static constexpr const char *OpTypeName = "Min";
+
+private:
   void compute(const HostTensors &ins, const HostTensors &outs) const final {
     outs[0].update_(ins[0].min(ins[1]));
   }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseOutplaceVerifyValid();
@@ -508,6 +601,8 @@ class Min_ final : public Attributeless<
 public:
   Min_(const State &s) : Attributeless(s) {}
   static constexpr const char *OpTypeName = "Min_";
+
+private:
   void compute(const HostTensors &ins, const HostTensors &outs) const final {
     outs[0].update_(ins[0].min(ins[1]));
   }
@@ -515,6 +610,11 @@ public:
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseInplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -531,9 +631,15 @@ public:
     outs[0].update_(ins[0].max(ins[1]));
   }
 
+private:
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseOutplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -546,6 +652,8 @@ class Max_ final : public Attributeless<
 public:
   Max_(const State &s) : Attributeless(s) {}
   static constexpr const char *OpTypeName = "Max_";
+
+private:
   void compute(const HostTensors &ins, const HostTensors &outs) const final {
     outs[0].update_(ins[0].max(ins[1]));
   }
@@ -553,6 +661,11 @@ public:
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseInplaceVerifyValid();
   }
+
+  /**
+   * The output value depends on both input values.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 } // namespace compute

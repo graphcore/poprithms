@@ -1,7 +1,7 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
-#ifndef CEDAR_COMPUTE_MACHINE_AUTODIFF_MACHINEAUTODIFFCONTROLER_HPP
-#define CEDAR_COMPUTE_MACHINE_AUTODIFF_MACHINEAUTODIFFCONTROLER_HPP
+#ifndef POPRITHMS_COMMON_COMPUTE_AUTODIFF_GUIDEGRAPHINFO_HPP
+#define POPRITHMS_COMMON_COMPUTE_AUTODIFF_GUIDEGRAPHINFO_HPP
 
 #include <poprithms/autodiff/automatic/gradinfos.hpp>
 #include <poprithms/autodiff/automatic/requiredids.hpp>
@@ -63,11 +63,16 @@ public:
   void assertValidPaths(const TensorIds &targets,
                         const TensorIds &gradsProvidedFor) const final;
 
-  /// VarInits cannot be rerun.
-  void assertCanBeRerun(OpId opId) const final;
+  /// VarInits cannot be rerun if their output value is required.
+  void assertCanBeRerun(OpId opId, bool valueRequired) const final;
 
   /// Fixed point tensors cannot have gradients.
   void assertCanHaveGrad(const TensorId &tId) const final;
+
+  bool isValueDependent(const OpTraversal &ot) const final {
+    return graph_.computeOp(ot.opId()).isValueDependent(ot.inIndex(),
+                                                        ot.outIndex());
+  }
 
 private:
   const Graph &graph_;

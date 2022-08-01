@@ -79,6 +79,10 @@ public:
 
 private:
   [[noreturn]] void invalidInIndex(InIndex) const;
+
+  bool isValueDependent(InIndex i, OutIndex) const final {
+    invalidInIndex(i);
+  }
 };
 
 /**

@@ -34,39 +34,6 @@ template <typename T> void assertSizes(const T &src, const T &dst) {
 
 using poprithms::program::callstack::CopyIns;
 
-bool WithCallees::nonRepeatGradientPropagates(const WithCallees &wc,
-                                              OutIndex outIndex,
-                                              InIndex inIndex) {
-
-  // This is an assumption. An example of this is the #condition input to a
-  // switch op, which is not differentiatable. If in the future there's an op
-  // with callees and an input which is not copied to a callee which IS
-  // differentiable, we'll need to reconsider this. It is hard to imagine such
-  // an op.
-  if (!wc.isCopyToCalleeInIndex(inIndex)) {
-    return false;
-  }
-
-  const auto ci = wc.dstInCallee(inIndex).calleeIndex();
-
-  if (!wc.outs().hasValue(outIndex, ci)) {
-    return false;
-  }
-
-  // See if there's a differentiable path from the output at #outIndex to
-  // input at #inIndex.
-  const auto inDst  = wc.dstInCallee(inIndex).tId();
-  const auto outSrc = wc.outs().outSource(outIndex, ci);
-
-  const auto isDifferentiablePath =
-      poprithms::common::multiout::isFwdReachable(
-          wc.computeGraph(), {inDst}, outSrc, [&wc](const OpTraversal &x) {
-            return wc.computeGraph().gradientPropagates(x);
-          });
-
-  return isDifferentiablePath;
-}
-
 bool WithCallees::isCallee(SubGraphId sgId) const {
   return std::find(callees_.cbegin(), callees_.cend(), sgId) !=
          callees_.cend();
@@ -561,8 +528,16 @@ void Call::withCalleesTypeSpecificAssertValid() const {
   }
 }
 
-bool Call::gradientPropagates(OutIndex outIndex, InIndex inIndex) const {
-  return nonRepeatGradientPropagates(*this, outIndex, inIndex);
+bool Call::gradientPropagates(OutIndex o, InIndex i) const {
+  return nonRepeatPropagates(*this, o, i, [this](const OpTraversal &x) {
+    return computeGraph().gradientPropagates(x);
+  });
+}
+
+bool Call::isValueDependent(InIndex i, OutIndex o) const {
+  return nonRepeatPropagates(*this, o, i, [this](const OpTraversal &x) {
+    return computeGraph().isValueDependent(x);
+  });
 }
 
 OptionalTensorIds
@@ -700,6 +675,14 @@ std::set<TensorId> Repeat::visitedBwdFrom(const TensorIds &tIds,
   using namespace poprithms::common::multiout;
   return depthFirstBwdWithSkips(
       *this, computeGraph(), tIds, a, repeatCount());
+}
+
+bool Repeat::isValueDependent(InIndex i, OutIndex o) const {
+  auto accept = [this](const auto &x) {
+    return computeGraph().isValueDependent(x);
+  };
+  auto visited = visitedFwdFrom(inDsts(InIndices{i}), accept);
+  return visited.count(outs().outSource(o, CalleeIndex(0))) != 0;
 }
 
 bool Repeat::gradientPropagates(OutIndex outIndex, InIndex inIndex) const {
@@ -1128,6 +1111,21 @@ void Switch::withCalleesTypeSpecificAssertValid() const {
   }
 }
 
+template <class Condition>
+bool WithCallees::nonRepeatPropagates(const WithCallees &wc,
+                                      OutIndex outIndex,
+                                      InIndex inIndex,
+                                      const Condition &c) {
+  const auto ci = wc.dstInCallee(inIndex).calleeIndex();
+  if (!wc.outs().hasValue(outIndex, ci)) {
+    return false;
+  }
+  const auto inDst  = wc.dstInCallee(inIndex).tId();
+  const auto outSrc = wc.outs().outSource(outIndex, ci);
+  return poprithms::common::multiout::isFwdReachable(
+      wc.computeGraph(), {inDst}, outSrc, c);
+}
+
 OptionalTensorIds Switch::growInGrads(
     Graph &m,
     const poprithms::autodiff::core::ToGradGraph &toGradGraph,
@@ -1145,8 +1143,22 @@ OptionalTensorIds Switch::growInGrads(
       conditionId());
 }
 
-bool Switch::gradientPropagates(OutIndex outIndex, InIndex inIndex) const {
-  return WithCallees::nonRepeatGradientPropagates(*this, outIndex, inIndex);
+bool Switch::gradientPropagates(OutIndex o, InIndex i) const {
+  if (!isCopyToCalleeInIndex(i)) {
+    return false;
+  }
+  return nonRepeatPropagates(*this, o, i, [this](const OpTraversal &x) {
+    return computeGraph().gradientPropagates(x);
+  });
+}
+
+bool Switch::isValueDependent(InIndex i, OutIndex o) const {
+  if (!isCopyToCalleeInIndex(i)) {
+    return true;
+  }
+  return nonRepeatPropagates(*this, o, i, [this](const OpTraversal &x) {
+    return computeGraph().isValueDependent(x);
+  });
 }
 
 Switch::Switch(const State &s,

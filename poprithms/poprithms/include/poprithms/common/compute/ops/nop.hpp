@@ -31,6 +31,7 @@ public:
   TensorId rootRef(OutIndex) const final { invalid(); }
   void resetRootRef(OutIndex, const TensorId &) { invalid(); }
   bool gradientPropagates(OutIndex, InIndex) const final { invalid(); }
+  bool isValueDependent(InIndex, OutIndex) const final { invalid(); }
 
   /** There is no computation to run for a no-op at runtime. */
   bool isInitializingOp() const final { return true; }

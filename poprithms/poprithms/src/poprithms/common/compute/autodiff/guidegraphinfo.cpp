@@ -19,8 +19,14 @@ void GuideGraphInfo::extendAutodiffRequiredTensors(
   graph_.computeOp(id).extendAutodiffRequiredTensors(mar);
 }
 
-void GuideGraphInfo::assertCanBeRerun(OpId opId) const {
-  if (graph_.isVarInit(opId)) {
+void GuideGraphInfo::assertCanBeRerun(OpId opId, bool valueRequired) const {
+  // Example of valueRequired = false, where x can be cloned:
+  //   x <- varInit();
+  //   w <- varInit({100,100});
+  //   z <- varInit({100,100});
+  //   foo <- z.copyFrom_(x.expand_({100,100}))
+  //   bar <- w @ foo.
+  if (valueRequired && graph_.isVarInit(opId)) {
     std::ostringstream oss;
     oss << "\nFailure in assertCanBeRerun for "
         << "the VarInit op with OpId " << opId << ":\n";

@@ -34,6 +34,8 @@ public:
 private:
   MatMulOptions matMulOptions_;
 
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
+
   // Confirm that inputs are rank-3, and that the inputs have the same type.
   void computeDerivedVerifyValid() const final;
 

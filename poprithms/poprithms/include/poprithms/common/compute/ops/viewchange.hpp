@@ -30,6 +30,8 @@ public:
   void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
   void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
 
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
+
   /**
    * This op does no computation, and is an 'initializing op' in this sense.
    * */

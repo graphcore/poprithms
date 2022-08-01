@@ -66,6 +66,8 @@ public:
     return true;
   }
 
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
+
   void resetRootRef(OutIndex, const TensorId &) final { invalid(); }
 
   bool isInitializingOp() const final { return false; }

@@ -58,7 +58,7 @@ public:
     return op(id.opId()).consumers.at(id.outIndex().get());
   }
 
-  void assertCanBeRerun(OpId id) const final;
+  void assertCanBeRerun(OpId id, bool) const final;
 
   // this method is useful in projects where numerical types are used:
   // integral tensors can't have grads in general.
@@ -69,6 +69,8 @@ public:
   void assertValidPaths(const TensorIds &, const TensorIds &) const final {}
 
   uint64_t nOps() const { return ops.size(); }
+
+  bool isValueDependent(const OpTraversal &) const final { return true; }
 
   void append(std::ostream &) const;
 };

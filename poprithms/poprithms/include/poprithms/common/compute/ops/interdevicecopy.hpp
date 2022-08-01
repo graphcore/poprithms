@@ -41,6 +41,14 @@ public:
   Shape sourceShape() const { return inShape(Source()); }
 
   /**
+   * The value of the output only depends on the source of the copy. It is
+   * independent of the value of input which is the destination of the copy.
+   * */
+  bool isValueDependent(InIndex i, OutIndex) const final {
+    return i == Source();
+  }
+
+  /**
    * The destination of the copy.
    * */
   static constexpr int DestinationIndex{1};

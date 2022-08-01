@@ -42,6 +42,9 @@ add_common_test(poprithms_common_compute_transform_sin_example_0
 add_common_test(poprithms_common_compute_switch_0
                                          switch_0.cpp)
 
+add_common_test(poprithms_common_compute_value_dependence_0
+                                         value_dependence_0.cpp)
+
 add_common_test(poprithms_common_compute_train_through_call_0 
                                          train_through_call_0.cpp)
 

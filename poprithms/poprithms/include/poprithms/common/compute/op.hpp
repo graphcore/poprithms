@@ -16,6 +16,7 @@
 #include <poprithms/common/multiout/op.hpp>
 #include <poprithms/common/multiout/opid.hpp>
 #include <poprithms/common/multiout/optionaltensorid.hpp>
+#include <poprithms/common/multiout/optraversal.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/common/schedulable/op.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
@@ -45,6 +46,7 @@ using poprithms::common::multiout::InIndex;
 using poprithms::common::multiout::OpId;
 using poprithms::common::multiout::OpIds;
 using poprithms::common::multiout::OptionalTensorIds;
+using poprithms::common::multiout::OpTraversal;
 using poprithms::common::multiout::OutIndex;
 using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
@@ -736,6 +738,14 @@ public:
               const ToGradGraph &toGradGraph,
               const poprithms::autodiff::automatic::GradInfos &gradInfos,
               SubGraphId toExtend) const = 0;
+
+  /**
+   * If the value of the output at index #o is independent of the value of
+   * the input at index #i, then false is returned. Otherwise true is
+   * returned. An example of where the output is independent of the input is
+   * if this op sets the input to zero.
+   * */
+  virtual bool isValueDependent(InIndex i, OutIndex o) const = 0;
 
 protected:
   /**

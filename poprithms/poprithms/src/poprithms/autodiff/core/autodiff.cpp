@@ -259,8 +259,13 @@ std::string Autodiff::genGradInsName(OpId opId,
   auto sortedIs = is;
   std::sort(sortedIs.begin(), sortedIs.end());
   std::ostringstream oss;
-  oss << "grad-of-op-" << opId << "-inputs-";
-  poprithms::util::append(oss, sortedIs);
+  oss << "grad-of-op-" << opId;
+  if (sortedIs.size() > 1) {
+    oss << "-inputs-";
+    poprithms::util::append(oss, sortedIs);
+  } else {
+    oss << "-input-" << sortedIs[0];
+  }
   return oss.str();
 }
 

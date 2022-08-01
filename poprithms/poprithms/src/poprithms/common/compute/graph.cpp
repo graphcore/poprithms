@@ -804,6 +804,10 @@ bool Graph::gradientPropagates(const OpTraversal &ot) const {
   return props;
 }
 
+bool Graph::isValueDependent(const OpTraversal &ot) const {
+  return op(ot.opId()).isValueDependent(ot.inIndex(), ot.outIndex());
+}
+
 bool Graph::gradientPropagates(const TensorId &id) const {
   for (uint64_t i = 0; i < nInTensors(id.opId()); ++i) {
     if (gradientPropagates(

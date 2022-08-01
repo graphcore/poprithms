@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
+#include <set>
+
 #include <autodiff/autodiff/error.hpp>
 
 #include <poprithms/autodiff/guide/graphinfo.hpp>
@@ -117,11 +119,24 @@ std::set<OpId> Guide::getOps(const OpTraversals &traversals) {
 
 void Guide::setNonGradsToRecompute() {
 
+  enum class ValNeeded { Yes, No };
+  struct DualTensorId {
+    TensorId tId;
+    bool valueNeeded{false};
+    bool operator<(const DualTensorId &rhs) const { return t() < rhs.t(); }
+    bool operator==(const DualTensorId &rhs) const { return t() == rhs.t(); }
+    std::tuple<TensorId, bool> t() const { return {tId, valueNeeded}; }
+  };
+  using DualTensorIds = std::vector<DualTensorId>;
+
   // Starting with a stack consisting of all non-grad tensors which must be
   // available at some point for computing gradients,
-  TensorIds stack_{nonGradsForAutodiff_.cbegin(),
-                   nonGradsForAutodiff_.cend()};
-  std::set<TensorId> visited = nonGradsForAutodiff_;
+  DualTensorIds stack_;
+  for (auto x : nonGradsForAutodiff_) {
+    stack_.push_back({x, true});
+  }
+
+  std::set<DualTensorId> visited{stack_.cbegin(), stack_.cend()};
 
   while (!stack_.empty()) {
 
@@ -130,16 +145,27 @@ void Guide::setNonGradsToRecompute() {
     // inputs to its creator might also need to be recomputed, place them on
     // the stack. The stack is processed with a depth first (towards
     // creators) search until empty.
-    auto required = stack_.back();
+    auto tId       = stack_.back().tId;
+    auto opId      = tId.opId();
+    auto outIndex  = tId.outIndex();
+    auto valNeeded = stack_.back().valueNeeded;
+
     stack_.pop_back();
 
-    if (!generator.isCheckpoint(required)) {
-      graphInfo.assertCanBeRerun(required.opId());
-      nonGradsToRecompute_.insert(required);
-      for (const auto &inId : graphInfo.inTensorIds(required.opId())) {
-        if (visited.count(inId) == 0) {
-          stack_.push_back(inId);
-          visited.insert(inId);
+    if (!generator.isCheckpoint(tId)) {
+      graphInfo.assertCanBeRerun(opId, valNeeded);
+      nonGradsToRecompute_.insert(tId);
+      for (InIndex i = 0; i < graphInfo.nInTensors(opId); ++i) {
+
+        auto inId = graphInfo.inTensorId(opId, i);
+
+        // The input value is needed if the output is needed and the value
+        // dependence is 'carried' by the op.
+        bool vn = valNeeded &&
+                  graphInfo.isValueDependent(OpTraversal(i, opId, outIndex));
+        if (visited.count({inId, vn}) == 0) {
+          stack_.push_back({inId, vn});
+          visited.insert({inId, vn});
         }
       }
     }

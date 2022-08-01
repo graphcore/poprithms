@@ -37,7 +37,7 @@ bool Reduce::computeTypeSpecificEqualTo(const compute::Op &rhs) const {
 
 std::string Reduce::typeString() const {
   std::ostringstream oss;
-  oss << "Reduce" << cop() << "(dimensions=" << dimensions() << ")";
+  oss << "Reduce" << cop() << "(dims=" << dimensions() << ")";
   return oss.str();
 }
 void Reduce::compute(const HostTensors &ins, const HostTensors &outs) const {

@@ -97,9 +97,22 @@ public:
   /**
    * For certain ops, such as a 'variable initializer', it might not make
    * sense to rerun them to recompute their outputs. For improved debugging,
-   * this method should throw an error for such ops.
+   * this method will throw an error when there's an attempt to clone #opId
+   * for recompute.
+   *
+   * There is a case where 'variable initializer' ops can be cloned for
+   * recomputation. In particular, if the variable's value is copied to, or
+   * set to a new value, before it used for gradient computation. This is the
+   * case when #valueRequired is false.
    * */
-  virtual void assertCanBeRerun(OpId) const = 0;
+  virtual void assertCanBeRerun(OpId opId, bool valueRequired) const = 0;
+
+  /**
+   * \return true if the value of the output depends on the value of the
+   * input. This is the case for most ops but there exceptions such as copy
+   * ops and ops which set the input tensor to zero.
+   * */
+  virtual bool isValueDependent(const OpTraversal &) const = 0;
 
   /**
    * Certain tensors, such an tensors of integral types, it might never make

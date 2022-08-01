@@ -39,6 +39,8 @@ public:
     return std::unique_ptr<CustomOp>(new CustomOp(s));
   }
 
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
+
   TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
 
   void computeDerivedVerifyValid() const final {}

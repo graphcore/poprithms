@@ -72,6 +72,8 @@ private:
   bool aliases(InIndex i, OutIndex) const final { return i == aliasIndex(); }
   bool modifies(InIndex i) const final { return aliases(i, OutIndex(0)); }
 
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
+
   void runSim(ISimState &ss) const final {
     runReplicatedSim(ss.simTensorMap());
   }

@@ -20,6 +20,7 @@ namespace compute {
  * are not removed ('squeezed').
  * */
 class Reduce : public WithoutCalleesTensorCentric {
+
 public:
   Reduce(const State &s, const Dimensions &dims)
       : WithoutCalleesTensorCentric(s), dims_(dims) {}
@@ -87,6 +88,8 @@ private:
   void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
   void computeDerivedVerifyValid() const final;
   void compute(const HostTensors &ins, const HostTensors &outs) const final;
+
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 
   // The dimensions to reduce:
   Dimensions dims_;
@@ -173,6 +176,8 @@ public:
 class ReduceAcrossReplicas : public WithoutCalleesTensorCentric {
 public:
   ReduceAcrossReplicas(const Op::State &s) : WithoutCalleesTensorCentric(s) {}
+
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 
 private:
   /**

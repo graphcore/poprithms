@@ -61,7 +61,7 @@ void TestGraphInfo::extendAutodiffRequiredTensors(
   }
 }
 
-void TestGraphInfo::assertCanBeRerun(OpId id) const {
+void TestGraphInfo::assertCanBeRerun(OpId id, bool) const {
   if (nInTensors(id) == 0) {
     throw poprithms::test::error(
         "var creators (ops without inputs) cannot be rerun");

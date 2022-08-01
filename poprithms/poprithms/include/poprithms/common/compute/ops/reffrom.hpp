@@ -45,6 +45,7 @@ public:
   bool aliases(InIndex, OutIndex) const final { invalid(); }
   bool modifies(InIndex) const final { invalid(); }
   bool gradientPropagates(OutIndex, InIndex) const final { invalid(); }
+  bool isValueDependent(InIndex, OutIndex) const final { invalid(); }
 
   Shape shape() const { return outShape(0); }
 

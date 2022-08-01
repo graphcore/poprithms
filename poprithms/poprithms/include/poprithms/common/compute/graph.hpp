@@ -598,6 +598,14 @@ public:
   bool gradientPropagates(const OpTraversal &ot) const;
 
   /**
+   * If the value of the output of #ot is independent of the value of the
+   * input of #ot, then false is returned. Otherwise true is returned.
+   * An example of where the output is independent of the input is an op which
+   * set all values of the input tensor to zero.
+   * */
+  bool isValueDependent(const OpTraversal &ot) const;
+
+  /**
    * Recall that a TensorId is a pair containing (1) the id of the op which
    * creates the tensor and (2) the output index of the tensor. An OpTraversal
    * is a triplet, which adds to (1) and (2) and input index.

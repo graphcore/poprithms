@@ -135,6 +135,8 @@ public:
    * */
   HostTensor value() const { return val_; }
 
+  bool isValueDependent(InIndex, OutIndex) const final { return false; }
+
 private:
   std::string typeString() const final;
   UpOp cloneWithState(const State &s) const final;
@@ -162,7 +164,6 @@ public:
 
 private:
   void growAliasMapper(MemoryAliasMapper &mam) const final {
-    // create new variables for the outputs.
     createVariables(mam);
   }
 
@@ -194,6 +195,11 @@ private:
   void unaryCompute(const HostTensor &, const HostTensor &) const final;
 
   OutType outType() const final { return OutType::Other; }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 // An outplace op which does not propagate a non-zero gradient to the input.
@@ -226,6 +232,11 @@ public:
 private:
   void unaryCompute(const HostTensor &i, const HostTensor &o) const final;
   OutType outType() const final { return OutType::Preserving; }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Log_ final
@@ -238,6 +249,11 @@ public:
 private:
   void unaryCompute(const HostTensor &, const HostTensor &o) const final;
   std::string whyNoAutodiff() const final;
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Exp final
@@ -254,6 +270,11 @@ private:
     o.update_(i.exp());
   }
   OutType outType() const final { return OutType::Preserving; }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Exp_ final
@@ -269,6 +290,11 @@ private:
   void unaryCompute(const HostTensor &i, const HostTensor &) const final {
     i.exp_();
   }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Neg final
@@ -285,6 +311,11 @@ private:
     o.update_(i.neg());
   }
   OutType outType() const final { return OutType::Preserving; }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Neg_ final
@@ -300,6 +331,11 @@ private:
   void unaryCompute(const HostTensor &i, const HostTensor &) const final {
     i.neg_();
   }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -319,6 +355,11 @@ private:
     o.update_(i.inverse());
   }
   OutType outType() const final { return OutType::Preserving; }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 /**
@@ -337,6 +378,11 @@ private:
   void unaryCompute(const HostTensor &i, const HostTensor &) const final {
     i.inverse_();
   }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Sqrt final
@@ -353,6 +399,11 @@ private:
     o.update_(i.sqrt());
   }
   OutType outType() const final { return OutType::Preserving; }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Sqrt_ final
@@ -368,6 +419,11 @@ private:
   void unaryCompute(const HostTensor &i, const HostTensor &) const final {
     i.sqrt_();
   }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Sin final : public Attributeless<UnaryElementwiseOutplace, Sin> {
@@ -391,6 +447,11 @@ private:
     return {gIns.input(0).cos() * gIns.gradOfOutput(0)};
   }
   OutType outType() const final { return OutType::Preserving; }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Sin_ final
@@ -404,6 +465,11 @@ private:
     o.sin_();
   }
   std::string whyNoAutodiff() const final { return nonMonotonicInplace(); }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Abs final : public Attributeless<UnaryElementwiseOutplace, Abs> {
@@ -423,6 +489,11 @@ private:
   }
 
   OutType outType() const final { return OutType::Preserving; }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Abs_ final
@@ -438,6 +509,11 @@ private:
   std::string whyNoAutodiff() const final {
     return UnaryElementwiseInplace_::nonMonotonicInplace();
   }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Cos final : public Attributeless<UnaryElementwiseOutplace, Cos> {
@@ -460,6 +536,11 @@ private:
     return {gIns.gradOfOutput(0).mul(gIns.input(0).sin()).neg()};
   }
   OutType outType() const final { return OutType::Preserving; }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Cos_ final
@@ -472,6 +553,11 @@ private:
   void unaryCompute(const HostTensor &, const HostTensor &o) const final {
     o.cos_();
   }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 
   std::string whyNoAutodiff() const final {
     return UnaryElementwiseInplace_::nonMonotonicInplace();
@@ -498,6 +584,11 @@ private:
   // Note that the output type is NOT a small integer. It is the same as the
   // input type.
   OutType outType() const final { return OutType::Preserving; }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 class Signum_ final
@@ -510,6 +601,11 @@ private:
   void unaryCompute(const HostTensor &i, const HostTensor &) const final {
     i.sign_();
   }
+
+  /**
+   * Output value depends on input value.
+   * */
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
 };
 
 } // namespace compute
