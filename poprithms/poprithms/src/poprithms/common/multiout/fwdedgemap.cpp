@@ -46,6 +46,16 @@ OpIds FwdEdgeMap::unpacked(const std::vector<uint64_t> &s_u64) const {
   return f;
 }
 
+std::vector<std::vector<uint64_t>> FwdEdgeMap::createBwdEdgesCompact() const {
+  std::vector<std::vector<uint64_t>> bwd(nOps());
+  for (uint64_t from = 0; from < nOps(); ++from) {
+    for (auto to : fwdEdgesCompact_.at(from)) {
+      bwd[to].push_back(from);
+    }
+  }
+  return bwd;
+}
+
 } // namespace multiout
 } // namespace common
 } // namespace poprithms

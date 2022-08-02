@@ -112,7 +112,7 @@ public:
    * \return The set of constraints required between ops to ensure that ops
    *         which modify their inputs do so after any other op which uses the
    *         modifier's input, or alias thereof. The edges returned are
-   *         forward contraints (map key before value).
+   *         forward constraints (map key before value).
    *
    * Example 1:
    * ---------

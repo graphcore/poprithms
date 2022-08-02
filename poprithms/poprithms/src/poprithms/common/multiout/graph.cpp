@@ -673,6 +673,20 @@ Graph::getMultioutColumns(const util::StringColumn::Parameters &p) const {
   return getMultioutColumns(opIds(), p);
 }
 
+std::string Graph::str(const TensorIds &tIds) const {
+  if (tIds.empty() ||
+      std::any_of(tIds.cbegin(), tIds.cend(), [this](auto &&tId) {
+        return this->op(tId.opId()).nOutTensors() != 1;
+      })) {
+    return util::getStr(tIds);
+  }
+
+  std::ostringstream oss;
+  oss << "ops=";
+  poprithms::util::append(oss, opIds(tIds));
+  return oss.str();
+}
+
 std::vector<util::StringColumn>
 Graph::getMultioutColumns(const OpIds &opIds,
                           const util::StringColumn::Parameters &p) const {
@@ -691,7 +705,7 @@ Graph::getMultioutColumns(const OpIds &opIds,
     opId[ti]      = std::to_string(i.get());
     opType[ti]    = op(i).typeString();
     name[ti]      = op(i).getName();
-    inTensors[ti] = util::getStr((op(i).inTensorIds()));
+    inTensors[ti] = str((op(i).inTensorIds()));
     for (uint64_t o = 0; o < op(i).nOutTensors(); ++o) {
       outIndex[ti]    = std::to_string(o);
       tensorShape[ti] = util::getStr(shape({i, o}).get());

@@ -315,6 +315,11 @@ public:
    * */
   void verifyOpsConnectedToThisGraph() const;
 
+  /**
+   * Summary of the tensor ids #tIds.
+   * */
+  std::string str(const TensorIds &tIds) const;
+
 protected:
   /**
    * Insert \a op into this Graph, and add it to the consumer lists of its

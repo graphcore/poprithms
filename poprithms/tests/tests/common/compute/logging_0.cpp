@@ -26,14 +26,14 @@ void checkAppearInScheduledOrder0() {
   (void)out;
 
   // clang-format off
-  std::vector<std::string> lines = {
-     "OpId  OpType   InTensors        Shape  Graph       NonDataIns  Device      Type",
-     "----  ------   ---------        -----  -----       ----------  ------      ----",
-     "0     VarInit  ()               ()     main(id=0)  ()          Host(id=0)  float32",
-     "1     VarInit  ()               ()     main(id=0)  ()          Host(id=0)  float32",
-     "3     Mul      ((op=0),(op=1))  ()     main(id=0)  ()          Host(id=0)  float32",
-     "2     Add      ((op=0),(op=1))  ()     main(id=0)  (3)         Host(id=0)  float32",
-     "4     Mul      ((op=2),(op=3))  ()     main(id=0)  ()          Host(id=0)  float32"};
+   std::vector<std::string> lines= {
+     "OpId  OpType   InTensors  Shape  Graph       NonDataIns  Device      Type",
+     "----  ------   ---------  -----  -----       ----------  ------      ----",
+     "0     VarInit  ()         ()     main(id=0)  ()          Host(id=0)  float32",
+     "1     VarInit  ()         ()     main(id=0)  ()          Host(id=0)  float32",
+     "3     Mul      ops=(0,1)  ()     main(id=0)  ()          Host(id=0)  float32",
+     "2     Add      ops=(0,1)  ()     main(id=0)  (3)         Host(id=0)  float32",
+     "4     Mul      ops=(2,3)  ()     main(id=0)  ()          Host(id=0)  float32"};
   // clang-format on
 
   std::ostringstream oss;

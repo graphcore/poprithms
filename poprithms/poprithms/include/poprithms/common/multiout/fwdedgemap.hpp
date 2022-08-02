@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_COMMON_MULTIOUT_FWDEDGEMAP_HPP
 #define POPRITHMS_COMMON_MULTIOUT_FWDEDGEMAP_HPP
 
+#include <map>
 #include <unordered_map>
 
 #include <poprithms/common/multiout/opid.hpp>
@@ -57,11 +58,33 @@ public:
     return fwdEdgesCompact_;
   }
 
+  /**
+   * The reverse edges of the forward edge map.
+   * */
+  std::vector<std::vector<uint64_t>> createBwdEdgesCompact() const;
+
+  OpIds outs(OpId opId) const {
+    return unpacked(fwdEdgesCompact().at(compactId(opId)));
+  }
+
   uint64_t nOps() const { return fwdEdgesCompact_.size(); }
 
   uint64_t compactId(OpId opId) const { return toCompact_.at(opId); }
 
   OpId opId(uint64_t compactId) const { return fromCompact_[compactId]; }
+
+  /**
+   * Convert a map with OpId keys to a map with the compact mappings of the
+   * OpIds.
+   * */
+  template <typename X>
+  std::map<uint64_t, X> getCompact(const std::map<OpId, X> &sparse) const {
+    std::map<uint64_t, X> dense;
+    for (const auto &iter : sparse) {
+      dense.insert({compactId(iter.first), iter.second});
+    }
+    return dense;
+  }
 
 private:
   // A map from original (non-contiguous) ids to the compact (contiguous)
