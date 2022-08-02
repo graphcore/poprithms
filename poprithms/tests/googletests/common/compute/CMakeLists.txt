@@ -12,7 +12,8 @@ function(add_gtest name source)
     GTest::gtest
     GTest::gmock
     GTest::gtest_main)
-  gtest_discover_tests(${name})
+  # Note that this is not needed as the test is added with ctest
+  #   gtest_discover_tests(${name})
   add_test(${name} ${name})
   target_include_directories(${name} PRIVATE ${POPRITHMS_MOCKS_DIR}/include)
 
