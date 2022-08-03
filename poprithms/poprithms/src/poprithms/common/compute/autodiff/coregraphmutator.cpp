@@ -39,6 +39,11 @@ TensorId CoreGraphMutator::sum(const TensorIds &ts) {
     throw error(
         "poprithms assured that there would be at least 1 tensor in the sum");
   }
+
+  if (ts.size() == 1) {
+    return ts[0];
+  }
+
   auto t0 = Tensor(ts.at(0), &graph_);
   for (uint64_t i = 1; i < ts.size(); ++i) {
     t0 = t0 + Tensor(ts.at(i), &graph_);

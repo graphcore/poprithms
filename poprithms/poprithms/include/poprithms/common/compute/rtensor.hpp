@@ -1239,6 +1239,57 @@ public:
   HostTensor randomInt32(int32_t low, int32_t upp, uint32_t seed) {
     return HostTensor::randomInt32(low, upp, shape(), seed);
   }
+  /**
+   * Copy slices of this remote tensor to ipu.
+   *
+   * This method perfoms a copy of data from the remote device on which this
+   * tensor is located, to the ipu on which the #indices tensor is located.
+   *
+   * Remote tensors must be rank-2, with dimension-0 being #repeats and
+   * dimension-1 being #numElements. The returned tensor is also rank-2, of
+   * shape (indices.size(), #numElements).
+   *
+   * \param indices a rank-1 integral ipu tensor.
+   */
+  T remoteToIpu(const RTensor<T> &indices) const;
+
+  /**
+   * This method can be called on remote tensors with dim(0)=1. It copies the
+   * tensor to the remote buffer's corresponding ipu. The destination has the
+   * same shape as this tensor.
+   * */
+  T remoteToIpu() const;
+
+  /**
+   * Update the values in this ipu tensor with values from the remote tensor
+   * #remoteTensor. Where #remoteTensor has shape (n0, S), this tensor has
+   * shape (n1, S), and #indices has shapee (n1), #indices maps rows in
+   * #remoteTensor to destination rows in this ipu tensor.
+   * */
+  T updateIpuFromRemote_(const RTensor<T> &remoteTensor,
+                         const RTensor<T> &indices) const;
+
+  /**
+   * The inverse of #updateIpuFromRemote_. All the shapes are identically
+   * defined, the only difference is that the copy is from ipu to remote.
+   * */
+  T updateRemoteFromIpu_(const RTensor<T> &ipuTensor,
+                         const RTensor<T> &indices) const;
+
+  /**
+   * Copy rows from this rank-2 ipu tensor to a remote tensor. The remote
+   * tensor created will have shape (nRepeats, dim(1)). The tensor #indices
+   * has shape (dim(0)) and it defines the rows of this ipu tensor to copy to
+   * the remote device.
+   * */
+  T ipuToRemote(const RTensor<T> &indices,
+                uint64_t nRepeats,
+                const RemoteOptions &) const;
+
+  /**
+   * The inverse of remoteToIpu.
+   * */
+  T ipuToRemote(const RemoteOptions &) const;
 
 protected:
   /**

@@ -43,11 +43,13 @@ using poprithms::common::multiout::ConsumptionIds;
 using poprithms::common::multiout::ContiguousInIndexSubset;
 using poprithms::common::multiout::ContiguousOutIndexSubset;
 using poprithms::common::multiout::InIndex;
+using poprithms::common::multiout::InIndices;
 using poprithms::common::multiout::OpId;
 using poprithms::common::multiout::OpIds;
 using poprithms::common::multiout::OptionalTensorIds;
 using poprithms::common::multiout::OpTraversal;
 using poprithms::common::multiout::OutIndex;
+using poprithms::common::multiout::OutIndices;
 using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
 using poprithms::common::schedulable::SubGraphId;
@@ -747,6 +749,16 @@ public:
    * */
   virtual bool isValueDependent(InIndex i, OutIndex o) const = 0;
 
+  /**
+   * \return All input indices where the tensor is on a device of type #dt.
+   * */
+  InIndices inputsWithDeviceType(DeviceType dt) const;
+
+  /**
+   * \return All output indices where the tensor is on a device of type #dt.
+   * */
+  OutIndices outputsWithDeviceType(DeviceType dt) const;
+
 protected:
   /**
    * A utility method for initializing ipu tensors in a SimTensorMap. This
@@ -827,6 +839,19 @@ private:
 
   // cloning must be done via the Graph class, which manages op ids.
   using poprithms::common::multiout::Op::clone;
+
+  /**
+   * \return true If this op is valid, given that is has inputs at indices
+   *         #inIndices and outputs at #outIndices which are remote tensors.
+   *         The default behaviour is that it is only valid if both sets are
+   *         empty (i.e. no remote tensor inputs or outputs). The handful of
+   *         ops which support remote tensors must override this method
+   *         manually.
+   * */
+  virtual bool supportsRemote(const InIndices &inIndices,
+                              const OutIndices &outIndices) const {
+    return inIndices.empty() && outIndices.empty();
+  }
 
 private:
   // See the comments in the Op::State class about these attributes.

@@ -98,6 +98,26 @@ void checkNumberOfOuts(const T &t, const Op &op, const std::string &ctxt) {
   }
 }
 
+InIndices Op::inputsWithDeviceType(DeviceType dt) const {
+  InIndices onDevIns;
+  for (InIndex i = 0; i < nInTensors(); ++i) {
+    if (inDeviceType(i) == dt) {
+      onDevIns.push_back(i);
+    }
+  }
+  return onDevIns;
+}
+
+OutIndices Op::outputsWithDeviceType(DeviceType dt) const {
+  OutIndices onDevOuts;
+  for (OutIndex o = 0; o < nOutTensors(); ++o) {
+    if (outDeviceType(o) == dt) {
+      onDevOuts.push_back(o);
+    }
+  }
+  return onDevOuts;
+}
+
 void Op::verifyValidAtComputeLevel() const {
 
   // check that there are right number of attributes (1 per output tensor).
@@ -152,6 +172,22 @@ void Op::verifyValidAtComputeLevel() const {
         throw error(oss.str());
       }
     }
+  }
+
+  InIndices remIns   = inputsWithDeviceType(DeviceType::Remote);
+  OutIndices remOuts = outputsWithDeviceType(DeviceType::Remote);
+
+  if (!supportsRemote(remIns, remOuts)) {
+    std::ostringstream oss;
+    oss << "This op " << *this
+        << " does not support this combination of remote tensor "
+           "input/outputs. Remote inputs at ";
+    util::append(oss, remIns);
+    oss << " and remote outputs at ";
+    util::append(oss, remOuts);
+    oss << ". Note that only a handful of ops support remote tensor inputs "
+           "and outputs.";
+    throw error(oss.str());
   }
 }
 
@@ -264,8 +300,9 @@ void Op::setInitialValue(uint64_t replica, OutIndex o, const HostTensor &v) {
   if (v.shape() != outShape(o)) {
     std::ostringstream oss;
     oss << "The shape of the host tensor is " << v.shape()
-        << ", which is different to the shape output #" << o << " of op "
-        << *this << ": shapes must match in setInitialValue. ";
+        << ", which is different to the shape of output #" << o << " of op "
+        << *this << ": " << outShape(o)
+        << ". These 2 shapes must match in setInitialValue. ";
     throw error(oss.str());
   }
 

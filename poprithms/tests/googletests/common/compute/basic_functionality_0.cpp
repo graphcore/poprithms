@@ -263,3 +263,23 @@ TEST(CommonComputeBasicFunctionality, RefFrom0) {
   EXPECT_EQ(m2.opIds<RefFrom>().size(), 3);
   EXPECT_NE(m, m2);
 }
+
+TEST(CommonComputeBasicFunctionality, RemoteTensorErrors0) {
+
+  SlickGraph g;
+  auto sg0      = g.createSubGraph("sg0");
+  auto ipu0     = sg0.rootIpuFloat32Variable({6, 3});
+  auto indices0 = sg0.variable(DType::Unsigned32, {2}, g.rootIpu());
+  auto indices1 = sg0.variable(DType::Unsigned32, {6}, g.rootIpu());
+
+  auto rem = ipu0.ipuToRemote(indices1, 2, {});
+  (void)rem;
+
+  EXPECT_EQ(rem.shape(), Shape({2, 3}));
+  EXPECT_THROW(ipu0.ipuToRemote(indices0, 4, {}), poprithms::error::error);
+
+  EXPECT_THROW(ipu0.reshape({2, 3, 3}).ipuToRemote(indices0, 2, {}),
+               poprithms::error::error);
+
+  EXPECT_THROW(rem + rem, poprithms::error::error);
+}

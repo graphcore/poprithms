@@ -218,6 +218,151 @@ private:
   InIndex hostInputIndex() const final { return Destination(); }
 };
 
+/**
+ * Copy between remote and ipu.
+ *
+ * This op has 3 inputs:
+ *   (1) An ipu tensor of type T
+ *   (2) A remote tensor of type T
+ *   (3) An index tensor (integral, on ipu) which defines which part of the
+ *       remote tensor to copy to/from.
+ *
+ * Ops which inherit from this op define which direction the copy is. Either
+ * (1) -> (2) or (2) -> (1).
+ *
+ * The shapes of the inputs are:
+ *
+ *  (1) (n0, S)
+ *  (2) (n1, S)
+ *  (3) (n0)
+ *
+ *  The op copies n0 slices of (2) to/from the n0 slices of (1).
+ * */
+class CopyBetweenRemoteAndIpu_
+    : public NoAutodiff<WithoutCalleesTensorCentric> {
+
+public:
+  CopyBetweenRemoteAndIpu_(const State &s) : NoAutodiff(s) {}
+
+  static InIndex RemoteSliceable() { return InIndex(0); }
+  static InIndex IpuSlice() { return InIndex(1); }
+  static InIndex Indices() { return InIndex(2); }
+
+  /**
+   * Given the shape of the indices and remote tensors, infer the shape of the
+   * ipu tensor: (indices.dim(0), remote.dim(1)).
+   * */
+  static Shape shapeOfIpuSlice(const Shape &indices, const Shape &remote);
+
+  /**
+   * Given the shape of the ipu tensor and number of repeats, infer the shape
+   * of the remote tensor: (nRepeats, remote.dim(1)).
+   * */
+  static Shape shapeOfRemoteSliceable(const Shape &ipuSlice,
+                                      uint64_t nRepeats);
+
+private:
+  /**
+   * Methods specific to the RefFrom op:
+   * */
+  void resetRootRef(OutIndex, const TensorId &) { invalid(); }
+  TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
+
+  /**
+   * The input which the output is aliased to is modified by this op.
+   * */
+  bool modifies(InIndex i) const final { return aliases(i, 0); }
+
+  /**
+   * Verify that #indicesShape is rank-2.
+   * */
+  static void verifyIndicesShape(const Shape &indicesShape);
+
+  HostTensors initializeOut(const HostTensors &) const final;
+
+  virtual InIndex aliasInIndex() const = 0;
+
+  /**
+   * Explanation for why this op does not (currently) support autodiff.
+   * */
+  std::string whyNoAutodiff() const final;
+
+  /**
+   * The output is an alias of one of the inputs.
+   * */
+  bool aliases(InIndex i, OutIndex) const final {
+    return i == aliasInIndex();
+  }
+
+  void computeDerivedVerifyValid() const final;
+
+  void runSim(ISimState &htm) const final {
+    runReplicatedSim(htm.simTensorMap());
+  }
+
+  CodeLocation codeLocation() const final { return CodeLocation::Ipu; }
+
+  void initializeSimOut(SimTensorMap &htm) const final {
+    initializeReplicatedSimOut(htm);
+  }
+
+  void growAliasMapper(MemoryAliasMapper &b) const final {
+    createAlias(b, inTensorId(aliasInIndex()));
+  }
+
+  bool isInitializingOp() const final { return false; }
+};
+
+/**
+ * The ipu tensor (1) is updated inplace with the values copied from (2).
+ *
+ * The returned tensor is an alias of the ipu tensor which is written to.
+ * */
+class CopyFromRemoteToIpu_ final
+    : public Attributeless<CopyBetweenRemoteAndIpu_, CopyFromRemoteToIpu_> {
+public:
+  CopyFromRemoteToIpu_(const Op::State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName{"CopyFromRemoteToIpu_"};
+
+private:
+  InIndex aliasInIndex() const final { return IpuSlice(); }
+
+  bool isValueDependent(InIndex i, OutIndex) const final {
+    return i != IpuSlice();
+  }
+
+  // Expectation of which tensors are remote. This is used in when verifying
+  // the op after construction.
+  bool supportsRemote(const InIndices &i, const OutIndices &o) const final {
+    return i == InIndices{RemoteSliceable()} && o.empty();
+  }
+
+  void compute(const HostTensors &, const HostTensors &) const final;
+};
+
+/**
+ * The remote tensor (2) is updated inplace with the values copied from (1).
+ *
+ * The returned tensor is an alias of the remote tensor which is written to.
+ * */
+class CopyFromIpuToRemote_ final
+    : public Attributeless<CopyBetweenRemoteAndIpu_, CopyFromIpuToRemote_> {
+public:
+  CopyFromIpuToRemote_(const Op::State &s) : Attributeless(s) {}
+  static constexpr const char *OpTypeName{"CopyFromIpuToRemote_"};
+
+private:
+  InIndex aliasInIndex() const final { return RemoteSliceable(); }
+
+  bool isValueDependent(InIndex, OutIndex) const final { return true; }
+
+  bool supportsRemote(const InIndices &i, const OutIndices &o) const final {
+    return i == InIndices{RemoteSliceable()} && o == OutIndices{0};
+  }
+
+  void compute(const HostTensors &, const HostTensors &) const final;
+};
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

@@ -468,3 +468,70 @@ TEST(CommonComputeSimExecutable, NllLoss0) {
           1e-6,
           1e-6);
 }
+TEST(CommonComputeSimExecutable, Remote0) {
+  int64_t rf{2};
+  SlickGraph g(22, ReplicationFactor::create(rf));
+
+  auto sg0  = g.createSubGraph("sg0");
+  auto h0   = sg0.hostInt32Variable({1, rf, 8});
+  auto ipu0 = h0.hostToIpu(g.rootIpu());
+  auto r0   = ipu0.reshape_({1, 8}).ipuToRemote(RemoteOptions{});
+  auto ipu1 = r0.remoteToIpu().squeeze();
+
+  // Read back for testing:
+  auto b0 = ipu0.ipuToHost(1);
+  auto b1 = ipu1.ipuToHost(1);
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+  auto vals0 =
+      HostTensor::arangeInt32(0, h0.nelms_u64(), 1).reshape(h0.shape());
+  se.setHostValue(h0, vals0);
+  se.run(sg0);
+
+  auto vals1  = se.getHostValue(b0);
+  auto vals2a = se.getRemoteValue(r0, 0);
+  auto vals2b = se.getRemoteValue(r0, 1);
+  auto vals2  = HostTensor::concat({vals2a, vals2b}, 0).prependOnesReshape(1);
+  auto vals3  = se.getHostValue(b1);
+  vals0.assertAllEquivalent(vals1);
+  vals0.assertAllEquivalent(vals2);
+  vals0.assertAllEquivalent(vals3);
+}
+
+TEST(CommonComputeSimExecutable, Remote1) {
+  int64_t rf{2};
+  SlickGraph g(22, ReplicationFactor::create(rf));
+
+  int64_t nRepeats{3};
+  int64_t S{2};
+  auto sg0  = g.createSubGraph("sg0");
+  auto h0   = sg0.hostInt32Variable({1, rf, nRepeats, S});
+  auto ipu0 = h0.hostToIpu(g.rootIpu());
+
+  auto indices0 = ipu0.variable(DType::Unsigned32, {nRepeats});
+  g.setInitialValue(indices0, 0, HostTensor::unsigned32({3}, {0, 1, 2}));
+  g.setInitialValue(indices0, 1, HostTensor::unsigned32({3}, {2, 0, 1}));
+
+  auto indices1 = ipu0.variable(DType::Unsigned32, {nRepeats});
+  g.setInitialValue(indices1, 0, HostTensor::unsigned32({3}, {0, 1, 2}));
+  g.setInitialValue(indices1, 1, HostTensor::unsigned32({3}, {0, 1, 2}));
+
+  auto r0 = ipu0.reshape_({nRepeats, S})
+                .ipuToRemote(indices0, nRepeats, RemoteOptions{});
+
+  auto ipu1 = r0.remoteToIpu(indices1);
+
+  // Read back for testing:
+  auto b1 = ipu1.ipuToHost(1);
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+  auto vals0 =
+      HostTensor::arangeInt32(0, h0.nelms_u64(), 1).reshape(h0.shape());
+  se.setHostValue(h0, vals0);
+  se.run(sg0);
+
+  se.getHostValue(b1).assertAllEquivalent(
+      HostTensor::int32(h0.shape(), {0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 6, 7}));
+}

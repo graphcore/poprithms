@@ -86,7 +86,7 @@ UpOp ReduceMax::cloneWithState(const State &s) const {
 OptionalTensors ReduceMax::bprop(const GradOpIns &gIn) const {
 
   // Note that we don't need an op with 2 outputs. The mask should be
-  // generated immediately, and a smart scheduler should put the case back to
+  // generated immediately, and a smart scheduler should push the cast back to
   // the output type as later as possible.
   return {gIn.input(0)
               .equalTo(gIn.output(0))

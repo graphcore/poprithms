@@ -177,6 +177,10 @@ public:
   bool isUserManagedHost() const;
   void setUserManagedHost(bool isUserManaged);
 
+  bool supportsRemote(const InIndices &, const OutIndices &) const final {
+    return true;
+  }
+
 private:
   bool computeTypeSpecificEqualTo(const compute::Op &) const final;
 

@@ -19,6 +19,15 @@ using poprithms::ndarray::TensorInfos;
 using poprithms::program::callstack::CopyIns;
 
 template <typename T>
+T RSubGraph<T>::remoteVariable(DType t,
+                               const Shape &shape,
+                               DeviceId ipuDevice,
+                               const RemoteOptions &opts) {
+  auto remote = graph().createRemote(ipuDevice, t, shape, opts);
+  return variable(t, shape, remote);
+}
+
+template <typename T>
 std::vector<T>
 RSubGraph<T>::variables(DType t, const Shapes &ss, DeviceId d) {
   std::vector<T> ts;

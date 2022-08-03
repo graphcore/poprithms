@@ -5,6 +5,7 @@
 #include <common/compute/error.hpp>
 
 #include <poprithms/common/compute/ops/interdevicecopy.hpp>
+#include <poprithms/ndarray/dtype.hpp>
 
 namespace poprithms {
 namespace common {
@@ -184,6 +185,166 @@ void CopyBetweenHostAndIpu_::computeDerivedVerifyValid() const {
       2, 1, {OpVerifier::Att::SameDType});
 
   OpVerifier(*this).verifySameTensorInfo(Destination(), 0);
+}
+
+/**
+ * CopyFromRemoteToIpu_
+ * */
+
+void CopyFromRemoteToIpu_::compute(const HostTensors &ins,
+                                   const HostTensors &outs) const {
+  auto indsVector = ins[Indices().get()].getUnsigned64Vector();
+  for (uint64_t i = 0; i < indsVector.size(); ++i) {
+    auto src = ins[RemoteSliceable().get()].at(indsVector[i]);
+    outs[0].at_(i).update_(src);
+  }
+}
+
+void CopyFromIpuToRemote_::compute(const HostTensors &ins,
+                                   const HostTensors &outs) const {
+  auto indsVector = ins[Indices().get()].getUnsigned64Vector();
+  for (uint64_t i = 0; i < indsVector.size(); ++i) {
+    auto src = ins[IpuSlice().get()].at(i);
+    outs[0].at_(indsVector.at(i)).update_(src);
+  }
+}
+
+HostTensors
+CopyBetweenRemoteAndIpu_::initializeOut(const HostTensors &ins) const {
+  return {ins[aliasInIndex().get()]};
+}
+
+void CopyBetweenRemoteAndIpu_::verifyIndicesShape(const Shape &indices) {
+  if (indices.rank_u64() != 1) {
+    std::ostringstream oss;
+    oss << "The shape of the indices tensor for the remote slice is "
+        << indices << " which is rank-" << indices.rank_u64()
+        << ". Expected a rank-1 tensor.";
+    throw error(oss.str());
+  }
+}
+
+void CopyBetweenRemoteAndIpu_::computeDerivedVerifyValid() const {
+
+  OpVerifier(*this).verifyNonVariadicFromAtts(3, 1, {});
+
+  // Shapes:
+
+  auto &&remoteShape  = inShape(RemoteSliceable());
+  auto &&indicesShape = inShape(Indices());
+  auto &&sliceShape   = inShape(IpuSlice());
+
+  verifyIndicesShape(indicesShape);
+
+  if (remoteShape.rank_u64() != 2) {
+    std::ostringstream oss;
+    oss << "The shape of the remote tensor being sliced is " << remoteShape
+        << ". Expected a rank-2 tensor (repeats, numElements) not a rank-"
+        << remoteShape.rank_u64() << " tensor.";
+    throw error(oss.str());
+  }
+
+  {
+    auto expected = shapeOfIpuSlice(indicesShape, remoteShape);
+    if (sliceShape != expected) {
+      std::ostringstream oss;
+      oss << "Expected the slice tensor (on ipu) to have shape " << expected
+          << " but it has shape " << sliceShape
+          << ". This where the indices tensor has shape " << indicesShape
+          << " and the remote tensor has shape " << remoteShape << ".";
+      throw error(oss.str());
+    }
+  }
+
+  if (remoteShape.dim(1) != sliceShape.dim(1)) {
+    std::ostringstream oss;
+    oss << "Remote tensor has shape " << remoteShape
+        << " and ipu tensor has shape " << sliceShape
+        << ". They should have the same size in dimension 1.";
+    throw error(oss.str());
+  }
+
+  if (sliceShape.dim(0) != indicesShape.dim(0)) {
+    std::ostringstream oss;
+    oss << "Slice (ipu) tensor has shape " << sliceShape
+        << " and indices tensor has shape " << indicesShape
+        << ". They should have the same size in dimension 0.";
+    throw error(oss.str());
+  }
+
+  // Devices:
+
+  if (inDeviceType(RemoteSliceable()) != DeviceType::Remote) {
+    std::ostringstream oss;
+    oss << "The device of the input at InIndex=RemoteSliceable is "
+        << inDeviceType(RemoteSliceable()) << " not DeviceType::Remote.";
+    throw error(oss.str());
+  }
+
+  if (inDeviceType(Indices()) != DeviceType::Ipu) {
+    std::ostringstream oss;
+    oss << "The device of the input at InIndex=Indices is "
+        << inDeviceType(Indices()) << " not DeviceType::Ipu.";
+    throw error(oss.str());
+  }
+
+  if (inDeviceId(IpuSlice()) != inDeviceId(Indices())) {
+    std::ostringstream oss;
+    oss << "The device of the input at InIndex=Indices is "
+        << inDeviceId(IpuSlice())
+        << ", not the same as the input at InIndex=IpuSlice, "
+        << inDeviceId(IpuSlice()) << ".";
+    throw error(oss.str());
+  }
+
+  // Types:
+
+  if (inDType(RemoteSliceable()) != inDType(IpuSlice())) {
+    std::ostringstream oss;
+    oss << "The type of the tensor being sliced (remote tensor) is "
+        << inDType(RemoteSliceable()) << " but the destination on ipu is "
+        << inDType(IpuSlice()) << ". They must be the same.";
+  }
+
+  if (!ndarray::isFixedPoint(inDType(Indices()))) {
+    throw error("The Indices input must be fixed point");
+  }
+}
+
+Shape CopyBetweenRemoteAndIpu_::shapeOfIpuSlice(const Shape &indices,
+                                                const Shape &remote) {
+
+  verifyIndicesShape(indices);
+
+  const auto dim0     = 0ULL;
+  const auto dim0size = indices.dim(0);
+  return remote.resizeSingleDim(dim0size, dim0);
+}
+
+Shape CopyBetweenRemoteAndIpu_::shapeOfRemoteSliceable(const Shape &ipuSlice,
+                                                       uint64_t nRepeats) {
+  if (ipuSlice.rank_u64() != 2) {
+    std::ostringstream oss;
+    oss << "The ipu (slice) tensor has shape " << ipuSlice
+        << ", but to copy to/from remote memory it must be rank-2.";
+    throw error(oss.str());
+  }
+
+  return {static_cast<int64_t>(nRepeats), ipuSlice.dim(1)};
+}
+
+std::string CopyBetweenRemoteAndIpu_::whyNoAutodiff() const {
+
+  std::ostringstream oss;
+  oss << "The CopyBetweenHostAndIpu_ op " << *this
+      << " does not (currently) support autodiff. "
+      << "To support autodiff, we'd need a way of 'summing' remote tensors. "
+      << "One way to do this would be to implement the "
+      << "core::GraphMutator::sum method for remote tensors to (1) copy "
+      << "remote tensors to IPU (2) sum them on IPU (3) copy resulting "
+      << "tensor back to remote. Please contact a team member if this is a "
+      << "required feature.";
+  throw error(oss.str());
 }
 
 } // namespace compute

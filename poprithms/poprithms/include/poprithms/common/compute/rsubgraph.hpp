@@ -353,6 +353,16 @@ public:
    * \return All tensors in this sub-graph.
    * */
   Ts tensors() { return T::tensors(graph().tensorIds(id()), graph()); }
+
+  /**
+   * Create a tensor on a new remote device attached to the ipu device
+   * #ipuDevice. It is of type #t, shape #s, and has remote-specific options
+   * #opts.
+   * */
+  T remoteVariable(DType t,
+                   const Shape &s,
+                   DeviceId ipuDevice,
+                   const RemoteOptions &opts = {});
 };
 
 } // namespace compute

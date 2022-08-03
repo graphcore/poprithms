@@ -753,6 +753,74 @@ template <typename T> void RTensor<T>::append(std::ostream &os) const {
      << ",shape=" << shape() << ",dtype=" << dtype();
 }
 
+template <typename T>
+T RTensor<T>::remoteToIpu(const RTensor<T> &indices) const {
+
+  const Shape sliceShape =
+      CopyBetweenRemoteAndIpu_::shapeOfIpuSlice(indices.shape(), shape());
+
+  const auto sliceInfo = TensorInfo(sliceShape, indices.deviceId(), dtype());
+
+  const auto slice = subGraph().variable(sliceInfo);
+
+  return slice.updateIpuFromRemote_(T(id(), &graph()), indices);
+}
+
+template <typename T>
+T RTensor<T>::updateIpuFromRemote_(const RTensor<T> &remoteTensor,
+                                   const RTensor<T> &indices) const {
+
+  // This is an ipu tensor. Output is an alias of it.
+  return createTensor<CopyFromRemoteToIpu_>(
+      TensorIds({remoteTensor.id(), id(), indices.id()}), {info()});
+}
+
+template <typename T>
+T RTensor<T>::updateRemoteFromIpu_(const RTensor<T> &ipuTensor,
+                                   const RTensor<T> &indices) const {
+
+  // This is a remote tensor. Output is an alias of it.
+  return createTensor<CopyFromIpuToRemote_>(
+      TensorIds({id(), ipuTensor.id(), indices.id()}), {info()});
+}
+
+template <typename T>
+T RTensor<T>::ipuToRemote(const RTensor<T> &indices,
+                          uint64_t nRepeats,
+                          const RemoteOptions &opts) const {
+  const auto remoteShape =
+      CopyBetweenRemoteAndIpu_::shapeOfRemoteSliceable(shape(), nRepeats);
+
+  const auto remote =
+      subGraph().remoteVariable(dtype(), remoteShape, deviceId(), opts);
+  return remote.updateRemoteFromIpu_({id(), &graph()}, indices);
+}
+
+template <typename T>
+T RTensor<T>::ipuToRemote(const RemoteOptions &opts) const {
+  if (rank_u64() != 2 || dim(0) != 1) {
+    std::ostringstream oss;
+    oss << "Expected rank-2 tensor with dim(0)=1. "
+        << "But this ipu tensor has shape " << shape();
+    err(oss.str());
+  }
+  auto indices = constant(DType::Unsigned32, 0).reshape_({1});
+  return ipuToRemote(indices, 1, opts);
+}
+
+template <typename T> T RTensor<T>::remoteToIpu() const {
+  if (rank_u64() != 2 || dim(0) != 1) {
+    std::ostringstream oss;
+    oss << "Expected rank-2 tensor with dim(0)=1. "
+        << "But this remote tensor has shape " << shape();
+    err(oss.str());
+  }
+  auto ipu_ = graph().remote(deviceId()).ipu();
+  auto indices =
+      subGraph().constant(DType::Unsigned32, 0, ipu_).reshape_({1});
+  return remoteToIpu(indices);
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms
