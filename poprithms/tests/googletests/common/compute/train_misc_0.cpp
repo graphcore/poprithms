@@ -79,6 +79,93 @@ TEST(CommonComputeTrainMisc0, Recompute0) {
   g0.assertAllClose(expected, 1e-6, 1e-6, "compare to hand-derived gradient");
 }
 
+TEST(CommonComputeTrainMisc0, MinMaxReds) {
+
+  SlickGraph g;
+  SubGraph sg0 = g.createSubGraph("sg0");
+  auto t0      = sg0.hostFloat32Variable({3, 2});
+  auto out0    = t0.reduceMax(Shape({3, 1}));
+  auto out1    = t0.reduceMin(Shape({1, 2}));
+  g.setRunnable({sg0});
+  // auto loss = (out1).reduceSum(Shape{});
+  auto loss = out0.reduceSum() + out1.reduceSum();
+  auto d0   = Ad(g).backward(loss, {t0})[0];
+
+  SimExecutable se(g);
+  //
+  //
+  //     5 0 | 5
+  //     6 2 | 6
+  //     7 4 | 7
+  //     ---
+  //     5 0
+  //
+  se.setHostValue<float>(t0, {5, 0, 6, 2, 7, 4});
+
+  // gradient:
+  //
+  //  2 1
+  //  1 0
+  //  1 0
+  se.run(sg0);
+  se.getHostValue(d0).assertAllEquivalent(
+      HostTensor::float32({3, 2}, {2, 1, 1, 0, 1, 0}));
+}
+
+TEST(CommonComputeTrainMisc0, SoftmaxNll0) {
+  SlickGraph g;
+  SubGraph sg0 = g.createSubGraph("sg0");
+
+  int64_t N{5};
+  int64_t C{3};
+  auto vals   = sg0.variable(DType::Float64, {N, C}, g.host());
+  auto labels = sg0.variable(DType::Unsigned32, {N}, g.host());
+  auto nllOut = vals.nllGrad(labels);
+
+  // Backwards graph (direct from the loss).
+  Ad ad(g);
+  auto sgBwdId =
+      ad.backwardOutOfGraph({nllOut.loss()}, {vals, labels}, {vals});
+  SubGraph sgBwd(sgBwdId, g);
+  auto &&gi = ad.gradInfo(sgBwd);
+
+  g.setRunnable({sg0, sgBwd});
+  SimExecutable se(g);
+
+  // Initial values.
+  auto d0 = HostTensor::uniformFloat64(-1, 1, {N, C}, 1011);
+  auto l0 = HostTensor::unsigned32({5}, {0, 1, 2, 1, 0});
+
+  // Run the backwards graph to get the gradient using the internal
+  // algebra/calculus.
+  se.setHostValue(gi.checkpointInGradGraph(vals), d0);
+  se.setHostValue(gi.checkpointInGradGraph(labels), l0);
+  se.setHostValue(gi.gradInputInGradGraph(nllOut.loss()),
+                  HostTensor::float64(1));
+  se.run(sgBwd);
+  auto g0 = se.getHostValue(gi.targetGradInGradGraph(vals));
+
+  // Perform finite-difference method to confirm the gradient is correct.
+  auto fwd = [&](const HostTensor &ht) {
+    se.setHostValue(vals, ht);
+    se.setHostValue(labels, l0);
+    se.run(sg0);
+    auto v = se.getHostValue(nllOut.loss()).copy();
+    return v;
+  };
+  double perturbationSize{0.001};
+  uint64_t seed{1011};
+  double eps0{1e-10};
+  double threshold{1e-6};
+  poprithms::autodiff::testutil::Checker::check(
+      fwd, d0.copy(), g0, perturbationSize, seed, eps0, threshold);
+
+  // Check that the value in nllOut is correct.
+  se.setHostValue(vals, d0);
+  se.run(sg0);
+  se.getHostValue(nllOut.dIn()).assertAllClose(g0, 1e-6, 1e-6);
+}
+
 // Test that you can train through this inplace operation.
 TEST(CommonComputeTrainMisc0, ThroughFill0) {
   SlickGraph m;

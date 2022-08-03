@@ -134,7 +134,7 @@ public:
   UpOp cloneWithState(const State &) const final;
   OptionalTensors bprop(const GradOpIns &) const final;
   std::vector<InIndex> autodiffRequiredIns() const final { return {0}; }
-  std::vector<OutIndex> autodiffRequiredOuts() const final { return {}; }
+  std::vector<OutIndex> autodiffRequiredOuts() const final { return {0}; }
   CommutativeOp cop() const final { return CommutativeOp::Min; }
 };
 
@@ -149,7 +149,7 @@ public:
   UpOp cloneWithState(const State &) const final;
   OptionalTensors bprop(const GradOpIns &) const final;
   std::vector<InIndex> autodiffRequiredIns() const final { return {0}; }
-  std::vector<OutIndex> autodiffRequiredOuts() const final { return {}; }
+  std::vector<OutIndex> autodiffRequiredOuts() const final { return {0}; }
   CommutativeOp cop() const final { return CommutativeOp::Max; }
 };
 

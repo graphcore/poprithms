@@ -137,8 +137,8 @@ void testDoubleInplace2() {
 
   if (expected != z) {
     std::ostringstream oss;
-    auto print = [&](auto &&m) {
-      for (auto [k, vs] : m) {
+    auto print = [&](auto &&m_) {
+      for (auto [k, vs] : m_) {
         oss << "   " << k << " -> ";
         poprithms::util::append(oss, vs);
         oss << "\n";

@@ -68,8 +68,11 @@ UpOp ReduceMin::cloneWithState(const State &s) const {
   return std::make_unique<ReduceMin>(s, dimensions());
 }
 
-OptionalTensors ReduceMin::bprop(const GradOpIns &) const {
-  unimplemented("ReduceMin::bprop");
+OptionalTensors ReduceMin::bprop(const GradOpIns &gIn) const {
+  return {gIn.input(0)
+              .equalTo(gIn.output(0))
+              .to(outDType(0))
+              .mul(gIn.gradOfOutput(0))};
 }
 
 /**
@@ -80,8 +83,15 @@ UpOp ReduceMax::cloneWithState(const State &s) const {
   return std::make_unique<ReduceMax>(s, dimensions());
 }
 
-OptionalTensors ReduceMax::bprop(const GradOpIns &) const {
-  unimplemented("ReduceMax::bprop");
+OptionalTensors ReduceMax::bprop(const GradOpIns &gIn) const {
+
+  // Note that we don't need an op with 2 outputs. The mask should be
+  // generated immediately, and a smart scheduler should put the case back to
+  // the output type as later as possible.
+  return {gIn.input(0)
+              .equalTo(gIn.output(0))
+              .to(outDType(0))
+              .mul(gIn.gradOfOutput(0))};
 }
 
 /**

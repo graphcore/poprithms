@@ -2,8 +2,12 @@
 #ifndef POPRITHMS_COMMON_COMPUTE_RTENSOR_IMPL_HPP
 #define POPRITHMS_COMMON_COMPUTE_RTENSOR_IMPL_HPP
 
+#include <algorithm>
 #include <iostream>
+#include <numeric>
+#include <ostream>
 #include <sstream>
+#include <string>
 
 #include <poprithms/common/compute/graph.hpp>
 #include <poprithms/common/compute/ops/binaryelementwise.hpp>
@@ -212,7 +216,7 @@ OpId RTensor<T>::createComputeOp(const TensorIds &inIds_,
         << "Inputs are required to determine the sub-graph of the output. "
         << "This case must be handled using Graph::createComputeOp "
         << "directly. ";
-    throw poprithms::error::error("common::compute", oss.str());
+    err(oss.str());
   }
   auto sgId = graph().subGraphId(inIds_.at(0));
   return graph().template createComputeOp<TOp>(
@@ -272,8 +276,7 @@ T RTensor<T>::reduce(const Dimensions &d, CommutativeOp cop) const {
   auto outShape = shape().get();
   for (uint64_t i = 0; i < d.get().size(); ++i) {
     if (d.at(i).get() >= shape().rank_u64()) {
-      throw poprithms::error::error("common::compute",
-                                    "Invalid dimension in reduceSum");
+      err("Invalid dimension in reduceSum");
     }
     outShape[d.at(i).get()] = 1;
   }
@@ -295,8 +298,7 @@ T RTensor<T>::reduce(const Dimensions &d, CommutativeOp cop) const {
     return createUnaryWithNewShape<ReduceProduct>(outShape, d);
   }
   default:
-    throw poprithms::error::error("common::compute",
-                                  "Unrecognised reduction type");
+    err("Unrecognised reduction type");
   }
 }
 
@@ -386,7 +388,7 @@ template <typename T> T RTensor<T>::copy(DeviceId target) const {
         << " has a different device type. "
         << "This method can only copy Ipu->Ipu. " << deviceType() << "->"
         << targetType;
-    throw poprithms::error::error("common::compute", oss.str());
+    err(oss.str());
   }
 
   auto targetTensor = variable(target);
@@ -410,7 +412,7 @@ T RTensor<T>::slice_(Dimension d, int64_t l, int64_t u) const {
     oss << "Invalid call, Tensor::slice_ (Dimension = " << d.get()
         << ", l = " << l << ", u = " << u << "). "
         << "The lower (l) and upper (u) bounds must both be non-negative. ";
-    throw poprithms::error::error("common::compute", oss.str());
+    err(oss.str());
   }
 
   const auto fullSliceBounds = shape().getFullSliceBounds(
@@ -496,8 +498,7 @@ template <typename T>
 T RTensor<T>::concat_(const std::vector<T> &ts, uint64_t axis) {
 
   if (ts.size() == 0) {
-    throw poprithms::error::error(
-        "common::compute", "cannot concatenate empty vector of Tensors");
+    err("cannot concatenate empty vector of Tensors");
   }
 
   // If there is just 1 tensor being concatenated, return it.
@@ -536,9 +537,7 @@ T RTensor<T>::hostToIpu(
     DeviceId ipuDestination,
     const CopyBetweenHostAndIpuOptions &copyOptions) const {
   if (rank_u64() < 2) {
-    throw poprithms::error::error(
-        "common::compute",
-        "Source of host->ipu copy must be at least rank 2");
+    err("Source of host->ipu copy must be at least rank 2");
   }
 
   // Create an ipu tensor:
@@ -667,6 +666,91 @@ template <typename T> T RTensor<T>::reduceSumAcrossReplicas_() const {
 }
 template <typename T> T RTensor<T>::reduceSumAcrossReplicas() const {
   return createUnaryWithSameInfo<ReduceSumAcrossReplicas>();
+}
+
+template <typename T>
+T RTensor<T>::update_(const RTensor<T> &update,
+                      const Offsets &offsets,
+                      const Dimensions &dims) const {
+  auto starts = offsets.get();
+  auto ends_  = update.shape().addToDims(offsets.get_i64()).get_u64();
+  auto s_     = slice_(dims, starts, ends_);
+  s_.copyFrom_(update);
+  return T(id(), &graph());
+}
+
+template <typename T>
+T RTensor<T>::update_(const RTensor<T> &update,
+                      const Offsets &offsets) const {
+
+  if (offsets.size() != rank_u64()) {
+    std::ostringstream oss;
+    oss << "Expected full rank update in "
+        << " Tensor::update_ without explicit Dimensions. ";
+    oss << "This Tensor is " << id() << " and the 'update' Tensor is "
+        << update.id() << ". offsets is of size " << offsets.size();
+    err(oss.str());
+  }
+  std::vector<uint64_t> dims_(rank_u64());
+  std::iota(dims_.begin(), dims_.end(), 0ULL);
+  return update_(update, offsets, Dimensions(dims_));
+}
+
+template <typename T>
+T RTensor<T>::softmax(uint64_t d, StableSoftmax stable) const {
+
+  T t(id(), &graph());
+
+  // subtract the maximum in each reduction plane.
+  if (stable == StableSoftmax::Yes) {
+    t = t - t.reduceMax(Dimension(d));
+  }
+  t = t.exp();
+  return t / t.reduceSum(Dimension(d));
+}
+
+template <typename T>
+typename RTensor<T>::NllGrad RTensor<T>::nllGrad(const RTensor<T> &labels,
+                                                 StableSoftmax ss) const {
+
+  if (rank_u64() != 2) {
+    std::ostringstream oss;
+    oss << "Can only call nnlGrad on rank-2 tensors (N, C). "
+        << "This tensor has shape " << shape();
+    err(oss.str());
+  }
+
+  if (labels.rank_u64() != 1 || labels.dim(0) != dim(0)) {
+    std::ostringstream oss;
+    oss << "Expected labels to have shape (" << dim(0)
+        << ") for this tensor of shape " << shape()
+        << ". But labels has shape " << labels.shape() << ".";
+    err(oss.str());
+  }
+
+  // where N = dim(0) and C = dim(1):
+
+  // shape: (N, 1)
+  auto probs = softmax(1, ss);
+
+  // shape: (N,C)
+  auto encoded = variable().encodeOneHot01_(labels);
+
+  // shape: (N,C)
+  auto dIn = probs - encoded;
+
+  // shape: (N,)
+  auto logProbs = (probs * encoded).reduceSum(Dimension(1)).log();
+
+  // shape: ()
+  auto loss = logProbs.reduceSum().neg().squeeze_();
+
+  return NllGrad(loss, dIn);
+}
+
+template <typename T> void RTensor<T>::append(std::ostream &os) const {
+  os << "id=" << id() << ",subGraphId=" << subGraphId()
+     << ",shape=" << shape() << ",dtype=" << dtype();
 }
 
 } // namespace compute

@@ -111,7 +111,7 @@ public:
    * color. Forward edges are defined by the virtual method, #outs.
    * */
   void propagateForward(Node node) {
-    return propagate(node, [this](Node node) { return outs(node); });
+    return propagate(node, [this](Node n) { return outs(n); });
   }
 
   /**
@@ -119,7 +119,7 @@ public:
    * color. Backwards edges are defined by the virtual method, #ins.
    * */
   void propagateBackward(Node node) {
-    return propagate(node, [this](Node node) { return ins(node); });
+    return propagate(node, [this](Node n) { return ins(n); });
   }
 
   /**
@@ -129,9 +129,9 @@ public:
    * neighbors.
    * */
   void propagateForwardAndBackward(Node node) {
-    auto x = [this](Node node) {
-      auto a = ins(node);
-      auto b = outs(node);
+    auto x = [this](Node n) {
+      auto a = ins(n);
+      auto b = outs(n);
       a.insert(a.end(), b.cbegin(), b.cend());
       return a;
     };

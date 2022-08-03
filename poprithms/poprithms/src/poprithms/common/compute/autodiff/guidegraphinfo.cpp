@@ -32,7 +32,10 @@ void GuideGraphInfo::assertCanBeRerun(OpId opId, bool valueRequired) const {
         << "the VarInit op with OpId " << opId << ":\n";
     graph_.appendOpColumns(oss, {opId});
     oss << ",\n. This might be caused by backtracking "
-        << "too far due to insufficient checkpointing. ";
+        << "too far due to insufficient checkpointing. "
+        << "If all the required checkpoints are present, it might be that an "
+        << "op incorrectly says that an output value depends on an input "
+        << "value (incorrect definition of isValueDependent virtual method).";
     throw error(oss.str());
   }
 }

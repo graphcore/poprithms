@@ -42,7 +42,13 @@ public:
   EncodeOneHot_(const Op::State &s)
       : ZeroAutodiff<WithoutCalleesTensorCentric>(s) {}
 
-  bool isValueDependent(InIndex, OutIndex) const final { return true; }
+  /**
+   * The output value is independent of the input value at index ToEncode, as
+   * the value gets overwritten.
+   * */
+  bool isValueDependent(InIndex i, OutIndex) const final {
+    return i == Indices();
+  }
 
   /**
    * The input index of the tensor to encode. The tensor is encoded inplace,

@@ -440,3 +440,31 @@ TEST(CommonComputeSimExecutable, DataByPointer0) {
   cms.getHostValue(out).assertAllEquivalent(
       HostTensor::float32({1, 1, 2}, {5 + 3, 6 + 4}));
 }
+
+TEST(CommonComputeSimExecutable, NllLoss0) {
+  SlickGraph g;
+  auto sg0   = g.createSubGraph("sg0");
+  auto in0   = sg0.hostFloat64Variable({3, 2});
+  auto labs0 = sg0.hostVariable(DType::Unsigned32, {3});
+  auto nll   = in0.nllGrad(labs0);
+  g.setRunnable({sg0});
+
+  //
+  // 0.75 0.25
+  // 0.1  0.9
+  // 0.6  0.4
+  auto logProbs =
+      HostTensor::float64({3, 2}, {0.75, 0.25, 0.1, 0.9, 0.6, 0.4}).log();
+
+  SimExecutable se(g);
+  se.setHostValue(in0, logProbs);
+  se.setHostValue<uint32_t>(labs0, {0, 1, 0});
+  se.run(sg0);
+
+  se.getHostValue(nll.loss())
+      .assertAllClose(
+          HostTensor::float64(
+              -1. * (std::log(0.75) + std::log(0.9) + std::log(0.6))),
+          1e-6,
+          1e-6);
+}

@@ -3,6 +3,7 @@
 #define POPRITHMS_COMMON_COMPUTE_RTENSOR_HPP
 
 #include <memory>
+#include <sstream>
 #include <vector>
 
 #include <poprithms/autodiff/guide/objective.hpp>
@@ -13,6 +14,7 @@
 #include <poprithms/common/compute/rsubgraph.hpp>
 #include <poprithms/common/multiout/optionaltensorid.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
+#include <poprithms/common/multiout/toptionaltensor.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/compute/host/tensor.hpp>
 #include <poprithms/ndarray/deviceid.hpp>
@@ -26,6 +28,12 @@
 namespace poprithms {
 namespace common {
 namespace compute {
+
+using poprithms::ndarray::Offset;
+using poprithms::ndarray::Offsets;
+
+using poprithms::ndarray::Stride;
+using poprithms::ndarray::Strides;
 
 class Graph;
 
@@ -392,6 +400,22 @@ public:
   T at_(int64_t d) const {
     return slice_(Dimension(0), d, d + 1).squeeze_({0});
   }
+
+  /**
+   * Update a statically defined region of this tensor. The shape of the
+   * region being updated is the same as #update. The start (lower bound) of
+   * the region being updated is #offset.
+   * */
+  T update_(const RTensor<T> &update, const Offsets &) const;
+
+  /**
+   * Update a statically defined region of this tensor. This is similar to
+   * #dynamicUpdate_, except that the offset is statically defined as opposed
+   * to being a tensor.
+   * */
+  T update_(const RTensor<T> &update,
+            const Offsets &,
+            const Dimensions &) const;
 
   /**
    * The method #at (above) is static. Specifically, the slice in dimension-0
@@ -1126,6 +1150,96 @@ public:
   T dynamicMultiUpdateMax_(const RTensor<T> &source,
                            const RTensor<T> &offsets) const;
 
+  /**
+   * Ensure that the creator of this tensor is scheduled before the
+   * creator of #after by inserting a topological constraint between the two.
+   * */
+  void before(const RTensor<T> &after) const {
+    graph().constraint(id(), after.id());
+  }
+
+  /**
+   * Append information about this tensor to #ostr.
+   * */
+  void append(std::ostream &ostr) const;
+
+  std::string str() const {
+    std::ostringstream oss;
+    append(oss);
+    return oss.str();
+  }
+
+  /**
+   *
+   * The softmax non-linearlity applied to this tensor, with the reduction in
+   * dimension #redDim.
+   *
+   * The softmax of a tensor #t is defined as,
+   *
+   * def unstableSoftmax(t):
+   *   return t.exp() / t.reduceSum(redDim)    (1)
+   *
+   * For numerical stability, the tensor #t can be conditioned,
+   *
+   * def stableSoftmax(t)
+   *   ts  =  t - t.reduceMax(redDim)          (2)
+   *   return unstableSoftmax(ts).
+   *
+   * \param ss Defines if stability conditioning (2) should be applied.
+   * */
+  enum class StableSoftmax { No = 0, Yes };
+  T softmax(uint64_t redDim, StableSoftmax ss = StableSoftmax::Yes) const;
+
+  /**
+   * The result of applying (1) softmax and then (2) negative log-likelihood
+   * to a tensor #In.
+   * */
+  struct NllGrad {
+  public:
+    /**
+     * Negative log-likelihood loss.
+     * */
+    RTensor<T> loss() const { return loss_; }
+
+    /**
+     * dLoss/dIn, where
+     *   Loss = nll(probs=In.softmax(), labels)
+     **/
+    RTensor<T> dIn() const { return dIn_; }
+
+  private:
+    RTensor<T> loss_;
+    RTensor<T> dIn_;
+    friend class RTensor<T>;
+    NllGrad(RTensor<T> loss, RTensor<T> dIn) : loss_(loss), dIn_(dIn) {}
+  };
+
+  /**
+   * This tensor is rank-2 of shape (N, C). This tensor is not a probability
+   * tensor - this method applies softmax to this tensor.
+   *
+   * \param labels A rank-1 tensor of shape (N,) with values in the range
+   *               [0,C).
+   *
+   * \param ss Whether or not to use the stable version of softmax when
+   *           computing the probabilities.
+   * */
+  NllGrad nllGrad(const RTensor<T> &labels,
+                  StableSoftmax ss = StableSoftmax::Yes) const;
+
+  /**
+   * Helper methods for generating random host tensors.
+   * */
+  HostTensor uniformFloat64(double l, double u, uint32_t seed) const {
+    return HostTensor::uniformFloat64(l, u, shape(), seed);
+  }
+  HostTensor uniformFloat32(double l, double u, uint32_t seed) const {
+    return HostTensor::uniformFloat32(l, u, shape(), seed);
+  }
+  HostTensor randomInt32(int32_t low, int32_t upp, uint32_t seed) {
+    return HostTensor::randomInt32(low, upp, shape(), seed);
+  }
+
 protected:
   /**
    * Create an op of type TOp in this tensor's graph. The new op will have
@@ -1196,6 +1310,10 @@ protected:
 private:
   TensorId id_;
   Graph *pGraph_;
+
+  template <typename X> [[noreturn]] static void err(X &&x) {
+    throw poprithms::error::error("common::compute", x);
+  }
 
   const Op &op(OpId opId) const { return graph().computeOp(opId); }
 };
