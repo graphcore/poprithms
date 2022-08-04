@@ -23,15 +23,10 @@ public:
    * */
   GradOpIns(Graph &graph, const GradOpInIds &gInIds)
       : poprithms::autodiff::automatic::OpIn<Tensor, OptionalTensor>(
-            TSlickConverter::getOptionalTensors<OptionalTensors, Tensor>(
-                graph,
-                gInIds.getIns()),
-            TSlickConverter::getOptionalTensors<OptionalTensors, Tensor>(
-                graph,
-                gInIds.getOuts()),
-            TSlickConverter::getOptionalTensors<OptionalTensors, Tensor>(
-                graph,
-                gInIds.getGradsOfOuts())) {}
+            SlickConverter::getOptionalTensors(graph, gInIds.getIns()),
+            SlickConverter::getOptionalTensors(graph, gInIds.getOuts()),
+            SlickConverter::getOptionalTensors(graph,
+                                               gInIds.getGradsOfOuts())) {}
 };
 } // namespace compute
 } // namespace common

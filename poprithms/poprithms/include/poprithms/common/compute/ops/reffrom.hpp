@@ -81,6 +81,10 @@ private:
   TensorId root_;
 
   HostTensors initializeOut(const HostTensors &) const final;
+
+  bool supportsRemote(const InIndices &, const OutIndices &) const final {
+    return true;
+  }
 };
 
 } // namespace compute

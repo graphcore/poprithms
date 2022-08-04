@@ -98,6 +98,7 @@ set(common_compute_sources
   ${src_dir}/common/compute/scheduler.cpp
   ${src_dir}/common/compute/simexecutable.cpp
   ${src_dir}/common/compute/simtensormap.cpp
+  ${src_dir}/common/compute/slickgraph.cpp
   ${src_dir}/common/compute/subgraph.cpp
   ${src_dir}/common/compute/tensor.cpp
 

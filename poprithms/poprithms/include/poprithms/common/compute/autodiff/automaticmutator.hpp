@@ -14,7 +14,6 @@
 #include <poprithms/common/compute/autodiff/coregraphmutator.hpp>
 #include <poprithms/common/compute/autodiff/guidegraphinfo.hpp>
 #include <poprithms/common/compute/graph.hpp>
-#include <poprithms/common/compute/rtensor.hpp>
 #include <poprithms/common/compute/scheduler.hpp>
 #include <poprithms/common/compute/subgraph.hpp>
 #include <poprithms/common/compute/tensor.hpp>

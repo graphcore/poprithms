@@ -831,9 +831,9 @@ private:
   ReplicationFactor replicationFactor_;
   SubGraphIds runnable_;
 
-  // Allow the BaseSubGraph class to access the private members of the
+  // Allow the SubGraph class to access the private members of the
   // this class.
-  friend class BaseSubGraph;
+  friend class SubGraph;
 };
 
 template <class TOp, class... Args>

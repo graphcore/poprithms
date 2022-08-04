@@ -7,19 +7,62 @@
 #include <common/compute/error.hpp>
 
 #include <poprithms/common/compute/graph.hpp>
-#include <poprithms/common/compute/rsubgraph_impl.hpp>
+#include <poprithms/common/compute/ops/init.hpp>
+#include <poprithms/common/compute/ops/withcallees.hpp>
 #include <poprithms/common/compute/subgraph.hpp>
 #include <poprithms/common/compute/tensor.hpp>
+#include <poprithms/ndarray/tensorinfo.hpp>
+#include <poprithms/program/callstack/copyin.hpp>
 
 namespace poprithms {
 namespace common {
 namespace compute {
 
-template class RSubGraph<Tensor>;
+using poprithms::ndarray::TensorInfo;
+using poprithms::ndarray::TensorInfos;
+using poprithms::program::callstack::CopyIns;
 
-SubGraph::SubGraph(SubGraphId id, Graph &g) : RSubGraph<Tensor>(id, g) {}
+Tensor SubGraph::remoteVariable(DType t,
+                                const Shape &shape,
+                                DeviceId ipuDevice,
+                                const RemoteOptions &opts) {
+  auto remote = graph().createRemote(ipuDevice, t, shape, opts);
+  return variable(t, shape, remote);
+}
 
-OpId BaseSubGraph::call(
+Tensors SubGraph::variables(DType t, const Shapes &ss, DeviceId d) {
+  Tensors ts;
+  ts.reserve(ss.size());
+  for (auto &&s : ss) {
+    ts.push_back(variable(t, s, d));
+  }
+  return ts;
+}
+
+Tensors SubGraph::variablesLike(const Tensors &like) {
+  Tensors ts;
+  ts.reserve(like.size());
+  for (auto &&l : like) {
+    ts.push_back(variable(l.dtype(), l.shape(), l.deviceId()));
+  }
+  return ts;
+}
+
+Tensor SubGraph::constant(const HostTensor &t, DeviceId deviceId) {
+  TensorInfo outInfo{t.shape(), deviceId, t.dtype()};
+  const auto opId = graph().nxtOpId();
+  graph().template createComputeOp<ConstInit>({}, id(), {outInfo}, t);
+  return {TensorId(opId, OutIndex(0)), &graph()};
+}
+
+Tensor SubGraph::variable(DType t, const Shape &s, DeviceId d) {
+  auto opId =
+      graph().template createComputeOp<poprithms::common::compute::VarInit>(
+          {}, id(), {{s, d, t}});
+  return {{opId, 0}, &graph()};
+}
+
+OpId SubGraph::call(
     const SubGraphId callee,
     const std::vector<std::pair<TensorId, TensorId>> &subGraphIns,
     const TensorIds &outsInCallee) {
@@ -34,7 +77,7 @@ OpId BaseSubGraph::call(
   return op;
 }
 
-void BaseSubGraph::registerCopies(OpId opId) {
+void SubGraph::registerCopies(OpId opId) {
 
   const auto *pOpWithCallees =
       graph().template dynamicCast<WithCallees>(opId);
@@ -65,9 +108,9 @@ void BaseSubGraph::registerCopies(OpId opId) {
   }
 }
 
-TensorIds BaseSubGraph::tensorIds() const { return graph().tensorIds(id()); }
+TensorIds SubGraph::tensorIds() const { return graph().tensorIds(id()); }
 
-TensorIds BaseSubGraph::tensorIds(DeviceType dt) const {
+TensorIds SubGraph::tensorIds(DeviceType dt) const {
   auto all = tensorIds();
   TensorIds filtered;
   for (const auto &x : all) {
@@ -78,17 +121,17 @@ TensorIds BaseSubGraph::tensorIds(DeviceType dt) const {
   return filtered;
 }
 
-OpIds BaseSubGraph::constInitIds() const {
+OpIds SubGraph::constInitIds() const {
   return graph().opIds<poprithms::common::compute::ConstInit>(id());
 }
-OpIds BaseSubGraph::varInitIds() const {
+OpIds SubGraph::varInitIds() const {
   return graph().opIds<poprithms::common::compute::VarInit>(id());
 }
-OpIds BaseSubGraph::initIds() const {
+OpIds SubGraph::initIds() const {
   return graph().opIds<poprithms::common::compute::Init>(id());
 }
 
-OpId BaseSubGraph::repeat(
+OpId SubGraph::repeat(
     SubGraphId callee,
     uint64_t repeatCount,
     const std::vector<std::pair<TensorId, TensorId>> &stackedInputs,
@@ -173,7 +216,7 @@ OpId BaseSubGraph::repeat(
   return opId;
 }
 
-OpId BaseSubGraph::repeatAllOut(
+OpId SubGraph::repeatAllOut(
     SubGraphId callee,
     uint64_t repeatCount,
     const std::vector<std::pair<TensorId, TensorId>> &stackedInputs,
@@ -217,7 +260,7 @@ OpId BaseSubGraph::repeatAllOut(
                 stackedCopyOrder);
 }
 
-OpId BaseSubGraph::switchOp(
+OpId SubGraph::switchOp(
     const SubGraphIds &callees,
     const TensorId &condition,
     const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &ins,
@@ -286,7 +329,7 @@ OpId BaseSubGraph::switchOp(
   return opId;
 }
 
-OpId BaseSubGraph::switchAllOut(
+OpId SubGraph::switchAllOut(
     const SubGraphIds &callees,
     const TensorId &condition,
     const std::vector<std::tuple<TensorId, TensorId, CalleeIndex>> &ins,
@@ -324,7 +367,7 @@ OpId BaseSubGraph::switchAllOut(
   return switchOp(callees, condition, ins, completeOuts, unmergedOuts);
 }
 
-void BaseSubGraph::append(std::ostream &ost) const {
+void SubGraph::append(std::ostream &ost) const {
   ost << util::alignedColumnsWithMonoColumnsAbridged(
       graph().getAllColumns(graph().opIds(id()),
                             graph().defaultStringColumnParams()),
