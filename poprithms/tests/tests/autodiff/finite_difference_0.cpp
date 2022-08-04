@@ -24,8 +24,8 @@ void testLog0() {
   using namespace poprithms::compute::host;
 
   auto h = Tensor::float64(2.);
-  OpIn<Tensor, OptionalTensor> gIn({h}, {h.log()}, {Tensor::float64(1.)});
-  auto grads = LogAutodiffer::backpropagate(gIn);
+  OpIn<Tensor, OptionalTensor> gIn0({h}, {h.log()}, {Tensor::float64(1.)});
+  auto grads = LogAutodiffer::backpropagate(gIn0);
   auto f     = [](const Tensor &t0) { return t0.log(); };
 
   double perturbationSize = 0.001;
@@ -70,8 +70,8 @@ void testBinaryElementwise0(Fwd &&apply, Tensor h0, Tensor h1) {
     Shape s1;
   } autodiffHelper(h0.shape(), h1.shape());
 
-  auto bp = [&autodiffHelper](const auto &gIn) {
-    return Bwd::backpropagate(gIn, autodiffHelper);
+  auto bp = [&autodiffHelper](const auto &gIn_) {
+    return Bwd::backpropagate(gIn_, autodiffHelper);
   };
 
   const auto out = apply(h0, h1);
@@ -80,8 +80,8 @@ void testBinaryElementwise0(Fwd &&apply, Tensor h0, Tensor h1) {
   const auto gradOut =
       Tensor::float64(1).expand(h0.shape().numpyBinary(h1.shape()));
 
-  OpIn<Tensor, OptionalTensor> gIn({h0, h1}, {out}, {gradOut});
-  auto grads         = bp(gIn);
+  OpIn<Tensor, OptionalTensor> gIn0({h0, h1}, {out}, {gradOut});
+  auto grads         = bp(gIn0);
   const auto grad_h0 = grads.at(0).value();
   const auto grad_h1 = grads.at(1).value();
 
@@ -152,8 +152,8 @@ void testBinaryOps0() {
 
 void testMatMul0(Tensor h0, Tensor h1) {
 
-  auto bp = [](const auto &gIn) {
-    return MatMulAutodiffer::backpropagate(gIn);
+  auto bp = [](const auto &gIn_) {
+    return MatMulAutodiffer::backpropagate(gIn_);
   };
 
   auto apply = [](const auto &a, const auto &b) { return a.matmul(b); };
@@ -164,8 +164,8 @@ void testMatMul0(Tensor h0, Tensor h1) {
   const auto gradOut =
       Tensor::float64(1).expand(h0.shape().matmul(h1.shape()));
 
-  OpIn<Tensor, OptionalTensor> gIn({h0, h1}, {out}, {gradOut});
-  auto grads = bp(gIn);
+  OpIn<Tensor, OptionalTensor> gIn__({h0, h1}, {out}, {gradOut});
+  auto grads = bp(gIn__);
 
   const auto grad_h0 = grads.at(0).value();
   const auto grad_h1 = grads.at(1).value();

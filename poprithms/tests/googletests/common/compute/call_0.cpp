@@ -118,3 +118,25 @@ TEST(CommonComputeCall0, BaseErrors0) {
   // Bad copy out source:
   EXPECT_THROW(sg1.call(sg0, {{x0, x1}}, {x1}), poprithms::error::error);
 }
+
+TEST(CommonComputeCall0, RepeatCopiesRegistered0) {
+
+  SlickGraph g;
+  auto sg0  = g.createSubGraph("sg0");
+  auto in0  = sg0.hostInt32Variable({});
+  auto out0 = in0.cos().sin();
+
+  auto sg1 = g.createSubGraph("sg1");
+  auto in1 = sg1.hostInt32Variable({10});
+  auto rpt =
+      sg1.repeat(sg0, 10, {{in1, in0}}, {}, {{out0, IsStackedCopy::Yes}});
+
+  auto out1 = out0.dstInCaller(rpt);
+  (void)out1;
+
+  CallEvent ce(rpt, sg0, CalleeIndex(0));
+  const auto copyOuts = g.computeOp(out0.opId()).outCopies(out0.outIndex());
+  EXPECT_EQ(copyOuts.size(), 1);
+  EXPECT_EQ(copyOuts.back(), ce);
+  g.verifyValid();
+}

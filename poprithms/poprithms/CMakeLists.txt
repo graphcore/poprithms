@@ -120,6 +120,9 @@ set(common_compute_sources
   ${src_dir}/common/compute/autodiff/coregraphmutator.cpp
   ${src_dir}/common/compute/autodiff/guidegraphinfo.cpp
 
+  # pipeline sub-directory:
+  ${src_dir}/common/compute/pipeline/pipeline.cpp
+
   # prune sub-directory:
   ${src_dir}/common/compute/prune/prune.cpp
 
@@ -343,6 +346,8 @@ set (program_sources
    ${program_src_dir}/callstack/error.cpp
    ${program_src_dir}/callstack/copyin.cpp
    ${program_src_dir}/callstack/copyout.cpp
+   ${program_src_dir}/pipeline/error.cpp
+   ${program_src_dir}/pipeline/pipeline.cpp
    ${program_src_dir}/prune/error.cpp
    ${program_src_dir}/prune/prune.cpp
 )
