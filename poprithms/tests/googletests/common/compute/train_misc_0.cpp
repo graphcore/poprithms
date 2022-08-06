@@ -426,3 +426,57 @@ TEST(CommonComputeTrainMisc0, ThroughDynamciUpdate0) {
 
   cms.getHostValue(dSlice).assertAllEquivalent(vSliced.mul(2));
 }
+
+// Autodiff through a host->device copy.
+TEST(CommonComputeTrainMisc0, AcrossDevice0) {
+  int64_t rf{2};
+  int64_t ff{3};
+  SlickGraph m(100, ReplicationFactor::create(rf));
+  auto sg0  = m.createSubGraph("sg0");
+  auto in0  = sg0.hostFloat32Variable({ff, rf, 5});
+  auto loss = in0.hostToIpu(m.rootIpu()).sin().reduceSum();
+  auto dIn0 = Autodiffer(m).backward(loss, {in0})[0];
+  m.setRunnable({sg0});
+  SimExecutable cms(m);
+  const auto h0 = HostTensor::uniformFloat32(-1, 1, {ff, rf, 5}, 1011);
+  cms.setHostValue(in0, h0);
+  for (int64_t i = 0; i < ff; ++i) {
+    cms.run(sg0);
+  }
+  cms.getHostValue(dIn0).assertAllClose(h0.cos(), 1e-5, 1e-5);
+}
+
+TEST(CommonComputeTrainMisc0, Basic0) {
+  SlickGraph m(100, ReplicationFactor::create(1));
+  auto sg0  = m.createSubGraph("sg0");
+  auto in0  = sg0.hostFloat32Variable({});
+  auto loss = in0.sin();
+  auto dIn0 = Autodiffer(m).backward(loss, {in0})[0];
+  m.setRunnable({sg0});
+  SimExecutable cms(m);
+  const auto h0 = HostTensor::uniformFloat32(-1, 1, {}, 1011);
+  cms.setHostValue(in0, h0);
+  cms.run(sg0);
+  cms.getHostValue(dIn0).assertAllClose(h0.cos(), 1e-5, 1e-5);
+}
+
+TEST(CommonComputeTrainMisc0, AcrossDevice1) {
+  int64_t rf{2};
+  int64_t ff{3};
+  SlickGraph m(100, ReplicationFactor::create(rf));
+  auto sg0  = m.createSubGraph("sg0");
+  auto in0  = sg0.hostFloat32Variable({ff, rf, 5});
+  auto loss = in0.hostToIpu(m.rootIpu())
+                  .ipuToHost(CircularBufferCount(1))
+                  .sin()
+                  .reduceSum();
+  auto dIn0 = Autodiffer(m).backward(loss, {in0})[0];
+  m.setRunnable({sg0});
+  SimExecutable cms(m);
+  const auto h0 = HostTensor::uniformFloat32(-1, 1, {ff, rf, 5}, 1011);
+  cms.setHostValue(in0, h0);
+  for (int64_t i = 0; i < ff; ++i) {
+    cms.run(sg0);
+  }
+  cms.getHostValue(dIn0).assertAllClose(h0.cos(), 1e-5, 1e-5);
+}

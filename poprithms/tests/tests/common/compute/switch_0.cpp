@@ -6,6 +6,7 @@
 #include <string>
 
 #include <poprithms/common/compute/autodiff/autodiffer.hpp>
+#include <poprithms/common/compute/prune/pruner.hpp>
 #include <poprithms/common/compute/simexecutable.hpp>
 #include <poprithms/common/compute/slickgraph.hpp>
 #include <poprithms/common/compute/testutil/finitedifference.hpp>
@@ -265,6 +266,58 @@ void testSwitchAllOut0() {
   }
 }
 
+void locAssert(bool b, const std::string &x) {
+  if (!b) {
+    throw poprithms::test::error("failed in loc assert: " + x);
+  }
+}
+
+void testPruneSwitch0() {
+
+  SlickGraph m;
+
+  // sg3 switches on sg0, sg1, and sg2.
+  auto sgs = m.createSubGraphs({"sg0", "sg1", "sg2", "sg3"});
+
+  Tensors in0s;
+  Tensors in1s;
+  for (auto sg : sgs) {
+    in0s.push_back(sg.variable(DType::Float16, {2, 3}, m.rootIpu()));
+    in1s.push_back(sg.variable(DType::Float16, {1, 3}, m.rootIpu()));
+  }
+
+  auto out0 = in0s[0] + in1s[0];
+  auto out1 = in0s[1];
+  auto out2 = in1s[2].expand({2, 3});
+  TensorIds outs{out0, out1, out2};
+
+  Tensor cond0 = sgs[3].variable(DType::Int32, {}, m.rootIpu());
+  auto sw      = sgs[3].switchAllOut({sgs[0], sgs[1], sgs[2]},
+                                cond0,
+                                // copy ins. As expected:
+                                {{in0s[3], in0s[0], 0},
+                                      {in0s[3], in0s[1], 1},
+                                      {in0s[3], in0s[2], 2},
+                                      {in1s[3], in1s[0], 0},
+                                      {in1s[3], in1s[1], 1},
+                                      {in1s[3], in1s[2], 2}},
+                                {outs});
+
+  m.setRunnable({sgs[3]});
+
+  TensorIds ret{m.tensor(outs[0]).dstInCaller(CallEvent(sw, sgs[0], 0))};
+
+  Pruner::prune(m, ret);
+
+  auto swOp = m.castOrThrow<Switch>(sw);
+  locAssert(swOp->nOutTensors() == 1,
+            "Only the first output is unpruneable.");
+  locAssert(sgs[1].tensorIds().size() == 1,
+            "Only in0s is copied out for sg1.");
+
+  m.verifyValid();
+}
+
 } // namespace
 
 int main() {
@@ -273,5 +326,6 @@ int main() {
   testSwitchAllOut0();
   testTrainAsymSwitch0();
   testSwitchTrain0();
+  testPruneSwitch0();
   return 0;
 }
