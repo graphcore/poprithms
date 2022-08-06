@@ -42,6 +42,9 @@ add_common_test(poprithms_common_compute_prune_withcallees_0
 add_common_test(poprithms_common_compute_repeat_0
                                          repeat_0.cpp)
 
+add_common_test(poprithms_common_compute_second_derivative_0
+                                         second_derivative_0.cpp)
+
 add_common_test(poprithms_common_compute_switch_0
                                          switch_0.cpp)
 
