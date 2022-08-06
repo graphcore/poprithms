@@ -86,6 +86,8 @@ public:
 
   std::string handle() const { return str(); }
 
+  TensorId hostInputId() const { return inTensorId(hostInputIndex()); }
+
 private:
   /**
    * The input at the DestinationIndex is an alias of the output.
@@ -101,8 +103,6 @@ private:
   bool gradientPropagates(OutIndex, InIndex inIndex) const final;
   std::vector<InIndex> autodiffRequiredIns() const final { return {}; }
   std::vector<OutIndex> autodiffRequiredOuts() const final { return {}; }
-
-  TensorId hostInputId() const { return inTensorId(hostInputIndex()); }
 
   HostTensors initializeOut(const HostTensors &) const final;
 
@@ -179,6 +179,8 @@ class CopyFromHostToIpu_ final : public CopyBetweenHostAndIpu_ {
 public:
   CopyFromHostToIpu_(const State &, const CopyBetweenHostAndIpuOptions &);
 
+  bool isBroadcast() const { return sourceShape().dim(1) == 1; }
+
 private:
   UpOp cloneWithState(const State &) const final;
 
@@ -190,8 +192,6 @@ private:
                       uint64_t currentCircularBufferIndex) const final;
 
   OptionalTensors bprop(const GradOpIns &) const final;
-
-  bool isBroadcast() const { return sourceShape().dim(1) == 1; }
 
   InIndex hostInputIndex() const final { return Source(); }
 };

@@ -97,6 +97,8 @@ public:
     return call(callee, ins, graph().tensorIds(callee));
   }
 
+  void toggleEager(bool b) { graph().toggleEager(id(), b); }
+
   /**
    * \return All ConstInit ops in this sub-graph.
    * */

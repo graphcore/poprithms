@@ -28,21 +28,19 @@ void DynamicMultiUpdateMax_::computeDerivedVerifyValid() const {
 
   if (sliceableShape_.rank_i64() != 2 || sliceShape_.rank_i64() != 2 ||
       offsetShape_.rank_i64() != 1) {
-    throw error(
-        base() +
-        "Expect sliceable and slice to be rank-2, and offset to be rank-1");
+    throw error(base() + " Expected sliceable and slice to be rank-2, and "
+                         "offset to be rank-1.");
   }
 
   if (sliceableShape_.dim(1) != sliceShape_.dim(1)) {
     throw error(
         base() +
-        " Expect sliceable and slice to be same size in dimension #1.");
+        " Expected sliceable and slice to be same size in dimension #1.");
   }
 
   if (offsetShape_.dim(0) != sliceShape_.dim(0)) {
-    throw error(
-        base() +
-        " Expect offset dimension #0 to be the same as slice dimension #0.");
+    throw error(base() + " Expected offset dimension #0 to be the same as "
+                         "slice dimension #0.");
   }
 
   OpVerifier(*this).verifySameTensorInfo(aliasIndex(), OutIndex(0));
