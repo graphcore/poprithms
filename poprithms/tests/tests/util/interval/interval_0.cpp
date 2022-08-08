@@ -4,6 +4,8 @@
 
 #include <poprithms/error/error.hpp>
 #include <poprithms/util/interval.hpp>
+#include <poprithms/util/printiter.hpp>
+#include <poprithms/util/stridedpartition.hpp>
 
 namespace {
 using namespace poprithms::util;
@@ -123,6 +125,64 @@ void test2() {
   }
 }
 
+template <typename X>
+std::ostream &operator<<(std::ostream &ost, std::vector<X> &xs) {
+  std::vector<std::string> strings;
+  for (auto x : xs) {
+    strings.push_back(poprithms::util::getStr(x));
+  }
+  poprithms::util::append(ost, strings);
+  return ost;
+}
+
+void testStridedInterval0() {
+  StridedPartition sp(18, 3, 2);
+  auto gs = sp.groups();
+  // 0 1 0 1 0 1 2 3 2 3 2 3 4 5 4 5 4 5
+  std::vector<std::vector<uint64_t>> expected{{0, 2, 4},
+                                              {1, 3, 5},
+                                              {6, 8, 10},
+                                              {7, 9, 11},
+                                              {12, 14, 16},
+                                              {13, 15, 17}};
+
+  if (sp.group(16) != 4) {
+    std::ostringstream oss;
+    oss << "Expected index 16 to be in group 4:"
+        << "\n0 1 0 1 0 1 2 3 2 3 2 3 4 5 4 5 4 5"
+        << "\n                               ^^^ "
+        << "\n0 1 2 ...                      16  "
+        << "\nnot " << sp.group(16);
+    throw poprithms::test::error(oss.str());
+  }
+
+  if (gs != expected) {
+    std::ostringstream oss;
+    oss << "For StridedPartition " << sp << ", expected groups to be "
+        << expected << ", but it was " << gs;
+    throw poprithms::test::error(oss.str());
+  }
+
+  if (sp.nGroups() != 6) {
+    throw poprithms::test::error("There are 6 groups");
+  }
+
+  if (sp.indicesInGroup(3) != std::vector<uint64_t>{7, 9, 11}) {
+    throw poprithms::test::error("Indices in group #2 are 7,9, and 11");
+  }
+
+  bool caught{false};
+  try {
+    StridedPartition(19, 3, 2);
+  } catch (const poprithms::error::error &) {
+    caught = true;
+  }
+  if (!caught) {
+    throw poprithms::test::error(
+        "Failed to catch incompatible stride partition parameters");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -130,6 +190,7 @@ int main() {
   test0();
   test1();
   test2();
+  testStridedInterval0();
 
   return 0;
 }

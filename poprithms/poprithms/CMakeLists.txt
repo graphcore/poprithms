@@ -22,11 +22,13 @@ set(error_sources
 )
 
 set(util_sources
+  ${src_dir}/util/error.cpp
+  ${src_dir}/util/interval.cpp
   ${src_dir}/util/permutation.cpp
   ${src_dir}/util/printiter.cpp
+  ${src_dir}/util/stridedpartition.cpp
   ${src_dir}/util/stringutil.cpp
-  ${src_dir}/util/interval.cpp
-  ${src_dir}/util/error.cpp
+
 )
 
 set(ndarray_sources
