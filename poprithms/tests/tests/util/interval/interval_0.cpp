@@ -163,6 +163,14 @@ void testStridedInterval0() {
     throw poprithms::test::error(oss.str());
   }
 
+  if (sp.indexInGroup(11) != 2) {
+    throw poprithms::test::error("The group index of index 11 is 2");
+  }
+
+  if (sp.firstInGroup(3) != 7) {
+    throw poprithms::test::error("The first element in group 3 is 7");
+  }
+
   if (sp.nGroups() != 6) {
     throw poprithms::test::error("There are 6 groups");
   }

@@ -44,6 +44,9 @@ namespace util {
  *                                3     3     3
  *                                               4     4     4
  *                                                  5     5     5
+ *                                ^
+ *                                |
+ *                             firstInGroup(3) = 7
  * */
 class StridedPartition {
 public:
@@ -81,6 +84,23 @@ public:
    * The group to which #index \in [0, range) belongs.
    * */
   uint64_t group(uint64_t index) const;
+
+  /**
+   * The first index in the group #group.
+   *
+   * In example 2 presented at the top of this file, firstInGroup(3) is 7.
+   * */
+  uint64_t firstInGroup(uint64_t group) const;
+
+  /**
+   * The index within the group of the #i.
+   *
+   * In example 2 presented above, indexInGroup(11) is 2, because 11 is the
+   * third element (element #2) in group 3.
+   * */
+  uint64_t indexInGroup(uint64_t i) const {
+    return (i - firstInGroup(group(i))) / stride_;
+  }
 
   /**
    * The full partition of indices into groups. The returned vector contains

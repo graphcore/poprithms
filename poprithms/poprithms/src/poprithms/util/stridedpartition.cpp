@@ -68,5 +68,52 @@ uint64_t StridedPartition::group(uint64_t index) const {
   return pack(index) * groupsPerPack() + index % stride_;
 }
 
+uint64_t StridedPartition::firstInGroup(uint64_t group) const {
+
+  // Running example:
+  // replication factor = 8, group size = 2, stride = 2.
+  //
+  // This method can answer: What is the first index ("replica") in group #3?
+  //
+  // 01234567 index ("replica")
+  //      ^
+  //      |
+  // 01012323 group
+  //      =
+  //
+  // The first appearance of 3 in the group listing is for index=5. So this
+  // method will return firstInGroup(3) = 5.
+  //
+
+  // A "pack" is a set of interleaved groups. There are stride_ groups in 1
+  // pack. The pack to which #group belongs is:
+  //
+  // In the running example this is the pack "2323" which is pack number 1
+  // (pack number zero is "0101").
+  auto packId = group / stride_;
+
+  // The number of indices in 1 pack.
+  //
+  // In the running example this is 4 (there are 4 indices in "0101" and
+  // "2323").
+  auto packSize = stride_ * groupSize_;
+
+  // The index at which the pack of #group starts.
+  //
+  // In the running example this is 4, where "2323" starts.
+  auto packStart = packId * packSize;
+
+  // The index of the first group of this pack:
+  //
+  // In the running example this is 2, the first index in "2323".
+  auto firstGroupInPack = packId * stride_;
+
+  // In the running example this is 3 - 2 = 1.
+  auto offset = group - firstGroupInPack;
+
+  // In the running example this is 5, as expected.
+  return packStart + offset;
+}
+
 } // namespace util
 } // namespace poprithms
