@@ -21,6 +21,7 @@
 #include <poprithms/common/multiout/toptionaltensor.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
 #include <poprithms/compute/host/tensor.hpp>
+#include <poprithms/ndarray/accessors.hpp>
 #include <poprithms/ndarray/deviceid.hpp>
 #include <poprithms/ndarray/dtype.hpp>
 #include <poprithms/ndarray/shape.hpp>
@@ -49,6 +50,8 @@ using ndarray::DType;
 using ndarray::DTypes;
 using ndarray::Shape;
 using ndarray::Shapes;
+using ndarray::Stride;
+using ndarray::Strides;
 using ndarray::TensorInfo;
 using ndarray::TensorInfos;
 using poprithms::common::multiout::OptionalTensorIds;
@@ -540,15 +543,47 @@ public:
   }
 
   /**
-   * This tensor is on an ipu. The returned tensor is on the same device, and
-   * has the same shape. Each replica in the returned tensor is the summation
-   * of replicas of this tensor. For example if this tensor has shape (2,) and
-   * the replication factor is three, and the 3 replicas have values [1,2],
-   * [3,4], and [5,-1] respectively, then the result (on all replicas) is
-   * [9,5].
+   * This tensor is on an ipu device. The returned tensor is on the same
+   * device, and has the same shape. Each replica in the returned tensor is
+   * the summation of all replicas of this tensor. For example if this tensor
+   * has shape (2,) and the replication factor is three, and the 3 replicas
+   * have values [1,2], [3,4], and [5,-1] respectively, then the result (on
+   * all replicas) is [9,5].
    * */
   Tensor reduceSumAcrossReplicas() const;
+
+  /**
+   * A version of replica sum reduction where the reduction is done within
+   * sub-groups of replicas. The groups are of equal size, and form a
+   * partition of the set of all replicas. There are #replicasPerGroup
+   * replicas per reduction group, and subsequent replicas within a group are
+   * separated by a stride of #stride. See the StridedPartition class for more
+   * information.
+   *
+   * As an example, suppose the replication factor is 6, replicasPerGroup is 3
+   * and stride is 2. Then the 2 groups are {0,2,4} and {1,3,5}.
+   *
+   * Suppose moreover that this tensor is a scalar, and the 6 replicas of it
+   * have values 0,1,2,3,4, and 5 respectively. Then, the sum reduced tensor,
+   * which is also a scalar, has replica values 6,9,6,9,6 and 9 respectively.
+   *
+   * The replication factor must be divisible by #replicasPerGroup * #stride.
+   * */
+  Tensor reduceSumAcrossReplicas(uint64_t replicasPerGroup,
+                                 Stride stride) const;
+
+  /**
+   * Inplace replica sum reduction methods.
+   * */
   Tensor reduceSumAcrossReplicas_() const;
+  Tensor reduceSumAcrossReplicas_(uint64_t replicasPerGroup, Stride) const;
+
+  uint64_t replicationFactor_u64() const {
+    return graph().replicationFactor_u64();
+  }
+  ReplicationFactor replicationFactor() const {
+    return graph().replicationFactor();
+  }
 
   Graph &graph() const;
 

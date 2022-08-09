@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_COMMON_COMPUTE_OPS_REDUCE_HPP
 #define POPRITHMS_COMMON_COMPUTE_OPS_REDUCE_HPP
 
+#include <poprithms/autodiff/automatic/gradopin.hpp>
 #include <poprithms/autodiff/automatic/gradops.hpp>
 #include <poprithms/common/compute/gradopins.hpp>
 #include <poprithms/common/compute/op.hpp>
@@ -9,10 +10,13 @@
 #include <poprithms/common/compute/ops/withoutcallees.hpp>
 #include <poprithms/common/compute/opverifier.hpp>
 #include <poprithms/common/compute/tensor.hpp>
+#include <poprithms/util/stridedpartition.hpp>
 
 namespace poprithms {
 namespace common {
 namespace compute {
+
+using util::StridedPartition;
 
 /**
  * Reduce a tensor along a subset of its dimensions. The reduced (output)
@@ -172,12 +176,23 @@ public:
  * An operation for reducing a tensor which is replicated across ipus. The
  * output tensor has the same shape as the input tensor, as the reduction is
  * done only in the implicit replication dimension.
+ *
+ * The reduction is done across subsets of the replicas. Specifically, the
+ * replicas are partitioned into equally sized groups (\sa StridedPartition)
+ * and the reduction is done independently in these groups.
  * */
 class ReduceAcrossReplicas : public WithoutCalleesTensorCentric {
 public:
-  ReduceAcrossReplicas(const Op::State &s) : WithoutCalleesTensorCentric(s) {}
+  ReduceAcrossReplicas(const Op::State &s,
+                       const StridedPartition &stridePartition)
+      : WithoutCalleesTensorCentric(s), grouping_(stridePartition) {}
 
   bool isValueDependent(InIndex, OutIndex) const final { return true; }
+
+  /**
+   * An object which defines the replica groupings to reduce across.
+   * */
+  const StridedPartition &grouping() const { return grouping_; }
 
 private:
   /**
@@ -206,11 +221,30 @@ private:
   void initializeSimOut(SimTensorMap &htm) const final {
     initializeReplicatedSimOut(htm);
   }
+
+  // There are no input/output dependent attributes in this class or any
+  // inheriting class, so there will not be any op-specific work related to
+  // the removal of inputs/outputs:
+  void computeDerivedRemoveInputs(const ContiguousInIndexSubset &) final {}
+  void computeDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
+
+  bool computeTypeSpecificEqualTo(const Op &rhs) const {
+
+    // Note that a static_cast is safe here, as this private method is only
+    // called once it has been verified that #rhs has the same type (typeid)
+    // as this object.
+    const auto &rhs_ = static_cast<const ReduceAcrossReplicas &>(rhs);
+    return grouping_ == rhs_.grouping_;
+  }
+
+  StridedPartition grouping_;
 };
 
 class ReduceAcrossReplicasOutplace : public ReduceAcrossReplicas {
 public:
-  ReduceAcrossReplicasOutplace(const State &s) : ReduceAcrossReplicas(s) {}
+  ReduceAcrossReplicasOutplace(const State &s,
+                               const StridedPartition &stridePartition)
+      : ReduceAcrossReplicas(s, stridePartition) {}
 
 private:
   bool aliases(InIndex, OutIndex) const final { return false; }
@@ -225,7 +259,9 @@ private:
 
 class ReduceAcrossReplicasInplace_ : public ReduceAcrossReplicas {
 public:
-  ReduceAcrossReplicasInplace_(const State &s) : ReduceAcrossReplicas(s) {}
+  ReduceAcrossReplicasInplace_(const State &s,
+                               const StridedPartition &stridePartition)
+      : ReduceAcrossReplicas(s, stridePartition) {}
 
 private:
   bool aliases(InIndex, OutIndex) const final { return true; }
@@ -242,19 +278,44 @@ private:
 };
 
 /**
+ * The gradient of a replica sum reduction with groupings #g is a replica sum
+ * reduction with groupings #g, applied to the gradients of the outputs of the
+ * forward reduction.
+ * */
+class SumAcrossReplicaAutodiffer {
+public:
+  // No input or output values from the forward reduction are required (just
+  // like an 'add' operation).
+  static std::vector<InIndex> autodiffRequiredIns() { return {}; }
+  static std::vector<OutIndex> autodiffRequiredOuts() { return {}; }
+  static bool gradientPropagates(OutIndex, InIndex) { return true; }
+  template <typename Tensor, typename OptionalTensor, typename... Args>
+  static typename std::vector<OptionalTensor> backpropagate(
+      const poprithms::autodiff::automatic::OpIn<Tensor, OptionalTensor> &gIn,
+      const Args &...) {
+    return {gIn.gradOfOutput(0).reduceSumAcrossReplicas()};
+  }
+};
+
+/**
  * Inplace sum-reduction across replicas.
  * */
 class ReduceSumAcrossReplicas_ final
-    : public Attributeless<
-          WithAutodiff<poprithms::autodiff::automatic::IdentityAutodiffer,
-                       ReduceAcrossReplicasInplace_>,
-          ReduceSumAcrossReplicas_> {
+    : public WithAutodiff<SumAcrossReplicaAutodiffer,
+                          ReduceAcrossReplicasInplace_> {
 public:
-  static constexpr const char *OpTypeName = "ReduceSumAcrossReplicas_";
-  ReduceSumAcrossReplicas_(const State &s) : Attributeless(s) {}
+  std::string typeString() const final { return "ReduceSumAcrossReplicas_"; }
+  ReduceSumAcrossReplicas_(const State &s,
+                           const StridedPartition &stridePartition)
+      : WithAutodiff(s, stridePartition) {}
 
   poprithms::compute::host::CommutativeOp cop() const final {
     return poprithms::compute::host::CommutativeOp::Sum;
+  }
+
+  UpOp cloneWithState(const Op::State &s) const final {
+    return std::unique_ptr<ReduceSumAcrossReplicas_>(
+        new ReduceSumAcrossReplicas_(s, grouping()));
   }
 };
 
@@ -262,14 +323,19 @@ public:
  * Non-inplace sum-reduction across replicas.
  * */
 class ReduceSumAcrossReplicas final
-    : public Attributeless<
-          WithAutodiff<poprithms::autodiff::automatic::IdentityAutodiffer,
-                       ReduceAcrossReplicasOutplace>,
-          ReduceSumAcrossReplicas> {
+    : public WithAutodiff<SumAcrossReplicaAutodiffer,
+                          ReduceAcrossReplicasOutplace> {
 
 public:
-  ReduceSumAcrossReplicas(const Op::State &s) : Attributeless(s) {}
-  static const constexpr char *OpTypeName{"ReduceSumAcrossReplicas"};
+  ReduceSumAcrossReplicas(const Op::State &s,
+                          const StridedPartition &stridePartition)
+      : WithAutodiff(s, stridePartition) {}
+  std::string typeString() const final { return "ReduceSumAcrossReplicas"; }
+
+  UpOp cloneWithState(const Op::State &s) const final {
+    return std::unique_ptr<ReduceSumAcrossReplicas>(
+        new ReduceSumAcrossReplicas(s, grouping()));
+  }
 
   poprithms::compute::host::CommutativeOp cop() const final {
     return poprithms::compute::host::CommutativeOp::Sum;

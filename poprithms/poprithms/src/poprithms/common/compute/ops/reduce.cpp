@@ -123,19 +123,41 @@ void ReduceAcrossReplicas::compute(const HostTensors &,
 }
 
 void ReduceAcrossReplicas::runSim(ISimState &hts) const {
-  // Accumulate across all replicas:
-  auto reduced = HostTensor::accumulate(
-      hts.simTensorMap().getValue(inTensorId(InIndex(0))), cop());
+
+  auto ins  = hts.simTensorMap().getValue(inTensorId(InIndex(0)));
+  auto outs = hts.simTensorMap().getValue(outTensorId(OutIndex(0)));
+
+  auto replicasByGroup = grouping().groups();
+  HostTensors reductions;
+  reductions.reserve(grouping().nGroups());
+
+  for (auto &&replicas : replicasByGroup) {
+    HostTensors ts;
+    for (auto r : replicas) {
+      ts.push_back(ins.at(r));
+    }
+    // Accumulate across replicas:
+    reductions.push_back(HostTensor::accumulate(ts, cop()));
+  }
 
   // Update local tensors:
-  for (auto t : hts.simTensorMap().getValue({id(), 0})) {
-    t.update_(reduced);
+  for (uint64_t r = 0; r < outs.size(); ++r) {
+    outs.at(r).update_(reductions.at(grouping().group(r)));
   }
 }
 
 void ReduceAcrossReplicas::computeDerivedVerifyValid() const {
   OpVerifier(*this).verifyNonVariadicFromAtts(
       1, 1, {OpVerifier::Att::SameDevice, OpVerifier::Att::SameDType});
+
+  OpVerifier(*this).verifyAllIpu();
+
+  if (grouping().range() != replicationFactor_u64()) {
+    std::ostringstream oss;
+    oss << "Grouping has incorrect replication factor, " << grouping().range()
+        << ", expected it to be " << replicationFactor_u64() << '.';
+    throw error(oss.str());
+  }
 }
 
 } // namespace compute

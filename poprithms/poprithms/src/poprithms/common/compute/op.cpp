@@ -656,6 +656,15 @@ OptionalTensorIds Op::srcsInCallees(OutIndex o) const {
   return ids;
 }
 
+ReplicationFactor Op::replicationFactor() const {
+  return graph().replicationFactor();
+}
+
+bool Op::isSrcInCallee(OutIndex o, CallEvent ce) const {
+  auto &&x = outCopies_.at(o.get());
+  return std::find(x.cbegin(), x.cend(), ce) != x.cend();
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

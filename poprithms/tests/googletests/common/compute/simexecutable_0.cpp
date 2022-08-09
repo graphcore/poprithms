@@ -9,6 +9,7 @@
 #include <poprithms/common/compute/ops/viewchange.hpp>
 #include <poprithms/common/compute/simexecutable.hpp>
 #include <poprithms/common/compute/slickgraph.hpp>
+#include <poprithms/error/error.hpp>
 
 namespace {
 
@@ -497,6 +498,28 @@ TEST(CommonComputeSimExecutable, Remote0) {
   vals0.assertAllEquivalent(vals1);
   vals0.assertAllEquivalent(vals2);
   vals0.assertAllEquivalent(vals3);
+}
+
+TEST(CommonComputeSimExecutable, CrossReplicaReduction0) {
+
+  int64_t rf{6};
+  SlickGraph g(22, ReplicationFactor::create(rf));
+
+  auto sg0 = g.createSubGraph("sg0");
+  auto x0  = sg0.hostFloat32Variable({1, 6});
+  auto x1  = x0.hostToIpu(g.rootIpu());
+  // replica : 0 1 2 3 4 5
+  // group   : 0 1 0 1 0 1
+  auto r0         = x1.reduceSumAcrossReplicas(3, Stride(2));
+  auto backOnHost = r0.ipuToHost(1);
+
+  g.setRunnable({sg0});
+  SimExecutable se(g);
+  se.setHostValue(x0, HostTensor::float32({1, 6}, {1, 2, 3, 4, 5, 6}));
+  se.run(sg0);
+  se.getHostValue(backOnHost)
+      .assertAllEquivalent(
+          HostTensor::float32({1, 6}, {9, 12, 9, 12, 9, 12}));
 }
 
 TEST(CommonComputeSimExecutable, Remote1) {

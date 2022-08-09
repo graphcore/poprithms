@@ -10,6 +10,7 @@
 #include <poprithms/common/compute/gradopinids.hpp>
 #include <poprithms/common/compute/initialvalues.hpp>
 #include <poprithms/common/compute/memoryaliasmapper.hpp>
+#include <poprithms/common/compute/replication.hpp>
 #include <poprithms/common/compute/simtensormap.hpp>
 #include <poprithms/common/multiout/consumptionid.hpp>
 #include <poprithms/common/multiout/ioindices.hpp>
@@ -148,7 +149,7 @@ public:
     const std::vector<CallEvents> inCopies;
 
     /**
-     * All of the call events in the graph which involve a copy from this an
+     * All of the call events in the graph which involve a copy from an
      * output of this op to the calling sub-graph. This happens when this
      * op's sub-graph is the callee.
      * */
@@ -272,6 +273,14 @@ public:
    *         copied from at the end of a call event.
    * */
   virtual bool isSrcInCallee(const CalleeTensorId &inCallee) const = 0;
+
+  /**
+   * \return true if the output at index #o is copied out of the call event
+   *         #ce. Specifically, if this op is in the callee sub-graph of the
+   *         call event #ce, and its output #o is copied into the calling
+   *         scope, then true is returned. Otherwise false is returned.
+   * */
+  bool isSrcInCallee(OutIndex o, CallEvent ce) const;
 
   /**
    * \return The tensor in the callee sub-graph #ci of this op which is copied
@@ -758,6 +767,12 @@ public:
    * \return All output indices where the tensor is on a device of type #dt.
    * */
   OutIndices outputsWithDeviceType(DeviceType dt) const;
+
+  ReplicationFactor replicationFactor() const;
+
+  uint64_t replicationFactor_u64() const {
+    return replicationFactor().get_u64();
+  }
 
 protected:
   /**

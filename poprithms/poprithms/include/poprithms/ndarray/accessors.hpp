@@ -34,6 +34,12 @@ template <typename T> struct BaseScalarU64 {
   int64_t get_i64() const { return static_cast<int64_t>(val); }
   T operator+(uint32_t v) const { return T(val + v); }
   uint64_t val;
+  bool operator==(const T &rhs) const { return val == rhs.val; }
+  bool operator!=(const T &rhs) const { return val != rhs.val; }
+  bool operator<(const T &rhs) const { return val < rhs.val; }
+  bool operator>(const T &rhs) const { return val > rhs.val; }
+  bool operator<=(const T &rhs) const { return val <= rhs.val; }
+  bool operator>=(const T &rhs) const { return val >= rhs.val; }
 };
 
 /** Strictly positive value */

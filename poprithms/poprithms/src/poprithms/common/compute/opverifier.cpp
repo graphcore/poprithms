@@ -162,6 +162,27 @@ void OpVerifier::verifyAllSameDevice() const {
   }
 }
 
+void OpVerifier::verifyAllIpu() const {
+
+  auto getMessage = [this](Op::Port port, uint64_t index) {
+    std::ostringstream oss;
+    oss << "Failure in OpVerifier::verifyAllIpu for op " << op << ". The "
+        << Op::lowercase(port) << "put tensor #" << index
+        << " (tensor id = " << op.tensorId(port, index) << ")  is on device "
+        << op.device(port, index)
+        << ", which is of device type: " << op.deviceType(port, index) << '.';
+    return oss.str();
+  };
+
+  for (auto p : {Op::Port::In, Op::Port::Out}) {
+    for (uint64_t i = 0; i < op.nTensors(p); ++i) {
+      if (op.deviceType(p, i) != DeviceType::Ipu) {
+        throw error(getMessage(p, i));
+      }
+    }
+  }
+}
+
 void OpVerifier::verifyAllFloatingIfIpu() const {
 
   auto getMessage = [this](Op::Port port, uint64_t index) {

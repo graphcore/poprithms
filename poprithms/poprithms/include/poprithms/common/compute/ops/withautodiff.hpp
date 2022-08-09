@@ -47,7 +47,9 @@ public:
 template <class AD, class BaseWithoutAutodiff>
 class WithAutodiff : public BaseWithoutAutodiff {
 public:
-  WithAutodiff(const Op::State &s) : BaseWithoutAutodiff(s) {}
+  template <typename... Args>
+  WithAutodiff(const Op::State &s, const Args &...args)
+      : BaseWithoutAutodiff(s, args...) {}
 
   InIndices autodiffRequiredIns() const final {
     return AD::autodiffRequiredIns();

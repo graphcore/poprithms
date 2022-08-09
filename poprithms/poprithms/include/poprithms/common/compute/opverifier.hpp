@@ -46,6 +46,11 @@ public:
   void verifyAllFloatingIfIpu() const;
 
   /**
+   * Verify that all inputs and outputs are on ipu.
+   * */
+  void verifyAllIpu() const;
+
+  /**
    * Verify that the op's input at index #i to is fixed point (integral).
    * */
   void verifyInIsFixedPoint(InIndex i) const;

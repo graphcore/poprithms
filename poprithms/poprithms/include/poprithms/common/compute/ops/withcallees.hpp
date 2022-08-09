@@ -244,11 +244,25 @@ public:
   virtual bool isCarriedTo(const TensorId &tId) const = 0;
 
   /**
+   * The inverse of #isCarriedTo. Returns true if #tId, is a tensor in this
+   * op's callee and is copied FROM at the end of each iteration of the
+   * callee. This method must return false if this op does not have a callee
+   * which is run repeatedly multiple times.
+   * */
+  virtual bool isCarriedFrom(const TensorId &tId) const = 0;
+
+  /**
    * For ops which repeat a callee sub-graph, return the tensor to which #tId
    * is carried at the end of each iteration. If #tId is not carried (\sa
    * isCarriedTo) then an error is thrown.
    * */
   virtual TensorId carriedFrom(const TensorId &tId) const = 0;
+
+  /**
+   * The inverse of #carriedFrom. Specifically, if carriedFrom(#a) is #b then
+   * carriedTo(#b) must be #a.
+   * */
+  virtual TensorId carriedTo(const TensorId &tId) const = 0;
 
   void computeDerivedVerifyValid() const final;
 
@@ -369,7 +383,10 @@ private:
                  const InIndices &fromTargets,
                  const OutIndices &inGrads) const final;
 
+  // This operation does not have repeat semantics, and calling these methods
+  // is therefore invalid:
   TensorId carriedFrom(const TensorId &) const final { invalid(); }
+  TensorId carriedTo(const TensorId &) const final { invalid(); }
 
   /**
    * As there is only 1 callee sub-graph for a call op, there is only 1
@@ -393,6 +410,8 @@ private:
    * called once (unlike a loop-style op).
    * */
   bool isCarriedTo(const TensorId &) const final { return false; }
+
+  bool isCarriedFrom(const TensorId &) const final { return false; }
 
   void
   withCalleesDerivedRemoveOutputs(const ContiguousOutIndexSubset &) final {}
@@ -549,7 +568,7 @@ public:
   TensorId carriedFrom(const TensorId &carriedTo) const final {
     return carriedFroms_[getIndexInCarriedTo(carriedTo)];
   }
-  bool isCarriedFrom(const TensorId &) const;
+  bool isCarriedFrom(const TensorId &) const final;
 
   /**
    * \return The tensors, 1 for each tensor in #carriedTos, which are copied
@@ -560,7 +579,7 @@ public:
   /**
    * \return The carried tensor which is copied from #carriedFrom.
    * */
-  TensorId carriedTo(const TensorId &carriedFrom) const {
+  TensorId carriedTo(const TensorId &carriedFrom) const final {
     return carriedTos_[getIndexInCarriedFrom(carriedFrom)];
   }
   bool isCarriedTo(const TensorId &) const final;
@@ -714,6 +733,9 @@ private:
    * */
   TensorId carriedFrom(const TensorId &) const final { invalid(); }
   bool isCarriedTo(const TensorId &) const final { return false; }
+
+  TensorId carriedTo(const TensorId &) const final { invalid(); }
+  bool isCarriedFrom(const TensorId &) const final { return false; }
 
   /**
    * The switch op adds no new attributes on input or output tensors, so these

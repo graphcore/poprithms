@@ -19,10 +19,13 @@
 #include <poprithms/common/compute/tensor.hpp>
 #include <poprithms/error/error.hpp>
 #include <poprithms/ndarray/groupedmatmulpack.hpp>
+#include <poprithms/util/stridedpartition.hpp>
 
 namespace poprithms {
 namespace common {
 namespace compute {
+
+using util::StridedPartition;
 
 const Op &Tensor::op(OpId opId) const { return graph().computeOp(opId); }
 
@@ -586,10 +589,22 @@ Tensor Tensor::setToLowest_() const {
   return fill_(HostTensor::lowestScalar(dtype()));
 }
 Tensor Tensor::reduceSumAcrossReplicas_() const {
-  return createUnaryWithSameInfo<ReduceSumAcrossReplicas_>();
+  return reduceSumAcrossReplicas_(replicationFactor_u64(), Stride(1));
 }
+
 Tensor Tensor::reduceSumAcrossReplicas() const {
-  return createUnaryWithSameInfo<ReduceSumAcrossReplicas>();
+  return reduceSumAcrossReplicas(replicationFactor_u64(), Stride(1));
+}
+
+Tensor Tensor::reduceSumAcrossReplicas_(uint64_t nPerGroup, Stride s) const {
+
+  return createUnaryWithSameInfo<ReduceSumAcrossReplicas_>(
+      StridedPartition(replicationFactor_u64(), nPerGroup, s.get()));
+}
+
+Tensor Tensor::reduceSumAcrossReplicas(uint64_t nPerGroup, Stride s) const {
+  return createUnaryWithSameInfo<ReduceSumAcrossReplicas>(
+      StridedPartition(replicationFactor_u64(), nPerGroup, s.get()));
 }
 
 Tensor Tensor::update_(const Tensor &update,

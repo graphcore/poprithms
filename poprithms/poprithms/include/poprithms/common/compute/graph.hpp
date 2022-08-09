@@ -360,6 +360,7 @@ public:
   uint64_t replicationFactor_u64() const {
     return replicationFactor_.get_u64();
   }
+  ReplicationFactor replicationFactor() const { return replicationFactor_; }
 
   const Device &device(DeviceId id) const;
 

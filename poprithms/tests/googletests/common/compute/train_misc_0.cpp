@@ -317,16 +317,31 @@ TEST(CommonComputeTrainMisc0, ThroughDynamicSlice0) {
 }
 
 TEST(CommonComputeTrainMisc0, ThroughReduceSumAcrossReplicas) {
-  SlickGraph g;
-  SubGraph sg0 = g.createSubGraph("sg0");
+
   int64_t rf{2};
+  SlickGraph g(32, ReplicationFactor::create(rf));
+  SubGraph sg0 = g.createSubGraph("sg0");
+
+  // loss0 = reduceAcrossReplicas(in0^2)
   auto in0   = sg0.hostFloat32Variable({1, rf, 3});
-  auto loss0 = in0.pow(2).reduceSumAcrossReplicas().reduceSum(Shape{});
+  auto loss0 = in0.pow(2)
+                   .hostToIpu(g.rootIpu())
+                   .reduceSumAcrossReplicas()
+                   .reduceSum(Shape{});
 
+  // loss1 = reduceAcrossReplicas(in1).
   auto in1   = sg0.hostFloat32Variable({1, rf, 3});
-  auto loss1 = in1.reduceSumAcrossReplicas_().reduceSum(Shape{});
+  auto loss1 = in1.hostToIpu(g.rootIpu())
+                   .reduceSumAcrossReplicas_()
+                   .reduceSum(Shape{});
 
-  auto loss = loss0 - loss1;
+  // loss = loss0 - loss1.
+  auto loss = (loss0 - loss1).ipuToHost(1).squeeze().at(0);
+
+  // Note that an equivalent way to get the loss would be (we test this
+  // later in this google test).
+  auto loss2 = (loss0 - loss1).ipuToHost(1).reduceSum(Shape{}).div(rf);
+
   auto dIns = Ad(g).backward(loss, {in1, in0});
   auto dIn1 = dIns[0];
   auto dIn0 = dIns[1];
@@ -341,6 +356,8 @@ TEST(CommonComputeTrainMisc0, ThroughReduceSumAcrossReplicas) {
 
   cms.getHostValue(dIn1).assertAllEquivalent(
       HostTensor::float32({rf, 3}, {-1, -1, -1, -1, -1, -1}));
+
+  cms.getHostValue(loss).assertAllEquivalent(cms.getHostValue(loss2));
 }
 
 TEST(CommonComputeTrainMisc0, ThroughDynamicMax0) {
