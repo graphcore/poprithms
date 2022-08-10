@@ -3,6 +3,7 @@
 #include "error.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 #include <set>
 #include <sstream>
@@ -37,6 +38,26 @@ private:
 class MultiGraphBack {
 public:
   MultiGraphBack(const Querier &gq_) : gq(gq_) {}
+  StackTensorIds neighbors(const StackTensorId &n) const;
+
+private:
+  const Querier &gq;
+};
+
+class SingleGraphForward {
+public:
+  SingleGraphForward(const Querier &gq) : gq_(gq) {}
+  TensorIds neighbors(const TensorId &n) const {
+    return gq_.outTensorIds(n.opId());
+  }
+
+private:
+  const Querier &gq_;
+};
+
+class MultiGraphForward {
+public:
+  MultiGraphForward(const Querier &gq_) : gq(gq_) {}
   StackTensorIds neighbors(const StackTensorId &n) const;
 
 private:
@@ -78,10 +99,65 @@ StackTensorIds MultiGraphBack::neighbors(const StackTensorId &source0) const {
   // If the tensor is the destination of a copy into a callee, traverse to the
   // source of the copy.
   if (!callStack.empty() && gq.isDstInCallee(tId, callStack.back())) {
+
     const auto currentCse = callStack.back();
     callStack.pop_back();
     toReturn.push_back(
         StackTensorId(gq.srcInCaller(tId, currentCse), std::move(callStack)));
+  }
+
+  return toReturn;
+}
+
+StackTensorIds
+MultiGraphForward::neighbors(const StackTensorId &source0) const {
+
+  const auto tId = source0.tId();
+  auto callStack = source0.callStack();
+  StackTensorIds toReturn;
+
+  for (auto consumptionId : gq.consumptionIds(tId)) {
+    auto consumingOp          = consumptionId.opId();
+    auto inIndexOfConsumption = consumptionId.inIndex();
+
+    auto callees = gq.callees(consumingOp);
+
+    //   (1) if the tensor is consumed by an op with a callee, and the the
+    //       tensor is copied into the callee sub-graph, traverse to the
+    //       destination of the copy.
+    if (gq.isCopyToCalleeInIndex(consumingOp, inIndexOfConsumption)) {
+
+      auto dstInCallee = gq.dstInCallee(consumingOp, inIndexOfConsumption);
+      auto ci          = dstInCallee.calleeIndex();
+      auto callee      = callees.at(ci.get());
+
+      auto callStack_ = callStack;
+      callStack_.push_back(CallEvent{consumingOp, callee, ci});
+      StackTensorId sti(dstInCallee.tId(), std::move(callStack_));
+      toReturn.push_back(sti);
+    }
+
+    //   (2) if the tensor is consumed by an op and is not copied to a callee
+    //       sub-graph in the consumer, traverse to all of the op's outputs.
+    else {
+      for (auto o : gq.outTensorIds(consumingOp)) {
+        toReturn.push_back({o, callStack});
+      }
+    }
+  }
+
+  if (gq.isCarriedFrom(tId, callStack)) {
+    toReturn.push_back({gq.carriedTo(tId, callStack), callStack});
+  }
+
+  //    (3) if the tensor is in a callee sub-graph and is copied out, traverse
+  //        to the destination of the copy. In this case, the stack size
+  //        decreases by 1 for the destination.
+  if (!callStack.empty() && gq.isSrcInCallee(tId, callStack.back())) {
+    const auto currentCse = callStack.back();
+    callStack.pop_back();
+    toReturn.push_back(
+        StackTensorId(gq.dstInCaller(tId, currentCse), std::move(callStack)));
   }
 
   return toReturn;
@@ -97,12 +173,26 @@ TensorIds Querier::onSingleGraphPathTo(const TensorIds &tIds) const {
   return out;
 }
 
-StackTensorIds Querier::onMultiGraphPathTo(const StackTensorIds &tIds) const {
-  auto stids = poprithms::common::multiout::depthFirst(
-      MultiGraphBack(*this), tIds, [](const StackTensorId &) {
-        return true;
-      });
-  return stids;
+TensorIds Querier::onSingleGraphPathFrom(const TensorIds &tIds) const {
+
+  SingleGraphForward bb(*this);
+  TensorIds out = poprithms::common::multiout::depthFirst(
+      bb, tIds, [](const TensorId &) { return true; });
+  return out;
+}
+
+StackTensorIds Querier::onMultiGraphPathTo(
+    const StackTensorIds &tIds,
+    const std::function<bool(StackTensorId)> &accept) const {
+  return poprithms::common::multiout::depthFirst(
+      MultiGraphBack(*this), tIds, accept);
+}
+
+StackTensorIds Querier::onMultiGraphPathFrom(
+    const StackTensorIds &tIds,
+    const std::function<bool(StackTensorId)> &accept) const {
+  return poprithms::common::multiout::depthFirst(
+      MultiGraphForward(*this), tIds, accept);
 }
 
 StackTensorIds Querier::nestedFullStack(const SubGraphIds &stackBase) const {

@@ -87,6 +87,19 @@ void testOnMultiGraphPathTo0() {
     oss << "Expected\n" << expected << " but observed\n" << stacky << ". ";
     throw poprithms::test::error(oss.str());
   }
+
+  auto stackBack = callstack_test::Querier(m).onMultiGraphPathFrom(
+      callstack::StackUtil::inMainScope({{in2, 0}}));
+
+  std::sort(stackBack.begin(), stackBack.end());
+
+  if (stackBack != expected) {
+    std::ostringstream oss;
+    oss << "For the forwards traversal, expected \n"
+        << expected << " but observed\n"
+        << stackBack << ". ";
+    throw poprithms::test::error(oss.str());
+  }
 }
 
 void testNoPathToTarget0() {
@@ -136,12 +149,41 @@ void testNoPathToTarget0() {
                         "call1");
 
   // expect every tensor except call0, 1
-  const auto stacky = callstack_test::Querier(m).onMultiGraphPathTo(
-      callstack::StackUtil::inMainScope(m.outTensorIds(call1)));
-  auto counts = callstack::StackUtil::getCounts(stacky);
-  if (counts.size() != 9) {
-    throw poprithms::test::error(
-        "Expected 9/10 tensors to be visited, all except call0,1.");
+  {
+    const auto stacky = callstack_test::Querier(m).onMultiGraphPathTo(
+        callstack::StackUtil::inMainScope(m.outTensorIds(call1)));
+    auto counts = callstack::StackUtil::getCounts(stacky);
+    if (counts.size() != 9) {
+      throw poprithms::test::error(
+          "Expected 3/10 tensors to be visited, not " +
+          std::to_string(counts.size()));
+    }
+  }
+
+  {
+    const auto stacky = callstack_test::Querier(m).onMultiGraphPathFrom(
+        callstack::StackUtil::inMainScope({in2}));
+
+    auto counts = callstack::StackUtil::getCounts(stacky);
+    if (counts.size() != 9) {
+      throw poprithms::test::error(
+          "Expected 9/10 tensors to be visited, all except in3. Not " +
+          std::to_string(counts.size()));
+    }
+  }
+
+  // Check that custom #accept works:
+  {
+    const auto stacky = callstack_test::Querier(m).onMultiGraphPathFrom(
+        callstack::StackUtil::inMainScope({in2}),
+        [&](auto x) { return x.tId() != add && x.tId() != sub; });
+
+    auto counts = callstack::StackUtil::getCounts(stacky);
+    if (counts.size() != 3) {
+      throw poprithms::test::error(
+          "Expected 3/10 tensors to be visited: in2, in0 and in1. Not " +
+          std::to_string(counts.size()));
+    }
   }
 }
 
@@ -150,7 +192,7 @@ void testNestedFullStack0() {
   const auto sg0 = m.createSubGraphId("sg0");
   const TensorId in0{m.insert({}, 1, sg0, "in0"), 0};
 
-  const auto sg1 = m.createSubGraphId("sg0");
+  const auto sg1 = m.createSubGraphId("sg1");
   const TensorId in1{m.insert({}, 1, sg1, "in1"), 0};
 
   m.insert(sg1, {sg0}, CopyIns{}, CopyOuts{}, {}, {}, "call0");

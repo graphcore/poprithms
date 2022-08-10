@@ -191,22 +191,6 @@ bool AliasGraphQuerier::isAllConstZero(const Graph &computeGraph,
   return true;
 }
 
-class TransitiveClosureMapper {
-public:
-  bool unconstrainedInBothDirections(OpId a, OpId b) const {
-    return tc.unconstrainedInBothDirections(fwdEdgeMap.compactId(a),
-                                            fwdEdgeMap.compactId(b));
-  }
-
-private:
-  TransitiveClosureMapper(const FwdEdgeMap &);
-  FwdEdgeMap fwdEdgeMap;
-  schedule::transitiveclosure::TransitiveClosure tc;
-};
-
-TransitiveClosureMapper::TransitiveClosureMapper(const FwdEdgeMap &em)
-    : fwdEdgeMap(em), tc(em.fwdEdgesCompact()) {}
-
 // TODO(T64447) add tests
 std::map<OpId, OpIds>
 AliasGraphQuerier::makeModifiersFinalConsumers(const Graph &computeGraph,

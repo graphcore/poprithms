@@ -168,7 +168,7 @@ void OpVerifier::verifyAllIpu() const {
     std::ostringstream oss;
     oss << "Failure in OpVerifier::verifyAllIpu for op " << op << ". The "
         << Op::lowercase(port) << "put tensor #" << index
-        << " (tensor id = " << op.tensorId(port, index) << ")  is on device "
+        << " (tensor id = " << op.tensorId(port, index) << ") is on device "
         << op.device(port, index)
         << ", which is of device type: " << op.deviceType(port, index) << '.';
     return oss.str();

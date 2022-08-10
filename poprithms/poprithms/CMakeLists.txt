@@ -88,6 +88,7 @@ add_library(poprithms-common-schedulable SHARED
 )
 
 set(common_compute_sources
+  ${src_dir}/common/compute/callstackquerier.cpp
   ${src_dir}/common/compute/device.cpp
   ${src_dir}/common/compute/devicetype.cpp
   ${src_dir}/common/compute/error.cpp

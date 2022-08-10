@@ -42,6 +42,14 @@ public:
     return graph().nOutTensors(id);
   }
 
+  bool isCopyToCalleeInIndex(OpId opId, InIndex inIndex) const final {
+    return graph().computeOp(opId).isCopyToCalleeInIndex(inIndex);
+  }
+
+  CalleeTensorId dstInCallee(OpId opId, InIndex inIndex) const final {
+    return graph().computeOp(opId).dstInCallee(inIndex);
+  }
+
   SubGraphIds callees(OpId id) const final { return graph().callees(id); }
 
   TensorIds inTensorIds(OpId id) const final {
@@ -68,8 +76,20 @@ public:
     return graph().castOrThrow<WithCallees>(opId)->outs();
   }
 
+  TensorId dstInCaller(const TensorId &inCallee,
+                       const CallEvent &ce) const final {
+    return graph().dstInCaller(inCallee, ce);
+  }
+
+  bool isSrcInCallee(const TensorId &tId, const CallEvent &ce) const final {
+    return graph().computeOp(tId.opId()).isSrcInCallee(tId.outIndex(), ce);
+  }
+
   bool isCarriedTo(const TensorId &, const CallStack &) const final;
   TensorId carriedFrom(const TensorId &, const CallStack &) const final;
+
+  bool isCarriedFrom(const TensorId &, const CallStack &) const final;
+  TensorId carriedTo(const TensorId &, const CallStack &) const final;
 
   TensorId srcInCaller(const TensorId &inCallee,
                        const CallEvent &cse) const final {

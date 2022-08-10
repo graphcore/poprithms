@@ -83,8 +83,10 @@ public:
   std::vector<std::pair<InIndex, TensorId>> copyInDsts() const;
 
   bool isCarriedTo(const TensorId &) const;
+  bool isCarriedFrom(const TensorId &) const;
 
   TensorId carriedFrom(const TensorId &) const;
+  TensorId carriedTo(const TensorId &) const;
 
 private:
   bool
@@ -162,6 +164,10 @@ public:
   bool isCarriedTo(const TensorId &tId, const CallStack &cs) const;
 
   TensorId carriedFrom(const TensorId &tId, const CallStack &cs) const;
+
+  bool isCarriedFrom(const TensorId &tId, const CallStack &cs) const;
+
+  TensorId carriedTo(const TensorId &tId, const CallStack &cs) const;
 
 private:
   bool multiOutTypeSpecificEqualTo(const multiout::Graph &) const final {

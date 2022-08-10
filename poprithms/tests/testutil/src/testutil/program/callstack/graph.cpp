@@ -89,6 +89,13 @@ bool Graph::isCarriedTo(const TensorId &tId, const CallStack &cs) const {
   return op(cs.back().caller()).isCarriedTo(tId);
 }
 
+bool Graph::isCarriedFrom(const TensorId &tId, const CallStack &cs) const {
+  if (cs.empty()) {
+    return false;
+  }
+  return op(cs.back().caller()).isCarriedFrom(tId);
+}
+
 TensorId Graph::carriedFrom(const TensorId &tId, const CallStack &cs) const {
 
   if (cs.empty()) {
@@ -98,6 +105,17 @@ TensorId Graph::carriedFrom(const TensorId &tId, const CallStack &cs) const {
     throw poprithms::test::error(oss.str());
   }
   return op(cs.back().caller()).carriedFrom(tId);
+}
+
+TensorId Graph::carriedTo(const TensorId &tId, const CallStack &cs) const {
+
+  if (cs.empty()) {
+    std::ostringstream oss;
+    oss << "Invalid call to carriedTo with tId=" << tId
+        << ": call stack empty.";
+    throw poprithms::test::error(oss.str());
+  }
+  return op(cs.back().caller()).carriedTo(tId);
 }
 
 schedulable::Op::State Graph::getState(const TensorIds &ins,
@@ -196,19 +214,33 @@ InIndices Op::nonCalleeCopyInIndices() const {
   return inIndices();
 }
 
+bool Op::isCarriedFrom(const TensorId &tId) const {
+  return std::any_of(carries_.cbegin(), carries_.cend(), [tId](auto x) {
+    return x.first == tId;
+  });
+}
+
 bool Op::isCarriedTo(const TensorId &tId) const {
-  for (auto p : carries_) {
-    if (p.second == tId) {
-      return true;
-    }
-  }
-  return false;
+  return std::any_of(carries_.cbegin(), carries_.cend(), [tId](auto x) {
+    return x.second == tId;
+  });
 }
 
 TensorId Op::carriedFrom(const TensorId &to) const {
   for (auto p : carries_) {
     if (p.second == to) {
       return p.first;
+    }
+  }
+  std::ostringstream oss;
+  oss << "The tensor " << to << " is not carried to.";
+  throw poprithms::test::error(oss.str());
+}
+
+TensorId Op::carriedTo(const TensorId &to) const {
+  for (auto p : carries_) {
+    if (p.first == to) {
+      return p.second;
     }
   }
   std::ostringstream oss;

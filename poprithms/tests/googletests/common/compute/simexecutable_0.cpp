@@ -469,6 +469,7 @@ TEST(CommonComputeSimExecutable, NllLoss0) {
           1e-6,
           1e-6);
 }
+
 TEST(CommonComputeSimExecutable, Remote0) {
   int64_t rf{2};
   SlickGraph g(22, ReplicationFactor::create(rf));

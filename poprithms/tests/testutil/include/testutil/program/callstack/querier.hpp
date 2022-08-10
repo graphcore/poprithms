@@ -11,6 +11,7 @@
 #include <poprithms/common/multiout/op.hpp>
 #include <poprithms/common/schedulable/graph.hpp>
 #include <poprithms/common/schedulable/op.hpp>
+#include <poprithms/error/error.hpp>
 #include <poprithms/program/callstack/callstack.hpp>
 #include <poprithms/program/callstack/copyin.hpp>
 #include <poprithms/program/callstack/copymap.hpp>
@@ -22,6 +23,7 @@ namespace program {
 namespace callstack_test {
 
 using callstack::CallStack;
+using poprithms::program::callstack::CalleeTensorId;
 
 /**
  * Completion of the callstack::Querier interface, used for running algorithms
@@ -37,6 +39,19 @@ public:
   Querier(const Graph &g) : g_(g) {
     copyIns_  = callstack::CopyInMap(*this);
     copyOuts_ = callstack::CopyOutMap(*this);
+  }
+
+  bool isCopyToCalleeInIndex(OpId opId, InIndex inIndex) const final {
+    auto inds = g().op(opId).nonCalleeCopyInIndices();
+    bool isNonCalleeCopyIn =
+        (std::find(inds.cbegin(), inds.cend(), inIndex) != inds.cend());
+    return !isNonCalleeCopyIn;
+  }
+
+  CalleeTensorId dstInCallee(OpId opId, InIndex inIndex) const final {
+    auto i = g().op(opId).inCopies().calleeIndex(inIndex);
+    auto t = g().op(opId).inCopies().dst(inIndex);
+    return CalleeTensorId(t, i);
   }
 
   std::vector<std::pair<InIndex, TensorId>>
@@ -60,6 +75,13 @@ public:
 
   TensorId carriedFrom(const TensorId &tId, const CallStack &cs) const final {
     return g().carriedFrom(tId, cs);
+  }
+
+  bool isCarriedFrom(const TensorId &tId, const CallStack &cs) const final {
+    return g().isCarriedFrom(tId, cs);
+  }
+  TensorId carriedTo(const TensorId &tId, const CallStack &cs) const final {
+    return g().carriedTo(tId, cs);
   }
 
   uint64_t nOutTensors(OpId i) const final { return g().nOutTensors(i); }
@@ -88,6 +110,10 @@ public:
     return g().op(cse.caller()).inCopies().isDst(cse.index(), tId);
   }
 
+  bool isSrcInCallee(const TensorId &tId, const CallEvent &cse) const final {
+    return g().op(cse.caller()).outCopies().isSource(cse.index(), tId);
+  }
+
   const CopyIns &inCopies(OpId opId) const { return g().op(opId).inCopies(); }
 
   const CopyOuts &outCopies(OpId opId) const {
@@ -101,6 +127,13 @@ public:
 
   TensorId srcInCallee(const CallEvent &cse, OutIndex o) const final {
     return g().op(cse.caller()).outCopies().outSource(o, cse.index());
+  }
+
+  TensorId dstInCaller(const TensorId &inCallee,
+                       const CallEvent &ce) const final {
+    auto index =
+        g().op(ce.caller()).outCopies().outIndex(ce.index_u64(), inCallee);
+    return TensorId{ce.caller(), index};
   }
 
   bool hasSrcInCallee(const CallEvent &cse, OutIndex o) const final {

@@ -1,16 +1,20 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
 #include <algorithm>
+#include <iostream>
 #include <numeric>
 #include <sstream>
 #include <string>
 
 #include <poprithms/common/compute/autodiff/autodiffer.hpp>
+#include <poprithms/common/compute/callstackquerier.hpp>
 #include <poprithms/common/compute/prune/pruner.hpp>
 #include <poprithms/common/compute/simexecutable.hpp>
 #include <poprithms/common/compute/slickgraph.hpp>
 #include <poprithms/common/compute/testutil/finitedifference.hpp>
 #include <poprithms/error/error.hpp>
+#include <poprithms/program/callstack/callstack.hpp>
+#include <poprithms/program/callstack/stackutil.hpp>
 #include <poprithms/program/prune/prune.hpp>
 
 namespace {
@@ -318,6 +322,108 @@ void testPruneSwitch0() {
   m.verifyValid();
 }
 
+void testTraversal0() {
+
+  SlickGraph g;
+
+  // sg2 will switch on sg0 and sg1.
+  auto sgs = g.createSubGraphs({"sg0", "sg1", "sg2"});
+
+  auto in00  = sgs[0].hostFloat32Variable({});
+  auto in01  = sgs[0].hostFloat32Variable({});
+  auto out00 = in00 + in01;
+
+  auto in10  = sgs[1].hostFloat32Variable({});
+  auto out10 = in10.abs();
+
+  auto in20 = sgs[2].hostFloat32Variable({});
+  auto in21 = sgs[2].hostFloat32Variable({});
+  auto cond = in21.variable(DType::Unsigned32);
+
+  auto sw00 =
+      sgs[2].switchOp({sgs[0], sgs[1]},
+                      cond,
+                      {{in20, in00, 0}, {in21, in01, 0}, {in20, in10, 1}},
+                      {{out00, out10}},
+                      {});
+
+  auto out20 = out00.dstInCaller(CallEvent(sw00, sgs[0], 0));
+  auto sumo  = out20 + in20;
+
+  // OpId  OpType                 InTensors      Graph      Out Sources
+  //----  ------                 ---------      -----      -----------
+  // 0     VarInit                ()             sg0(id=0)
+  // 1     VarInit                ()             sg0(id=0)
+  // 2     Add                    ops=(0,1)      sg0(id=0)
+  // 3     VarInit                ()             sg1(id=1)
+  // 4     Abs                    ops=(3)        sg1(id=1)
+  // 5     VarInit                ()             sg2(id=2)
+  // 6     VarInit                ()             sg2(id=2)
+  // 7     VarInit                ()             sg2(id=2)
+  // 8     Switch(callees=(0,1))  ops=(5,6,5,7)  sg2(id=2)  ((op=2),(op=4))
+  // 9     Add                    ops=(8,5)      sg2(id=2)
+
+  //
+  //
+  //  cond --
+  //         +------------------------------------+
+  //         |          .......................   |
+  //         |   +----- .  in00 ---+          .   |
+  //  in20 --+---+      .           +-- out00 . --+-- out20
+  //         |       +- .  in01 ---+          .   |
+  //  in21 ----------+  .......................   |
+  //         |                                    |
+  //         +---------  in10 ---------- out10  --+
+
+  using poprithms::program::callstack::StackUtil;
+  CallstackQuerier q(g);
+
+  auto confirm = [](std::set<TensorId> observed,
+                    std::set<TensorId> expected) {
+    if (expected != observed) {
+      std::ostringstream oss;
+      oss << "Expected \n"
+          << TensorIds{expected.begin(), expected.cend()}
+          << " but observed \n"
+          << TensorIds{observed.begin(), observed.cend()} << "\n";
+      throw poprithms::test::error(oss.str());
+    }
+  };
+
+  std::cout << g << std::endl;
+
+  {
+    auto obs = StackUtil::tensorIds(
+        q.onMultiGraphPathFrom(StackUtil::inMainScope({in20})));
+    std::set<TensorId> expected0{in20, in00, in10, out10, out00, out20, sumo};
+    confirm(obs, expected0);
+  }
+
+  {
+    auto obs = StackUtil::tensorIds(
+        q.onMultiGraphPathFrom(StackUtil::inMainScope({in21})));
+    std::set<TensorId> expected0{in21, in01, out00, out20, sumo};
+    confirm(obs, expected0);
+  }
+
+  {
+    auto obs = StackUtil::tensorIds(
+        q.onMultiGraphPathFrom(StackUtil::inMainScope({cond})));
+    std::set<TensorId> expected0{cond, out20, sumo};
+    confirm(obs, expected0);
+  }
+
+  {
+    auto obs = StackUtil::tensorIds(
+        q.onMultiGraphPathFrom(StackUtil::inMainScope({in20}), [&](auto x) {
+          return x.tId() != out00 && x.tId() != out10;
+        }));
+
+    std::set<TensorId> expected0{in20, in00, in10, sumo};
+    confirm(obs, expected0);
+  }
+}
+
 } // namespace
 
 int main() {
@@ -327,5 +433,6 @@ int main() {
   testTrainAsymSwitch0();
   testSwitchTrain0();
   testPruneSwitch0();
+  testTraversal0();
   return 0;
 }

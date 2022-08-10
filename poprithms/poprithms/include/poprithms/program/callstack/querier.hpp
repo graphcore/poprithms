@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_PROGRAM_PRUNE_CALLSTACK_GRAPHINTERFACE_HPP
 #define POPRITHMS_PROGRAM_PRUNE_CALLSTACK_GRAPHINTERFACE_HPP
 
+#include <functional>
 #include <map>
 #include <ostream>
 #include <vector>
@@ -10,6 +11,7 @@
 #include <poprithms/common/multiout/opid.hpp>
 #include <poprithms/common/multiout/tensorid.hpp>
 #include <poprithms/common/schedulable/subgraphid.hpp>
+#include <poprithms/program/callstack/calleetensorid.hpp>
 #include <poprithms/program/callstack/callstack.hpp>
 #include <poprithms/program/callstack/stacktensorid.hpp>
 
@@ -28,6 +30,8 @@ using poprithms::common::multiout::TensorId;
 using poprithms::common::multiout::TensorIds;
 using poprithms::common::schedulable::SubGraphId;
 using poprithms::common::schedulable::SubGraphIds;
+using poprithms::program::callstack::CalleeTensorId;
+using poprithms::program::callstack::CalleeTensorIds;
 using poprithms::program::callstack::CallEvent;
 using poprithms::program::callstack::CallEvents;
 using poprithms::program::callstack::CallStack;
@@ -88,6 +92,25 @@ public:
   copyInDsts(OpId opId) const = 0;
 
   /**
+   * \return true if the input of #opId at index #inIndex is copied to a
+   *         callee of the op #opId.
+   *
+   * Examples of when false is returned are (1) if #opId has no callee
+   * sub-graphs and (2) if the input at #inIndex is the boolean condition
+   * tensor of a condition (if) op.
+   * */
+  virtual bool isCopyToCalleeInIndex(OpId opId, InIndex inIndex) const = 0;
+
+  /**
+   * \return The destination of the copy into the callee sub-graph.
+   *
+   * If the input to op #opId at index #inIndex is not copied to a callee
+   * sub-graph, an error is thrown. Whether or not it is is can be established
+   * with the method #isCopyToCalleeInIndex.
+   * */
+  virtual CalleeTensorId dstInCallee(OpId opId, InIndex inIndex) const = 0;
+
+  /**
    * The input at index #i of op #opId.
    * */
   virtual TensorId inTensorId(OpId opId, InIndex i) const = 0;
@@ -98,12 +121,18 @@ public:
   virtual TensorIds inTensorIds(OpId opId) const = 0;
 
   /**
-   * In the call stack #cs, is #tId a loop carry dependency? This is true for
-   * is #cs's current (top) op is a loop op, and #tId is copied to at the end
+   * In the call stack #cs, is #tId a loop carry dependency? This is true if
+   * #cs's current (top) op is a loop op, and #tId is copied to at the end
    * of each iteration.
    * */
   virtual bool isCarriedTo(const TensorId &tId,
                            const CallStack &cs) const = 0;
+
+  /**
+   * The inverse of isCarriedTo.
+   * */
+  virtual bool isCarriedFrom(const TensorId &tId,
+                             const CallStack &cs) const = 0;
 
   /**
    * If #tId is a loop carry dependency (see #isCarriedTo), what is its copy
@@ -111,6 +140,12 @@ public:
    * */
   virtual TensorId carriedFrom(const TensorId &tId,
                                const CallStack &is) const = 0;
+
+  /**
+   * The inverse of carriedFrom.
+   * */
+  virtual TensorId carriedTo(const TensorId &tId,
+                             const CallStack &is) const = 0;
 
   /** All ops in all the sub-graphs. */
   virtual OpIds opIds() const = 0;
@@ -133,6 +168,13 @@ public:
                              const CallEvent &) const = 0;
 
   /**
+   * \return true if the tensor #tId is in the callee sub-graph of #ce, and is
+   *         copied into the calling scope of #ce.
+   * */
+  virtual bool isSrcInCallee(const TensorId &tId,
+                             const CallEvent &ce) const = 0;
+
+  /**
    * This method assumes that #inCallee is in the callee graph of #ce. That
    * is, the op in #ce calls into a sub-graph which contains inCallee.
    * It also assumes that before executing the sub-graph, there is copy into
@@ -140,6 +182,13 @@ public:
    * Otherwise an error is thrown.
    * */
   virtual TensorId srcInCaller(const TensorId &inCallee,
+                               const CallEvent &ce) const = 0;
+
+  /**
+   * \return The destination (in the calling scope) of the copy from
+   *         #inCallee. This copy happens at the end of the call event #ce.
+   * */
+  virtual TensorId dstInCaller(const TensorId &inCallee,
                                const CallEvent &ce) const = 0;
 
   /**
@@ -196,9 +245,9 @@ public:
   /**
    * Perform a (reverse) depth-first search starting from #tIds. This method
    * does not traverse through copies into or out of callee sub-graphs, the
-   * Tensor->Tensor traversal is simply to all of a tensor's creators inputs.
+   * tensor->tensor traversal is simply to all of a tensor's creators inputs.
    *
-   * The word "Single" in the method name is to say that it does not leave
+   * The word "Single" in the method name is to say that it does not
    * traverse out of a graph.
    * */
   TensorIds onSingleGraphPathTo(const TensorIds &tIds) const;
@@ -214,10 +263,58 @@ public:
    *   (2) if an tensor's creator op has callees, traverse to the sources in
    *       the callees of the out-copy to the tensor.
    *
-   *   (3) if an tensor is in a callee and is a in-copy destination,
+   *   (3) if a tensor is in a callee and is a in-copy destination,
    *       traverse to the source of the copy in the calling op's sub-graph.
+   *
+   *   (4) traverse backwards through any loop carry dependencies.
+   *
+   * There is no traversal if the destination makes #accept evaluate to false.
+   * The default is that #accept returns true for all tensors, so all
+   * traversals are accepted.
    * */
-  StackTensorIds onMultiGraphPathTo(const StackTensorIds &stIds) const;
+  StackTensorIds onMultiGraphPathTo(
+      const StackTensorIds &stIds,
+      const std::function<bool(StackTensorId)> &accept = [](StackTensorId) {
+        return true;
+      }) const;
+
+  /**
+   * Perform a (forward) depth-first search starting from #tIds. This method
+   * does not traverse through copies into or out of callee sub-graphs, the
+   * tensor->tensor traversal is simply to all of a tensor's consumers'
+   * outputs.
+   *
+   * The word "Single" in the method name is to say that it does not
+   * traverse out of a graph.
+   * */
+  TensorIds onSingleGraphPathFrom(const TensorIds &tIds) const;
+
+  /**
+   * Performs a (forward) depth-first search starting from #stIds.
+   *
+   * Tensor->tensor traversals are defined by:
+   *
+   *   (1) if the tensor is consumed by an op with a callee, and the the
+   *       tensor is copied into the callee sub-graph, traverse to the
+   *       destination of the copy. In this case the stack size increases
+   *       by 1 for the destination.
+   *
+   *   (2) if the tensor is consumed by an op and is not copied to a callee
+   *       sub-graph in the consumer, traverse to all of the op's outputs. In
+   *       this case, the stack sizes of the destinations are the same as the
+   *       tensor's.
+   *
+   *   (3) if the tensor is in a callee sub-graph and is copied out, traverse
+   *       to the destination of the copy. In this case, the stack size
+   *       decreases by 1 for the destination.
+   *
+   *   (4) traverse forwards through any loop carry dependencies.
+   * */
+  StackTensorIds onMultiGraphPathFrom(
+      const StackTensorIds &stIds,
+      const std::function<bool(StackTensorId)> &accept = [](StackTensorId) {
+        return true;
+      }) const;
 
   bool hasCallees(OpId opId) const { return !callees(opId).empty(); }
 
