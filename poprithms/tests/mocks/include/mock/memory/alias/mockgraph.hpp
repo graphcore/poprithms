@@ -10,6 +10,9 @@ namespace mock::poprithms::memory::alias {
 
 class MockGraph {
 public:
+  MockGraph();
+  virtual ~MockGraph();
+
   MOCK_METHOD(::poprithms::memory::alias::TensorId,
               allocate,
               (::poprithms::ndarray::Shape,

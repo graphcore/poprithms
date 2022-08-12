@@ -10,6 +10,9 @@ namespace mock::poprithms::memory::alias {
 
 class MockTensor {
 public:
+  MockTensor();
+  virtual ~MockTensor();
+
   MOCK_METHOD(const ::poprithms::ndarray::Shape &, shape, (), (const));
   MOCK_METHOD(::poprithms::memory::alias::Tensor,
               reshape,

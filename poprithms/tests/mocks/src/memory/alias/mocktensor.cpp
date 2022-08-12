@@ -5,7 +5,12 @@
 #include <poprithms/memory/alias/tensor.hpp>
 
 namespace mock::poprithms::memory::alias {
+
+MockTensor::MockTensor()  = default;
+MockTensor::~MockTensor() = default;
+
 MockTensor *mockAliasTensor_ = nullptr;
+
 } // namespace mock::poprithms::memory::alias
 
 namespace poprithms::memory::alias {

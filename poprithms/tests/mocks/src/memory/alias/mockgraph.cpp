@@ -5,7 +5,12 @@
 #include <poprithms/memory/alias/graph.hpp>
 
 namespace mock::poprithms::memory::alias {
+
+MockGraph::MockGraph()  = default;
+MockGraph::~MockGraph() = default;
+
 MockGraph *mockAliasGraph_ = nullptr;
+
 } // namespace mock::poprithms::memory::alias
 
 namespace poprithms::memory::alias {

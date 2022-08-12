@@ -5,8 +5,13 @@
 #include <poprithms/util/permutation.hpp>
 
 namespace mock::poprithms::util {
+
+MockPermutation::MockPermutation()  = default;
+MockPermutation::~MockPermutation() = default;
+
 MockPermutation *mockAliasPermutation_ = nullptr;
-}
+
+} // namespace mock::poprithms::util
 
 namespace poprithms::util {
 poprithms::util::Permutation

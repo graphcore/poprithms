@@ -10,6 +10,9 @@ namespace mock::poprithms::util {
 
 class MockPermutation {
 public:
+  MockPermutation();
+  virtual ~MockPermutation();
+
   MOCK_METHOD(::poprithms::util::Permutation,
               dimShufflePartial,
               (uint64_t,
