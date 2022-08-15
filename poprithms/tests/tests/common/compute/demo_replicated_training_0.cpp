@@ -3,12 +3,15 @@
 #include <iostream>
 
 #include <poprithms/common/compute/autodiff/autodiffer.hpp>
+#include <poprithms/common/compute/callstackquerier.hpp>
 #include <poprithms/common/compute/ops/reduce.hpp>
 #include <poprithms/common/compute/simexecutable.hpp>
 #include <poprithms/common/compute/slickgraph.hpp>
 
 namespace {
 
+using poprithms::program::callstack::StackTensorId;
+using poprithms::program::callstack::StackTensorIds;
 using namespace poprithms::common::compute;
 
 /**
@@ -134,6 +137,48 @@ void dataReplication0() {
                       1e-3);
 }
 
+// Transform to replace replica reductions whose input is the same across all
+// replicas with a multiply-by-replication-factor.
+void removeRedundantReplicaReductions(SubGraph sg0) {
+
+  auto &g = sg0.graph();
+  CallstackQuerier q(g);
+  StackTensorIds traversalStarts;
+  auto redOps = g.opIds<ReduceSumAcrossReplicas>(sg0);
+
+  const auto rf = g.replicationFactor_u64();
+
+  // Starting at all the inputs to the graph (we conservatively assume they
+  // all have different values on replicas).
+  for (auto x : sg0.varInitIds()) {
+    traversalStarts.push_back(StackTensorId({x, 0}, {}));
+  }
+
+  // traverse forward from the starting points, halting at replica
+  // reductions. Store all tensors visited in this set:
+  std::set<OpId> multiReplicaVals;
+  for (auto x : q.onMultiGraphPathFrom(traversalStarts, [&](auto x) {
+         return g.dynamicCast<ReduceSumAcrossReplicas>(x.tId().opId()) ==
+                nullptr;
+       })) {
+    multiReplicaVals.insert(x.tId().opId());
+  }
+
+  // For each of the replica reduction ops whose input is not in the
+  // traversed set, replace with a scale-by-replication factor.
+  for (auto redOp : redOps) {
+    auto redIn = g.inTensorId(redOp, 0);
+    if (multiReplicaVals.count(redIn.opId()) == 0) {
+      auto scaled = Tensor(redIn, &g).mul(rf);
+      g.removeOp(
+          redOp,
+          OptionalTensorIds{scaled.id()},
+          "Replacing replica-sum-reduce with scale-by-replication-"
+          "factor, as the values on all replicas of the input are equal.");
+    }
+  }
+}
+
 void tensorParallel0() {
 
   //
@@ -231,37 +276,57 @@ void tensorParallel0() {
 
   g.setRunnable({sgTensorParallel, sgBaseline});
 
-  //////////////////////
-  /// Compile and run //
-  //////////////////////
-  SimExecutable se(g);
-  se.setHostValue(host_w0, w0);
-  se.setHostValue(host_w1, w1);
+  auto compileRunVerify = [&]() {
+    //////////////////////
+    /// Compile and run //
+    //////////////////////
+    SimExecutable se(g);
+    se.setHostValue(host_w0, w0);
+    se.setHostValue(host_w1, w1);
 
-  se.setHostValue(b_w0, w0);
-  se.setHostValue(b_w1, w1);
+    se.setHostValue(b_w0, w0);
+    se.setHostValue(b_w1, w1);
 
-  se.run(sgTensorParallel);
-  se.run(sgBaseline);
+    se.run(sgTensorParallel);
+    se.run(sgBaseline);
 
-  ////////////////////////////////////////////////////////////////////////////
-  /// Verify that the values using tensor parallel and vanilla are the same //
-  ////////////////////////////////////////////////////////////////////////////
-  se.getHostValue(tParallelGrads[0])
-      .assertAllClose(se.getHostValue(b_grads[0]), 1e-5, 1e-5);
+    ////////////////////////////////////////////////////////////////////////////
+    /// Verify that the values using tensor parallel and vanilla are the same
+    /// //
+    ////////////////////////////////////////////////////////////////////////////
+    se.getHostValue(tParallelGrads[0])
+        .assertAllClose(se.getHostValue(b_grads[0]), 1e-5, 1e-5);
 
-  se.getHostValue(tParallelGrads[1])
-      .assertAllClose(se.getHostValue(b_grads[1]), 1e-5, 1e-5);
+    se.getHostValue(tParallelGrads[1])
+        .assertAllClose(se.getHostValue(b_grads[1]), 1e-5, 1e-5);
 
-  sgTensorParallel.append(std::cout);
-  std::cout << std::endl;
+    sgTensorParallel.append(std::cout);
+    std::cout << std::endl;
+  };
 
-  // We will later implement a pass to convert redundant reductions (same
-  // value on all replicas) to scale op.
+  compileRunVerify();
+
   auto redOps = g.opIds<ReduceAcrossReplicas>(sgTensorParallel);
-  std::cout << "The number of reduce-across-replica ops in the tensor "
-            << "parallel sub-graph " << sgTensorParallel.id() << " is "
-            << redOps.size() << std::endl;
+  if (redOps.size() != 2) {
+    throw poprithms::test::error(
+        "Expected 2 reduction ops (forwards one, and its grad)");
+  }
+
+  removeRedundantReplicaReductions(sgTensorParallel);
+
+  // Confirm that only one for replica reductions remains.
+  redOps = g.opIds<ReduceAcrossReplicas>(sgTensorParallel);
+  if (redOps.size() != 1) {
+    throw poprithms::test::error("Expected just the forward reduction op to "
+                                 "remain after the transfor");
+  }
+
+  // Confirm that the graph is still valid, we haven't done something stupid
+  // in the transform.
+  g.verifyValid();
+
+  // Check that the numerics are the same.
+  compileRunVerify();
 }
 } // namespace
 
