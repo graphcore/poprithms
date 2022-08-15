@@ -281,6 +281,7 @@ set(autodiff_sources
   ${autodiff_src_dir}/guide/objective.cpp
 
   ${autodiff_src_dir}/automatic/call.cpp
+  ${autodiff_src_dir}/automatic/autogradfunction.cpp
   ${autodiff_src_dir}/automatic/differentiator.cpp
   ${autodiff_src_dir}/automatic/gradinfos.cpp
   ${autodiff_src_dir}/automatic/iautomatic.cpp

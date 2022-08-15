@@ -51,6 +51,9 @@ add_common_test(poprithms_common_compute_switch_0
 add_common_test(poprithms_common_compute_transform_sin_example_0 
                                          transform_sin_example_0.cpp)
 
+add_common_test(poprithms_common_compute_autograd_function_0
+                                         autograd_function_0.cpp)
+
 add_common_test(poprithms_common_compute_train_through_call_0 
                                          train_through_call_0.cpp)
 

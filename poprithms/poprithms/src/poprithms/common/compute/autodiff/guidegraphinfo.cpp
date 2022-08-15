@@ -11,6 +11,14 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+std::string GuideGraphInfo::str(const TensorId &id) const {
+
+  std::ostringstream oss;
+  oss << "(TensorId=" << id << ", creator=" << graph_.computeOp(id.opId())
+      << ")";
+  return oss.str();
+}
+
 void GuideGraphInfo::extendAutodiffRequiredTensors(
     OpId id,
     std::set<TensorId> &s) const {

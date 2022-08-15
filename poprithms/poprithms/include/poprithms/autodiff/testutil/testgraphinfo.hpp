@@ -19,6 +19,8 @@ private:
 public:
   TestGraphInfo() = default;
 
+  std::string str(const TensorId &tId) const { return tId.str(); }
+
   Op &op(OpId id) { return ops[id.get()]; }
   const Op &op(OpId id) const { return ops.at(id.get()); }
   OpId insert(Op op_);

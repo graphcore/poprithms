@@ -58,6 +58,8 @@ public:
   extendAutodiffRequiredTensors(OpId opId,
                                 std::set<TensorId> &required) const = 0;
 
+  virtual std::string str(const TensorId &) const = 0;
+
   /**
    * \return the OpIds in #opIds, sorted into a valid topological order.
    * */

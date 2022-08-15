@@ -54,6 +54,8 @@ public:
   virtual OptionalTensorId
   optionalNonGrad(const TensorId &inNonGrad) const = 0;
   TensorId getNonGrad(const TensorId &inNonGrad) const;
+
+  virtual std::string str(const TensorId &) const = 0;
 };
 
 } // namespace core

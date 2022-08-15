@@ -580,6 +580,12 @@ void testTraversal2() {
       }
     }
 
+    if (!multiout::isFwdReachable(
+            g, {x0}, {x0}, [](auto) { return false; })) {
+      throw poprithms::test::error(
+          "x0->x0 is possible, even if all traversal are disallowed");
+    }
+
     for (TensorId start : TensorIds({{op0, 1}, {op2, 0}})) {
       if (multiout::isFwdReachable(
               g, {start}, {op4, 0}, [](auto) { return true; })) {

@@ -485,7 +485,6 @@ Call::localObjective(CalleeIndex calleeIndex,
 
 UpOp Call::cloneWithState(const State &s) const {
   return std::make_unique<Call>(s,
-
                                 inTensorIdDsts(),
                                 callee(CalleeIndex(0)),
                                 outs().outSources(CalleeIndex(0)));
@@ -529,9 +528,12 @@ void Call::withCalleesTypeSpecificAssertValid() const {
 }
 
 bool Call::gradientPropagates(OutIndex o, InIndex i) const {
-  return nonRepeatPropagates(*this, o, i, [this](const OpTraversal &x) {
-    return computeGraph().gradientPropagates(x);
-  });
+
+  auto doesPropagate =
+      nonRepeatPropagates(*this, o, i, [this](const OpTraversal &x) {
+        return computeGraph().gradientPropagates(x);
+      });
+  return doesPropagate;
 }
 
 bool Call::isValueDependent(InIndex i, OutIndex o) const {

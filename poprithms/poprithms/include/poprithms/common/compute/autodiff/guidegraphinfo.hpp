@@ -23,6 +23,8 @@ class GuideGraphInfo : public autodiff::guide::GraphInfo {
 public:
   virtual ~GuideGraphInfo() = default;
 
+  std::string str(const TensorId &id) const final;
+
   GuideGraphInfo(const Graph &g, const autodiff::automatic::GradInfos &gis_)
       : graph_(g), gradInfos(gis_) {}
   GuideGraphInfo() = delete;

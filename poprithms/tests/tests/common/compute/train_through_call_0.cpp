@@ -1,5 +1,7 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
+
 #include <algorithm>
+#include <iostream>
 #include <numeric>
 
 #include <poprithms/common/compute/autodiff/autodiffer.hpp>
@@ -343,6 +345,34 @@ void testResetOut0() {
   test(3);
 }
 
+void testNoComputeInCall0() {
+
+  std::cout << "\n\ntestNoComputeInCall0" << std::endl;
+
+  SlickGraph g;
+  auto caller  = g.createSubGraph("caller");
+  auto xCaller = caller.hostFloat32Variable({});
+
+  auto callee  = g.createSubGraph("callee");
+  auto xCallee = callee.hostFloat32Variable({});
+
+  auto callOp = caller.call(callee, {{{xCaller, xCallee}}}, {xCallee});
+  auto loss   = (xCallee.dstInCaller(callOp));
+
+  Autodiffer ad(g);
+  auto dx = ad.backward(loss, {xCaller})[0];
+
+  g.setRunnable({caller});
+
+  SimExecutable se(g);
+  se.setHostValue(xCaller, HostTensor::float32({}, {7.}));
+  se.run(caller);
+
+  std::cout << g << std::endl;
+
+  se.getHostValue(dx).assertAllEquivalent(HostTensor::float32({}, {1.}));
+}
+
 } // namespace
 
 int main() {
@@ -352,5 +382,6 @@ int main() {
   testSeriouslyManual0();
   testManualRecompute0();
   testNumericalTrainPrune0();
+  testNoComputeInCall0();
   return 0;
 }

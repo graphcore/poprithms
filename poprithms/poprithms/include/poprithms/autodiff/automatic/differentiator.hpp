@@ -51,13 +51,16 @@ class Differentiator {
 
   // Virtual classes with 'getters and setters' which define how to actually
   // generate ops in the user's graph.
-  const IAutomaticQuerier &querier;
-  IAutomaticMutator &mutator;
+  const IAutomaticQuerier &querier_;
+  IAutomaticMutator &mutator_;
 
 public:
+  const IAutomaticQuerier &querier() const { return querier_; }
+  IAutomaticMutator &mutator() { return mutator_; }
+
   virtual ~Differentiator();
   Differentiator(const IAutomaticQuerier &aq, IAutomaticMutator &am)
-      : querier(aq), mutator(am) {}
+      : querier_(aq), mutator_(am) {}
 
   /**
    * Create gradients of the loss with respect to each of the tensors in

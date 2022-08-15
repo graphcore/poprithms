@@ -1,5 +1,7 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
 
+#include <poprithms/common/compute/autodiff/autodiffer.hpp>
+#include <poprithms/common/compute/autodiff/automaticquerier.hpp>
 #include <poprithms/common/compute/callstackquerier.hpp>
 #include <poprithms/common/compute/slickgraph.hpp>
 #include <poprithms/common/compute/testutil/repeattester.hpp>
@@ -52,9 +54,61 @@ void testTraversal0() {
     }
   }
 }
+
+// test with a carried input, where there is no compute in the callee
+void testNoComputeInRepeat0() {
+  SlickGraph g;
+  auto caller  = g.createSubGraph("caller");
+  auto xCaller = caller.hostFloat32Variable({});
+  auto callee  = g.createSubGraph("callee");
+  auto xCallee = callee.hostFloat32Variable({});
+
+  auto rptOp = caller.repeat(callee,
+                             2,
+                             {},
+                             {{{xCaller, xCallee, xCallee.id()}}},
+                             {{xCallee, IsStackedCopy::No}});
+
+  auto loss = (xCallee.dstInCaller(rptOp));
+
+  Autodiffer ad(g);
+  auto dx = ad.backward(loss, {xCaller})[0];
+  g.setRunnable({caller});
+
+  SimExecutable se(g);
+  se.setHostValue(xCaller, HostTensor::float32({}, {7.}));
+  se.run(caller);
+  se.getHostValue(dx).assertAllEquivalent(HostTensor::float32({}, {1.}));
+}
+
+// test with a stacked input, where there is no compute in the callee
+void testNoComputeInRepeat1() {
+  SlickGraph g;
+  auto caller  = g.createSubGraph("caller");
+  auto xCaller = caller.hostFloat32Variable({4});
+  auto callee  = g.createSubGraph("callee");
+  auto xCallee = callee.hostFloat32Variable({});
+
+  auto rptOp = caller.repeat(
+      callee, 4, {{xCaller, xCallee}}, {}, {{xCallee, IsStackedCopy::Yes}});
+
+  auto loss = (xCallee.dstInCaller(rptOp).reduceSum(Shape{}));
+
+  Autodiffer ad(g);
+  auto dx = ad.backward(loss, {xCaller})[0];
+  g.setRunnable({caller});
+
+  SimExecutable se(g);
+  se.setHostValue(xCaller, HostTensor::float32({4}, {7., 6, 5, 4.}));
+  se.run(caller);
+  se.getHostValue(dx).assertAllEquivalent(HostTensor::float32(1).expand({4}));
+}
+
 } // namespace
 
 int main() {
   testTraversal0();
+  testNoComputeInRepeat0();
+  testNoComputeInRepeat1();
   std::make_unique<SimTester<RepeatTester>>()->all();
 }

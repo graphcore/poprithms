@@ -2,6 +2,7 @@
 #ifndef POPRITHMS_COMMON_MULTIOUT_TRAVERSAL_HPP
 #define POPRITHMS_COMMON_MULTIOUT_TRAVERSAL_HPP
 
+#include <algorithm>
 #include <memory>
 #include <set>
 #include <sstream>
@@ -125,6 +126,11 @@ bool isFwdReachable(const G &g,
                     const TensorIds &starts,
                     const TensorId &target,
                     AcceptanceCondition &&accept) {
+
+  if (std::find(starts.cbegin(), starts.cend(), target) != starts.cend()) {
+    return true;
+  }
+
   SearchUntilOneFound<AcceptanceCondition> hyper(
       target, std::forward<AcceptanceCondition>(accept));
 

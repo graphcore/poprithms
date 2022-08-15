@@ -21,7 +21,7 @@ namespace core {
 /**
  * The main class for differentiating a graph.
  * */
-class Autodiff : public ToGradGraph {
+class Autodiff final : public ToGradGraph {
 
 public:
   /**
@@ -41,6 +41,10 @@ public:
   Autodiff(const guide::Objective &objective,
            const guide::GraphInfo &graphInfo,
            GraphMutator &mutator);
+
+  std::string str(const TensorId &tId) const final {
+    return graphInfo.str(tId);
+  }
 
   /**
    * Get a summary of the differentiation. \sa Summary.

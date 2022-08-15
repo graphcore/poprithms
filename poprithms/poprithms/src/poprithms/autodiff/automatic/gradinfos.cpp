@@ -62,7 +62,7 @@ const GradInfo &GradInfos::at(SubGraphId gradSgId) const {
   const auto found = gradInfos_.find(gradSgId);
   if (found == gradInfos_.cend()) {
     std::ostringstream oss;
-    oss << "No GradInfo found for the (gradient sub-graph) " << gradSgId;
+    oss << "No GradInfo found for the (gradient) sub-graph " << gradSgId;
     throw error(oss.str());
   }
   return found->second;

@@ -899,6 +899,10 @@ public:
 
   static Tensors tensors(const TensorIds &ids, Graph &g);
 
+  static OptionalTensorIds optionalTensorIds(const OptionalTensors &ots) {
+    return OptionalTensor::fromOptionalTensors(ots);
+  }
+
   /**
    * Update this ipu tensor by copying to it from the host tensor
    * #sourceOnHost. The returned tensor is an alias of this ipu tensor.

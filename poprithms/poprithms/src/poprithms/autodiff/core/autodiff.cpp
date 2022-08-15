@@ -96,7 +96,7 @@ void Autodiff::registerPartialGrad(const TensorId &nonGrad,
 TensorId ToGradGraph::getGrad(const TensorId &inNonGrad) const {
   auto opt = optionalGrad(inNonGrad);
   if (!opt.has_value()) {
-    throw error("No grad for " + inNonGrad.str() + " found, in getGrad. ");
+    throw error("No grad for " + str(inNonGrad) + " found, in getGrad. ");
   }
   return opt.value();
 }
