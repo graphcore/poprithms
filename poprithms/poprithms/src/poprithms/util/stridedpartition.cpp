@@ -37,6 +37,13 @@ StridedPartition::StridedPartition(uint64_t range,
     throw error(getBase() +
                 "\nNumber of indices % (stride * indices per group) != 0.");
   }
+
+  // Canonicalization: when there is 1 element per group the stride parameter
+  // is meaningless and StridedPartitions with different strides are
+  // equivalent in this case.
+  if (groupSize_ == 1) {
+    stride_ = 1;
+  }
 }
 
 std::vector<uint64_t> StridedPartition::indicesInGroup(uint64_t rg) const {

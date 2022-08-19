@@ -191,6 +191,22 @@ void testStridedInterval0() {
   }
 }
 
+void testStridedIntervalCanonical0() {
+
+  StridedPartition s0(12, /* group size */ 1, /* stride */ 1);
+  StridedPartition s1(12, /* group size */ 1, /* stride */ 2);
+  StridedPartition s2(12, /* group size */ 2, /* stride */ 1);
+
+  if (s0 != s1) {
+    throw poprithms::test::error(
+        "Canonicalization of strides should make these equal");
+  }
+
+  if (s0 == s2 || s1 == s2) {
+    throw poprithms::test::error("s2 has a distinct group size");
+  }
+}
+
 } // namespace
 
 int main() {
@@ -199,6 +215,7 @@ int main() {
   test1();
   test2();
   testStridedInterval0();
+  testStridedIntervalCanonical0();
 
   return 0;
 }
