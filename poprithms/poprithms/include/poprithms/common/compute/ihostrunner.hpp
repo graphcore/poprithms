@@ -33,6 +33,9 @@ public:
    * */
   void copy(const TensorId &from, const TensorId &to) const;
   void copies(const TensorIds &froms, const TensorIds &tos) const;
+
+private:
+  virtual void noWeakVTables();
 };
 
 class SimHostRunner final : public IHostRunner {
@@ -44,13 +47,7 @@ public:
   HostTensors tensor(const TensorId &tId) const final {
     return simState.simTensorMap().getValue(tId);
   }
-  void run(SubGraphId sgId) const final {
-    OpIds schedule = simState.schedule(sgId);
-    using namespace poprithms::schedule;
-    for (auto opId : schedule) {
-      simState.graph().computeOp(opId).runSim(simState);
-    }
-  }
+  void run(SubGraphId sgId) const final;
 };
 
 } // namespace compute

@@ -32,11 +32,14 @@ public:
    * \return true if #from->#to is an edge.
    * */
   virtual bool isEdge(OpId from, OpId to) const = 0;
+
+private:
+  virtual void noWeakVTables();
 };
 
 class NoAdditionalFwdEdges : public AdditionalFwdEdges {
 public:
-  std::vector<std::pair<OpId, OpId>> fwdEdges() const final { return {}; }
+  std::vector<std::pair<OpId, OpId>> fwdEdges() const final;
   bool isSource(OpId) const final { return false; }
   bool isEdge(OpId, OpId) const final { return false; }
 };

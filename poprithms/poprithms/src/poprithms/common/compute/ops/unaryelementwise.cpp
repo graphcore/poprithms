@@ -125,6 +125,77 @@ void Fill_::unaryElementwiseDerivedVerifyValid() const {
   }
 }
 
+void Exp::unaryCompute(const HostTensor &i, const HostTensor &o) const {
+  o.update_(i.exp());
+}
+
+void Exp_::unaryCompute(const HostTensor &i, const HostTensor &) const {
+  i.exp_();
+}
+
+void Neg::unaryCompute(const HostTensor &i, const HostTensor &o) const {
+  o.update_(i.neg());
+}
+
+void Neg_::unaryCompute(const HostTensor &i, const HostTensor &) const {
+  i.neg_();
+}
+
+void Inv::unaryCompute(const HostTensor &i, const HostTensor &o) const {
+  o.update_(i.inverse());
+}
+
+void Inv_::unaryCompute(const HostTensor &i, const HostTensor &) const {
+  i.inverse_();
+}
+
+void Sqrt::unaryCompute(const HostTensor &i, const HostTensor &o) const {
+  o.update_(i.sqrt());
+}
+
+void Sqrt_::unaryCompute(const HostTensor &i, const HostTensor &) const {
+  i.sqrt_();
+}
+
+void Sin::unaryCompute(const HostTensor &i, const HostTensor &o) const {
+  o.update_(i.sin());
+}
+
+void Sin_::unaryCompute(const HostTensor &, const HostTensor &o) const {
+  o.sin_();
+}
+
+void Abs::unaryCompute(const HostTensor &i, const HostTensor &o) const {
+  o.update_(i.abs());
+}
+
+void Abs_::unaryCompute(const HostTensor &, const HostTensor &o) const {
+  o.abs_();
+}
+
+void Cos::unaryCompute(const HostTensor &i, const HostTensor &o) const {
+  o.update_(i.cos());
+}
+
+void Cos_::unaryCompute(const HostTensor &, const HostTensor &o) const {
+  o.cos_();
+}
+
+void Signum::unaryCompute(const HostTensor &i, const HostTensor &o) const {
+  o.update_(i.sign());
+}
+
+void Signum_::unaryCompute(const HostTensor &i, const HostTensor &) const {
+  i.sign_();
+}
+
+void Fill_::unaryCompute(const HostTensor &, const HostTensor &out) const {
+  out.update_(val_);
+}
+
+std::vector<InIndex> Cast::autodiffRequiredIns() const { return {}; }
+std::vector<OutIndex> Cast::autodiffRequiredOuts() const { return {}; }
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

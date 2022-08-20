@@ -16,6 +16,10 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+void BinaryElementwise::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 void BooleanBinaryElementwiseOutplace::boolReturnAutodiff() const {
   std::ostringstream oss;
   oss << "The op " << *this
@@ -195,6 +199,48 @@ void BooleanBinaryElementwiseOutplace::
 void CopyFrom_::compute(const HostTensors &ins,
                         const HostTensors &outs) const {
   outs[0].update_(ins[Source().get()]);
+}
+
+void Add_::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].add_(ins[1]);
+}
+
+OptionalTensors
+BooleanBinaryElementwiseOutplace::bprop(const GradOpIns &) const {
+  boolReturnAutodiff();
+}
+std::vector<InIndex>
+BooleanBinaryElementwiseOutplace::autodiffRequiredIns() const {
+  boolReturnAutodiff();
+}
+std::vector<OutIndex>
+BooleanBinaryElementwiseOutplace::autodiffRequiredOuts() const {
+  boolReturnAutodiff();
+}
+
+void Remainder::compute(const HostTensors &ins,
+                        const HostTensors &outs) const {
+  outs[0].update_(ins[0].mod(ins[1]));
+}
+
+void Remainder_::compute(const HostTensors &ins, const HostTensors &) const {
+  ins[0].mod_(ins[1]);
+}
+
+void Min::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].update_(ins[0].min(ins[1]));
+}
+
+void Min_::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].update_(ins[0].min(ins[1]));
+}
+
+void Max::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].update_(ins[0].max(ins[1]));
+}
+
+void Max_::compute(const HostTensors &ins, const HostTensors &outs) const {
+  outs[0].update_(ins[0].max(ins[1]));
 }
 
 } // namespace compute

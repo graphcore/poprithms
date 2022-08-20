@@ -375,6 +375,10 @@ std::string getSummary_i64(const FwdEdges_i64 &edges_i64,
       translate<int64_t, uint64_t>(edges_i64), dbs, includeCycleless);
 }
 
+void NodeInfoGetter::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 } // namespace scc
 } // namespace schedule
 } // namespace poprithms

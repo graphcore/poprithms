@@ -16,6 +16,10 @@ namespace poprithms {
 namespace autodiff {
 namespace core {
 
+void GraphMutator::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 OptionalTensorIds Autodiff::optionalNonGrads(const TensorIds &ids) const {
   return poprithms::util::whereIdsInMap<OptionalTensorId>(nonGrads, ids);
 }

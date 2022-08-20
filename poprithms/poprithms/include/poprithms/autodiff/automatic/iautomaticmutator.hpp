@@ -41,8 +41,8 @@ using poprithms::program::callstack::StackedCopyOrder;
  * */
 class IAutomaticMutator {
 public:
-  IAutomaticMutator()          = default;
-  virtual ~IAutomaticMutator() = default;
+  IAutomaticMutator();
+  virtual ~IAutomaticMutator();
 
   /**
    * Return a new view into the tensor #tId which has shape #s. The returned

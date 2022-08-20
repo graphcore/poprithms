@@ -100,6 +100,9 @@ private:
   virtual bool fwdOutGradUsedInBackwards(OutIndex) const { return true; }
 
   Differentiator &ad_;
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace automatic

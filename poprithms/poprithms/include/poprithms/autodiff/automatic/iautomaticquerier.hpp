@@ -232,6 +232,9 @@ public:
   }
 
   SubGraphId subGraphIdFromTensorIds(const TensorIds &tIds) const;
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace automatic

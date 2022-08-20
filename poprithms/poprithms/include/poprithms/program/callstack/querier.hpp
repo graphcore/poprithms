@@ -360,6 +360,8 @@ private:
   SubGraphIds allSubGraphIds() const;
 
   OpIds stableSortBySubGraphOrder(const OpIds &, const SubGraphIds &) const;
+
+  virtual void noWeakVTables();
 };
 
 } // namespace callstack

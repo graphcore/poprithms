@@ -11,6 +11,10 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+void ISimState::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 void Op::initSimOut(SimTensorMap &stm) const {
   initializeSimOut(stm);
 

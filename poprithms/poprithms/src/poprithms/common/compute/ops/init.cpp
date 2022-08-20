@@ -144,6 +144,8 @@ UpOp VarInit::cloneWithState(const State &s) const {
   return upBop;
 }
 
+void Init::noWeakVTables() { throw error(error::error::weakVTableMessage()); }
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

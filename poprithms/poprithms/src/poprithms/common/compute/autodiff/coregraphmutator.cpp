@@ -9,6 +9,8 @@
 
 #include <poprithms/autodiff/core/autodiff.hpp>
 #include <poprithms/autodiff/guide/guide.hpp>
+#include <poprithms/common/compute/autodiff/autodiffer.hpp>
+#include <poprithms/common/compute/autodiff/automaticmutator.hpp>
 #include <poprithms/common/compute/autodiff/coregraphmutator.hpp>
 #include <poprithms/common/compute/slickgraph.hpp>
 #include <poprithms/common/compute/tensor.hpp>
@@ -19,6 +21,18 @@
 namespace poprithms {
 namespace common {
 namespace compute {
+
+TensorId AutomaticMutator::encodeOneHot_(const TensorId &t,
+                                         const TensorId &index) {
+  return Tensor(t, &graph_).encodeOneHot01_({index, &graph_});
+}
+
+OptionalTensorIds
+AutogradFunction::backwards(const TensorIds &fwdOuts,
+                            const OptionalTensorIds &fwdOutGrads) {
+  return OptionalTensor::fromOptionalTensors(
+      bwd(g().tensors(fwdOuts), g().getOptionalTensors(fwdOutGrads)));
+}
 
 TensorId CoreGraphMutator::createZero(const TensorId &tId) {
   return Tensor(tId, &graph_)

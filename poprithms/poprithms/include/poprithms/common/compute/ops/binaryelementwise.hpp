@@ -47,6 +47,9 @@ public:
   void runSim(ISimState &iss) const final {
     runReplicatedSim(iss.simTensorMap());
   }
+
+private:
+  virtual void noWeakVTables();
 };
 
 /**
@@ -152,9 +155,7 @@ public:
 private:
   using AD = autodiff::automatic::AddAutodiffer;
 
-  void compute(const HostTensors &ins, const HostTensors &outs) const final {
-    outs[0].add_(ins[1]);
-  }
+  void compute(const HostTensors &ins, const HostTensors &outs) const final;
 
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseInplaceVerifyValid();
@@ -357,15 +358,9 @@ private:
    * As the output is boolean, this op is never differentiable.
    * */
   bool gradientPropagates(OutIndex, InIndex) const final { return false; }
-  OptionalTensors bprop(const GradOpIns &) const final {
-    boolReturnAutodiff();
-  }
-  std::vector<InIndex> autodiffRequiredIns() const final {
-    boolReturnAutodiff();
-  }
-  std::vector<OutIndex> autodiffRequiredOuts() const final {
-    boolReturnAutodiff();
-  }
+  OptionalTensors bprop(const GradOpIns &) const final;
+  std::vector<InIndex> autodiffRequiredIns() const final;
+  std::vector<OutIndex> autodiffRequiredOuts() const final;
 
   [[noreturn]] void boolReturnAutodiff() const;
 };
@@ -484,9 +479,7 @@ public:
   static constexpr const char *OpTypeName = "Remainder";
 
 private:
-  void compute(const HostTensors &ins, const HostTensors &outs) const final {
-    outs[0].update_(ins[0].mod(ins[1]));
-  }
+  void compute(const HostTensors &ins, const HostTensors &outs) const final;
 
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseOutplaceVerifyValid();
@@ -510,9 +503,7 @@ public:
   static constexpr const char *OpTypeName = "Remainder_";
 
 private:
-  void compute(const HostTensors &ins, const HostTensors &) const final {
-    ins[0].mod_(ins[1]);
-  }
+  void compute(const HostTensors &ins, const HostTensors &) const final;
 
   /**
    * The output value depends on the input values of both inputs.
@@ -577,9 +568,7 @@ public:
   static constexpr const char *OpTypeName = "Min";
 
 private:
-  void compute(const HostTensors &ins, const HostTensors &outs) const final {
-    outs[0].update_(ins[0].min(ins[1]));
-  }
+  void compute(const HostTensors &ins, const HostTensors &outs) const final;
 
   /**
    * The output value depends on both input values.
@@ -603,9 +592,7 @@ public:
   static constexpr const char *OpTypeName = "Min_";
 
 private:
-  void compute(const HostTensors &ins, const HostTensors &outs) const final {
-    outs[0].update_(ins[0].min(ins[1]));
-  }
+  void compute(const HostTensors &ins, const HostTensors &outs) const final;
 
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseInplaceVerifyValid();
@@ -627,9 +614,7 @@ class Max final : public Attributeless<
 public:
   Max(const State &s) : Attributeless(s) {}
   static constexpr const char *OpTypeName = "Max";
-  void compute(const HostTensors &ins, const HostTensors &outs) const final {
-    outs[0].update_(ins[0].max(ins[1]));
-  }
+  void compute(const HostTensors &ins, const HostTensors &outs) const final;
 
 private:
   void computeDerivedVerifyValid() const final {
@@ -654,9 +639,7 @@ public:
   static constexpr const char *OpTypeName = "Max_";
 
 private:
-  void compute(const HostTensors &ins, const HostTensors &outs) const final {
-    outs[0].update_(ins[0].max(ins[1]));
-  }
+  void compute(const HostTensors &ins, const HostTensors &outs) const final;
 
   void computeDerivedVerifyValid() const final {
     simpleBinaryElementwiseInplaceVerifyValid();

@@ -83,6 +83,13 @@ TensorIds IAutomaticQuerier::outSources(OpId opId,
   return ids;
 }
 
+void IAutomaticQuerier::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
+IAutomaticMutator::IAutomaticMutator()  = default;
+IAutomaticMutator::~IAutomaticMutator() = default;
+
 } // namespace automatic
 } // namespace autodiff
 } // namespace poprithms

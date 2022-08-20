@@ -131,9 +131,7 @@ public:
         .repeat(callee, rptCount, sis, cis.carriedTensorIds(), outs, d);
   }
 
-  TensorId encodeOneHot_(const TensorId &t, const TensorId &index) override {
-    return Tensor(t, &graph_).encodeOneHot01_({index, &graph_});
-  }
+  TensorId encodeOneHot_(const TensorId &t, const TensorId &index) override;
 };
 
 } // namespace compute

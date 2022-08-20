@@ -550,6 +550,9 @@ private:
 
   /** Set the Graph pointed to by all Ops in this Graph, to this Graph. */
   void resetGraphOfOps();
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace multiout

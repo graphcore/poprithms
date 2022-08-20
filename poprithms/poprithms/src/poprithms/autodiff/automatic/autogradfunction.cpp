@@ -15,6 +15,10 @@ namespace poprithms {
 namespace autodiff {
 namespace automatic {
 
+void AutogradFunction::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 TensorIds AutogradFunction::apply(const TensorIds &insInCaller,
                                   const std::string &dbgName) {
 

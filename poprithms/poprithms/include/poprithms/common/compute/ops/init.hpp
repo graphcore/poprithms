@@ -83,6 +83,8 @@ private:
   bool isValueDependent(InIndex i, OutIndex) const final {
     invalidInIndex(i);
   }
+
+  void noWeakVTables() override;
 };
 
 /**

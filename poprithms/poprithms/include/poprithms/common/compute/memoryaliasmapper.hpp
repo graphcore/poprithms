@@ -47,7 +47,7 @@ public:
    * */
   void extend(const TensorIds &);
 
-  std::string external() const final { return "poprithms::common::compute"; }
+  std::string external() const final;
 
   /**
    * \return All tensors that are aliased to a tensor in #tIds. This

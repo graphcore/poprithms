@@ -119,6 +119,10 @@ RemoteOptions &RemoteOptions::handle(const std::string &h) {
   return *this;
 }
 
+void Device::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

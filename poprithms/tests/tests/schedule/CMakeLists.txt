@@ -1,6 +1,6 @@
 function(add_schedule_test_executable name source)
   add_executable(${name} ${source})
-  target_link_libraries(${name} poprithms-schedule-other schedule-test-util)
+  target_link_libraries(${name} schedule-test-util)
   target_include_directories (${name} PRIVATE ${poprithms_src_dir}/poprithms)
 
 endfunction()

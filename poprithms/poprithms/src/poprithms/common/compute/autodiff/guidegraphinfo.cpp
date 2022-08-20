@@ -5,11 +5,16 @@
 #include <common/compute/error.hpp>
 
 #include <poprithms/autodiff/automatic/requiredids.hpp>
+#include <poprithms/common/compute/autodiff/automaticquerier.hpp>
 #include <poprithms/common/compute/autodiff/guidegraphinfo.hpp>
 
 namespace poprithms {
 namespace common {
 namespace compute {
+
+bool AutomaticQuerier::isDefinitelyAllConstZero(const TensorId &tId) const {
+  return AliasGraphQuerier::isAllConstZero(graph_, tId);
+}
 
 std::string GuideGraphInfo::str(const TensorId &id) const {
 

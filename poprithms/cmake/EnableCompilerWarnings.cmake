@@ -3,6 +3,8 @@ list(APPEND CMAKE_COMPILER_WARNINGS
      -Wall
      -pedantic
      -Wextra
+     # T67853:
+     # -Wweak-vtables
      -Wdisabled-optimization
      -Wshadow
      -Wformat=2

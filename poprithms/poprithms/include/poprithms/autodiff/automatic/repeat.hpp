@@ -89,6 +89,9 @@ public:
    *         change between iterations.
    * */
   virtual bool definitelySameValueEveryIteration(const TensorId &) const = 0;
+
+private:
+  virtual void noWeakVTables();
 };
 
 /**

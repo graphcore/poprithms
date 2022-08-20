@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Graphcore Ltd. All rights reserved.
 
+#include <autodiff/autodiff/error.hpp>
+
 #include <poprithms/autodiff/guide/graphinfo.hpp>
 
 namespace poprithms {
@@ -28,6 +30,10 @@ TensorIds GraphInfo::outTensorIds(OpId opId) const {
     outIds.push_back({opId, o});
   }
   return outIds;
+}
+
+void GraphInfo::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
 }
 
 } // namespace guide

@@ -78,7 +78,7 @@ public:
    * */
   TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
 
-  void resetRootRef(OutIndex, const TensorId &) final { invalid(); }
+  void resetRootRef(OutIndex, const TensorId &) final;
 };
 
 /**

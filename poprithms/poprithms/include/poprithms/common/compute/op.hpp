@@ -79,6 +79,9 @@ public:
   virtual SimTensorMap &simTensorMap() const      = 0;
   virtual const Graph &graph() const              = 0;
   virtual const OpIds &schedule(SubGraphId) const = 0;
+
+private:
+  virtual void noWeakVTables();
 };
 
 class Graph;

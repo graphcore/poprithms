@@ -93,6 +93,10 @@ std::unique_ptr<SimTensorMap> SimTensorMap::clone() const {
   return std::make_unique<SimTensorMap>(*this);
 }
 
+void SimTensorMap::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 } // namespace compute
 } // namespace common
 

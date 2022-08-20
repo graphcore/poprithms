@@ -5,7 +5,7 @@ function(add_util_test_executable name source)
       ${CMAKE_CURRENT_SOURCE_DIR}
       $<TARGET_PROPERTY:poprithms-util,INCLUDE_DIRECTORIES>
       )
-    target_link_libraries(${name} poprithms-util poprithms-compute-host ${Boost_LIBRARIES})
+    target_link_libraries(${name} poprithms-compute-host ${Boost_LIBRARIES})
 endfunction()
 
 function(add_util_test name source)

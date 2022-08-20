@@ -13,6 +13,11 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+void PruneMutator::removeOp(OpId opId, const std::string &ctxt) {
+  OptionalTensorIds optOuts(graph().nOutTensors(opId));
+  graph().removeOp(opId, optOuts, ctxt);
+}
+
 TensorIds Pruner::getUnprunenableRefs(const Graph &graph) {
 
   // All tensors which have references in other graphs, and all of their

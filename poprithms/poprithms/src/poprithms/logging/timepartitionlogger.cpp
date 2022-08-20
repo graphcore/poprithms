@@ -31,6 +31,10 @@ ScopedStopwatch::~ScopedStopwatch() {
   }
 }
 
+void TimePartitionLogger::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 ScopedStopwatch
 TimePartitionLogger::scopedStopwatch(const std::string &stopwatch) {
   return ScopedStopwatch(stopwatch, *this);

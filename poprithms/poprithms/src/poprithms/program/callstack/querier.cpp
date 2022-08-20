@@ -325,6 +325,10 @@ OpIds Querier::stableSortBySubGraphOrder(const OpIds &opOrder,
   return gather;
 }
 
+void Querier::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 } // namespace callstack
 } // namespace program
 } // namespace poprithms

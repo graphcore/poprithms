@@ -60,6 +60,9 @@ public:
    * whose outputs have no consumers.
    * */
   virtual void removeOp(OpId opId, const std::string &ctxt) = 0;
+
+private:
+  virtual void noWeakVTables();
 };
 
 class Pruner {

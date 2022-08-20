@@ -15,6 +15,14 @@ namespace poprithms {
 namespace program {
 namespace pipeline {
 
+void IMutator::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
+void IQuerier::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 Objective::Objective(const std::map<OpId, PipelineStage> &stages,
                      const DeviceIds &stageDevices,
                      const uint64_t nToAccumulate,

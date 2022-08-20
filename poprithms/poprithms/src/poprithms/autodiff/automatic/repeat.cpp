@@ -17,6 +17,10 @@ namespace automatic {
 using poprithms::program::callstack::CalleeTensorIds;
 using poprithms::program::callstack::CarriedTensorId;
 
+void IRepeatQuerier::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 guide::Objective
 RepeatDifferentiator::createLocalObjective(const InIndices &fromTargets,
                                            const OutIndices &inGrads) const {

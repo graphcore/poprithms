@@ -11,6 +11,10 @@ namespace poprithms {
 namespace common {
 namespace compute {
 
+void DynamicMulti::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 void DynamicMultiUpdateMax_::computeDerivedVerifyValid() const {
   OpVerifier(*this).verifyNonVariadicFromAtts(3, 1, {});
 

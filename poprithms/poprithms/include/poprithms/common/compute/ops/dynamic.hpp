@@ -98,7 +98,10 @@ private:
    * This op is not a RootRef_.
    * */
   TensorId rootRef(OutIndex o) const final { return outTensorId(o); }
-  void resetRootRef(OutIndex, const TensorId &) { invalid(); }
+  void resetRootRef(OutIndex, const TensorId &) final { invalid(); }
+
+private:
+  virtual void noWeakVTables() override;
 };
 
 /**

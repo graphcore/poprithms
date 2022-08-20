@@ -1,4 +1,6 @@
 // Copyright (c) 2022 Graphcore Ltd. All rights reserved.
+#include "poprithms/error/error.hpp"
+
 #include <algorithm>
 #include <cstring>
 #include <limits>
@@ -817,6 +819,14 @@ std::vector<uint64_t> Graph::asUnsigned64s(const SubGraphIds &i) const {
     o.push_back(v.get_u64());
   }
   return o;
+}
+
+void AdditionalFwdEdges::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
+std::vector<std::pair<OpId, OpId>> NoAdditionalFwdEdges::fwdEdges() const {
+  return {};
 }
 
 } // namespace schedulable

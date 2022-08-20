@@ -70,6 +70,9 @@ public:
    * used if #providesEdgeStrings returns true.
    * */
   virtual std::string edgeString(uint64_t f, uint64_t t) const = 0;
+
+private:
+  virtual void noWeakVTables();
 };
 std::string getSummary(const FwdEdges &edges,
                        const NodeInfoGetter &,

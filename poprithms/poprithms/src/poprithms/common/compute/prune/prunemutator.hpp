@@ -40,10 +40,7 @@ public:
     graph().removeOutputs(opId, outs, OptionalTensorIds(outs.size()));
   }
 
-  void removeOp(OpId opId, const std::string &ctxt) final {
-    OptionalTensorIds optOuts(graph().nOutTensors(opId));
-    graph().removeOp(opId, optOuts, ctxt);
-  }
+  void removeOp(OpId opId, const std::string &ctxt) final;
 };
 
 } // namespace compute

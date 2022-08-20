@@ -16,6 +16,10 @@ namespace poprithms {
 namespace program {
 namespace prune {
 
+void Mutator::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 TensorIds Pruner::unpruneable(const callstack::Querier &querier,
                               const SubGraphIds &callables,
                               const TensorIds &unpruneableBackSources) {

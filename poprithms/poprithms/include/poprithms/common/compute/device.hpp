@@ -85,6 +85,9 @@ private:
    * semantics, we don't expect many more device types to be added.
    * */
   DeviceType deviceType_;
+
+private:
+  virtual void noWeakVTables();
 };
 
 std::ostream &operator<<(std::ostream &oss, const Device &);

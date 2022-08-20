@@ -80,6 +80,8 @@ public:
 
 private:
   poprithms::util::CircularCounters<OpId> counters;
+
+  virtual void noWeakVTables();
 };
 
 } // namespace compute

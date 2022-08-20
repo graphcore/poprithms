@@ -82,6 +82,9 @@ public:
    * */
   virtual OptionalTensorIds getInGrads(OpId,
                                        const ToGradGraph &toGradGraph) = 0;
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace core

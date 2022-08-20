@@ -39,7 +39,6 @@ SimTensorMap initHostSimTensors(const Graph &m) {
 
   return htm;
 }
-} // namespace
 
 class SimState final : public ISimState {
 public:
@@ -58,6 +57,8 @@ private:
   SimTensorMap *pSimTensorMap;
   const SimExecutable &simExecutable;
 };
+
+} // namespace
 
 void SimExecutable::executableSpecificRun(const SubGraphId subGraphId) {
   const auto schedule = schedules.at(subGraphId);

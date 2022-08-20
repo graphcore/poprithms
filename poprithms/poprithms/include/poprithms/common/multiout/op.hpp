@@ -331,6 +331,9 @@ private:
 
   friend class multiout::Graph;
 
+private:
+  virtual void noWeakVTables();
+
 protected:
   [[noreturn]] void unimplemented(const std::string & = {}) const;
 };

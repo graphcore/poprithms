@@ -251,6 +251,8 @@ private:
   // Retrieve stopwatch (name) of 'id'. If 'id' is not valid, an error is
   // thrown.
   std::string stopwatch(StopwatchId id) const;
+
+  virtual void noWeakVTables();
 };
 
 /**

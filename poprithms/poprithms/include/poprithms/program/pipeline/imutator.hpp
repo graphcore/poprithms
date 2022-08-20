@@ -205,6 +205,9 @@ public:
     setName(x, n);
     return x;
   }
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace pipeline

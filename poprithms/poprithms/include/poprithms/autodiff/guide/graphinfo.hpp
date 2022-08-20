@@ -137,6 +137,9 @@ public:
 
   TensorId inTensorId(const OpTraversal &ot) const;
   TensorIds outTensorIds(OpId) const;
+
+private:
+  virtual void noWeakVTables();
 };
 } // namespace guide
 

@@ -25,6 +25,11 @@ using common::multiout::TensorId;
 using common::multiout::TensorIds;
 using common::schedulable::SubGraphId;
 
+std::string MemoryAliasMapper::external() const {
+  return "poprithms::common::compute";
+}
+
+namespace {
 /**
  * Just-in-time helper class for adding (growing) only the tensors necessary,
  * when necessary.
@@ -69,6 +74,8 @@ public:
     return mam.has(tId);
   }
 };
+
+} // namespace
 
 void MemoryAliasMapper::extend(const TensorIds &tIds) {
   JitAliasGrower jag(computeGraph, *this);

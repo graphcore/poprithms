@@ -142,9 +142,7 @@ private:
   UpOp cloneWithState(const State &s) const final;
   bool computeTypeSpecificEqualTo(const Op &) const final;
 
-  void unaryCompute(const HostTensor &, const HostTensor &out) const final {
-    out.update_(val_);
-  }
+  void unaryCompute(const HostTensor &, const HostTensor &out) const final;
 
   // verify that val_ has only 1 element.
   void unaryElementwiseDerivedVerifyValid() const final;
@@ -181,8 +179,8 @@ public:
   static constexpr const char *OpTypeName = "Cast";
 
 private:
-  std::vector<InIndex> autodiffRequiredIns() const final { return {}; }
-  std::vector<OutIndex> autodiffRequiredOuts() const final { return {}; }
+  std::vector<InIndex> autodiffRequiredIns() const final;
+  std::vector<OutIndex> autodiffRequiredOuts() const final;
 
   /**
    * Gradient propagates if neither the input nor the output types are fixed
@@ -266,9 +264,7 @@ public:
   static constexpr const char *OpTypeName = "Exp";
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &o) const final {
-    o.update_(i.exp());
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &o) const final;
   OutType outType() const final { return OutType::Preserving; }
 
   /**
@@ -287,9 +283,7 @@ public:
   static constexpr const char *OpTypeName = "Exp_";
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &) const final {
-    i.exp_();
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &) const final;
 
   /**
    * Output value depends on input value.
@@ -307,9 +301,7 @@ public:
   static constexpr const char *OpTypeName = "Neg";
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &o) const final {
-    o.update_(i.neg());
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &o) const final;
   OutType outType() const final { return OutType::Preserving; }
 
   /**
@@ -328,9 +320,7 @@ public:
   static constexpr const char *OpTypeName = "Neg_";
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &) const final {
-    i.neg_();
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &) const final;
 
   /**
    * Output value depends on input value.
@@ -351,9 +341,7 @@ public:
   static constexpr const char *OpTypeName = "Inv";
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &o) const final {
-    o.update_(i.inverse());
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &o) const final;
   OutType outType() const final { return OutType::Preserving; }
 
   /**
@@ -375,9 +363,7 @@ public:
   static constexpr const char *OpTypeName = "Inv_";
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &) const final {
-    i.inverse_();
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &) const final;
 
   /**
    * Output value depends on input value.
@@ -395,9 +381,7 @@ public:
   static constexpr const char *OpTypeName = "Sqrt";
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &o) const final {
-    o.update_(i.sqrt());
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &o) const final;
   OutType outType() const final { return OutType::Preserving; }
 
   /**
@@ -416,9 +400,7 @@ public:
   static constexpr const char *OpTypeName = "Sqrt_";
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &) const final {
-    i.sqrt_();
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &) const final;
 
   /**
    * Output value depends on input value.
@@ -433,9 +415,7 @@ public:
   Sin(const State &s) : Attributeless(s) {}
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &o) const final {
-    o.update_(i.sin());
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &o) const final;
   std::vector<InIndex> autodiffRequiredIns() const final { return {0}; }
   std::vector<OutIndex> autodiffRequiredOuts() const final { return {}; }
   bool gradientPropagates(OutIndex, InIndex) const final { return true; }
@@ -446,6 +426,7 @@ private:
   OptionalTensors bprop(const GradOpIns &gIns) const final {
     return {gIns.input(0).cos() * gIns.gradOfOutput(0)};
   }
+
   OutType outType() const final { return OutType::Preserving; }
 
   /**
@@ -461,9 +442,7 @@ public:
   static constexpr const char *OpTypeName = "Sin_";
 
 private:
-  void unaryCompute(const HostTensor &, const HostTensor &o) const final {
-    o.sin_();
-  }
+  void unaryCompute(const HostTensor &, const HostTensor &o) const final;
   std::string whyNoAutodiff() const final { return nonMonotonicInplace(); }
 
   /**
@@ -476,9 +455,7 @@ class Abs final : public Attributeless<UnaryElementwiseOutplace, Abs> {
 public:
   static constexpr const char *OpTypeName = "Abs";
   Abs(const State &s) : Attributeless(s) {}
-  void unaryCompute(const HostTensor &i, const HostTensor &o) const final {
-    o.update_(i.abs());
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &o) const final;
 
 private:
   std::vector<InIndex> autodiffRequiredIns() const final { return {0}; }
@@ -503,9 +480,7 @@ public:
   static constexpr const char *OpTypeName = "Abs_";
 
 private:
-  void unaryCompute(const HostTensor &, const HostTensor &o) const final {
-    o.abs_();
-  }
+  void unaryCompute(const HostTensor &, const HostTensor &o) const final;
   std::string whyNoAutodiff() const final {
     return UnaryElementwiseInplace_::nonMonotonicInplace();
   }
@@ -522,9 +497,7 @@ public:
   Cos(const State &s) : Attributeless(s) {}
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &o) const final {
-    o.update_(i.cos());
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &o) const final;
   std::vector<InIndex> autodiffRequiredIns() const final { return {0}; }
   std::vector<OutIndex> autodiffRequiredOuts() const final { return {}; }
   bool gradientPropagates(OutIndex, InIndex) const final { return true; }
@@ -550,9 +523,7 @@ public:
   static constexpr const char *OpTypeName = "Cos_";
 
 private:
-  void unaryCompute(const HostTensor &, const HostTensor &o) const final {
-    o.cos_();
-  }
+  void unaryCompute(const HostTensor &, const HostTensor &o) const final;
 
   /**
    * Output value depends on input value.
@@ -577,9 +548,7 @@ public:
   static constexpr const char *OpTypeName = "Signum";
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &o) const final {
-    o.update_(i.sign());
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &o) const final;
 
   // Note that the output type is NOT a small integer. It is the same as the
   // input type.
@@ -598,9 +567,7 @@ public:
   static constexpr const char *OpTypeName = "Signum_";
 
 private:
-  void unaryCompute(const HostTensor &i, const HostTensor &) const final {
-    i.sign_();
-  }
+  void unaryCompute(const HostTensor &i, const HostTensor &) const final;
 
   /**
    * Output value depends on input value.

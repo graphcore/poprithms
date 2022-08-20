@@ -10,6 +10,8 @@
 #include <tuple>
 #include <vector>
 
+#include <common/compute/error.hpp>
+
 #include <poprithms/common/compute/slickgraph.hpp>
 
 namespace poprithms {
@@ -105,6 +107,10 @@ std::ostream &operator<<(std::ostream &ost, const SlickGraph &g) {
   }
 
   return ost;
+}
+
+void SlickGraph::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
 }
 
 } // namespace compute

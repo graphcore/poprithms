@@ -78,6 +78,9 @@ public:
    * Get the ids of the tensors in #tensors.
    * */
   static TensorIds getIds(const Tensors &tensors);
+
+private:
+  virtual void noWeakVTables() override;
 };
 
 std::ostream &operator<<(std::ostream &ost, const SlickGraph &g);

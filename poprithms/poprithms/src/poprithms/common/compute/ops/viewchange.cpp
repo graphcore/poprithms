@@ -298,6 +298,8 @@ OptionalTensors Concat_::bprop(const GradOpIns &gIns) const {
   return OptionalTensor::fromTensors(slice_(gIns.gradOfOutput(0)));
 }
 
+void ViewChange_::resetRootRef(OutIndex, const TensorId &) { invalid(); }
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

@@ -130,9 +130,7 @@ public:
     return CallEvent(opId, op(opId).callee(ci), ci);
   }
 
-  bool isDefinitelyAllConstZero(const TensorId &tId) const final {
-    return AliasGraphQuerier::isAllConstZero(graph_, tId);
-  }
+  bool isDefinitelyAllConstZero(const TensorId &tId) const final;
 
   Shape shape(const TensorId &tId) const final { return graph_.shape(tId); }
 

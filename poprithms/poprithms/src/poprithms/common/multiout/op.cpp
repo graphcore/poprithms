@@ -364,6 +364,8 @@ void Op::verifyNTensors(Port p, uint64_t expected) const {
   }
 }
 
+void Op::noWeakVTables() { throw error(error::error::weakVTableMessage()); }
+
 } // namespace multiout
 } // namespace common
 } // namespace poprithms

@@ -160,6 +160,16 @@ void ReduceAcrossReplicas::computeDerivedVerifyValid() const {
   }
 }
 
+UpOp ReduceSumAcrossReplicas_::cloneWithState(const Op::State &s) const {
+  return std::unique_ptr<ReduceSumAcrossReplicas_>(
+      new ReduceSumAcrossReplicas_(s, grouping()));
+}
+
+UpOp ReduceSumAcrossReplicas::cloneWithState(const Op::State &s) const {
+  return std::unique_ptr<ReduceSumAcrossReplicas>(
+      new ReduceSumAcrossReplicas(s, grouping()));
+}
+
 } // namespace compute
 } // namespace common
 } // namespace poprithms

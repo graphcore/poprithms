@@ -313,10 +313,7 @@ public:
     return poprithms::compute::host::CommutativeOp::Sum;
   }
 
-  UpOp cloneWithState(const Op::State &s) const final {
-    return std::unique_ptr<ReduceSumAcrossReplicas_>(
-        new ReduceSumAcrossReplicas_(s, grouping()));
-  }
+  UpOp cloneWithState(const Op::State &s) const final;
 };
 
 /**
@@ -332,10 +329,7 @@ public:
       : WithAutodiff(s, stridePartition) {}
   std::string typeString() const final { return "ReduceSumAcrossReplicas"; }
 
-  UpOp cloneWithState(const Op::State &s) const final {
-    return std::unique_ptr<ReduceSumAcrossReplicas>(
-        new ReduceSumAcrossReplicas(s, grouping()));
-  }
+  UpOp cloneWithState(const Op::State &s) const final;
 
   poprithms::compute::host::CommutativeOp cop() const final {
     return poprithms::compute::host::CommutativeOp::Sum;

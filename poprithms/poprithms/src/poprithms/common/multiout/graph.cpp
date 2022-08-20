@@ -792,6 +792,10 @@ TensorIds Graph::onPathTo(const TensorIds &ids) const {
       BasicBack(*this), ids, [](const TensorId &) { return true; });
 }
 
+void Graph::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 } // namespace multiout
 } // namespace common
 

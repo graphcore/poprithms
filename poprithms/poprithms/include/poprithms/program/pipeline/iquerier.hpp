@@ -65,6 +65,9 @@ public:
   TensorIds outTensorIds(OpId opId) const;
 
   OutIndices outIndices(OpId) const;
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace pipeline

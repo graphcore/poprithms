@@ -87,10 +87,7 @@ private:
                               const OptionalTensors &fwdOutGrads) = 0;
 
   OptionalTensorIds backwards(const TensorIds &fwdOuts,
-                              const OptionalTensorIds &fwdOutGrads) final {
-    return OptionalTensor::fromOptionalTensors(
-        bwd(g().tensors(fwdOuts), g().getOptionalTensors(fwdOutGrads)));
-  }
+                              const OptionalTensorIds &fwdOutGrads) final;
 
   Autodiffer<SlickGraph> &ad_;
   SlickGraph &g() { return ad_.graph(); }

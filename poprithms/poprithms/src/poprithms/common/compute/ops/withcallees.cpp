@@ -527,6 +527,18 @@ void Call::withCalleesTypeSpecificAssertValid() const {
   }
 }
 
+void IHostRunner::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
+void SimHostRunner::run(SubGraphId sgId) const {
+  OpIds schedule = simState.schedule(sgId);
+  using namespace poprithms::schedule;
+  for (auto opId : schedule) {
+    simState.graph().computeOp(opId).runSim(simState);
+  }
+}
+
 bool Call::gradientPropagates(OutIndex o, InIndex i) const {
 
   auto doesPropagate =
@@ -892,6 +904,7 @@ void Repeat::verifyFirstIsSecondStacked(const TensorId &stacked,
       repeatCount(), stackedShape, unstackedShape);
 }
 
+namespace {
 class RepeatHelper final
     : public poprithms::autodiff::automatic::IRepeatQuerier {
   const Repeat &r;
@@ -931,6 +944,8 @@ public:
   }
   uint64_t repeatCount() const final { return r.repeatCount(); }
 };
+
+} // namespace
 
 poprithms::autodiff::guide::Objective
 Repeat::localObjective(CalleeIndex calleeIndex,

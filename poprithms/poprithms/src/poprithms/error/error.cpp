@@ -53,6 +53,13 @@ std::string error::formatMessage(const std::string &base,
   return withStackTrace(prefix);
 }
 
+std::string error::weakVTableMessage() {
+  return "This out-of-line virtual method implementation is to avoid "
+         "vtable copies. It is a dummy method which should not be called. ";
+}
+
+void error::noWeakVTables() { throw error("error", weakVTableMessage()); }
+
 } // namespace error
 
 namespace test {

@@ -58,6 +58,15 @@ private:
                                    const std::string &what);
 
   Code code_;
+
+  virtual void noWeakVTables();
+
+public:
+  /**
+   * Some classes have a dummy virtual method with an out-of-line definition.
+   * For more information, see the compiler option Wweak-vtable.
+   * */
+  static std::string weakVTableMessage();
 };
 
 } // namespace error
