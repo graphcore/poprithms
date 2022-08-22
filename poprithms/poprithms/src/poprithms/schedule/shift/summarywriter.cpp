@@ -232,6 +232,10 @@ void SwitchSummaryWriter::appendLivenessProfile(
 SwitchSummaryWriter::SwitchSummaryWriter()
     : allInfo(std::make_unique<AllInfo>()) {}
 
+void ISummaryWriter::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 } // namespace shift
 } // namespace schedule
 } // namespace poprithms

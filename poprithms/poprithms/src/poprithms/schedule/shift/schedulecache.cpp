@@ -11,6 +11,10 @@ namespace poprithms {
 namespace schedule {
 namespace shift {
 
+void IScheduleCache::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 std::pair<bool, std::vector<OpAddress>>
 ScheduleCache::findExactStart(const Graph &graph,
                               const RotationTermination &rt) const {

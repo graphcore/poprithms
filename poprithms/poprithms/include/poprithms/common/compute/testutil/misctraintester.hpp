@@ -14,8 +14,8 @@ namespace testutil {
  * */
 class MiscTrainTester : public PolyExecutableTester {
 public:
-  MiscTrainTester()          = default;
-  virtual ~MiscTrainTester() = default;
+  MiscTrainTester();
+  virtual ~MiscTrainTester();
 
   void testRepeatedAddInput();
 

@@ -19,6 +19,9 @@ namespace common {
 namespace compute {
 namespace testutil {
 
+MiscTrainTester::MiscTrainTester()  = default;
+MiscTrainTester::~MiscTrainTester() = default;
+
 using Autodiffer = Autodiffer<SlickGraph, AutomaticMutator>;
 
 void MiscTrainTester::testRepeatedAddInput() {

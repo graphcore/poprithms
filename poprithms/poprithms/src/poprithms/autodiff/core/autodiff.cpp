@@ -16,6 +16,10 @@ namespace poprithms {
 namespace autodiff {
 namespace core {
 
+void ToGradGraph::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 void GraphMutator::noWeakVTables() {
   throw error(error::error::weakVTableMessage());
 }

@@ -312,6 +312,9 @@ public:
 
   static void assertSameTypes(const ConstDataPtrs &);
   static void assertForConcat(const ConstDataPtrs &, const Shapes &inShapes);
+
+private:
+  virtual void noWeakVTables();
 };
 
 std::ostream &operator<<(std::ostream &ost, const BaseData &d);

@@ -149,6 +149,9 @@ private:
   TensorId id_;
   Shape shape_;
   Origins origins_;
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace alias

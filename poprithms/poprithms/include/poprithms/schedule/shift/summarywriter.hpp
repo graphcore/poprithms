@@ -55,6 +55,9 @@ public:
   virtual void writeInitialSchedule(const std::vector<OpAddress> &) const = 0;
 
   virtual void writeFinalSchedule(const std::vector<OpAddress> &) const = 0;
+
+private:
+  virtual void noWeakVTables();
 };
 
 class FileWriter : public ISummaryWriter {

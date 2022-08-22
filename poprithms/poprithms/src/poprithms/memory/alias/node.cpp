@@ -1,4 +1,6 @@
 // Copyright (c) 2020 Graphcore Ltd. All rights reserved.
+#include <memory/alias/error.hpp>
+
 #include <poprithms/memory/alias/node.hpp>
 
 namespace poprithms {
@@ -37,6 +39,8 @@ bool Node::operator==(const Node &rhs) const {
   return ins_ == rhs.ins_ && outs_ == rhs.outs_ && id_ == rhs.id_ &&
          typeString() == rhs.typeString();
 }
+
+void Node::noWeakVTables() { throw error(error::error::weakVTableMessage()); }
 
 } // namespace alias
 } // namespace memory

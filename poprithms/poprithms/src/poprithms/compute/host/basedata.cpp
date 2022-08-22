@@ -14,6 +14,10 @@ namespace poprithms {
 namespace compute {
 namespace host {
 
+void BaseData::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
 std::ostream &operator<<(std::ostream &ost, const BaseData &d) {
   d.append(ost);
   return ost;

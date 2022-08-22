@@ -44,7 +44,7 @@ class Op : public SchedulableOp {
 public:
   Op(const State &st) : SchedulableOp(st) {}
 
-  bool isConstraintPhobic() const final { return false; }
+  bool isConstraintPhobic() const final;
 
   // This class is just for testing, so we're not going to support Graph or Op
   // comparison.

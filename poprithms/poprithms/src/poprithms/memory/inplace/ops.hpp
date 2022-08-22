@@ -112,7 +112,7 @@ class ViewChange1to1 : public Op {
 public:
   ViewChange1to1(const State &st) : Op(st) {}
   bool modifies(InIndex) const final { return false; }
-  bool isView(InIndex, OutIndex) const final { return true; }
+  bool isView(InIndex, OutIndex) const final;
 
 private:
 };

@@ -12,6 +12,63 @@ namespace poprithms {
 namespace schedule {
 namespace shift {
 
+void TransitiveClosureOptimizations::Option::noWeakVTables() {
+  throw error(error::error::weakVTableMessage());
+}
+
+TransitiveClosureOptim
+TransitiveClosureOptimizations::LinkTightDrops::getEnum() const {
+  return TransitiveClosureOptim::LinkTightDrops;
+}
+
+TransitiveClosureOptim
+TransitiveClosureOptimizations::LinkCloseTightPairs::getEnum() const {
+  return TransitiveClosureOptim::LinkCloseTightPairs;
+}
+
+TransitiveClosureOptim
+TransitiveClosureOptimizations::ConstrainWeightSeparatedGroups::getEnum()
+    const {
+  return TransitiveClosureOptim::ConstrainWeightSeparatedGroups;
+}
+
+TransitiveClosureOptim
+TransitiveClosureOptimizations::ConstrainParallelChains::getEnum() const {
+  return TransitiveClosureOptim::ConstrainParallelChains;
+}
+
+TransitiveClosureOptim
+TransitiveClosureOptimizations::CombineAllocsWithCommonOps::getEnum() const {
+  return TransitiveClosureOptim::CombineAllocsWithCommonOps;
+}
+
+TransitiveClosureOptim
+TransitiveClosureOptimizations::DisconnectAllocsWithOneOp::getEnum() const {
+  return TransitiveClosureOptim::DisconnectAllocsWithOneOp;
+}
+
+TransitiveClosureOptim
+TransitiveClosureOptimizations::DisconnectAllocsWithZeroWeight::getEnum()
+    const {
+  return TransitiveClosureOptim::DisconnectAllocsWithZeroWeight;
+}
+
+TransitiveClosureOptim
+TransitiveClosureOptimizations::DisconnectInbetweenerAllocs::getEnum() const {
+  return TransitiveClosureOptim::DisconnectInbetweenerAllocs;
+}
+
+TransitiveClosureOptim
+TransitiveClosureOptimizations::DisconnectFixedDurationAllocs::getEnum()
+    const {
+  return TransitiveClosureOptim::DisconnectFixedDurationAllocs;
+}
+
+TransitiveClosureOptim
+TransitiveClosureOptimizations::ConnectContiguousAllocs::getEnum() const {
+  return TransitiveClosureOptim::ConnectContiguousAllocs;
+}
+
 std::ostream &operator<<(std::ostream &os,
                          const TransitiveClosureOptimizations &tcos) {
   tcos.append(os);

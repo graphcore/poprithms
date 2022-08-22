@@ -221,85 +221,67 @@ private:
   private:
     bool on_{false};
     std::string name() const { return str(getEnum()); }
+
+    virtual void noWeakVTables();
   };
 
   struct LinkTightDrops : public Option {
     LinkTightDrops(bool on) : Option(on) {}
-    TransitiveClosureOptim getEnum() const final {
-      return TransitiveClosureOptim::LinkTightDrops;
-    }
+    TransitiveClosureOptim getEnum() const final;
   } linkTightDrops_;
 
   struct LinkCloseTightPairs : public Option {
     LinkCloseTightPairs(bool on) : Option(on) {}
-
-    TransitiveClosureOptim getEnum() const final {
-      return TransitiveClosureOptim::LinkCloseTightPairs;
-    }
+    TransitiveClosureOptim getEnum() const final;
   } linkCloseTightPairs_;
 
   struct ConstrainWeightSeparatedGroups : public Option {
     ConstrainWeightSeparatedGroups(bool on) : Option(on) {}
 
-    TransitiveClosureOptim getEnum() const final {
-      return TransitiveClosureOptim::ConstrainWeightSeparatedGroups;
-    }
+    TransitiveClosureOptim getEnum() const final;
   } constrainWeightSeparatedGroups_;
 
   struct ConstrainParallelChains : public Option {
     ConstrainParallelChains(bool on) : Option(on) {}
 
-    TransitiveClosureOptim getEnum() const final {
-      return TransitiveClosureOptim::ConstrainParallelChains;
-    }
+    TransitiveClosureOptim getEnum() const final;
   } constrainParallelChains_;
 
   struct CombineAllocsWithCommonOps : public Option {
     CombineAllocsWithCommonOps(bool on) : Option(on) {}
 
-    TransitiveClosureOptim getEnum() const final {
-      return TransitiveClosureOptim::CombineAllocsWithCommonOps;
-    }
+    TransitiveClosureOptim getEnum() const final;
   } combineAllocsWithCommonOps_;
 
   struct DisconnectAllocsWithOneOp : public Option {
     DisconnectAllocsWithOneOp(bool on) : Option(on) {}
 
-    TransitiveClosureOptim getEnum() const final {
-      return TransitiveClosureOptim::DisconnectAllocsWithOneOp;
-    }
+    TransitiveClosureOptim getEnum() const final;
+
   } disconnectAllocsWithOneOp_;
 
   struct DisconnectAllocsWithZeroWeight : public Option {
     DisconnectAllocsWithZeroWeight(bool on) : Option(on) {}
 
-    TransitiveClosureOptim getEnum() const final {
-      return TransitiveClosureOptim::DisconnectAllocsWithZeroWeight;
-    }
+    TransitiveClosureOptim getEnum() const final;
   } disconnectAllocsWithZeroWeight_;
 
   struct DisconnectInbetweenerAllocs : public Option {
     DisconnectInbetweenerAllocs(bool on) : Option(on) {}
 
-    TransitiveClosureOptim getEnum() const final {
-      return TransitiveClosureOptim::DisconnectInbetweenerAllocs;
-    }
+    TransitiveClosureOptim getEnum() const final;
   } disconnectInbetweenerAllocs_;
 
   struct DisconnectFixedDurationAllocs : public Option {
     DisconnectFixedDurationAllocs(bool on) : Option(on) {}
 
-    TransitiveClosureOptim getEnum() const final {
-      return TransitiveClosureOptim::DisconnectFixedDurationAllocs;
-    }
+    TransitiveClosureOptim getEnum() const final;
   } disconnectFixedDurationAllocs_;
 
   struct ConnectContiguousAllocs : public Option {
     ConnectContiguousAllocs(bool on) : Option(on) {}
 
-    TransitiveClosureOptim getEnum() const final {
-      return TransitiveClosureOptim::ConnectContiguousAllocs;
-    }
+    TransitiveClosureOptim getEnum() const final;
   } connectContiguousAllocs_;
 
   int maxNumberOfIterations;

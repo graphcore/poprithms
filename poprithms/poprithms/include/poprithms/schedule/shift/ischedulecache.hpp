@@ -27,6 +27,9 @@ public:
   virtual void writeExactStart(Graph &&g,
                                const RotationTermination &rt,
                                const std::vector<OpAddress> &soln) = 0;
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace shift

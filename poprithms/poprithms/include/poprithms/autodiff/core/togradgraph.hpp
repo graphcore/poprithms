@@ -56,6 +56,9 @@ public:
   TensorId getNonGrad(const TensorId &inNonGrad) const;
 
   virtual std::string str(const TensorId &) const = 0;
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace core

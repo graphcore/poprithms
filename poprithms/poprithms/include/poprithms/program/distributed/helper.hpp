@@ -62,6 +62,9 @@ public:
    * callee sub-graphs of all ops which have callees.
    * */
   SubGraphIds userReachable() const;
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace distributed

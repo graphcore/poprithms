@@ -31,6 +31,9 @@ public:
 
   // select all algorithm specific arguments from m
   StringMap getAlgoCommandLineOptionsMap(const StringMap &m) const;
+
+private:
+  virtual void noWeakVTables();
 };
 
 } // namespace schedule

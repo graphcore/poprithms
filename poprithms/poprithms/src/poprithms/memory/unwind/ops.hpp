@@ -20,7 +20,8 @@ using nest::Region;
 class NonInput : public Op {
 public:
   NonInput(const State &st) : Op(st) {}
-  virtual bool isSink(OutIndex) const { return false; }
+  // Default: return false;
+  virtual bool isSink(OutIndex) const;
   virtual bool isSource(OutIndex) const { return false; }
 };
 
@@ -57,7 +58,7 @@ public:
 class Sink : public Input {
 public:
   Sink(const State &st) : Input(st) {}
-  std::string typeString() const final { return "Sink"; }
+  std::string typeString() const final;
   UpMultioutOp cloneMultioutOp() const final { return Op::mu<Sink>(this); }
   virtual bool isSink(OutIndex) const { return true; }
   virtual bool isSource(OutIndex) const { return false; }
@@ -188,7 +189,7 @@ private:
 class Identity : public ViewChange1to1 {
 public:
   Identity(const State &st) : ViewChange1to1(st) {}
-  std::string typeString() const final { return "Identity"; }
+  std::string typeString() const final;
   UpMultioutOp cloneMultioutOp() const final {
     return Op::mu<Identity>(this);
   }
@@ -219,7 +220,7 @@ public:
 class Barrier : public BaseBarrier {
 public:
   Barrier(const State &st) : BaseBarrier(st) {}
-  std::string typeString() const final { return "Barrier"; }
+  std::string typeString() const final;
   UpMultioutOp cloneMultioutOp() const final { return Op::mu<Barrier>(this); }
 
 private:
@@ -229,7 +230,7 @@ private:
 class SumLikeReduce : public BaseBarrier {
 public:
   SumLikeReduce(const State &st) : BaseBarrier(st) {}
-  std::string typeString() const final { return "SumLikeReduce"; }
+  std::string typeString() const final;
   UpMultioutOp cloneMultioutOp() const final {
     return Op::mu<SumLikeReduce>(this);
   }

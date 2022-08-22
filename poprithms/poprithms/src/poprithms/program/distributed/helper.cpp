@@ -42,6 +42,11 @@ SubGraphIds Helper::userReachable() const {
   return reachable;
 }
 
+void Helper::noWeakVTables() {
+  throw poprithms::error::error("distributed",
+                                poprithms::error::error::weakVTableMessage());
+}
+
 } // namespace distributed
 } // namespace program
 } // namespace poprithms

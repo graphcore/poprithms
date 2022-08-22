@@ -8,6 +8,8 @@
 
 #include <testutil/schedule/commandlineoptions.hpp>
 
+#include <poprithms/error/error.hpp>
+
 namespace poprithms {
 namespace schedule {
 
@@ -84,6 +86,10 @@ CommandLineOptions::StringMap CommandLineOptions::getCommandLineOptionsMap(
     }
   }
   return m;
+}
+
+void CommandLineOptions::noWeakVTables() {
+  throw std::runtime_error(poprithms::error::error::weakVTableMessage());
 }
 
 } // namespace schedule

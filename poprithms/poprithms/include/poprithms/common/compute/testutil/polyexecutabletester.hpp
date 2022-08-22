@@ -49,6 +49,9 @@ private:
   virtual std::unique_ptr<IExecutable> getCompiledSlickGraph(Graph &m) = 0;
 
   std::unique_ptr<IExecutable> uptrCompiledGraph;
+
+private:
+  virtual void noWeakVTables();
 };
 
 template <typename BaseTester> class SimTester : public BaseTester {

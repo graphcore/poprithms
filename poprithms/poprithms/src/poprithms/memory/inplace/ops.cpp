@@ -419,6 +419,8 @@ InIndex AliasGate::inIndex() const {
   return inIndex_;
 }
 
+bool ViewChange1to1::isView(InIndex, OutIndex) const { return true; }
+
 } // namespace inplace
 } // namespace memory
 } // namespace poprithms

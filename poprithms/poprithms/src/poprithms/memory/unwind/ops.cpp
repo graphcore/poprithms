@@ -37,6 +37,14 @@ template <class... Args> std::string strcat(Args &&...args) {
 
 } // namespace
 
+bool NonInput::isSink(OutIndex) const { return false; }
+
+std::string Sink::typeString() const { return "Sink"; }
+
+std::string Identity::typeString() const { return "Identity"; }
+std::string Barrier::typeString() const { return "Barrier"; }
+std::string SumLikeReduce::typeString() const { return "SumLikeReduce"; }
+
 // -------- //
 //  Concat  //
 // -------- //

@@ -16,6 +16,11 @@ namespace common {
 namespace compute {
 namespace testutil {
 
+void PolyExecutableTester::noWeakVTables() {
+  throw poprithms::error::error("testutil",
+                                error::error::weakVTableMessage());
+}
+
 void RepeatTester::testLadder0() {
 
   /**

@@ -214,6 +214,7 @@ std::vector<std::vector<uint64_t>> getCycles(const SCCs &sccs,
 // >    31_delta   3     (4)
 // >    32_epsilon 4     (2)
 
+namespace {
 class NodeInfoGetterFromStrings final : public NodeInfoGetter {
 private:
   const std::vector<std::string> &dbs;
@@ -225,6 +226,7 @@ public:
   bool providesEdgeStrings() const final { return false; }
   std::string edgeString(uint64_t, uint64_t) const final { return {}; }
 };
+} // namespace
 
 std::string getSummary(const FwdEdges &edges,
                        const std::vector<std::string> &dbs,

@@ -12,6 +12,8 @@
 namespace poprithms {
 namespace unwindtoy {
 
+bool Op::isConstraintPhobic() const { return false; }
+
 using State = poprithms::common::schedulable::Op::State;
 
 void Op::growUnwind(FullState &u) const {
