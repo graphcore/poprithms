@@ -15,6 +15,10 @@ void IScheduleCache::noWeakVTables() {
   throw error(error::error::weakVTableMessage());
 }
 
+IScheduleCache::~IScheduleCache() = default;
+
+IScheduleCache::IScheduleCache() = default;
+
 std::pair<bool, std::vector<OpAddress>>
 ScheduleCache::findExactStart(const Graph &graph,
                               const RotationTermination &rt) const {

@@ -21,6 +21,9 @@ class ScheduledGraph;
 class IScheduleCache {
 
 public:
+  virtual ~IScheduleCache();
+  IScheduleCache();
+
   virtual std::pair<bool, std::vector<OpAddress>>
   findExactStart(const Graph &g, const RotationTermination &r) const = 0;
 
