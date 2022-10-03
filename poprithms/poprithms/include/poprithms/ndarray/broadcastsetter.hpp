@@ -2,7 +2,6 @@
 #ifndef POPRITHMS_NDARRAY_SETBYBROADCAST_HPP
 #define POPRITHMS_NDARRAY_SETBYBROADCAST_HPP
 
-#include <poprithms/memory/chain/settutil.hpp>
 #include <poprithms/util/permutation.hpp>
 
 namespace poprithms {

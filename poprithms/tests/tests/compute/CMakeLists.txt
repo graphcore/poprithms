@@ -1,6 +1,6 @@
 function(add_compute_host_test_executable name source)
   add_executable(${name} ${source})
-  set(LIB_DEPS  poprithms-compute-host poprithms-util )
+  set(LIB_DEPS  poprithms-compute-host poprithms-memory-chain poprithms-util )
   if (${POPRITHMS_USE_STACKTRACE})
     list(APPEND LIB_DEPS ${CMAKE_DL_LIBS})
   endif()
